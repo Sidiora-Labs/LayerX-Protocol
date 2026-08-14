@@ -49,7 +49,9 @@ pub enum Domain {
 }
 
 impl Domain {
-    const fn tag(self) -> &'static [u8] {
+    /// Returns the exact NUL-terminated core domain tag.
+    #[must_use]
+    pub const fn tag(self) -> &'static [u8] {
         match self {
             Self::ActivityId => b"LXP/v1/activity-id\0",
             Self::PayloadHash => b"LXP/v1/payload-hash\0",

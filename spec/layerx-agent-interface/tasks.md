@@ -195,7 +195,7 @@ entirely on the spine being real.
 ## Wave 3 - Keys and Signing
 
 - [ ] 4. Build layerx-crypto, key custody and disclosure-bound signing
-  - [ ] 4.1 Implement Ed25519 and secp256k1 verification against core vectors
+  - [x] 4.1 Implement Ed25519 and secp256k1 verification against core vectors
     - Implement Ed25519 verification for agent identity over domain-separated canonical bytes and secp256k1 verification for Paxeer-facing certificates, matching the core acceptance and rejection behaviour exactly.
     - Reject non-canonical and malleable signature encodings, including high-order and non-reduced scalar forms, with the same classification the core uses.
     - Validate against the protocol crypto vectors, including the negative vectors, and fail the build on any acceptance or rejection divergence.

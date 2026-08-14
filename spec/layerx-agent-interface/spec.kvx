@@ -632,7 +632,7 @@ status = "pending"
 
 [task.4.1]
 title = "Implement Ed25519 and secp256k1 verification against core vectors"
-status = "pending"
+status = "done"
 wave = 3
 requires = ["3.4"]
 do_1 = "Implement Ed25519 verification for agent identity over domain-separated canonical bytes and secp256k1 verification for Paxeer-facing certificates, matching the core acceptance and rejection behaviour exactly."
