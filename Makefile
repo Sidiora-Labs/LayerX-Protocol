@@ -144,7 +144,7 @@ LIBRARY := $(BUILD_DIR)/liblayerx.a
 	test-wave-8 \
 	scan-consensus public-audit ci \
 	agent-build agent-test agent-lint agent-fuzz agent-check \
-	agent-test-errors
+	agent-test-errors agent-check-boundary
 
 all: build
 
@@ -1606,11 +1606,15 @@ agent-lint:
 agent-fuzz:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked --workspace --tests
 
-agent-check:
+agent-check: agent-check-boundary
 	$(AGENT_CARGO) check --manifest-path $(AGENT_MANIFEST) --locked --workspace --all-targets
 
 agent-test-errors:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-types --test errors
+
+agent-check-boundary:
+	$(AGENT_CARGO) test --manifest-path agent/tools/boundary-check/Cargo.toml --locked
+	$(AGENT_CARGO) run --manifest-path agent/tools/boundary-check/Cargo.toml --locked --quiet -- agent
 
 ci: public-audit test reproducible scan-consensus test-sanitizers
 

@@ -94,7 +94,7 @@ entirely on the spine being real.
     - Forbid by construction the mapping of a verification failure onto a transport error or the reverse, and add a test that enumerates every class and asserts the mapping is total and injective where it must be.
     - Add tests asserting that an unknown numeric result code survives a round trip through the error model with its value intact.
     - _Requirements: 3.4, 7.9, 13.10_
-  - [ ] 1.4 Build the boundary-purity CI gate
+  - [x] 1.4 Build the boundary-purity CI gate
     - Implement a checker that fails the build if any crate in agent/ declares a dependency on a SQLite driver, on a bindgen-style binding to include/layerx, or on any crate that links the C core.
     - Extend the checker to fail on any source reference to node-private file layouts, including log segment paths, projection database paths and snapshot directories.
     - Extend the checker to fail on any declaration that mirrors a C struct layout, including repr C types whose fields correspond to an include/layerx structure, unless the type is listed in the published stable ABI allowlist.

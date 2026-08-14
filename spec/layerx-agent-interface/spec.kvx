@@ -423,7 +423,7 @@ reqs = ["3.4","7.9","13.10"]
 
 [task.1.4]
 title = "Build the boundary-purity CI gate"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["1.2"]
 do_1 = "Implement a checker that fails the build if any crate in agent/ declares a dependency on a SQLite driver, on a bindgen-style binding to include/layerx, or on any crate that links the C core."
