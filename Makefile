@@ -1635,6 +1635,9 @@ agent-test-wire-primitives:
 agent-test-wire-structures:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-wire --test structures
 
+agent-test-wire-rejection:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-wire --test rejection
+
 agent-test-sanitize:
 	sh agent/tools/run-sanitizers.sh
 

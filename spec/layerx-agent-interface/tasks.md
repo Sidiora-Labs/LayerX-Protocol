@@ -163,7 +163,7 @@ entirely on the spine being real.
     - Assert against the corpora that every structure encodes byte-identically to the published vector and decodes to the identical logical value.
     - Add a test that decodes every vector, re-encodes it, and compares bytes, failing on the first divergence with the offending offset.
     - _Requirements: 4.1, 4.3, 4.7, 4.8_
-  - [ ] 3.3 Enforce non-canonical rejection and declared limits as a suite
+  - [x] 3.3 Enforce non-canonical rejection and declared limits as a suite
     - Consume the protocol non-canonical rejection corpus and assert this implementation rejects every case with the same rejection class the core assigns.
     - Add generated mutations of valid vectors, including reordered map keys, re-encoded lengths, appended bytes and shortened bytes, and assert rejection for every mutation that leaves the canonical form.
     - Assert that every declared maximum is enforced, using a generated case per bounded element that sits exactly at and exactly one past the limit.

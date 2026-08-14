@@ -136,9 +136,7 @@ impl<'a> Decoder<'a> {
         let length_offset = self.offset;
         let length = usize::try_from(self.u32()?)
             .map_err(|_| WireError::known(KnownResult::LengthLimit, length_offset))?;
-        if length > maximum {
-            return Err(WireError::known(KnownResult::LengthLimit, length_offset));
-        }
+        crate::limits::enforce(length, maximum, length_offset)?;
         self.take(length)
     }
 
@@ -189,9 +187,7 @@ impl<'a> Decoder<'a> {
         let offset = self.offset;
         let count = usize::try_from(self.u32()?)
             .map_err(|_| WireError::known(KnownResult::LengthLimit, offset))?;
-        if count > maximum {
-            return Err(WireError::known(KnownResult::LengthLimit, offset));
-        }
+        crate::limits::enforce(count, maximum, offset)?;
         Ok(count)
     }
 

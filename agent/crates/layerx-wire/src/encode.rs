@@ -105,9 +105,7 @@ impl Encoder {
     /// bound would be exceeded.
     pub fn bytes(&mut self, bytes: &[u8], maximum: usize) -> Result<(), WireError> {
         let offset = self.bytes.len();
-        if bytes.len() > maximum {
-            return Err(WireError::known(KnownResult::LengthLimit, offset));
-        }
+        crate::limits::enforce(bytes.len(), maximum, offset)?;
         let length = u32::try_from(bytes.len())
             .map_err(|_| WireError::known(KnownResult::LengthLimit, offset))?;
         let Some(required) = offset
@@ -149,9 +147,7 @@ impl Encoder {
     /// Returns length-limit when the count exceeds either bound.
     pub fn sequence_length(&mut self, count: usize, maximum: usize) -> Result<(), WireError> {
         let offset = self.bytes.len();
-        if count > maximum {
-            return Err(WireError::known(KnownResult::LengthLimit, offset));
-        }
+        crate::limits::enforce(count, maximum, offset)?;
         let count =
             u32::try_from(count).map_err(|_| WireError::known(KnownResult::LengthLimit, offset))?;
         self.u32(count)

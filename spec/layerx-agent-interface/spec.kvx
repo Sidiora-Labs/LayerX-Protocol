@@ -567,7 +567,7 @@ reqs = ["4.1","4.3","4.7","4.8"]
 
 [task.3.3]
 title = "Enforce non-canonical rejection and declared limits as a suite"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["3.1"]
 do_1 = "Consume the protocol non-canonical rejection corpus and assert this implementation rejects every case with the same rejection class the core assigns."
