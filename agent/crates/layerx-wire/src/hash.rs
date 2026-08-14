@@ -195,6 +195,19 @@ pub fn receipt_digest(unsigned_receipt: &[u8]) -> Result<[u8; 32], WireError> {
     )
 }
 
+/// Computes the core batch-header digest over the exact canonical header.
+///
+/// # Errors
+///
+/// Returns a length-limit error when the domain-prefixed input length cannot
+/// be represented safely.
+pub fn batch_header_digest(header: &[u8]) -> Result<[u8; 32], WireError> {
+    domain(
+        Domain::BatchHeader,
+        &CanonicalBytes::from_wire(header.to_vec()),
+    )
+}
+
 const INITIAL_STATE: [u32; 8] = [
     0x6a09_e667,
     0xbb67_ae85,

@@ -255,7 +255,7 @@ entirely on the spine being real.
     - Perform verification with no network access, no clock read and no database, proving it in a test that runs with those capabilities removed.
     - Add negative tests covering altered amount, altered recipient, re-signed receipt under a different key and mismatched roots.
     - _Requirements: 6.1, 6.7, 6.8, 1.10_
-  - [ ] 5.3 Verify activity inclusion and state inclusion proofs
+  - [x] 5.3 Verify activity inclusion and state inclusion proofs
     - Implement activity inclusion verification that recomputes activity_merkle_root from the leaf and path and matches it against the batch header commitment.
     - Implement state inclusion verification against a named resulting_state_root and verify that root against the batch header that claims it.
     - Verify the batch header signature against the sequencer identity authorised for that batch number, refusing a header signed by an unauthorised identity.

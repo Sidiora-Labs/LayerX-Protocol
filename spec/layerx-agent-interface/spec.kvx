@@ -757,7 +757,7 @@ reqs = ["6.1","6.7","6.8","1.10"]
 
 [task.5.3]
 title = "Verify activity inclusion and state inclusion proofs"
-status = "pending"
+status = "done"
 wave = 4
 requires = ["5.1"]
 do_1 = "Implement activity inclusion verification that recomputes activity_merkle_root from the leaf and path and matches it against the batch header commitment."

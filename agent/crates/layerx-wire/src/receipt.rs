@@ -476,6 +476,80 @@ pub struct BatchHeader {
     sequencer_id: [u8; 32],
 }
 
+impl BatchHeader {
+    /// Returns the node network identifier.
+    #[must_use]
+    pub const fn network_id(&self) -> u32 {
+        self.network_id
+    }
+
+    /// Returns the monotonically assigned batch number.
+    #[must_use]
+    pub const fn batch_number(&self) -> u64 {
+        self.batch_number
+    }
+
+    /// Returns the first global sequence committed by the batch.
+    #[must_use]
+    pub const fn first_sequence(&self) -> u64 {
+        self.first_sequence
+    }
+
+    /// Returns the last global sequence committed by the batch.
+    #[must_use]
+    pub const fn last_sequence(&self) -> u64 {
+        self.last_sequence
+    }
+
+    /// Returns the previous state-root commitment.
+    #[must_use]
+    pub const fn previous_state_root(&self) -> [u8; 32] {
+        self.previous_state_root
+    }
+
+    /// Returns the resulting state-root commitment.
+    #[must_use]
+    pub const fn resulting_state_root(&self) -> [u8; 32] {
+        self.resulting_state_root
+    }
+
+    /// Returns the activity Merkle-root commitment.
+    #[must_use]
+    pub const fn activity_merkle_root(&self) -> [u8; 32] {
+        self.activity_merkle_root
+    }
+
+    /// Returns the receipt Merkle-root commitment.
+    #[must_use]
+    pub const fn receipt_merkle_root(&self) -> [u8; 32] {
+        self.receipt_merkle_root
+    }
+
+    /// Returns the event Merkle-root commitment.
+    #[must_use]
+    pub const fn event_merkle_root(&self) -> [u8; 32] {
+        self.event_merkle_root
+    }
+
+    /// Returns the data-availability-root commitment.
+    #[must_use]
+    pub const fn data_availability_root(&self) -> [u8; 32] {
+        self.data_availability_root
+    }
+
+    /// Returns the oracle-root commitment.
+    #[must_use]
+    pub const fn oracle_root(&self) -> [u8; 32] {
+        self.oracle_root
+    }
+
+    /// Returns the sequencer identity committed by the header.
+    #[must_use]
+    pub const fn sequencer_id(&self) -> [u8; 32] {
+        self.sequencer_id
+    }
+}
+
 fn batch_field(decoder: &mut Decoder<'_>, expected: u8) -> Result<(), WireError> {
     let offset = decoder.offset();
     let actual = decoder
