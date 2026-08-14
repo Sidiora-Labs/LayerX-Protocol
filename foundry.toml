@@ -1,0 +1,19 @@
+[profile.default]
+src = "contracts"
+test = "test"
+out = "build/forge-artifacts"
+cache_path = "build/forge-cache"
+solc_version = "0.8.27"
+optimizer = true
+optimizer_runs = 100000
+via_ir = true
+bytecode_hash = "none"
+cbor_metadata = false
+
+[fuzz]
+runs = 10000
+
+[invariant]
+runs = 1000
+depth = 128
+fail_on_revert = true

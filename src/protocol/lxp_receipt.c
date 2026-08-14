@@ -1,0 +1,285 @@
+#include "layerx/lxp_receipt.h"
+
+#include "layerx/lxp_crypto.h"
+#include "layerx/lxp_merkle.h"
+
+#include <openssl/evp.h>
+#include <string.h>
+
+enum { LXP_RECEIPT_STRUCTURE_TAG = 0x5201 };
+
+static int effect_compare(const lxp_effect *left, const lxp_effect *right)
+{
+    if (left->module_id != right->module_id)
+        return left->module_id < right->module_id ? -1 : 1;
+    if (left->ordinal != right->ordinal)
+        return left->ordinal < right->ordinal ? -1 : 1;
+    return 0;
+}
+
+lxp_result lxp_effect_buffer_init(lxp_effect_buffer *buffer)
+{
+    if (buffer == NULL) return LXP_ERR_NON_CANONICAL;
+    (void)memset(buffer, 0, sizeof(*buffer));
+    return LXP_OK;
+}
+
+lxp_result lxp_effect_buffer_add(lxp_effect_buffer *buffer,
+                                 const lxp_effect *effect)
+{
+    if (buffer == NULL || effect == NULL || effect->module_id == 0U ||
+        effect->body_length > sizeof(effect->body))
+        return LXP_ERR_NON_CANONICAL;
+    if (effect->monetary && effect->kind != LXP_EFFECT_TRANSFER)
+        return LXP_FATAL_INVARIANT;
+    if (effect->kind == LXP_EFFECT_TRANSFER &&
+        lxp_ct_is_zero(effect->transfer_set_root, 32U))
+        return LXP_FATAL_INVARIANT;
+    if (buffer->count == LXP_MAX_EFFECTS) return LXP_ERR_LENGTH_LIMIT;
+    if (buffer->count != 0U &&
+        effect_compare(&buffer->effects[buffer->count - 1U], effect) >= 0)
+        return LXP_ERR_UNSORTED_SEQUENCE;
+    buffer->effects[buffer->count++] = *effect;
+    return LXP_OK;
+}
+
+static lxp_result effect_encode(lxp_codec_writer *writer,
+                                const lxp_effect *effect)
+{
+    lxp_result status = lxp_codec_write_u16(writer, effect->module_id);
+    if (status == LXP_OK) status = lxp_codec_write_u16(writer, effect->ordinal);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u16(writer, effect->event_type);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u8(writer, (uint8_t)effect->kind);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u8(writer, effect->monetary ? 1U : 0U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(writer, effect->transfer_set_root, 32U,
+                                       32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(writer, effect->body,
+                                       effect->body_length, 256U);
+    return status;
+}
+
+lxp_result lxp_effect_event_root(const lxp_effect_buffer *buffer,
+                                 lxp_arena *arena, uint8_t root[32])
+{
+    uint8_t hashes[LXP_MAX_EFFECTS][32];
+    size_t count = 0U;
+    size_t i;
+    lxp_result status;
+    if (buffer == NULL || arena == NULL || root == NULL)
+        return LXP_ERR_NON_CANONICAL;
+    for (i = 0U; i < buffer->count; ++i) {
+        uint8_t encoded[2U + 2U + 2U + 1U + 2U + 256U];
+        size_t length;
+        const lxp_effect *effect = &buffer->effects[i];
+        if (effect->kind != LXP_EFFECT_EVENT) continue;
+        encoded[0] = (uint8_t)(effect->module_id >> 8U);
+        encoded[1] = (uint8_t)effect->module_id;
+        encoded[2] = (uint8_t)(effect->ordinal >> 8U);
+        encoded[3] = (uint8_t)effect->ordinal;
+        encoded[4] = (uint8_t)(effect->event_type >> 8U);
+        encoded[5] = (uint8_t)effect->event_type;
+        encoded[6] = (uint8_t)effect->kind;
+        encoded[7] = (uint8_t)(effect->body_length >> 8U);
+        encoded[8] = (uint8_t)effect->body_length;
+        (void)memcpy(encoded + 9U, effect->body, effect->body_length);
+        length = 9U + effect->body_length;
+        status = lxp_merkle_leaf_hash(encoded, length, hashes[count]);
+        if (status != LXP_OK) return status;
+        ++count;
+    }
+    return lxp_merkle_build((const uint8_t (*)[32])hashes, count, arena, root);
+}
+
+lxp_result lxp_receipt_build(lxp_receipt *receipt,
+                             const uint8_t activity_id[32],
+                             uint64_t global_sequence,
+                             const uint8_t previous_state_root[32],
+                             const uint8_t resulting_state_root[32],
+                             const uint8_t activity_root[32],
+                             lxp_result result_code,
+                             const lxp_effect_buffer *effects,
+                             lxp_u128 fee_charged,
+                             const uint8_t batch_id[32], uint16_t module_id,
+                             uint32_t module_version,
+                             uint32_t parameter_version)
+{
+    uint8_t activity_id_copy[32];
+    uint8_t previous_copy[32];
+    uint8_t resulting_copy[32];
+    uint8_t activity_root_copy[32];
+    uint8_t batch_id_copy[32];
+    lxp_effect_buffer effects_copy;
+    if (receipt == NULL || activity_id == NULL || previous_state_root == NULL ||
+        resulting_state_root == NULL || activity_root == NULL ||
+        effects == NULL || batch_id == NULL || module_id == 0U ||
+        module_version == 0U) return LXP_ERR_NON_CANONICAL;
+    (void)memcpy(activity_id_copy, activity_id, 32U);
+    (void)memcpy(previous_copy, previous_state_root, 32U);
+    (void)memcpy(resulting_copy, resulting_state_root, 32U);
+    (void)memcpy(activity_root_copy, activity_root, 32U);
+    (void)memcpy(batch_id_copy, batch_id, 32U);
+    effects_copy = *effects;
+    (void)memset(receipt, 0, sizeof(*receipt));
+    receipt->protocol_version = LXP_PROTOCOL_VERSION;
+    (void)memcpy(receipt->activity_id, activity_id_copy, 32U);
+    receipt->global_sequence = global_sequence;
+    (void)memcpy(receipt->previous_state_root, previous_copy, 32U);
+    (void)memcpy(receipt->resulting_state_root, resulting_copy, 32U);
+    (void)memcpy(receipt->activity_root, activity_root_copy, 32U);
+    receipt->result_code = result_code;
+    receipt->effects = effects_copy;
+    receipt->fee_charged = fee_charged;
+    (void)memcpy(receipt->batch_id, batch_id_copy, 32U);
+    receipt->module_id = module_id;
+    receipt->module_version = module_version;
+    receipt->parameter_version = parameter_version;
+    return LXP_OK;
+}
+
+lxp_result lxp_receipt_encode(const lxp_receipt *receipt,
+                              bool include_signature, lxp_arena *arena,
+                              lxp_byte_span *encoded)
+{
+    lxp_codec_writer writer;
+    lxp_result status;
+    size_t i;
+    if (receipt == NULL || arena == NULL || encoded == NULL ||
+        receipt->effects.count > LXP_MAX_EFFECTS)
+        return LXP_ERR_NON_CANONICAL;
+    status = lxp_codec_writer_init(&writer, arena, LXP_MAX_ACTIVITY_BYTES);
+    if (status == LXP_OK)
+        status = lxp_codec_write_struct_header(&writer,
+                                               LXP_RECEIPT_STRUCTURE_TAG);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u16(&writer, receipt->protocol_version);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(&writer, receipt->activity_id, 32U, 32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u64(&writer, receipt->global_sequence);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(&writer, receipt->previous_state_root,
+                                       32U, 32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(&writer, receipt->resulting_state_root,
+                                       32U, 32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(&writer, receipt->activity_root,
+                                       32U, 32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_i32(&writer, receipt->result_code);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u32(&writer, (uint32_t)receipt->effects.count);
+    for (i = 0U; status == LXP_OK && i < receipt->effects.count; ++i)
+        status = effect_encode(&writer, &receipt->effects.effects[i]);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u128(&writer, receipt->fee_charged);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(&writer, receipt->batch_id, 32U, 32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u16(&writer, receipt->module_id);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u32(&writer, receipt->module_version);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u32(&writer, receipt->parameter_version);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u8(&writer, receipt->operation);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(&writer, receipt->asset, 32U, 32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u128(&writer, receipt->amount);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(&writer, receipt->from, 32U, 32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u128(&writer, receipt->from_balance_before);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u128(&writer, receipt->from_balance_after);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u64(&writer, receipt->from_sequence);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(&writer, receipt->to, 32U, 32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u128(&writer, receipt->to_balance_before);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u128(&writer, receipt->to_balance_after);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(&writer, receipt->transfer_set_root,
+                                       32U, 32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(&writer, receipt->authorization_hash,
+                                       32U, 32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_bytes(&writer, receipt->context_hash,
+                                       32U, 32U);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u64(&writer, receipt->timestamp);
+    if (status == LXP_OK)
+        status = lxp_codec_write_u8(&writer, include_signature ? 1U : 0U);
+    if (status == LXP_OK && include_signature)
+        status = lxp_codec_write_bytes(&writer, receipt->sequencer_signature,
+                                       64U, 64U);
+    if (status != LXP_OK) return status;
+    encoded->bytes = writer.bytes;
+    encoded->length = writer.length;
+    return LXP_OK;
+}
+
+static lxp_result receipt_digest(const lxp_receipt *receipt, lxp_arena *arena,
+                                 uint8_t digest[32])
+{
+    size_t mark = lxp_arena_mark(arena);
+    lxp_byte_span encoded;
+    lxp_result status = lxp_receipt_encode(receipt, false, arena, &encoded);
+    if (status == LXP_OK)
+        status = lxp_hash_domain(LXP_DOMAIN_RECEIPT, encoded.bytes,
+                                 encoded.length, digest);
+    (void)lxp_arena_reset(arena, mark);
+    return status;
+}
+
+lxp_result lxp_receipt_sign(lxp_receipt *receipt,
+                            const uint8_t private_key[32], lxp_arena *arena)
+{
+    EVP_PKEY *key;
+    EVP_MD_CTX *context;
+    uint8_t digest[32];
+    size_t signature_length = 64U;
+    lxp_result status;
+    int signed_ok;
+    if (receipt == NULL || private_key == NULL || arena == NULL)
+        return LXP_ERR_NON_CANONICAL;
+    status = receipt_digest(receipt, arena, digest);
+    if (status != LXP_OK) return status;
+    key = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, NULL, private_key,
+                                       32U);
+    context = key == NULL ? NULL : EVP_MD_CTX_new();
+    signed_ok = context != NULL &&
+        EVP_DigestSignInit(context, NULL, NULL, NULL, key) == 1 &&
+        EVP_DigestSign(context, receipt->sequencer_signature,
+                       &signature_length, digest, sizeof(digest)) == 1 &&
+        signature_length == 64U;
+    EVP_MD_CTX_free(context);
+    EVP_PKEY_free(key);
+    lxp_secure_zero(digest, sizeof(digest));
+    return signed_ok ? LXP_OK : LXP_ERR_BAD_SIGNATURE;
+}
+
+lxp_result lxp_receipt_verify(const lxp_receipt *receipt,
+                              const uint8_t public_key[32], lxp_arena *arena)
+{
+    uint8_t digest[32];
+    lxp_result status;
+    if (receipt == NULL || public_key == NULL || arena == NULL)
+        return LXP_ERR_NON_CANONICAL;
+    status = receipt_digest(receipt, arena, digest);
+    if (status == LXP_OK)
+        status = lxp_ed25519_verify_raw(public_key,
+                                        receipt->sequencer_signature,
+                                        digest, sizeof(digest));
+    lxp_secure_zero(digest, sizeof(digest));
+    return status;
+}

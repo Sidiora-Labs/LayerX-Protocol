@@ -1,0 +1,1596 @@
+SHELL := /bin/sh
+
+CC ?= cc
+AR ?= ar
+BUILD_DIR ?= build
+OPT_LEVEL ?= -O2
+LXP_REVISION ?= unknown
+EXTRA_CFLAGS ?=
+EXTRA_LDFLAGS ?=
+RUN_PREFIX ?=
+QUALIFICATION_CORPUS ?= build/qualification/replay/replay-10m.lxq
+FUZZ_QUAL_ITERATIONS ?= 100000
+
+CPPFLAGS := -Iinclude \
+	-DLXP_BUILD_TARGET_TRIPLE=\"$(shell $(CC) -dumpmachine)\" \
+	-DLXP_BUILD_OPTIMISATION=\"$(OPT_LEVEL)\" \
+	-DLXP_BUILD_REVISION=\"$(LXP_REVISION)\"
+CFLAGS := -std=c17 -pedantic -Werror -Wall -Wextra -Wconversion -Wshadow -Wvla \
+	-fno-strict-aliasing -ffp-contract=off $(OPT_LEVEL) $(EXTRA_CFLAGS)
+
+LIB_SOURCES := $(filter-out src/storage/lxp_projection.c,$(shell find src -type f -name '*.c' -print | LC_ALL=C sort))
+LIB_OBJECTS := $(patsubst %.c,$(BUILD_DIR)/obj/%.o,$(LIB_SOURCES))
+LIBRARY := $(BUILD_DIR)/liblayerx.a
+
+.PHONY: all build clean reproducible test test-harness list-tests \
+	test-result test-protocol test-arena test-sanitizer-smoke \
+	test-sanitizer-suite test-codec test-codec-limits test-codec-version \
+	test-codec-vectors fuzz-codec-smoke test-crypto-hash test-crypto-ed25519 \
+	test-crypto-secp256k1 test-merkle test-merkle-proof test-crypto-ct \
+	test-crypto-suite test-crypto-sanitizers \
+	test-arith-u128 test-arith-u256 test-arith-rounding test-arith-property \
+	test-arith-nofloat \
+	test-log test-log-durability test-recovery test-projection test-rebuild \
+	test-journal \
+	test-activity-codec test-envelope test-verify-pool test-admission \
+	test-idempotency \
+	test-fee-gate \
+	test-identity \
+	test-grants \
+	test-authority-resolve \
+	test-allowance \
+	test-revocation \
+	test-rotation \
+	test-kernel \
+	test-module-ctx \
+	test-dispatch \
+	test-receipts \
+	test-state-root \
+	test-replay-golden test-replay-golden-local \
+	test-ledger-accounts test-ledger-transfer test-ledger-set test-ledger-send \
+	test-ledger-receive \
+	test-ledger-receipt \
+	test-asset-registry \
+	test-asset-balance \
+	test-asset-transfer \
+	test-asset-deposit \
+	test-asset-withdraw \
+	test-asset-reserve \
+	test-escrow-open \
+	test-escrow-capture \
+	test-escrow-timeout \
+	test-escrow-dispute \
+	test-escrow-invariants \
+	test-budget-create \
+	test-budget-period \
+	test-budget-spend \
+	test-budget-delegate \
+	test-budget-revoke \
+	test-stream-open \
+	test-stream-accrual \
+	test-stream-meter \
+	test-stream-settle \
+	test-stream-lifecycle \
+	test-service-offer \
+	test-service-commit \
+	test-service-attest \
+	test-service-deliver \
+	test-service-acceptance \
+	test-service-dispute \
+	test-oracle-adapter \
+	test-oracle-intake \
+	test-oracle-bounds \
+	test-oracle-root \
+	test-oracle-failclosed \
+	test-perps-market \
+	test-perps-book \
+	test-perps-margin \
+	test-perps-funding \
+	test-perps-liquidation \
+	test-perps-insurance \
+	test-wave-9 \
+	test-batch \
+	test-sequencer \
+	test-batch-time \
+	test-batch-seal \
+	test-batch-distribute \
+	test-sequencer-recovery \
+	test-wave-10 \
+	test-replica \
+	test-replay \
+	test-replica-divergence \
+	test-snapshot \
+	test-history \
+	test-replay-crossarch \
+	test-wave-11 \
+	test-guarantor \
+	test-guarantor-cert \
+	test-guarantor-bond \
+	test-equivocation \
+	test-guarantor-disagreement \
+	test-da \
+	test-da-possession \
+	test-da-retrieval \
+	test-da-challenge \
+	test-da-unavailable \
+	test-governance \
+	test-governance-activation \
+	test-governance-emergency \
+	test-fees \
+	test-metering \
+	test-fee-replay \
+	test-paxeer \
+	test-paxeer-bond \
+	test-bridge-deposit \
+	test-bridge-withdraw \
+	test-emergency-exit \
+	test-reserve \
+	test-gateway \
+	test-gateway-send \
+	test-gateway-receive \
+	test-receipt-offline \
+	test-layerxd \
+	test-tools \
+	test-genesis \
+	test-genesis-import \
+	test-genesis-reconcile \
+	test-legacy-readonly \
+	test-shadow \
+	test-contract-state-surface test-contracts \
+	qualify-replay qualify-faults qualify-fuzz qualify-fuzz-run qualify-arith \
+	test-wave-12 \
+	test-wave-8 \
+	scan-consensus public-audit ci
+
+all: build
+
+build: $(LIBRARY)
+
+$(LIBRARY): $(LIB_OBJECTS)
+	@mkdir -p $(@D)
+	$(AR) rcsD $@ $(LIB_OBJECTS)
+
+$(BUILD_DIR)/obj/%.o: %.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
+
+clean:
+	rm -rf -- build
+
+reproducible:
+	rm -rf -- build-repro-a build-repro-b
+	$(MAKE) --no-print-directory BUILD_DIR=build-repro-a build
+	$(MAKE) --no-print-directory BUILD_DIR=build-repro-b build
+	cmp build-repro-a/liblayerx.a build-repro-b/liblayerx.a
+	rm -rf -- build-repro-a build-repro-b
+
+$(BUILD_DIR)/tests/lxp_test_result: tests/protocol/lxp_test_result.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-result: $(BUILD_DIR)/tests/lxp_test_result
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_result
+
+$(BUILD_DIR)/tests/lxp_test_protocol: tests/protocol/lxp_test_protocol.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-protocol: $(BUILD_DIR)/tests/lxp_test_protocol
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_protocol
+
+$(BUILD_DIR)/tests/lxp_test_arena: tests/protocol/lxp_test_arena.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+$(BUILD_DIR)/tests/lxp_test_arena_asan: tests/protocol/lxp_test_arena.c \
+		src/protocol/lxp_arena.c src/protocol/lxp_result.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -O1 -g -fsanitize=address \
+		-fno-omit-frame-pointer $^ -o $@
+
+test-arena: $(BUILD_DIR)/tests/lxp_test_arena \
+		$(BUILD_DIR)/tests/lxp_test_arena_asan
+	$(BUILD_DIR)/tests/lxp_test_arena
+	ASAN_OPTIONS=abort_on_error=1:detect_leaks=1:poison_heap=1 \
+		$(BUILD_DIR)/tests/lxp_test_arena_asan
+
+$(BUILD_DIR)/tests/lxp_test_harness: tests/lxp_test_harness.c \
+		tests/protocol/lxp_test_smoke.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) -Itests $(CFLAGS) tests/lxp_test_harness.c \
+		tests/protocol/lxp_test_smoke.c $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-harness: $(BUILD_DIR)/tests/lxp_test_harness
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_harness
+
+list-tests: $(BUILD_DIR)/tests/lxp_test_harness
+	$(BUILD_DIR)/tests/lxp_test_harness --list
+
+test: test-result test-protocol test-arena test-harness test-codec \
+	test-codec-limits test-codec-version test-codec-vectors fuzz-codec-smoke \
+	test-crypto-suite test-arith-u128 test-arith-u256 test-arith-rounding \
+	test-arith-property test-arith-nofloat test-log test-log-durability \
+	test-recovery test-projection test-rebuild test-journal \
+	test-activity-codec test-envelope test-verify-pool test-admission \
+	test-idempotency test-fee-gate test-identity test-grants \
+	test-authority-resolve test-allowance test-revocation test-rotation
+
+$(BUILD_DIR)/tests/lxp_test_kernel: tests/protocol/lxp_test_kernel.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-kernel: $(BUILD_DIR)/tests/lxp_test_kernel
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_kernel
+
+$(BUILD_DIR)/tests/lxp_test_module_ctx: \
+		tests/protocol/lxp_test_module_ctx.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -pthread -o $@
+
+test-module-ctx: $(BUILD_DIR)/tests/lxp_test_module_ctx
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_module_ctx
+	tools/ci/symbol-allowlist.sh "$(BUILD_DIR)"
+
+$(BUILD_DIR)/tests/lxp_test_dispatch: tests/protocol/lxp_test_dispatch.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-dispatch: $(BUILD_DIR)/tests/lxp_test_dispatch
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_dispatch
+
+$(BUILD_DIR)/tests/lxp_test_receipts: tests/protocol/lxp_test_receipts.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-receipts: $(BUILD_DIR)/tests/lxp_test_receipts
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_receipts
+
+$(BUILD_DIR)/tests/lxp_test_state_root: tests/state/lxp_test_state_root.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-state-root: $(BUILD_DIR)/tests/lxp_test_state_root
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_state_root
+
+$(BUILD_DIR)/tests/lxp_test_golden_replay: \
+		tests/replay/lxp_test_golden_replay.c $(LIBRARY) \
+		tests/replay/golden/history.lxl
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-replay-golden-local: $(BUILD_DIR)/tests/lxp_test_golden_replay
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_golden_replay
+	tools/ci/symbol-allowlist.sh "$(BUILD_DIR)"
+
+test-replay-golden:
+	tools/ci/replay-matrix.sh
+
+$(BUILD_DIR)/tests/test_account_id: tests/ledger/test_account_id.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -pthread -o $@
+
+test-ledger-accounts: $(BUILD_DIR)/tests/test_account_id
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_account_id
+
+$(BUILD_DIR)/tests/test_apply_transfer: tests/ledger/test_apply_transfer.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-ledger-transfer: $(BUILD_DIR)/tests/test_apply_transfer
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_apply_transfer
+
+$(BUILD_DIR)/tests/test_transfer_set: tests/ledger/test_transfer_set.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-ledger-set: $(BUILD_DIR)/tests/test_transfer_set
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_transfer_set
+
+$(BUILD_DIR)/tests/test_send: tests/ledger/test_send.c fuzz/fuzz_lxp_send.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/ledger/test_send.c fuzz/fuzz_lxp_send.c \
+		$(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
+test-ledger-send: $(BUILD_DIR)/tests/test_send
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_send
+
+$(BUILD_DIR)/tests/test_receive: tests/ledger/test_receive.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-ledger-receive: $(BUILD_DIR)/tests/test_receive
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_receive
+
+$(BUILD_DIR)/tests/test_receipt: tests/ledger/test_receipt.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-ledger-receipt: $(BUILD_DIR)/tests/test_receipt
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_receipt
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_asset_registry: tests/modules/test_asset_registry.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-asset-registry: $(BUILD_DIR)/tests/test_asset_registry
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_asset_registry
+
+$(BUILD_DIR)/tests/test_asset_state: tests/modules/test_asset_state.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-asset-balance: $(BUILD_DIR)/tests/test_asset_state
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_asset_state
+
+$(BUILD_DIR)/tests/test_asset_transfer: tests/modules/test_asset_transfer.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-asset-transfer: $(BUILD_DIR)/tests/test_asset_transfer
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_asset_transfer
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_asset_deposit: tests/modules/test_asset_deposit.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-asset-deposit: $(BUILD_DIR)/tests/test_asset_deposit
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_asset_deposit
+
+$(BUILD_DIR)/tests/test_asset_withdraw: tests/modules/test_asset_withdraw.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-asset-withdraw: $(BUILD_DIR)/tests/test_asset_withdraw
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_asset_withdraw
+
+$(BUILD_DIR)/tests/test_asset_reserve: tests/modules/test_asset_reserve.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-asset-reserve: $(BUILD_DIR)/tests/test_asset_reserve
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_asset_reserve
+
+$(BUILD_DIR)/tests/test_escrow_open: tests/modules/test_escrow_open.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-escrow-open: $(BUILD_DIR)/tests/test_escrow_open
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_escrow_open
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_escrow_capture: tests/modules/test_escrow_capture.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-escrow-capture: $(BUILD_DIR)/tests/test_escrow_capture
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_escrow_capture
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_escrow_timeout: tests/modules/test_escrow_timeout.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-escrow-timeout: $(BUILD_DIR)/tests/test_escrow_timeout
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_escrow_timeout
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_escrow_dispute: tests/modules/test_escrow_dispute.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-escrow-dispute: $(BUILD_DIR)/tests/test_escrow_dispute
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_escrow_dispute
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_escrow_invariants: \
+		tests/modules/test_escrow_invariants.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-escrow-invariants: $(BUILD_DIR)/tests/test_escrow_invariants
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_escrow_invariants
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_budget_create: tests/modules/test_budget_create.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-budget-create: $(BUILD_DIR)/tests/test_budget_create
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_budget_create
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_budget_period: tests/modules/test_budget_period.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-budget-period: $(BUILD_DIR)/tests/test_budget_period
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_budget_period
+
+$(BUILD_DIR)/tests/test_budget_spend: tests/modules/test_budget_spend.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-budget-spend: $(BUILD_DIR)/tests/test_budget_spend
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_budget_spend
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_budget_delegate: tests/modules/test_budget_delegate.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-budget-delegate: $(BUILD_DIR)/tests/test_budget_delegate
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_budget_delegate
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_budget_close: tests/modules/test_budget_close.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-budget-revoke: $(BUILD_DIR)/tests/test_budget_close
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_budget_close
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_stream_open: tests/modules/test_stream_open.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-stream-open: $(BUILD_DIR)/tests/test_stream_open
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_stream_open
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_stream_accrue: tests/modules/test_stream_accrue.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-stream-accrual: $(BUILD_DIR)/tests/test_stream_accrue
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_stream_accrue
+
+$(BUILD_DIR)/tests/test_stream_meter: tests/modules/test_stream_meter.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-stream-meter: $(BUILD_DIR)/tests/test_stream_meter
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_stream_meter
+
+$(BUILD_DIR)/tests/test_stream_settle: tests/modules/test_stream_settle.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-stream-settle: $(BUILD_DIR)/tests/test_stream_settle
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_stream_settle
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_stream_lifecycle: \
+		tests/modules/test_stream_lifecycle.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-stream-lifecycle: $(BUILD_DIR)/tests/test_stream_lifecycle
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_stream_lifecycle
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_service_offer: tests/modules/test_service_offer.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-service-offer: $(BUILD_DIR)/tests/test_service_offer
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_service_offer
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_service_commit: tests/modules/test_service_commit.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-service-commit: $(BUILD_DIR)/tests/test_service_commit
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_service_commit
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_service_attest: tests/modules/test_service_attest.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-service-attest: $(BUILD_DIR)/tests/test_service_attest
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_service_attest
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_service_deliver: tests/modules/test_service_deliver.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-service-deliver: $(BUILD_DIR)/tests/test_service_deliver
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_service_deliver
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_service_acceptance: \
+		tests/modules/test_service_acceptance.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-service-acceptance: $(BUILD_DIR)/tests/test_service_acceptance
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_service_acceptance
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_service_dispute: \
+		tests/modules/test_service_dispute.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-service-dispute: $(BUILD_DIR)/tests/test_service_dispute
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_service_dispute
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_oracle_adapter: tests/network/test_oracle_adapter.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+$(BUILD_DIR)/tests/test_oracle_replay_absent: \
+		tests/network/test_oracle_replay_absent.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-oracle-adapter: $(BUILD_DIR)/tests/test_oracle_adapter \
+		$(BUILD_DIR)/tests/test_oracle_replay_absent
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_oracle_adapter
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_oracle_replay_absent
+	! nm $(BUILD_DIR)/tests/test_oracle_replay_absent | \
+		grep -q lx_oracle_adapter_run
+	sh tools/lx_oracle_adapter_isolation.sh
+
+$(BUILD_DIR)/tests/test_oracle_intake: tests/modules/test_oracle_intake.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-oracle-intake: $(BUILD_DIR)/tests/test_oracle_intake
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_oracle_intake
+	tools/lxp_check_sole_writer.sh
+	sh tools/lx_oracle_adapter_isolation.sh
+
+$(BUILD_DIR)/tests/test_oracle_checks: tests/modules/test_oracle_checks.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-oracle-bounds: $(BUILD_DIR)/tests/test_oracle_checks
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_oracle_checks
+	sh tools/lx_oracle_adapter_isolation.sh
+
+$(BUILD_DIR)/tests/test_oracle_root: tests/sequencer/test_oracle_root.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-oracle-root: $(BUILD_DIR)/tests/test_oracle_root
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_oracle_root
+
+$(BUILD_DIR)/tests/test_oracle_halt: tests/modules/test_oracle_halt.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-oracle-failclosed: $(BUILD_DIR)/tests/test_oracle_halt
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_oracle_halt
+	sh tools/lx_oracle_adapter_isolation.sh
+
+$(BUILD_DIR)/tests/test_perps_market: tests/modules/test_perps_market.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-perps-market: $(BUILD_DIR)/tests/test_perps_market
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_perps_market
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_perps_book: tests/modules/test_perps_book.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-perps-book: $(BUILD_DIR)/tests/test_perps_book
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_perps_book
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_perps_position: tests/modules/test_perps_position.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-perps-margin: $(BUILD_DIR)/tests/test_perps_position
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_perps_position
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_perps_funding: tests/modules/test_perps_funding.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-perps-funding: $(BUILD_DIR)/tests/test_perps_funding
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_perps_funding
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_perps_liquidate: \
+		tests/modules/test_perps_liquidate.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-perps-liquidation: $(BUILD_DIR)/tests/test_perps_liquidate
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_perps_liquidate
+	tools/lxp_check_sole_writer.sh
+
+$(BUILD_DIR)/tests/test_perps_insurance: \
+		tests/modules/test_perps_insurance.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-perps-insurance: $(BUILD_DIR)/tests/test_perps_insurance
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_perps_insurance
+	tools/lxp_check_sole_writer.sh
+
+test-wave-9: test-perps-market test-perps-book test-perps-margin \
+		test-perps-funding test-perps-liquidation test-perps-insurance
+
+$(BUILD_DIR)/tests/test_batch_header: tests/test_batch_header.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-batch: $(BUILD_DIR)/tests/test_batch_header
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_batch_header
+
+$(BUILD_DIR)/tests/test_sequencer_sequence: \
+		tests/test_sequencer_sequence.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-sequencer: $(BUILD_DIR)/tests/test_sequencer_sequence
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_sequencer_sequence
+
+$(BUILD_DIR)/tests/test_batch_time: tests/test_batch_time.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-batch-time: $(BUILD_DIR)/tests/test_batch_time
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_batch_time
+	sh tools/lxp_check_no_clock.sh
+
+$(BUILD_DIR)/tests/test_batch_seal: tests/test_batch_seal.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-batch-seal: $(BUILD_DIR)/tests/test_batch_seal
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_batch_seal
+
+$(BUILD_DIR)/tests/test_batch_publish: tests/test_batch_publish.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-batch-distribute: $(BUILD_DIR)/tests/test_batch_publish
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_batch_publish
+
+$(BUILD_DIR)/tests/test_sequencer_recovery: \
+		tests/test_sequencer_recovery.c src/storage/lxp_projection.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_sequencer_recovery.c \
+		src/storage/lxp_projection.c $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -lsqlite3 -pthread -o $@
+
+test-sequencer-recovery: $(BUILD_DIR)/tests/test_sequencer_recovery
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_sequencer_recovery
+
+test-wave-10: test-batch test-sequencer test-batch-time test-batch-seal \
+		test-batch-distribute test-sequencer-recovery
+
+$(BUILD_DIR)/tests/test_replica_ingest: tests/test_replica_ingest.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-replica: $(BUILD_DIR)/tests/test_replica_ingest
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_replica_ingest
+
+$(BUILD_DIR)/tests/test_replica_replay: tests/test_replica_replay.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-replay: $(BUILD_DIR)/tests/test_replica_replay
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_replica_replay
+	! nm -u $(BUILD_DIR)/obj/src/replica/lxp_replay.o | grep -q sqlite3_
+
+$(BUILD_DIR)/tests/test_replica_divergence: \
+		tests/test_replica_divergence.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-replica-divergence: $(BUILD_DIR)/tests/test_replica_divergence
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_replica_divergence
+
+$(BUILD_DIR)/tests/test_snapshot: tests/test_snapshot.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-snapshot: $(BUILD_DIR)/tests/test_snapshot
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_snapshot
+
+$(BUILD_DIR)/tests/test_history_query: tests/test_history_query.c $(LIBRARY) \
+		migrations/0007_history_index.sql
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -lsqlite3 -o $@
+
+test-history: $(BUILD_DIR)/tests/test_history_query
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_history_query
+
+test-replay-crossarch: tests/vectors/replay_corpus.lxb
+	sh tools/lxp_replay_matrix.sh
+
+test-wave-11: test-replica test-replay test-replica-divergence \
+		test-snapshot test-history test-replay-crossarch
+
+$(BUILD_DIR)/tests/test_guarantor_duties: \
+		tests/test_guarantor_duties.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-guarantor: $(BUILD_DIR)/tests/test_guarantor_duties
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_guarantor_duties
+
+$(BUILD_DIR)/tests/test_guarantor_cert: tests/test_guarantor_cert.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-guarantor-cert: $(BUILD_DIR)/tests/test_guarantor_cert
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_guarantor_cert
+
+$(BUILD_DIR)/tests/test_guarantor_bond: tests/test_guarantor_bond.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-guarantor-bond: $(BUILD_DIR)/tests/test_guarantor_bond
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_guarantor_bond
+
+$(BUILD_DIR)/tests/test_equivocation: tests/test_equivocation.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-equivocation: $(BUILD_DIR)/tests/test_equivocation
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_equivocation
+
+$(BUILD_DIR)/tests/test_guarantor_disagreement: \
+		tests/test_guarantor_disagreement.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-guarantor-disagreement: $(BUILD_DIR)/tests/test_guarantor_disagreement
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_guarantor_disagreement
+
+$(BUILD_DIR)/tests/test_da_bundle: tests/test_da_bundle.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-da: $(BUILD_DIR)/tests/test_da_bundle
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_da_bundle
+
+$(BUILD_DIR)/tests/test_da_possession: tests/test_da_possession.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-da-possession: $(BUILD_DIR)/tests/test_da_possession
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_da_possession
+
+$(BUILD_DIR)/tests/test_da_retrieval: tests/test_da_retrieval.c \
+		cmd/layerx-verify/lxp_verify_fetch.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_da_retrieval.c \
+		cmd/layerx-verify/lxp_verify_fetch.c $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-da-retrieval: $(BUILD_DIR)/tests/test_da_retrieval
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_da_retrieval
+
+$(BUILD_DIR)/tests/test_da_challenge: tests/test_da_challenge.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-da-challenge: $(BUILD_DIR)/tests/test_da_challenge
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_da_challenge
+
+$(BUILD_DIR)/tests/test_da_unavailable: tests/test_da_unavailable.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-da-unavailable: $(BUILD_DIR)/tests/test_da_unavailable
+	tools/lxp_da_withhold.sh all $(BUILD_DIR)/tests/test_da_unavailable
+
+$(BUILD_DIR)/tests/test_governance_params: \
+		tests/test_governance_params.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-governance: $(BUILD_DIR)/tests/test_governance_params
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_governance_params
+
+$(BUILD_DIR)/tests/test_governance_activation: \
+		tests/test_governance_activation.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-governance-activation: $(BUILD_DIR)/tests/test_governance_activation
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_governance_activation
+
+$(BUILD_DIR)/tests/test_governance_emergency: \
+		tests/test_governance_emergency.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-governance-emergency: $(BUILD_DIR)/tests/test_governance_emergency
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_governance_emergency
+
+$(BUILD_DIR)/tests/test_fees: tests/test_fees.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-fees: $(BUILD_DIR)/tests/test_fees
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_fees
+
+$(BUILD_DIR)/tests/test_metering: tests/test_metering.c fuzz/fuzz_meter.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_metering.c fuzz/fuzz_meter.c \
+		$(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -o $@
+
+test-metering: $(BUILD_DIR)/tests/test_metering
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_metering
+
+$(BUILD_DIR)/tests/test_fee_replay: tests/test_fee_replay.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-fee-replay: $(BUILD_DIR)/tests/test_fee_replay test-dispatch
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_fee_replay
+
+test-wave-12: test-guarantor test-guarantor-cert test-guarantor-bond \
+		test-equivocation test-guarantor-disagreement test-da \
+		test-da-possession test-da-retrieval test-da-challenge \
+		test-da-unavailable test-governance test-governance-activation \
+		test-governance-emergency test-fees test-metering test-fee-replay
+
+$(BUILD_DIR)/tests/test_paxeer_custody: tests/test_paxeer_custody.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+$(BUILD_DIR)/contracts/.paxeer-built: contracts/LayerXCustody.sol \
+		contracts/CheckpointRegistry.sol contracts/GuarantorBond.sol
+	@mkdir -p $(@D)
+	forge build --root . --contracts contracts --out $(BUILD_DIR)/contracts
+	@touch $@
+
+test-paxeer: $(BUILD_DIR)/tests/test_paxeer_custody \
+		$(BUILD_DIR)/contracts/.paxeer-built
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_paxeer_custody
+
+$(BUILD_DIR)/tests/test_paxeer_bond: tests/test_paxeer_bond.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-paxeer-bond: $(BUILD_DIR)/tests/test_paxeer_bond \
+		$(BUILD_DIR)/contracts/.paxeer-built
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_paxeer_bond
+
+$(BUILD_DIR)/tests/test_bridge_deposit: tests/test_bridge_deposit.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-bridge-deposit: $(BUILD_DIR)/tests/test_bridge_deposit test-contracts
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_bridge_deposit
+
+$(BUILD_DIR)/tests/test_bridge_withdraw: tests/test_bridge_withdraw.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-bridge-withdraw: $(BUILD_DIR)/tests/test_bridge_withdraw test-contracts
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_bridge_withdraw
+
+$(BUILD_DIR)/tests/test_emergency_exit: tests/test_emergency_exit.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-emergency-exit: $(BUILD_DIR)/tests/test_emergency_exit test-contracts
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_emergency_exit
+
+$(BUILD_DIR)/tests/test_reserve_reconcile: \
+		tests/test_reserve_reconcile.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+$(BUILD_DIR)/tools/lxp-reserve-report: tools/lxp_reserve_report.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+test-reserve: $(BUILD_DIR)/tests/test_reserve_reconcile \
+		$(BUILD_DIR)/tools/lxp-reserve-report test-contracts
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_reserve_reconcile
+	$(BUILD_DIR)/tools/lxp-reserve-report --classes
+
+$(BUILD_DIR)/tests/test_gateway_requirement: \
+		tests/test_gateway_requirement.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+$(BUILD_DIR)/obj/fuzz/fuzz_gateway_json.o: fuzz/fuzz_gateway_json.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+test-gateway: $(BUILD_DIR)/tests/test_gateway_requirement \
+		$(BUILD_DIR)/obj/fuzz/fuzz_gateway_json.o
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_gateway_requirement
+
+$(BUILD_DIR)/tests/test_gateway_send: tests/test_gateway_send.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-gateway-send: $(BUILD_DIR)/tests/test_gateway_send
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_gateway_send
+
+$(BUILD_DIR)/tests/test_gateway_receive: tests/test_gateway_receive.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+test-gateway-receive: $(BUILD_DIR)/tests/test_gateway_receive
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_gateway_receive
+
+$(BUILD_DIR)/tests/test_receipt_offline: tests/test_receipt_offline.c \
+		cmd/layerx-verify/lxp_verify_receipt.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_receipt_offline.c \
+		cmd/layerx-verify/lxp_verify_receipt.c $(LIBRARY) \
+		$(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
+test-receipt-offline: $(BUILD_DIR)/tests/test_receipt_offline
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_receipt_offline
+
+LAYERXD_SOURCES = \
+	cmd/layerxd/lxp_daemon_main.c \
+	cmd/layerxd/lxp_daemon_config.c \
+	cmd/layerxd/lxp_daemon_shutdown.c \
+	cmd/layerxd/lxp_daemon_cli.c
+
+$(BUILD_DIR)/tests/test_layerxd: tests/test_layerxd.c $(LAYERXD_SOURCES) \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_layerxd.c $(LAYERXD_SOURCES) \
+		$(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
+test-layerxd: $(BUILD_DIR)/tests/test_layerxd
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_layerxd
+
+TOOL_SOURCES = \
+	cmd/layerxctl/lxp_ctl_main.c \
+	cmd/layerx-verify/lxp_verify_main.c \
+	cmd/layerx-verify/lxp_verify_fetch.c \
+	cmd/layerx-genesis/lxp_genesis_cli.c
+
+$(BUILD_DIR)/tests/test_tools: tests/test_tools.c $(TOOL_SOURCES) $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_tools.c $(TOOL_SOURCES) \
+		$(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
+test-tools: $(BUILD_DIR)/tests/test_tools
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_tools
+
+$(BUILD_DIR)/tests/test_genesis_manifest: tests/test_genesis_manifest.c \
+		cmd/layerx-genesis/lxp_genesis_main.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_genesis_manifest.c \
+		cmd/layerx-genesis/lxp_genesis_main.c $(LIBRARY) \
+		$(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
+test-genesis: $(BUILD_DIR)/tests/test_genesis_manifest
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_genesis_manifest
+
+$(BUILD_DIR)/tests/test_genesis_import: tests/test_genesis_import.c \
+		cmd/layerx-genesis/lxp_import.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_genesis_import.c \
+		cmd/layerx-genesis/lxp_import.c $(LIBRARY) \
+		$(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
+test-genesis-import: $(BUILD_DIR)/tests/test_genesis_import
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_genesis_import
+
+$(BUILD_DIR)/tests/test_genesis_reconcile: tests/test_genesis_reconcile.c \
+		cmd/layerx-genesis/lxp_reconcile.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_genesis_reconcile.c \
+		cmd/layerx-genesis/lxp_reconcile.c $(LIBRARY) \
+		$(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
+test-genesis-reconcile: $(BUILD_DIR)/tests/test_genesis_reconcile
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_genesis_reconcile
+
+$(BUILD_DIR)/tests/test_legacy_readonly: tests/test_legacy_readonly.c \
+		tools/lxp_legacy_reader.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_legacy_readonly.c \
+		tools/lxp_legacy_reader.c $(LIBRARY) \
+		$(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
+test-legacy-readonly: $(BUILD_DIR)/tests/test_legacy_readonly
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_legacy_readonly
+
+$(BUILD_DIR)/tests/test_shadow_replay: tests/test_shadow_replay.c \
+		tools/lxp_shadow_compare.c tools/lxp_legacy_reader.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_shadow_replay.c \
+		tools/lxp_shadow_compare.c tools/lxp_legacy_reader.c $(LIBRARY) \
+		$(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
+test-shadow: $(BUILD_DIR)/tests/test_shadow_replay
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_shadow_replay
+
+test-contract-state-surface:
+	tools/ci/solidity-state-surface.sh
+
+test-contracts: test-contract-state-surface
+	forge test --root .
+
+qualify-replay:
+	tools/lxp_qual_replay_matrix.sh
+
+$(BUILD_DIR)/tests/test_qual_recovery: tests/test_qual_recovery.c \
+		tests/qualification/lxp_qual_faults.c \
+		src/storage/lxp_projection.c $(LIBRARY) \
+		migrations/0001_projection.sql
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_qual_recovery.c \
+		tests/qualification/lxp_qual_faults.c \
+		src/storage/lxp_projection.c $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -lsqlite3 -pthread -o $@
+
+qualify-faults: $(BUILD_DIR)/tests/test_qual_recovery
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_qual_recovery
+
+$(BUILD_DIR)/tests/test_fuzz_smoke: tests/test_fuzz_smoke.c \
+		fuzz/fuzz_activity.c fuzz/fuzz_signature.c \
+		fuzz/fuzz_transfer_set.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_fuzz_smoke.c \
+		fuzz/fuzz_activity.c fuzz/fuzz_signature.c \
+		fuzz/fuzz_transfer_set.c $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+qualify-fuzz-run: $(BUILD_DIR)/tests/test_fuzz_smoke
+	test -r "$(QUALIFICATION_CORPUS)"
+	mkdir -p "$(BUILD_DIR)/qualification/fuzz-corpus"
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_fuzz_smoke \
+		"$(QUALIFICATION_CORPUS)" "$(BUILD_DIR)/qualification/fuzz-corpus" \
+		"$(FUZZ_QUAL_ITERATIONS)"
+
+qualify-fuzz: qualify-fuzz-run
+	ASAN_OPTIONS=abort_on_error=1:detect_leaks=1:strict_string_checks=1 \
+	$(MAKE) --no-print-directory BUILD_DIR=build/qualification/fuzz-asan \
+		EXTRA_CFLAGS="$(SANITIZER_CFLAGS) -fsanitize=address" \
+		EXTRA_LDFLAGS="-fsanitize=address" FUZZ_QUAL_ITERATIONS=25000 \
+		qualify-fuzz-run
+	UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
+	$(MAKE) --no-print-directory BUILD_DIR=build/qualification/fuzz-ubsan \
+		EXTRA_CFLAGS="$(SANITIZER_CFLAGS) -fsanitize=undefined" \
+		EXTRA_LDFLAGS="-fsanitize=undefined" FUZZ_QUAL_ITERATIONS=25000 \
+		qualify-fuzz-run
+
+QUAL_ARITH_SOURCES := tests/test_qual_arith.c \
+	tests/qualification/lxp_qual_arith.c \
+	src/protocol/lxp_u128.c src/protocol/lxp_u256.c \
+	src/protocol/lxp_i128.c src/protocol/lxp_result.c
+
+$(BUILD_DIR)/tests/test_qual_arith: $(QUAL_ARITH_SOURCES)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(QUAL_ARITH_SOURCES) \
+		$(EXTRA_LDFLAGS) -o $@
+
+qualify-arith: test-arith-u128 test-arith-u256 test-arith-rounding \
+		test-arith-property test-arith-nofloat \
+		$(BUILD_DIR)/tests/test_qual_arith
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_qual_arith
+	tools/lxp_arith_proof.sh "$(BUILD_DIR)"
+
+test-wave-8: test-service-offer test-service-commit test-service-attest \
+		test-service-deliver test-service-acceptance test-service-dispute \
+		test-oracle-adapter test-oracle-intake test-oracle-bounds \
+		test-oracle-root test-oracle-failclosed
+
+
+$(BUILD_DIR)/tests/lxp_test_codec_primitives: \
+		tests/codec/lxp_test_codec_primitives.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-codec: $(BUILD_DIR)/tests/lxp_test_codec_primitives
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_codec_primitives
+
+$(BUILD_DIR)/tests/lxp_test_codec_composite: \
+		tests/codec/lxp_test_codec_composite.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-codec-limits: $(BUILD_DIR)/tests/lxp_test_codec_composite
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_codec_composite
+
+$(BUILD_DIR)/tests/lxp_test_codec_strict: \
+		tests/codec/lxp_test_codec_strict.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-codec-version: $(BUILD_DIR)/tests/lxp_test_codec_strict
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_codec_strict
+
+$(BUILD_DIR)/tests/lxp_test_codec_vectors: \
+		tests/codec/lxp_test_codec_vectors.c $(LIBRARY) \
+		tests/vectors/codec/valid.lxv tests/vectors/codec/adversarial.lxv
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-codec-vectors: $(BUILD_DIR)/tests/lxp_test_codec_vectors
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_codec_vectors
+
+$(BUILD_DIR)/tests/lxp_fuzz_codec: fuzz/lxp_fuzz_codec.c \
+		src/codec/lxp_codec.c src/protocol/lxp_arena.c \
+		src/protocol/lxp_protocol.c src/protocol/lxp_result.c \
+		src/protocol/lxp_u128.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -O1 -g -fno-omit-frame-pointer \
+		-fsanitize=address,undefined $^ -fsanitize=address,undefined -o $@
+
+fuzz-codec-smoke: $(BUILD_DIR)/tests/lxp_fuzz_codec
+	ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 \
+	UBSAN_OPTIONS=halt_on_error=1 $(BUILD_DIR)/tests/lxp_fuzz_codec
+
+$(BUILD_DIR)/tests/lxp_test_hash: tests/crypto/lxp_test_hash.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-crypto-hash: $(BUILD_DIR)/tests/lxp_test_hash
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_hash
+
+$(BUILD_DIR)/tests/lxp_test_ed25519: tests/crypto/lxp_test_ed25519.c \
+		fuzz/lxp_fuzz_signature.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/crypto/lxp_test_ed25519.c \
+		fuzz/lxp_fuzz_signature.c $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -o $@
+
+test-crypto-ed25519: $(BUILD_DIR)/tests/lxp_test_ed25519
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_ed25519
+
+$(BUILD_DIR)/tests/lxp_test_secp256k1: tests/crypto/lxp_test_secp256k1.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -o $@
+
+test-crypto-secp256k1: $(BUILD_DIR)/tests/lxp_test_secp256k1
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_secp256k1
+
+$(BUILD_DIR)/tests/lxp_test_merkle: tests/crypto/lxp_test_merkle.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -o $@
+
+test-merkle: $(BUILD_DIR)/tests/lxp_test_merkle
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_merkle
+
+$(BUILD_DIR)/tests/lxp_test_merkle_proof: tests/crypto/lxp_test_merkle_proof.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -o $@
+
+test-merkle-proof: $(BUILD_DIR)/tests/lxp_test_merkle_proof
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_merkle_proof
+
+$(BUILD_DIR)/tests/lxp_test_ct: tests/crypto/lxp_test_ct.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -o $@
+
+test-crypto-suite: test-crypto-hash test-crypto-ed25519 \
+		test-crypto-secp256k1 test-merkle test-merkle-proof \
+		$(BUILD_DIR)/tests/lxp_test_ct
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_ct
+
+test-crypto-sanitizers:
+	ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 \
+	$(MAKE) --no-print-directory BUILD_DIR=build/crypto-asan \
+		EXTRA_CFLAGS="$(SANITIZER_CFLAGS) -fsanitize=address" \
+		EXTRA_LDFLAGS="-fsanitize=address" test-crypto-suite
+	UBSAN_OPTIONS=halt_on_error=1 \
+	$(MAKE) --no-print-directory BUILD_DIR=build/crypto-ubsan \
+		EXTRA_CFLAGS="$(SANITIZER_CFLAGS) -fsanitize=undefined" \
+		EXTRA_LDFLAGS="-fsanitize=undefined" test-crypto-suite
+	TSAN_OPTIONS=halt_on_error=1 \
+	$(MAKE) --no-print-directory BUILD_DIR=build/crypto-tsan \
+		EXTRA_CFLAGS="$(SANITIZER_CFLAGS) -fsanitize=thread" \
+		EXTRA_LDFLAGS="-fsanitize=thread" \
+		RUN_PREFIX="setarch $(shell uname -m) -R" test-crypto-suite
+
+test-crypto-ct: $(BUILD_DIR)/tests/lxp_test_ct
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_ct
+	tools/ci/symbol-allowlist.sh "$(BUILD_DIR)"
+	$(MAKE) --no-print-directory test-crypto-sanitizers
+
+$(BUILD_DIR)/tests/lxp_test_u128: tests/arith/lxp_test_u128.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+$(BUILD_DIR)/tests/lxp_test_u128_ubsan: tests/arith/lxp_test_u128.c \
+		src/protocol/lxp_u128.c src/protocol/lxp_result.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SANITIZER_CFLAGS) -fsanitize=undefined \
+		$^ -fsanitize=undefined -o $@
+
+test-arith-u128: $(BUILD_DIR)/tests/lxp_test_u128 \
+		$(BUILD_DIR)/tests/lxp_test_u128_ubsan
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_u128
+	UBSAN_OPTIONS=halt_on_error=1 $(BUILD_DIR)/tests/lxp_test_u128_ubsan
+
+$(BUILD_DIR)/tests/lxp_test_u256: tests/arith/lxp_test_u256.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+$(BUILD_DIR)/tests/lxp_test_u256_ubsan: tests/arith/lxp_test_u256.c \
+		src/protocol/lxp_u128.c src/protocol/lxp_u256.c src/protocol/lxp_result.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SANITIZER_CFLAGS) -fsanitize=undefined \
+		$^ -fsanitize=undefined -o $@
+
+test-arith-u256: $(BUILD_DIR)/tests/lxp_test_u256 \
+		$(BUILD_DIR)/tests/lxp_test_u256_ubsan
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_u256
+	UBSAN_OPTIONS=halt_on_error=1 $(BUILD_DIR)/tests/lxp_test_u256_ubsan
+
+$(BUILD_DIR)/tests/lxp_test_rounding: tests/arith/lxp_test_rounding.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-arith-rounding: $(BUILD_DIR)/tests/lxp_test_rounding
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_rounding
+
+ARITH_PROPERTY_SOURCES := tests/arith/lxp_test_arith_property.c \
+	tests/arith/lxp_arith_reference.c fuzz/lxp_fuzz_arith.c
+
+$(BUILD_DIR)/tests/lxp_test_arith_property: $(ARITH_PROPERTY_SOURCES) $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) -I. -Itests/arith $(CFLAGS) $(ARITH_PROPERTY_SOURCES) \
+		$(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+$(BUILD_DIR)/tests/lxp_test_arith_property_san: $(ARITH_PROPERTY_SOURCES) \
+		src/protocol/lxp_u128.c src/protocol/lxp_u256.c \
+		src/protocol/lxp_i128.c src/protocol/lxp_result.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) -I. -Itests/arith $(CFLAGS) $(SANITIZER_CFLAGS) \
+		-fsanitize=address,undefined $^ -fsanitize=address,undefined -o $@
+
+test-arith-property: $(BUILD_DIR)/tests/lxp_test_arith_property \
+		$(BUILD_DIR)/tests/lxp_test_arith_property_san
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_arith_property
+	ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 \
+	UBSAN_OPTIONS=halt_on_error=1 $(BUILD_DIR)/tests/lxp_test_arith_property_san
+
+$(BUILD_DIR)/tests/lxp_test_nofloat: tests/arith/lxp_test_nofloat.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-arith-nofloat: build $(BUILD_DIR)/tests/lxp_test_nofloat
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_nofloat
+	@if $(CC) $(CPPFLAGS) $(CFLAGS) -c tests/arith/compile_fail_double.c \
+		-o $(BUILD_DIR)/tests/compile_fail_double.o >/dev/null 2>&1; then \
+		echo "double-to-amount compile-fail test unexpectedly compiled" >&2; \
+		exit 1; \
+	fi
+	@if $(CC) $(CPPFLAGS) $(CFLAGS) -c tests/arith/compile_fail_plus.c \
+		-o $(BUILD_DIR)/tests/compile_fail_plus.o >/dev/null 2>&1; then \
+		echo "bare amount addition compile-fail test unexpectedly compiled" >&2; \
+		exit 1; \
+	fi
+	tools/ci/no-float-scan.sh "$(BUILD_DIR)"
+
+$(BUILD_DIR)/tests/lxp_test_log: tests/storage/lxp_test_log.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-log: $(BUILD_DIR)/tests/lxp_test_log
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_log
+
+$(BUILD_DIR)/tests/lxp_test_log_durability: \
+		tests/storage/lxp_test_log_durability.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-log-durability: $(BUILD_DIR)/tests/lxp_test_log_durability
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_log_durability
+
+$(BUILD_DIR)/tests/lxp_test_recovery: tests/storage/lxp_test_recovery.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-recovery: $(BUILD_DIR)/tests/lxp_test_recovery
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_recovery
+
+$(BUILD_DIR)/tests/lxp_test_projection: tests/storage/lxp_test_projection.c \
+		src/storage/lxp_projection.c $(LIBRARY) \
+		migrations/0001_projection.sql
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/storage/lxp_test_projection.c \
+		src/storage/lxp_projection.c $(LIBRARY) \
+		$(EXTRA_LDFLAGS) -lsqlite3 -pthread -o $@
+
+test-projection: $(BUILD_DIR)/tests/lxp_test_projection build
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_projection
+	tools/ci/symbol-allowlist.sh "$(BUILD_DIR)"
+
+$(BUILD_DIR)/tests/lxp_test_rebuild: tests/storage/lxp_test_rebuild.c \
+		src/storage/lxp_projection.c $(LIBRARY) migrations/0001_projection.sql
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/storage/lxp_test_rebuild.c \
+		src/storage/lxp_projection.c $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lsqlite3 -pthread -o $@
+
+$(BUILD_DIR)/tools/log_inspect: tools/log_inspect.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-rebuild: $(BUILD_DIR)/tests/lxp_test_rebuild $(BUILD_DIR)/tools/log_inspect
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_rebuild
+
+$(BUILD_DIR)/tests/lxp_test_journal: tests/state/lxp_test_journal.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -pthread -o $@
+
+$(BUILD_DIR)/tests/lxp_test_journal_tsan: tests/state/lxp_test_journal.c \
+		src/state/lxp_journal.c src/crypto/lxp_hash.c \
+		src/state/lxp_idempotency.c \
+		src/crypto/lxp_ct.c \
+		src/protocol/lxp_protocol.c src/protocol/lxp_result.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SANITIZER_CFLAGS) -fsanitize=thread \
+		$^ -fsanitize=thread -pthread -o $@
+
+test-journal: $(BUILD_DIR)/tests/lxp_test_journal \
+		$(BUILD_DIR)/tests/lxp_test_journal_tsan
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_journal
+	TSAN_OPTIONS=halt_on_error=1 setarch $(shell uname -m) -R \
+		$(BUILD_DIR)/tests/lxp_test_journal_tsan
+
+$(BUILD_DIR)/tests/lxp_test_activity_codec: \
+		tests/protocol/lxp_test_activity_codec.c fuzz/lxp_fuzz_activity.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/protocol/lxp_test_activity_codec.c \
+		fuzz/lxp_fuzz_activity.c $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-activity-codec: $(BUILD_DIR)/tests/lxp_test_activity_codec
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_activity_codec
+
+$(BUILD_DIR)/tests/lxp_test_envelope: tests/protocol/lxp_test_envelope.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-envelope: $(BUILD_DIR)/tests/lxp_test_envelope
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_envelope
+
+$(BUILD_DIR)/tests/lxp_test_verify_pool: tests/network/lxp_test_verify_pool.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+$(BUILD_DIR)/tests/lxp_test_verify_pool_tsan: \
+		tests/network/lxp_test_verify_pool.c src/network/lxp_verify_pool.c \
+		src/crypto/lxp_ed25519.c src/crypto/lxp_hash.c src/crypto/lxp_ct.c \
+		src/protocol/lxp_protocol.c src/protocol/lxp_result.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SANITIZER_CFLAGS) -fsanitize=thread \
+		$^ -fsanitize=thread -lcrypto -pthread -o $@
+
+test-verify-pool: $(BUILD_DIR)/tests/lxp_test_verify_pool \
+		$(BUILD_DIR)/tests/lxp_test_verify_pool_tsan
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_verify_pool
+	TSAN_OPTIONS=halt_on_error=1 setarch $(shell uname -m) -R \
+		$(BUILD_DIR)/tests/lxp_test_verify_pool_tsan
+
+$(BUILD_DIR)/tests/lxp_test_admission: tests/sequencer/lxp_test_admission.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-admission: $(BUILD_DIR)/tests/lxp_test_admission
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_admission
+
+$(BUILD_DIR)/tests/lxp_test_idempotency: tests/state/lxp_test_idempotency.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -pthread -o $@
+
+test-idempotency: $(BUILD_DIR)/tests/lxp_test_idempotency
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_idempotency
+
+$(BUILD_DIR)/tests/lxp_test_fee_gate: tests/protocol/lxp_test_fee_gate.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-fee-gate: $(BUILD_DIR)/tests/lxp_test_fee_gate
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_fee_gate
+
+$(BUILD_DIR)/tests/lxp_test_identity: tests/state/lxp_test_identity.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -o $@
+
+test-identity: $(BUILD_DIR)/tests/lxp_test_identity
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_identity
+
+$(BUILD_DIR)/tests/lxp_test_grants: tests/state/lxp_test_grants.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-grants: $(BUILD_DIR)/tests/lxp_test_grants
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_grants
+
+$(BUILD_DIR)/tests/lxp_test_authority_resolve: \
+		tests/state/lxp_test_authority_resolve.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-authority-resolve: $(BUILD_DIR)/tests/lxp_test_authority_resolve
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_authority_resolve
+
+$(BUILD_DIR)/tests/lxp_test_allowance: tests/state/lxp_test_allowance.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-allowance: $(BUILD_DIR)/tests/lxp_test_allowance
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_allowance
+
+$(BUILD_DIR)/tests/lxp_test_revocation: tests/state/lxp_test_revocation.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-revocation: $(BUILD_DIR)/tests/lxp_test_revocation
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_revocation
+
+$(BUILD_DIR)/tests/lxp_test_rotation: tests/state/lxp_test_rotation.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -o $@
+
+test-rotation: $(BUILD_DIR)/tests/lxp_test_rotation
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_rotation
+
+$(BUILD_DIR)/tests/lxp_test_sanitizer_smoke: \
+		tests/protocol/lxp_test_sanitizer_smoke.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -o $@
+
+test-sanitizer-smoke: $(BUILD_DIR)/tests/lxp_test_sanitizer_smoke
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_sanitizer_smoke
+
+test-sanitizer-suite: test-result test-protocol test-harness \
+		test-sanitizer-smoke $(BUILD_DIR)/tests/lxp_test_arena
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_arena
+
+scan-consensus: build
+	tools/ci/no-float-scan.sh "$(BUILD_DIR)"
+	tools/ci/symbol-allowlist.sh "$(BUILD_DIR)"
+
+public-audit:
+	tools/ci/public-repo-audit.sh
+
+ci: public-audit test reproducible scan-consensus test-sanitizers
+
+-include $(LIB_OBJECTS:.o=.d)
+
+include tools/build/sanitizers.mk

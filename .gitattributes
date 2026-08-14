@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+*.c text diff=c
+*.h text diff=c
+*.sol text
+*.sh text eol=lf
+Makefile text eol=lf
+*.md text diff=markdown
+*.kvx text
+*.sql text
+*.toml text
+*.yml text
+*.yaml text
+*.json text
+
+*.bin binary
+*.lxb binary
+*.lxv binary
+*.vsix binary
+

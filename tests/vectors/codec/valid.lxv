@@ -1,0 +1,6 @@
+# Published LayerX canonical primitive vectors.
+# kind|name|canonical_hex|expected_result|sha256
+u64|zero|0000000000000000|0|af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc
+u64|one|0000000000000001|0|cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50
+u64|max-minus-one|fffffffffffffffe|0|aa766b9df11c7941ce552eed3b49cf7a12a638e5492c2501f5ce2cc74f5feeae
+u64|max|ffffffffffffffff|0|12a3ae445661ce5dee78d0650d33362dec29c4f82af05e7e57fb595bbbacf0ca

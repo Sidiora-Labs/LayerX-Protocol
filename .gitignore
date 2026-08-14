@@ -1,0 +1,66 @@
+# Native and Solidity build outputs
+/build/
+/build-*/
+/out/
+/cache/
+/broadcast/
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.gcda
+*.gcno
+*.profraw
+*.profdata
+/lcov.info
+/coverage/
+
+# Qualification corpora, replay ledgers, and crash artifacts
+*.lxq
+*.roots
+core
+core.*
+crash-*
+
+# Runtime state and logs
+/.logs/
+*.log
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.pid
+
+# Codify's local index and tool caches
+/.codegraph/
+/.cache/
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+.envrc
+/secrets/
+/credentials/
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+
+# Local editor packages and machine state
+/.vscode/*
+!/.vscode/extensions.json
+!/.vscode/settings.json
+*.vsix
+*.swp
+*.swo
+*~
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+

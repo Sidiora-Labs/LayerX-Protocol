@@ -1,0 +1,48 @@
+#ifndef LAYERX_LXP_PROTOCOL_H
+#define LAYERX_LXP_PROTOCOL_H
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+enum {
+    LXP_PROTOCOL_VERSION = 1,
+    LXP_MAX_ACTIVITY_BYTES = 1048576,
+    LXP_MAX_PAYLOAD_BYTES = 524288,
+    LXP_MAX_DID_LENGTH = 255,
+    LXP_MAX_AUTHORITY_CHAIN_DEPTH = 16,
+    LXP_MAX_TRANSFER_SET_LEGS = 256,
+    LXP_MAX_EFFECTS = 512,
+    LXP_MAX_BATCH_ACTIVITIES = 65535
+};
+
+#define lxp_domain_tag_id uint8_t
+enum {
+    LXP_DOMAIN_ACTIVITY_ID = 0,
+    LXP_DOMAIN_PAYLOAD_HASH,
+    LXP_DOMAIN_SIGNATURE_PREIMAGE,
+    LXP_DOMAIN_AUTHORITY_HASH,
+    LXP_DOMAIN_CONTEXT_HASH,
+    LXP_DOMAIN_MERKLE_LEAF,
+    LXP_DOMAIN_MERKLE_INTERNAL,
+    LXP_DOMAIN_BATCH_HEADER,
+    LXP_DOMAIN_RECEIPT,
+    LXP_DOMAIN_CHECKPOINT_CERTIFICATE,
+    LXP_DOMAIN_ACCOUNT_ID,
+    LXP_DOMAIN_DID_ID,
+    LXP_DOMAIN_EVM_PAYOUT_BINDING,
+    LXP_DOMAIN_STATE_LEAF,
+    LXP_DOMAIN_STATE_NODE,
+    LXP_DOMAIN_STATE_ROOT_CHAIN,
+    LXP_DOMAIN_SNAPSHOT,
+    LXP_DOMAIN_DA_CHUNK,
+    LXP_DOMAIN_DA_CHALLENGE,
+    LXP_DOMAIN_TAG_COUNT
+};
+
+bool lxp_protocol_version_supported(uint16_t protocol_version);
+bool lxp_network_id_matches(uint32_t configured_network_id,
+                            uint32_t presented_network_id);
+const uint8_t *lxp_domain_tag(lxp_domain_tag_id id, size_t *length);
+
+#endif

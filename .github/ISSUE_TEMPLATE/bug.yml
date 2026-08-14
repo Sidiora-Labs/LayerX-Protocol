@@ -1,0 +1,47 @@
+name: Bug report
+description: Report a reproducible, non-security defect in LayerX.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not disclose vulnerabilities here. Use the private process in SECURITY.md.
+  - type: checkboxes
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues and this is not a security report.
+          required: true
+  - type: input
+    attributes:
+      label: Revision
+      description: Commit or Codify snapshot identifying the source tested.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Environment
+      description: Operating system, architecture, compiler or Foundry version, and relevant tool versions.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: Exact commands and the smallest input that reproduces the behavior.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Actual behavior
+      description: Include complete error output with credentials and private infrastructure removed.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Affected invariant or requirement
+

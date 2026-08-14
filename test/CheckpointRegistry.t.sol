@@ -1,0 +1,165 @@
+// SPDX-License-Identifier: LicenseRef-Centra-ai-Protocol
+pragma solidity ^0.8.24;
+
+import {CanonicalCheckpoint} from "../contracts/libraries/CanonicalCheckpoint.sol";
+import {CheckpointRegistry} from "../contracts/CheckpointRegistry.sol";
+import {GuarantorBond} from "../contracts/GuarantorBond.sol";
+
+interface CheckpointVm {
+    function addr(uint256 privateKey) external returns (address);
+    function deal(address account, uint256 balance) external;
+    function prank(address sender) external;
+    function sign(uint256 privateKey, bytes32 digest) external returns (uint8 v, bytes32 r, bytes32 s);
+    function warp(uint256 timestamp) external;
+    function expectRevert(bytes4 selector) external;
+}
+
+contract CheckpointRegistryTest {
+    CheckpointVm private constant vm = CheckpointVm(address(uint160(uint256(keccak256("hevm cheat code")))));
+
+    GuarantorBond private bond;
+    CheckpointRegistry private registry;
+    uint256[3] private keys = [uint256(1), uint256(2), uint256(3)];
+    bytes32 private constant GENESIS = bytes32(uint256(0x11) << 248);
+    bytes32 private constant CONFIG = keccak256("checkpoint-test-config");
+    uint192 private constant RELEASE = uint192(1) << 128;
+
+    function setUp() public {
+        vm.warp(1000);
+        bond = new GuarantorBond(address(this), 100, 200 ether, 7 days, CONFIG, RELEASE);
+        for (uint256 i = 0; i < keys.length; ++i) {
+            address signer = vm.addr(keys[i]);
+            vm.deal(signer, 3 ether);
+            vm.prank(signer);
+            bond.depositBond{value: 2 ether}(bytes32(i + 1), 1);
+        }
+        registry = new CheckpointRegistry(bond, 1, 42, 2, 4, 1 hours, 5 minutes, GENESIS, CONFIG, RELEASE);
+    }
+
+    function testCanonicalHeaderMatchesCVector() public view {
+        CanonicalCheckpoint.HeaderCommitments memory header = _header();
+        bytes memory encoded = registry.canonicalHeader(header);
+        require(encoded.length == 354, "header length");
+        require(
+            registry.checkpointHash(header, "") == 0xf655c001cc9392bddb71932afa21742e7be6ac762e76f3ce0c56e32e8ec35aee,
+            "C checkpoint vector mismatch"
+        );
+    }
+
+    function testRegistersThresholdCertificate() public {
+        CanonicalCheckpoint.HeaderCommitments memory header = _header();
+        bytes32 digest = registry.checkpointHash(header, "");
+        CanonicalCheckpoint.GuarantorAttestation[] memory attestations = _attestations(header, digest, 2);
+        registry.registerCheckpoint(header, "", attestations);
+        require(registry.latestFinalisedStateRoot() == header.resultingStateRoot, "root not advanced");
+        require(registry.checkpointAtBatch(1) == digest, "batch checkpoint absent");
+    }
+
+    function testRejectsDuplicateGuarantor() public {
+        CanonicalCheckpoint.HeaderCommitments memory header = _header();
+        bytes32 digest = registry.checkpointHash(header, "");
+        CanonicalCheckpoint.GuarantorAttestation[] memory attestations = _attestations(header, digest, 2);
+        attestations[1] = attestations[0];
+        vm.expectRevert(CheckpointRegistry.InvalidCertificate.selector);
+        registry.registerCheckpoint(header, "", attestations);
+    }
+
+    function testRejectsStateRootDiscontinuity() public {
+        CanonicalCheckpoint.HeaderCommitments memory header = _header();
+        header.previousStateRoot = keccak256("unrecorded-state-root");
+        bytes32 digest = registry.checkpointHash(header, "");
+        CanonicalCheckpoint.GuarantorAttestation[] memory attestations = _attestations(header, digest, 2);
+        vm.expectRevert(CheckpointRegistry.StateRootDiscontinuity.selector);
+        registry.registerCheckpoint(header, "", attestations);
+    }
+
+    function testRegisteredCertificateRequiresExactRecordedSet() public {
+        CanonicalCheckpoint.HeaderCommitments memory header = _header();
+        bytes32 digest = registry.checkpointHash(header, "");
+        CanonicalCheckpoint.GuarantorAttestation[] memory attestations = _attestations(header, digest, 2);
+        registry.registerCheckpoint(header, "", attestations);
+
+        require(
+            registry.verifyRegisteredCertificate(
+                digest,
+                header.resultingStateRoot,
+                header.epoch,
+                header.batchNumber,
+                header.dataAvailabilityRoot,
+                attestations
+            ),
+            "recorded certificate rejected"
+        );
+
+        attestations[0].attestedAt += 1;
+        require(
+            !registry.verifyRegisteredCertificate(
+                digest,
+                header.resultingStateRoot,
+                header.epoch,
+                header.batchNumber,
+                header.dataAvailabilityRoot,
+                attestations
+            ),
+            "mutated certificate accepted"
+        );
+    }
+
+    function testPayloadSizeIndependentOfActivityCount() public view {
+        CanonicalCheckpoint.HeaderCommitments memory first = _header();
+        CanonicalCheckpoint.HeaderCommitments memory second = first;
+        second.lastSequence = 10_000_000;
+        require(
+            registry.canonicalHeader(first).length == registry.canonicalHeader(second).length, "count leaked into size"
+        );
+    }
+
+    function _header() private pure returns (CanonicalCheckpoint.HeaderCommitments memory header) {
+        header = CanonicalCheckpoint.HeaderCommitments({
+            protocolVersion: 1,
+            networkId: 42,
+            epoch: 1,
+            batchNumber: 1,
+            firstSequence: 1,
+            lastSequence: 1_000_000,
+            previousStateRoot: GENESIS,
+            resultingStateRoot: bytes32(uint256(0x22) << 248),
+            activityMerkleRoot: bytes32(uint256(0x33) << 248),
+            receiptMerkleRoot: bytes32(uint256(0x44) << 248),
+            eventMerkleRoot: bytes32(uint256(0x55) << 248),
+            dataAvailabilityRoot: bytes32(uint256(0x66) << 248),
+            oracleRoot: bytes32(uint256(0x77) << 248),
+            timestamp: 1000,
+            sequencerId: bytes32(uint256(0x88) << 248)
+        });
+    }
+
+    function _attestations(CanonicalCheckpoint.HeaderCommitments memory header, bytes32 digest, uint256 count)
+        private
+        returns (CanonicalCheckpoint.GuarantorAttestation[] memory attestations)
+    {
+        attestations = new CanonicalCheckpoint.GuarantorAttestation[](count);
+        for (uint256 i = 0; i < count; ++i) {
+            attestations[i] = CanonicalCheckpoint.GuarantorAttestation({
+                checkpointId: digest,
+                checkpointHash: digest,
+                guarantorId: bytes32(i + 1),
+                batchNumber: header.batchNumber,
+                dataAvailabilityRoot: header.dataAvailabilityRoot,
+                replayed: true,
+                dataAvailable: true,
+                availabilityClassMask: 0x1f,
+                attestedAt: header.timestamp + 1,
+                signer: vm.addr(keys[i]),
+                r: bytes32(0),
+                s: bytes32(0),
+                v: 0
+            });
+            bytes32 attestationDigest = CanonicalCheckpoint.attestationHash(attestations[i]);
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(keys[i], attestationDigest);
+            attestations[i].v = v;
+            attestations[i].r = r;
+            attestations[i].s = s;
+        }
+    }
+}

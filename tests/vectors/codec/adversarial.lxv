@@ -1,0 +1,9 @@
+# Published LayerX rejection vectors. Every case declares an exact result.
+# kind|name|wire_hex|expected_result|sha256-or-dash
+u64|non-minimal-width|00|-1|-
+u64|truncated|00000000000000|-1|-
+u64|trailing|0000000000000000ff|-2|-
+tag|unknown-tag|ff|-6|-
+bytes4|over-long-length|00000005|-5|-
+seq|unsorted|0102020100|-4|-
+seq|duplicate|01010101|-4|-
