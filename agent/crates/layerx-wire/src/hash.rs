@@ -178,9 +178,20 @@ pub fn merkle_internal(left: &[u8; 32], right: &[u8; 32]) -> Result<[u8; 32], Wi
     let mut pair = Vec::with_capacity(64);
     pair.extend_from_slice(left);
     pair.extend_from_slice(right);
+    domain(Domain::MerkleInternal, &CanonicalBytes::from_wire(pair))
+}
+
+/// Computes the core receipt-signature digest over an unsigned canonical
+/// receipt encoding.
+///
+/// # Errors
+///
+/// Returns a length-limit error when the domain-prefixed input length cannot
+/// be represented safely.
+pub fn receipt_digest(unsigned_receipt: &[u8]) -> Result<[u8; 32], WireError> {
     domain(
-        Domain::MerkleInternal,
-        &CanonicalBytes::from_wire(pair),
+        Domain::Receipt,
+        &CanonicalBytes::from_wire(unsigned_receipt.to_vec()),
     )
 }
 

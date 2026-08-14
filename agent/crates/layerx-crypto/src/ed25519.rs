@@ -41,6 +41,21 @@ pub fn verify(
     signature: &[u8; 64],
     message: SignatureMessage<'_>,
 ) -> Result<(), VerifyError> {
+    verify_digest(public_key, signature, &message.digest())
+}
+
+/// Verifies a strict canonical Ed25519 signature over an already
+/// domain-separated 32-byte core digest.
+///
+/// # Errors
+///
+/// Returns `BadSignature` for non-canonical, weak, high-order, non-reduced, or
+/// mathematically invalid keys and signatures.
+pub fn verify_digest(
+    public_key: &[u8; 32],
+    signature: &[u8; 64],
+    digest: &[u8; 32],
+) -> Result<(), VerifyError> {
     if !public_key_is_canonical(public_key) {
         return Err(VerifyError::BadSignature);
     }
@@ -51,6 +66,6 @@ pub fn verify(
     }
     let signature = Signature::from_bytes(signature);
     verifying_key
-        .verify_strict(&message.digest(), &signature)
+        .verify_strict(digest, &signature)
         .map_err(|_| VerifyError::BadSignature)
 }

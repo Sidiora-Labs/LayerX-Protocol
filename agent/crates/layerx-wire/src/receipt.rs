@@ -62,6 +62,110 @@ pub struct ProtocolReceipt {
     sequencer_signature: Option<[u8; 64]>,
 }
 
+impl ProtocolReceipt {
+    /// Returns the receipt protocol version.
+    #[must_use]
+    pub const fn protocol_version(&self) -> u16 {
+        self.protocol_version
+    }
+
+    /// Returns the activity identifier asserted by core.
+    #[must_use]
+    pub const fn activity_id(&self) -> [u8; 32] {
+        self.activity_id
+    }
+
+    /// Returns the global sequence assigned by core.
+    #[must_use]
+    pub const fn global_sequence(&self) -> u64 {
+        self.global_sequence
+    }
+
+    /// Returns the state root before execution.
+    #[must_use]
+    pub const fn previous_state_root(&self) -> [u8; 32] {
+        self.previous_state_root
+    }
+
+    /// Returns the state root after execution.
+    #[must_use]
+    pub const fn resulting_state_root(&self) -> [u8; 32] {
+        self.resulting_state_root
+    }
+
+    /// Returns the exact protocol result code.
+    #[must_use]
+    pub const fn result_code(&self) -> i32 {
+        self.result_code
+    }
+
+    /// Returns the batch identifier carrying this receipt.
+    #[must_use]
+    pub const fn batch_id(&self) -> [u8; 32] {
+        self.batch_id
+    }
+
+    /// Returns the ledger operation tag.
+    #[must_use]
+    pub const fn operation(&self) -> u8 {
+        self.operation
+    }
+
+    /// Returns the one asset shared by both receipt legs.
+    #[must_use]
+    pub const fn asset(&self) -> [u8; 32] {
+        self.asset
+    }
+
+    /// Returns the exact transfer amount.
+    #[must_use]
+    pub const fn amount(&self) -> u128 {
+        self.amount
+    }
+
+    /// Returns the debit account.
+    #[must_use]
+    pub const fn from(&self) -> [u8; 32] {
+        self.from
+    }
+
+    /// Returns the debit balance before execution.
+    #[must_use]
+    pub const fn debit_balance_before(&self) -> u128 {
+        self.from_balance_before
+    }
+
+    /// Returns the debit balance after execution.
+    #[must_use]
+    pub const fn debit_balance_after(&self) -> u128 {
+        self.from_balance_after
+    }
+
+    /// Returns the credit account.
+    #[must_use]
+    pub const fn to(&self) -> [u8; 32] {
+        self.to
+    }
+
+    /// Returns the credit balance before execution.
+    #[must_use]
+    pub const fn credit_balance_before(&self) -> u128 {
+        self.to_balance_before
+    }
+
+    /// Returns the credit balance after execution.
+    #[must_use]
+    pub const fn credit_balance_after(&self) -> u128 {
+        self.to_balance_after
+    }
+
+    /// Returns the sequencer signature when one was encoded.
+    #[must_use]
+    pub const fn sequencer_signature(&self) -> Option<[u8; 64]> {
+        self.sequencer_signature
+    }
+}
+
 /// Compact activity receipt carried by the published replay corpus.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReplayReceipt {
@@ -79,6 +183,17 @@ pub enum Receipt {
     Protocol(Box<ProtocolReceipt>),
     /// Replay-corpus activity receipt.
     Replay(ReplayReceipt),
+}
+
+impl Receipt {
+    /// Borrows the full protocol receipt, rejecting compact replay records.
+    #[must_use]
+    pub fn protocol(&self) -> Option<&ProtocolReceipt> {
+        match self {
+            Self::Protocol(receipt) => Some(receipt),
+            Self::Replay(_) => None,
+        }
+    }
 }
 
 fn fixed_array<const N: usize>(decoder: &mut Decoder<'_>) -> Result<[u8; N], WireError> {
@@ -321,6 +436,23 @@ pub fn encode(receipt: &Receipt) -> Result<Vec<u8>, WireError> {
             encoder.fixed(&receipt.resulting_state_root)?;
             Ok(encoder.finish())
         }
+    }
+}
+
+/// Re-encodes the exact receipt signing preimage with the signature absent.
+///
+/// # Errors
+///
+/// Rejects compact replay records because they are not signed receipt shapes,
+/// and returns canonical bound failures from the encoder.
+pub fn encode_unsigned(receipt: &Receipt) -> Result<Vec<u8>, WireError> {
+    match receipt {
+        Receipt::Protocol(receipt) => {
+            let mut unsigned = receipt.as_ref().clone();
+            unsigned.sequencer_signature = None;
+            encode_protocol(&unsigned)
+        }
+        Receipt::Replay(_) => Err(WireError::known(KnownResult::NonCanonical, 0)),
     }
 }
 

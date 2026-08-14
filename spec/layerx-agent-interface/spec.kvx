@@ -742,7 +742,7 @@ reqs = ["6.2","6.9"]
 
 [task.5.2]
 title = "Verify signed receipts from bytes alone"
-status = "pending"
+status = "done"
 wave = 4
 requires = ["5.1","4.1"]
 do_1 = "Implement receipt verification that decodes the receipt, re-encodes it canonically, verifies the sequencer signature against the key authorised for that batch, and returns the sequencer-signed level on success."

@@ -248,7 +248,7 @@ entirely on the spine being real.
     - Validate against the protocol merkle vectors including the negative vectors and fail the build on divergence.
     - Add property tests over generated trees asserting that only the correct path verifies and every mutation fails.
     - _Requirements: 6.2, 6.9_
-  - [ ] 5.2 Verify signed receipts from bytes alone
+  - [x] 5.2 Verify signed receipts from bytes alone
     - Implement receipt verification that decodes the receipt, re-encodes it canonically, verifies the sequencer signature against the key authorised for that batch, and returns the sequencer-signed level on success.
     - Check internal consistency including that the single-leg before and after balances differ by exactly the amount, that the asset matches on both legs, and that the state roots chain as the receipt claims.
     - Return a typed verification failure naming the exact failing check rather than a generic invalid result.
