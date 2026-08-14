@@ -3,8 +3,10 @@
 pub mod activity;
 pub mod decode;
 pub mod encode;
+pub mod hash;
 pub mod limits;
 pub mod receipt;
+pub mod sign;
 
 use layerx_types::result::{KnownResult, ResultCode};
 

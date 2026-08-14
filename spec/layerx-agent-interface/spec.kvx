@@ -582,7 +582,7 @@ reqs = ["4.2","4.5","4.7"]
 
 [task.3.4]
 title = "Compute identifiers and signing preimages under domain tags"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["3.2"]
 do_1 = "Implement domain-separated hashing with the exact domain tag set the protocol defines for activity identifiers, payload hashes, signature preimages, authorization hashes, context hashes, merkle leaves, merkle internal nodes, batch headers and checkpoint certificates."

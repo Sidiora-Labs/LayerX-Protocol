@@ -1638,6 +1638,9 @@ agent-test-wire-structures:
 agent-test-wire-rejection:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-wire --test rejection
 
+agent-test-wire-hashing:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-wire --test hashing
+
 agent-test-sanitize:
 	sh agent/tools/run-sanitizers.sh
 

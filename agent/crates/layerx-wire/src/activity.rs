@@ -61,6 +61,12 @@ impl Activity {
         &self.payload
     }
 
+    /// Returns the payload digest carried by the envelope.
+    #[must_use]
+    pub const fn payload_hash(&self) -> [u8; 32] {
+        self.payload_hash
+    }
+
     /// Borrows a signature only when this is the signed form.
     #[must_use]
     pub fn signature(&self) -> Option<&[u8]> {

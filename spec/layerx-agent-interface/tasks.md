@@ -170,7 +170,7 @@ entirely on the spine being real.
     - Assert that no rejection path consumes unbounded memory or time, with a bounded-resource harness around the decoder.
     - Report coverage of rejection classes and fail if a class in the protocol taxonomy has no case.
     - _Requirements: 4.2, 4.5, 4.7_
-  - [ ] 3.4 Compute identifiers and signing preimages under domain tags
+  - [x] 3.4 Compute identifiers and signing preimages under domain tags
     - Implement domain-separated hashing with the exact domain tag set the protocol defines for activity identifiers, payload hashes, signature preimages, authorization hashes, context hashes, merkle leaves, merkle internal nodes, batch headers and checkpoint certificates.
     - Implement activity_id and payload_hash computation over canonical bytes and prove equality with the corpora values for every vector.
     - Expose the signing preimage as the single byte string a signer is given, and make it impossible to obtain a preimage that is not derived from canonical bytes.
