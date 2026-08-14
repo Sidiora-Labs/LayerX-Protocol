@@ -208,6 +208,45 @@ pub fn batch_header_digest(header: &[u8]) -> Result<[u8; 32], WireError> {
     )
 }
 
+/// Computes the exact checkpoint identifier over canonical header bytes,
+/// big-endian validity-proof length, and validity-proof bytes.
+///
+/// # Errors
+///
+/// Returns a length-limit error when any combined length cannot be represented
+/// safely or when the validity proof exceeds the protocol `u32` framing.
+pub fn checkpoint_id(header: &[u8], validity_proof: &[u8]) -> Result<[u8; 32], WireError> {
+    let proof_length = u32::try_from(validity_proof.len())
+        .map_err(|_| WireError::known(KnownResult::LengthLimit, 0))?;
+    let capacity = header
+        .len()
+        .checked_add(4)
+        .and_then(|value| value.checked_add(validity_proof.len()))
+        .ok_or_else(|| WireError::known(KnownResult::LengthLimit, 0))?;
+    let mut canonical = Vec::with_capacity(capacity);
+    canonical.extend_from_slice(header);
+    canonical.extend_from_slice(&proof_length.to_be_bytes());
+    canonical.extend_from_slice(validity_proof);
+    domain(
+        Domain::CheckpointCertificate,
+        &CanonicalBytes::from_wire(canonical),
+    )
+}
+
+/// Computes the exact guarantor-attestation digest under the checkpoint
+/// certificate domain.
+///
+/// # Errors
+///
+/// Returns a length-limit error when the domain-prefixed message cannot be
+/// represented safely.
+pub fn checkpoint_attestation_digest(message: &[u8]) -> Result<[u8; 32], WireError> {
+    domain(
+        Domain::CheckpointCertificate,
+        &CanonicalBytes::from_wire(message.to_vec()),
+    )
+}
+
 const INITIAL_STATE: [u32; 8] = [
     0x6a09_e667,
     0xbb67_ae85,

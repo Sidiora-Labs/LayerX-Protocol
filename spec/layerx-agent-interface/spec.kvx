@@ -772,7 +772,7 @@ reqs = ["6.2","6.3","6.6"]
 
 [task.5.4]
 title = "Verify checkpoint certificates and guarantor thresholds"
-status = "pending"
+status = "done"
 wave = 4
 requires = ["5.3"]
 do_1 = "Implement certificate verification that checks each guarantor signature over the checkpoint identifier against the bonded guarantor set for that checkpoint."

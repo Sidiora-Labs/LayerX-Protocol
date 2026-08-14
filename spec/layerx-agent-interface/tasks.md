@@ -262,7 +262,7 @@ entirely on the spine being real.
     - Raise the achieved level to batch-included and state-proven only when the corresponding check actually passed, never as a default.
     - Add negative tests covering truncated paths, swapped roots, a header for a different batch number and an unauthorised sequencer identity.
     - _Requirements: 6.2, 6.3, 6.6_
-  - [ ] 5.4 Verify checkpoint certificates and guarantor thresholds
+  - [x] 5.4 Verify checkpoint certificates and guarantor thresholds
     - Implement certificate verification that checks each guarantor signature over the checkpoint identifier against the bonded guarantor set for that checkpoint.
     - Count only distinct signers, reject a duplicate signer counted twice, and report the achieved count and the required threshold rather than a bare boolean.
     - Raise the level to checkpoint-finalised only when the threshold is met, and to settlement-anchored only when the settlement reference is present and matches the registered checkpoint.
