@@ -12,6 +12,7 @@ QUALIFICATION_CORPUS ?= build/qualification/replay/replay-10m.lxq
 FUZZ_QUAL_ITERATIONS ?= 100000
 AGENT_CARGO ?= cargo
 AGENT_MANIFEST := agent/Cargo.toml
+AGENT_FUZZ_TOOLCHAIN ?= nightly-2025-11-10
 
 CPPFLAGS := -Iinclude \
 	-DLXP_BUILD_TARGET_TRIPLE=\"$(shell $(CC) -dumpmachine)\" \
@@ -144,7 +145,7 @@ LIBRARY := $(BUILD_DIR)/liblayerx.a
 	test-wave-8 \
 	scan-consensus public-audit ci \
 	agent-build agent-test agent-lint agent-fuzz agent-check \
-	agent-test-errors agent-check-boundary
+	agent-test-errors agent-check-boundary agent-test-sanitize
 
 all: build
 
@@ -1604,13 +1605,16 @@ agent-lint:
 	sh agent/tools/dependency-policy.sh
 
 agent-fuzz:
-	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked --workspace --tests
+	cd agent/fuzz && $(AGENT_CARGO) +$(AGENT_FUZZ_TOOLCHAIN) fuzz run harness -- -max_total_time=10
 
 agent-check: agent-check-boundary
 	$(AGENT_CARGO) check --manifest-path $(AGENT_MANIFEST) --locked --workspace --all-targets
 
 agent-test-errors:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-types --test errors
+
+agent-test-sanitize:
+	sh agent/tools/run-sanitizers.sh
 
 agent-check-boundary:
 	$(AGENT_CARGO) test --manifest-path agent/tools/boundary-check/Cargo.toml --locked

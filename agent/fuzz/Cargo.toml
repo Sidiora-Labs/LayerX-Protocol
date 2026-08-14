@@ -1,0 +1,21 @@
+[package]
+name = "layerx-agent-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+layerx-types = { path = "../crates/layerx-types" }
+
+[[bin]]
+name = "harness"
+path = "fuzz_targets/harness.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]

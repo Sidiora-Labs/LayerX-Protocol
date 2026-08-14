@@ -438,7 +438,7 @@ reqs = ["2.2","2.3","1.2"]
 
 [task.1.5]
 title = "Stand up the test, property and fuzz harness"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["1.1"]
 do_1 = "Establish the test layout for unit, integration, property, differential, fault-injection and conformance suites, with a naming convention that maps a suite to the make target that runs it."

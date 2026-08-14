@@ -29,3 +29,22 @@ jobs:
         run: make agent-build agent-lint agent-check agent-test
       - name: Audit advisories, licenses, sources, and bans
         run: cargo install cargo-deny --locked --version 0.19.0 && cargo deny --manifest-path agent/Cargo.toml check
+
+  scheduled-adversarial:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain and fuzz runner
+        run: >-
+          rustup toolchain install 1.91.1 --profile minimal &&
+          rustup toolchain install nightly-2025-11-10 --profile minimal &&
+          cargo install cargo-fuzz --locked
+      - name: Run sanitizer variants
+        run: make agent-test-sanitize
+      - name: Run committed fuzz corpus
+        run: make agent-fuzz

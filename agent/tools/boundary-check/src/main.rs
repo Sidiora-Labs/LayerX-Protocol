@@ -20,6 +20,14 @@ const PRIVATE_PATHS: &[&str] = &[
     "snapshot.bin",
 ];
 
+const AMBIENT_NONDETERMINISM: &[&str] = &[
+    "SystemTime::now",
+    "Instant::now",
+    "thread_rng(",
+    "getrandom(",
+    "OsRng",
+];
+
 #[derive(Debug, Eq, PartialEq)]
 struct Violation {
     path: PathBuf,
@@ -71,6 +79,12 @@ fn source_rule(body: &str, allow_c_layout: bool) -> Option<&'static str> {
     }
     if PRIVATE_PATHS.iter().any(|private| body.contains(private)) {
         return Some("node-private-path");
+    }
+    if AMBIENT_NONDETERMINISM
+        .iter()
+        .any(|ambient| body.contains(ambient))
+    {
+        return Some("ambient-nondeterminism");
     }
     None
 }

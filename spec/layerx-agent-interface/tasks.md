@@ -101,7 +101,7 @@ entirely on the spine being real.
     - Wire the checker into make agent-check and CI, and prove it by adding fixtures that each violation class is detected and that a clean tree passes.
     - Document in the workspace README that this gate exists because the boundary is what preserves independent upgrades, and that suppressing it requires a spec change rather than a code comment.
     - _Requirements: 2.2, 2.3, 1.2_
-  - [ ] 1.5 Stand up the test, property and fuzz harness
+  - [x] 1.5 Stand up the test, property and fuzz harness
     - Establish the test layout for unit, integration, property, differential, fault-injection and conformance suites, with a naming convention that maps a suite to the make target that runs it.
     - Add the property-testing and fuzzing infrastructure with a committed corpus directory per target and a seed policy that makes a failing case reproducible from the recorded seed.
     - Add the sanitizer build variants the toolchain supports and wire them to make agent-test-sanitize, treating any report as a failure.

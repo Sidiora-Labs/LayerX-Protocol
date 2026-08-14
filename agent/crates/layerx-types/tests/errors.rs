@@ -9,14 +9,30 @@ fn every_layer_error_has_one_distinct_class() {
         LayerError::TransportFailure { code: 1 },
         LayerError::Deadline,
         LayerError::ProtocolIncompatibility { local: 1, peer: 2 },
-        LayerError::UnavailableCapability { capability: "proof".into() },
-        LayerError::CoreRejection { result: ResultCode::from_raw(-3) },
-        LayerError::VerificationFailure { check: "signature".into() },
-        LayerError::PolicyRefusal { rule: "default-deny".into() },
-        LayerError::CapabilityRefusal { dimension: "asset".into() },
-        LayerError::BudgetRefusal { budget: "daily".into() },
-        LayerError::RateLimit { bucket: "submit".into() },
-        LayerError::InternalFault { invariant: "state".into() },
+        LayerError::UnavailableCapability {
+            capability: "proof".into(),
+        },
+        LayerError::CoreRejection {
+            result: ResultCode::from_raw(-3),
+        },
+        LayerError::VerificationFailure {
+            check: "signature".into(),
+        },
+        LayerError::PolicyRefusal {
+            rule: "default-deny".into(),
+        },
+        LayerError::CapabilityRefusal {
+            dimension: "asset".into(),
+        },
+        LayerError::BudgetRefusal {
+            budget: "daily".into(),
+        },
+        LayerError::RateLimit {
+            bucket: "submit".into(),
+        },
+        LayerError::InternalFault {
+            invariant: "state".into(),
+        },
     ];
     let classes: BTreeSet<ErrorClass> = errors.iter().map(LayerError::class).collect();
     assert_eq!(classes.len(), errors.len());
@@ -32,7 +48,10 @@ fn protocol_mapping_is_total_unique_and_lossless() {
         let code = ResultCode::from(*known);
         assert_eq!(code.known(), Some(*known));
         assert_eq!(code.raw(), known.raw());
-        assert!(matches!(code.retriability(), Retriability::Terminal | Retriability::Retriable));
+        assert!(matches!(
+            code.retriability(),
+            Retriability::Terminal | Retriability::Retriable
+        ));
     }
 }
 
@@ -51,9 +70,15 @@ fn domain_partition_matches_the_core() {
     assert_eq!(ResultCode::from_raw(-1).domain(), ResultDomain::Codec);
     assert_eq!(ResultCode::from_raw(-100).domain(), ResultDomain::Envelope);
     assert_eq!(ResultCode::from_raw(-200).domain(), ResultDomain::Authority);
-    assert_eq!(ResultCode::from_raw(-300).domain(), ResultDomain::Sequencing);
+    assert_eq!(
+        ResultCode::from_raw(-300).domain(),
+        ResultDomain::Sequencing
+    );
     assert_eq!(ResultCode::from_raw(-400).domain(), ResultDomain::Ledger);
-    assert_eq!(ResultCode::from_raw(-500).domain(), ResultDomain::Arithmetic);
+    assert_eq!(
+        ResultCode::from_raw(-500).domain(),
+        ResultDomain::Arithmetic
+    );
     assert_eq!(ResultCode::from_raw(-600).domain(), ResultDomain::Metering);
     assert_eq!(ResultCode::from_raw(-700).domain(), ResultDomain::Module);
     assert_eq!(ResultCode::from_raw(-800).domain(), ResultDomain::Batch);
