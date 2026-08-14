@@ -145,7 +145,8 @@ LIBRARY := $(BUILD_DIR)/liblayerx.a
 	test-wave-8 \
 	scan-consensus public-audit ci \
 	agent-build agent-test agent-lint agent-fuzz agent-check \
-	agent-test-errors agent-check-boundary agent-test-sanitize
+	agent-test-errors agent-check-boundary agent-test-sanitize \
+	agent-test-types-ids
 
 all: build
 
@@ -1612,6 +1613,9 @@ agent-check: agent-check-boundary
 
 agent-test-errors:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-types --test errors
+
+agent-test-types-ids:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-types --test ids
 
 agent-test-sanitize:
 	sh agent/tools/run-sanitizers.sh

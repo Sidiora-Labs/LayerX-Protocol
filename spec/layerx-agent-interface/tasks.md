@@ -110,7 +110,7 @@ entirely on the spine being real.
     - _Requirements: 23.7, 23.9, 4.6_
 
 - [ ] 2. Build layerx-types, the canonical domain vocabulary
-  - [ ] 2.1 Define identifiers, account namespaces and asset types
+  - [x] 2.1 Define identifiers, account namespaces and asset types
     - Define DID, activity identifier, batch identifier, checkpoint identifier, transaction identifier, idempotency key and asset identifier as distinct fixed-width types that cannot be interchanged by assignment.
     - Define the account identifier as a closed enumeration over exactly the protocol namespaces agent main, agent budget, agent escrow, agent margin, system liquidity, system insurance, system fees, system paxeer reserve and system paxeer withdrawals, and make an identifier outside that set unconstructible.
     - Define the amount type over the exact fixed-width integers the protocol uses including the 128-bit width, with checked arithmetic only, and make construction from any floating-point value impossible in the public API.

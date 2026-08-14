@@ -457,7 +457,7 @@ status = "pending"
 
 [task.2.1]
 title = "Define identifiers, account namespaces and asset types"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["1.3"]
 do_1 = "Define DID, activity identifier, batch identifier, checkpoint identifier, transaction identifier, idempotency key and asset identifier as distinct fixed-width types that cannot be interchanged by assignment."
