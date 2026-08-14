@@ -1,0 +1,13 @@
+[package]
+name = "layerx-agent-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+layerx-types = { path = "../layerx-types" }
+layerx-client = { path = "../layerx-client" }
+
+[lints]
+workspace = true

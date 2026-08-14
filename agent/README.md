@@ -1,0 +1,7 @@
+# LayerX Agent Interface
+
+The interaction layer has no protocol authority. Every state-changing operation is a canonical LayerX activity signed by protocol-recognised authority and submitted as the exact signed bytes; this workspace never invents, applies, or asserts protocol state.
+
+The LayerX Node Interface is the sole boundary to the C17 core. Agent crates never open node storage, read append-only logs, bind private C layouts, or become build dependencies of the protocol runtime.
+
+This Rust 2021 workspace owns agent-facing types, canonical encoding, cryptography, proof verification, the boundary client, daemon API, daemon, MCP server, and SDK. It builds independently from the C core through the `agent-*` Make targets at the repository root.

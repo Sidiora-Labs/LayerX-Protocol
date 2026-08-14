@@ -10,6 +10,8 @@ EXTRA_LDFLAGS ?=
 RUN_PREFIX ?=
 QUALIFICATION_CORPUS ?= build/qualification/replay/replay-10m.lxq
 FUZZ_QUAL_ITERATIONS ?= 100000
+AGENT_CARGO ?= cargo
+AGENT_MANIFEST := agent/Cargo.toml
 
 CPPFLAGS := -Iinclude \
 	-DLXP_BUILD_TARGET_TRIPLE=\"$(shell $(CC) -dumpmachine)\" \
@@ -140,7 +142,8 @@ LIBRARY := $(BUILD_DIR)/liblayerx.a
 	qualify-replay qualify-faults qualify-fuzz qualify-fuzz-run qualify-arith \
 	test-wave-12 \
 	test-wave-8 \
-	scan-consensus public-audit ci
+	scan-consensus public-audit ci \
+	agent-build agent-test agent-lint agent-fuzz agent-check
 
 all: build
 
@@ -1588,6 +1591,21 @@ scan-consensus: build
 
 public-audit:
 	tools/ci/public-repo-audit.sh
+
+agent-build:
+	$(AGENT_CARGO) build --manifest-path $(AGENT_MANIFEST) --locked --workspace
+
+agent-test:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked --workspace
+
+agent-lint:
+	$(AGENT_CARGO) clippy --manifest-path $(AGENT_MANIFEST) --locked --workspace --all-targets -- -D warnings
+
+agent-fuzz:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked --workspace --tests
+
+agent-check:
+	$(AGENT_CARGO) check --manifest-path $(AGENT_MANIFEST) --locked --workspace --all-targets
 
 ci: public-audit test reproducible scan-consensus test-sanitizers
 

@@ -22,20 +22,21 @@ This file is a GENERATED pointer to it. Do not hand-edit it; edit `spec/workflow
 3. Before any destructive/irreversible/prod/secret/network-write action, run cortex_guard and self-check against HARD rules; stop for explicit user YES if it risks a HARD rule.
 4. Implement the task against its referenced acceptance criteria (the 'reqs' clause ids in [req.*]). Verify with real tests/checks, not fakes.
 5. On genuine completion: set the task status to done in spec.kvx, then cortex_note_outcome (success|partial|failure) with a terse summary.
+6. Immediately publish the step: from the repository root, git add -A, commit with a natural-sounding message describing what actually changed, and push. Every development step is pushed publicly so the work is auditable in the open. Never batch several tasks into one commit and never leave a completed task unpushed.
 
 ## Persistent project memory (when configured)
 
 
 ## Active feature
 
-`spec/layerx-protocol/spec.kvx` — read its `[meta]` status, `[req.*]` acceptance criteria, and the `[task.*]` list (status + wave + requires). Work one task at a time in wave order; update `status` in the kvx as you go.
+`spec/layerx-agent-interface/spec.kvx` — read its `[meta]` status, `[req.*]` acceptance criteria, and the `[task.*]` list (status + wave + requires). Work one task at a time in wave order; update `status` in the kvx as you go.
 
 ## Hard rules
 
 - **Task Durability**: Once a task is dispatched, keep at least one agent alive until it is done to the highest standard; decouple task lifecycle from the user's connection; on failure, bring up a fresh agent and continue. 'Done' means it genuinely meets the quality bar.
 - **No Fakes**: Never write stub/mock/fake test doubles or placeholder implementations to make tests pass. Test REAL code paths with REAL types.
 - **Read Full**: When tool output is truncated and the rest is retrievable, fetch the full content before reasoning or answering.
-- **No Git**: Do not git commit/push on the dev box; the user drives commits. Uncommitted/untracked state is expected — never flag it as a problem.
+- **Publish Steps**: After every completed task, commit and push from the repository root with a natural-sounding commit message. Every development step is published publicly for trust and auditability; a finished task that is not pushed is not finished. Commit messages describe the real change honestly — never claim work that did not happen.
 - **Ui No Borders**: Client UI: never use border strokes for depth/separation — separation comes purely from background-color contrast between layers.
 - **Ui No Emojis**: No emojis, purple gradients, or glow effects in UI or output.
 - **Gideon Validator**: Never perform a write, restart or remote execution against production validator infrastructure unless the user explicitly names the target and authorizes the action.
