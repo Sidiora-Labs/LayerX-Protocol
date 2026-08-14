@@ -1,8 +1,10 @@
 //! Byte-exact canonical `LayerX` wire encoding.
 
+pub mod activity;
 pub mod decode;
 pub mod encode;
 pub mod limits;
+pub mod receipt;
 
 use layerx_types::result::{KnownResult, ResultCode};
 

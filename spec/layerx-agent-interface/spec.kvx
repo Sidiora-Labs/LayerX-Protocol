@@ -552,7 +552,7 @@ reqs = ["4.1","4.2","4.5","4.6"]
 
 [task.3.2]
 title = "Encode and decode envelopes, payloads and receipts"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["3.1"]
 do_1 = "Implement canonical encoding and decoding for the activity envelope, every module payload, the activity receipt, the 402LXP receipt, batch headers, checkpoint certificates and proof structures."

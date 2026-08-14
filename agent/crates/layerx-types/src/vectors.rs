@@ -106,6 +106,10 @@ pub struct ReplayCorpus {
     pub activity_count: usize,
     /// Every activity type in replay order.
     pub activity_types: Vec<ActivityType>,
+    /// Canonical activity bytes in replay order.
+    pub canonical_activities: Vec<Vec<u8>>,
+    /// Core-produced receipt bytes in replay order.
+    pub expected_receipts: Vec<Vec<u8>>,
 }
 
 /// All repository-owned published vectors loaded without copying them.
@@ -300,6 +304,8 @@ fn load_replay(path: &Path) -> Result<(ReplayCorpus, BTreeSet<VectorClass>), Cor
     }
     let _ = reader.take(64)?;
     let mut activity_types = Vec::with_capacity(count);
+    let mut canonical_activities = Vec::with_capacity(count);
+    let mut expected_receipts = Vec::with_capacity(count);
     let mut last_boundary = false;
     for index in 0..count {
         let sequence = reader.u64()?;
@@ -333,11 +339,13 @@ fn load_replay(path: &Path) -> Result<(ReplayCorpus, BTreeSet<VectorClass>), Cor
                 capability: format!("activity type {raw_type:#010x}"),
             })?;
         activity_types.push(activity_type);
+        canonical_activities.push(activity.to_vec());
         let _ = reader.take(32)?;
         let receipt = reader.sized(106)?;
         if receipt.len() != 106 {
             return Err(reader.error("unexpected replay receipt width"));
         }
+        expected_receipts.push(receipt.to_vec());
         let event = reader.sized(36)?;
         if event.len() != 36 {
             return Err(reader.error("unexpected replay event width"));
@@ -359,6 +367,8 @@ fn load_replay(path: &Path) -> Result<(ReplayCorpus, BTreeSet<VectorClass>), Cor
             protocol_version,
             activity_count: count,
             activity_types,
+            canonical_activities,
+            expected_receipts,
         },
         classes,
     ))

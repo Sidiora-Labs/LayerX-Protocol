@@ -156,7 +156,7 @@ entirely on the spine being real.
     - Guarantee that decoding then re-encoding reproduces the original bytes exactly, and prove it as a property test over generated values as well as over the corpora.
     - Remove every panicking path reachable from decoding arbitrary bytes and return typed errors instead, asserted by a test that decodes adversarial inputs without unwinding.
     - _Requirements: 4.1, 4.2, 4.5, 4.6_
-  - [ ] 3.2 Encode and decode envelopes, payloads and receipts
+  - [x] 3.2 Encode and decode envelopes, payloads and receipts
     - Implement canonical encoding and decoding for the activity envelope, every module payload, the activity receipt, the 402LXP receipt, batch headers, checkpoint certificates and proof structures.
     - Implement the signed and unsigned envelope encodings such that the signing preimage is derived from the unsigned form and the submitted bytes are the signed form containing exactly those preimage bytes.
     - Reject an unknown protocol version, an unknown activity type and an unknown field identifier deterministically rather than skipping or best-effort interpreting them.
