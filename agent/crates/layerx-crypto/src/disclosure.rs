@@ -5,6 +5,7 @@ use std::fmt;
 use layerx_types::payload::{ActivityType, ModuleId, ModuleRegistry};
 use layerx_wire::activity::{decode_unsigned, encode_unsigned, Activity, TimestampBound};
 use layerx_wire::decode::Decoder;
+use layerx_wire::encode::Encoder;
 use layerx_wire::hash;
 use layerx_wire::WireError;
 
@@ -15,6 +16,7 @@ const SEND_WIRE_TAG: u16 = 0x5301;
 const SEND_FIELD_COUNT: u16 = 10;
 const MAX_SEND_CONDITIONS: usize = 8;
 const MAX_SEND_PAYLOAD_BYTES: usize = 512;
+const MAX_TRANSPORT_DISCLOSURE_BYTES: usize = 1_048_576;
 
 /// The semantic role of one counterparty named in a disclosure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -302,6 +304,38 @@ impl Disclosure {
     pub fn reencode(&self) -> Result<Vec<u8>, DisclosureError> {
         self.validate_fields()?;
         encode_unsigned(&self.activity).map_err(DisclosureError::from)
+    }
+
+    pub(crate) fn transport_bytes(&self) -> Result<Vec<u8>, DisclosureError> {
+        self.validate_fields()?;
+        let mut encoder = Encoder::new(MAX_TRANSPORT_DISCLOSURE_BYTES);
+        encoder.structure_header(0x4453)?;
+        encoder.u8(1)?;
+        encoder.u32(self.activity_type.value())?;
+        encoder.bytes(&self.actor, 255)?;
+        encoder.bytes(&self.authority, 524_288)?;
+        encoder.sequence_length(self.counterparties.len(), 64)?;
+        for counterparty in &self.counterparties {
+            encoder.u8(match counterparty.role {
+                CounterpartyRole::Payer => 1,
+                CounterpartyRole::Recipient => 2,
+            })?;
+            encoder.fixed(&counterparty.account)?;
+        }
+        encoder.sequence_length(self.amounts.len(), 64)?;
+        for amount in &self.amounts {
+            encoder.u8(match amount.role {
+                AmountRole::Transfer => 1,
+            })?;
+            encoder.u128(amount.value)?;
+        }
+        encoder.fixed(&self.asset)?;
+        encoder.u128(self.fee_limit)?;
+        encoder.u64(self.expiry.not_before)?;
+        encoder.u64(self.expiry.not_after)?;
+        encoder.u64(self.expiry.payload_expires_at)?;
+        encoder.fixed(&self.idempotency_key)?;
+        Ok(encoder.finish())
     }
 
     pub(crate) fn validated_digest(&self) -> Result<[u8; 32], DisclosureError> {

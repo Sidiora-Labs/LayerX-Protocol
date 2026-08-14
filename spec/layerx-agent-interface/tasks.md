@@ -223,7 +223,7 @@ entirely on the spine being real.
     - Emit the protocol activity payload needed to register the session key in protocol state, so the delegated authority is the protocol authority and not a layer-local notion.
     - Add tests covering wrong secret, wrong network, wrong identity, tampered ciphertext and an attempt to issue a session key without bounds.
     - _Requirements: 5.6, 5.7, 8.3_
-  - [ ] 4.5 Implement the remote signer transport and refusal semantics
+  - [x] 4.5 Implement the remote signer transport and refusal semantics
     - Implement a remote signer client that transmits the canonical bytes and the disclosure, authenticates the signer endpoint mutually, and never receives key material.
     - Treat a refusal, a timeout, an unreachable signer and a malformed response as a refusal to sign, with distinct typed errors and no partially signed artefact left behind.
     - Forbid any fallback to a lower-assurance key or a cached signature, and prove the absence of such a path with a test that removes the remote signer mid-flight.

@@ -27,6 +27,7 @@ const MAX_AGENT_RESPONSE: usize = 4096;
 #[derive(Clone, Copy)]
 pub struct SigningRequest<'a> {
     message: SignatureMessage<'a>,
+    disclosure: &'a Disclosure,
 }
 
 impl<'a> SigningRequest<'a> {
@@ -36,16 +37,26 @@ impl<'a> SigningRequest<'a> {
     ///
     /// Returns a typed refusal when any disclosed field was changed or the
     /// disclosure was created for another byte string or scope.
-    pub fn new(message: SignatureMessage<'a>, disclosure: &Disclosure) -> Result<Self, SignError> {
+    pub fn new(
+        message: SignatureMessage<'a>,
+        disclosure: &'a Disclosure,
+    ) -> Result<Self, SignError> {
         let disclosure_digest = disclosure.validated_digest().map_err(SignError::from)?;
         if !ct::eq_fixed(&disclosure_digest, &message.digest()) {
             return Err(SignError::DisclosureMismatch("canonical_bytes"));
         }
-        Ok(Self { message })
+        Ok(Self {
+            message,
+            disclosure,
+        })
     }
 
     pub(crate) const fn message(self) -> SignatureMessage<'a> {
         self.message
+    }
+
+    pub(crate) const fn disclosure(self) -> &'a Disclosure {
+        self.disclosure
     }
 }
 
@@ -98,6 +109,16 @@ pub enum SignError {
     MalformedResponse,
     /// The external signature failed verification against the requested bytes.
     ReturnedSignatureInvalid,
+    /// The authenticated remote signer explicitly refused the request.
+    RemoteRefused,
+    /// The remote signer exceeded the configured deadline.
+    RemoteTimeout,
+    /// The remote signer endpoint was unreachable or disconnected.
+    RemoteUnavailable,
+    /// Mutual authentication of the remote signer failed.
+    RemoteAuthentication,
+    /// The remote signer returned a malformed framed response.
+    RemoteMalformedResponse,
 }
 
 impl fmt::Display for SignError {
@@ -123,7 +144,16 @@ impl fmt::Display for SignError {
                 formatter.write_str("operating-system keystore returned malformed data")
             }
             Self::ReturnedSignatureInvalid => {
-                formatter.write_str("operating-system keystore signature is invalid")
+                formatter.write_str("returned signer signature is invalid")
+            }
+            Self::RemoteRefused => formatter.write_str("remote signer refused signing"),
+            Self::RemoteTimeout => formatter.write_str("remote signer timed out"),
+            Self::RemoteUnavailable => formatter.write_str("remote signer is unavailable"),
+            Self::RemoteAuthentication => {
+                formatter.write_str("remote signer mutual authentication failed")
+            }
+            Self::RemoteMalformedResponse => {
+                formatter.write_str("remote signer returned a malformed response")
             }
         }
     }

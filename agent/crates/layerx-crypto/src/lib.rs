@@ -5,6 +5,7 @@ pub mod disclosure;
 pub mod ed25519;
 pub mod keystore;
 pub mod local;
+pub mod remote;
 pub mod secp256k1;
 pub mod session;
 pub mod signer;
@@ -58,6 +59,18 @@ impl<'a> SignatureMessage<'a> {
         hasher.update(self.network_id.to_be_bytes());
         hasher.update(self.canonical);
         hasher.finalize().into()
+    }
+
+    pub(crate) const fn protocol_version(self) -> u16 {
+        self.protocol_version
+    }
+
+    pub(crate) const fn network_id(self) -> u32 {
+        self.network_id
+    }
+
+    pub(crate) const fn canonical(self) -> &'a [u8] {
+        self.canonical
     }
 }
 

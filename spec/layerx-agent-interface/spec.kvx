@@ -692,7 +692,7 @@ reqs = ["5.6","5.7","8.3"]
 
 [task.4.5]
 title = "Implement the remote signer transport and refusal semantics"
-status = "pending"
+status = "done"
 wave = 3
 requires = ["4.3"]
 do_1 = "Implement a remote signer client that transmits the canonical bytes and the disclosure, authenticates the signer endpoint mutually, and never receives key material."
