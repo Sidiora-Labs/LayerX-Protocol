@@ -216,7 +216,7 @@ entirely on the spine being real.
     - Return a refusal that names the mismatching field when the disclosure and the bytes disagree, so the failure is diagnosable rather than generic.
     - Add an adversarial test that presents a disclosure describing a small payment alongside bytes encoding a large one and asserts refusal.
     - _Requirements: 5.3, 5.4, 12.2, 12.4_
-  - [ ] 4.4 Implement the encrypted keystore and session-key issuance
+  - [x] 4.4 Implement the encrypted keystore and session-key issuance
     - Implement keystore encryption under an operator-supplied secret using an authenticated cipher and a memory-hard key derivation, with the identity and network bound into the authenticated data.
     - Refuse to load a keystore whose authenticated data does not match the expected identity or network, and return a typed error rather than a decryption failure alone.
     - Implement session-key issuance that requires an explicit expiry, an explicit permitted activity type set and an explicit revocation sequence, refusing to issue an unbounded session key.

@@ -677,7 +677,7 @@ reqs = ["5.3","5.4","12.2","12.4"]
 
 [task.4.4]
 title = "Implement the encrypted keystore and session-key issuance"
-status = "pending"
+status = "done"
 wave = 3
 requires = ["4.2"]
 do_1 = "Implement keystore encryption under an operator-supplied secret using an authenticated cipher and a memory-hard key derivation, with the identity and network bound into the authenticated data."

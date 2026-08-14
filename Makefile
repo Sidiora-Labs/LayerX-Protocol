@@ -1702,6 +1702,9 @@ agent-test-crypto-disclosure:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-crypto --test disclosure
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-crypto --test signer
 
+agent-test-crypto-keystore: test-grants
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-crypto --test keystore
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
