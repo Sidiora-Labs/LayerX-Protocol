@@ -612,7 +612,7 @@ reqs = ["4.1","4.10","23.1"]
 
 [task.3.6]
 title = "Ship the codec fuzz targets"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["3.3"]
 do_1 = "Add fuzz targets for the primitive decoder, the envelope decoder, the payload decoder, the receipt decoder and the proof decoder, each seeded from the protocol corpora."

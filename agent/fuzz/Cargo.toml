@@ -10,10 +10,53 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 layerx-types = { path = "../crates/layerx-types" }
+layerx-wire = { path = "../crates/layerx-wire" }
 
 [[bin]]
 name = "harness"
 path = "fuzz_targets/harness.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "primitive_decode"
+path = "fuzz_targets/primitive_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "envelope_decode"
+path = "fuzz_targets/envelope_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "payload_decode"
+path = "fuzz_targets/payload_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "receipt_decode"
+path = "fuzz_targets/receipt_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "proof_decode"
+path = "fuzz_targets/proof_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "roundtrip"
+path = "fuzz_targets/roundtrip.rs"
 test = false
 doc = false
 bench = false

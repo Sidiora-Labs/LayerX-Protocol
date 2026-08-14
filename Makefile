@@ -1605,8 +1605,59 @@ agent-lint:
 	$(AGENT_CARGO) clippy --manifest-path $(AGENT_MANIFEST) --locked --workspace --all-targets -- -D warnings
 	sh agent/tools/dependency-policy.sh
 
-agent-fuzz:
-	cd agent/fuzz && $(AGENT_CARGO) +$(AGENT_FUZZ_TOOLCHAIN) fuzz run harness -- -max_total_time=10
+AGENT_WIRE_FUZZ_TARGETS := primitive_decode envelope_decode payload_decode \
+	receipt_decode proof_decode roundtrip
+AGENT_FUZZ_RUNS ?= 128
+AGENT_FUZZ_LONG_SECONDS ?= 300
+AGENT_FUZZ_MAX_LEN ?= 1048576
+AGENT_FUZZ_RSS_MB ?= 512
+AGENT_FUZZ_TIMEOUT ?= 2
+AGENT_FUZZ_VERBOSITY ?= 0
+AGENT_FUZZ_MINIMIZED_ROOT ?= $(abspath $(BUILD_DIR)/agent-fuzz-minimized)
+
+agent-fuzz: agent-fuzz-wire
+
+agent-fuzz-wire:
+	@set -eu; agent_fuzz_tmp=$$(mktemp -d); \
+	trap 'rm -rf -- "$$agent_fuzz_tmp"' EXIT HUP INT TERM; \
+	for target in $(AGENT_WIRE_FUZZ_TARGETS); do \
+		mkdir -p "$$agent_fuzz_tmp/$$target"; \
+		cd agent/fuzz; \
+		$(AGENT_CARGO) +$(AGENT_FUZZ_TOOLCHAIN) fuzz run "$$target" \
+			"$$agent_fuzz_tmp/$$target" "corpus/$$target" -- \
+			-runs=$(AGENT_FUZZ_RUNS) -max_len=$(AGENT_FUZZ_MAX_LEN) \
+			-rss_limit_mb=$(AGENT_FUZZ_RSS_MB) -timeout=$(AGENT_FUZZ_TIMEOUT) \
+			-verbosity=$(AGENT_FUZZ_VERBOSITY); \
+		cd ../..; \
+	done
+
+agent-fuzz-wire-long:
+	@set -eu; agent_fuzz_tmp=$$(mktemp -d); \
+	trap 'rm -rf -- "$$agent_fuzz_tmp"' EXIT HUP INT TERM; \
+	for target in $(AGENT_WIRE_FUZZ_TARGETS); do \
+		mkdir -p "$$agent_fuzz_tmp/$$target"; \
+		cd agent/fuzz; \
+		$(AGENT_CARGO) +$(AGENT_FUZZ_TOOLCHAIN) fuzz run "$$target" \
+			"$$agent_fuzz_tmp/$$target" "corpus/$$target" -- \
+			-max_total_time=$(AGENT_FUZZ_LONG_SECONDS) -max_len=$(AGENT_FUZZ_MAX_LEN) \
+			-rss_limit_mb=$(AGENT_FUZZ_RSS_MB) -timeout=$(AGENT_FUZZ_TIMEOUT) \
+			-verbosity=$(AGENT_FUZZ_VERBOSITY); \
+		cd ../..; \
+	done
+
+agent-fuzz-wire-minimize:
+	@set -eu; mkdir -p "$(AGENT_FUZZ_MINIMIZED_ROOT)"; \
+	for target in $(AGENT_WIRE_FUZZ_TARGETS); do \
+		rm -rf -- "$(AGENT_FUZZ_MINIMIZED_ROOT)/$$target"; \
+		mkdir -p "$(AGENT_FUZZ_MINIMIZED_ROOT)/$$target"; \
+		cp agent/fuzz/corpus/$$target/* "$(AGENT_FUZZ_MINIMIZED_ROOT)/$$target/"; \
+		cd agent/fuzz; \
+		$(AGENT_CARGO) +$(AGENT_FUZZ_TOOLCHAIN) fuzz cmin "$$target" \
+			"$(AGENT_FUZZ_MINIMIZED_ROOT)/$$target" -- \
+			-max_len=$(AGENT_FUZZ_MAX_LEN) -rss_limit_mb=$(AGENT_FUZZ_RSS_MB) \
+			-timeout=$(AGENT_FUZZ_TIMEOUT); \
+		cd ../..; \
+	done
 
 agent-check: agent-check-boundary
 	$(AGENT_CARGO) check --manifest-path $(AGENT_MANIFEST) --locked --workspace --all-targets

@@ -184,7 +184,7 @@ entirely on the spine being real.
     - Record every divergence with the offending logical value, both byte strings and the first differing offset, so a failure is diagnosable without rerunning by hand.
     - Wire the harness into make agent-test-wire-parity and treat any divergence as build-breaking rather than a tracked issue.
     - _Requirements: 4.1, 4.10, 23.1_
-  - [ ] 3.6 Ship the codec fuzz targets
+  - [x] 3.6 Ship the codec fuzz targets
     - Add fuzz targets for the primitive decoder, the envelope decoder, the payload decoder, the receipt decoder and the proof decoder, each seeded from the protocol corpora.
     - Add a round-trip fuzz target that decodes, re-encodes and asserts byte equality, so a decoder that accepts a non-canonical form is caught rather than merely tolerated.
     - Add an allocation-bounded fuzz mode that fails on unbounded allocation or a hang rather than only on a crash.

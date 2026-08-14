@@ -58,12 +58,20 @@ name = "layerx-agent-fuzz"
 version = "0.0.0"
 dependencies = [
  "layerx-types",
+ "layerx-wire",
  "libfuzzer-sys",
 ]
 
 [[package]]
 name = "layerx-types"
 version = "0.1.0"
+
+[[package]]
+name = "layerx-wire"
+version = "0.1.0"
+dependencies = [
+ "layerx-types",
+]
 
 [[package]]
 name = "libc"

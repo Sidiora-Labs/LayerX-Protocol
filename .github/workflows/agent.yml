@@ -30,6 +30,22 @@ jobs:
       - name: Audit advisories, licenses, sources, and bans
         run: cargo install cargo-deny --locked --version 0.19.0 && cargo deny --manifest-path agent/Cargo.toml check
 
+  fuzz-smoke:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install pinned fuzz toolchain and runner
+        run: >-
+          rustup toolchain install nightly-2025-11-10 --profile minimal &&
+          cargo install cargo-fuzz --locked
+      - name: Run bounded codec fuzz smoke suite
+        run: make agent-fuzz-wire
+
   scheduled-adversarial:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-24.04
@@ -47,4 +63,4 @@ jobs:
       - name: Run sanitizer variants
         run: make agent-test-sanitize
       - name: Run committed fuzz corpus
-        run: make agent-fuzz
+        run: make agent-fuzz-wire-long
