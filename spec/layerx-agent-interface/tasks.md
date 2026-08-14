@@ -241,7 +241,7 @@ entirely on the spine being real.
 ## Wave 4 - Independent Verification
 
 - [ ] 5. Build layerx-proof, verification from bytes alone
-  - [ ] 5.1 Implement domain-separated hashing and merkle path verification
+  - [x] 5.1 Implement domain-separated hashing and merkle path verification
     - Implement merkle leaf and internal node hashing under distinct domain tags matching the protocol exactly, including the protocol rule for trees whose leaf count is not a power of two.
     - Implement path verification that recomputes the root from a leaf and a proof path and compares it against the claimed root.
     - Reject any proof that reinterprets an internal node as a leaf, carries a path length inconsistent with the committed tree, or claims an index outside the tree.

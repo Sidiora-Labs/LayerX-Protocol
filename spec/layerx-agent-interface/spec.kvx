@@ -727,7 +727,7 @@ status = "pending"
 
 [task.5.1]
 title = "Implement domain-separated hashing and merkle path verification"
-status = "pending"
+status = "done"
 wave = 4
 requires = ["3.4"]
 do_1 = "Implement merkle leaf and internal node hashing under distinct domain tags matching the protocol exactly, including the protocol rule for trees whose leaf count is not a power of two."

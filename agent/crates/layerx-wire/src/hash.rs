@@ -152,6 +152,38 @@ pub fn payload_hash(activity: &Activity) -> Result<[u8; 32], WireError> {
     domain(Domain::PayloadHash, &canonical_payload(activity))
 }
 
+/// Hashes canonical leaf bytes under the protocol Merkle-leaf domain.
+///
+/// This entry point exists for independent proof verification. It does not
+/// admit the bytes to any signing or identifier path.
+///
+/// # Errors
+///
+/// Returns a length-limit error when the domain-prefixed input length cannot
+/// be represented safely.
+pub fn merkle_leaf(bytes: &[u8]) -> Result<[u8; 32], WireError> {
+    domain(
+        Domain::MerkleLeaf,
+        &CanonicalBytes::from_wire(bytes.to_vec()),
+    )
+}
+
+/// Hashes two already verified child digests under the internal-node domain.
+///
+/// # Errors
+///
+/// Returns a length-limit error when the fixed domain-prefixed input cannot
+/// be represented safely.
+pub fn merkle_internal(left: &[u8; 32], right: &[u8; 32]) -> Result<[u8; 32], WireError> {
+    let mut pair = Vec::with_capacity(64);
+    pair.extend_from_slice(left);
+    pair.extend_from_slice(right);
+    domain(
+        Domain::MerkleInternal,
+        &CanonicalBytes::from_wire(pair),
+    )
+}
+
 const INITIAL_STATE: [u32; 8] = [
     0x6a09_e667,
     0xbb67_ae85,
