@@ -279,6 +279,7 @@ dependencies = [
  "layerx-wire",
  "sha2",
  "subtle",
+ "zeroize",
 ]
 
 [[package]]

@@ -12,6 +12,7 @@ layerx-types = { path = "../layerx-types" }
 layerx-wire = { path = "../layerx-wire" }
 sha2 = "=0.10.9"
 subtle = "=2.6.1"
+zeroize = "=1.9.0"
 
 [lints]
 workspace = true

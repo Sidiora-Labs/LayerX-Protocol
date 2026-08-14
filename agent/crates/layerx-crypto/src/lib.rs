@@ -2,7 +2,9 @@
 
 pub mod ct;
 pub mod ed25519;
+pub mod local;
 pub mod secp256k1;
+pub mod signer;
 
 use layerx_types::result::{KnownResult, ResultCode};
 use layerx_wire::hash::Domain;

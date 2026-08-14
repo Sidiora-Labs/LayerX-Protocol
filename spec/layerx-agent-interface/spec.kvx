@@ -647,7 +647,7 @@ reqs = ["5.1","5.8","5.9"]
 
 [task.4.2]
 title = "Define the signer abstraction and the local signer"
-status = "pending"
+status = "done"
 wave = 3
 requires = ["4.1"]
 do_1 = "Define the signer interface such that the only input is a canonical byte string plus its disclosure, and the only output is a signature or a refusal, with no path that exports key material."

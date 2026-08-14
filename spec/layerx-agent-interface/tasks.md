@@ -202,7 +202,7 @@ entirely on the spine being real.
     - Provide constant-time comparison for digests and secrets and avoid secret-dependent branching in this crate.
     - Add tests proving a signature valid on one network identifier or protocol version does not verify on another.
     - _Requirements: 5.1, 5.8, 5.9_
-  - [ ] 4.2 Define the signer abstraction and the local signer
+  - [x] 4.2 Define the signer abstraction and the local signer
     - Define the signer interface such that the only input is a canonical byte string plus its disclosure, and the only output is a signature or a refusal, with no path that exports key material.
     - Implement the local in-process signer holding key material in memory that is zeroized on drop and excluded from every debug rendering.
     - Implement the operating-system keystore signer behind the identical interface so key location is a deployment choice.
