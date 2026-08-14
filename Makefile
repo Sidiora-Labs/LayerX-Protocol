@@ -1623,6 +1623,9 @@ agent-test-types-activity:
 agent-test-types-receipt:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-types --test receipt
 
+agent-test-types-verification:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-types --test verification
+
 agent-test-sanitize:
 	sh agent/tools/run-sanitizers.sh
 

@@ -131,7 +131,7 @@ entirely on the spine being real.
     - Make every receipt type constructible only by decoding core-produced bytes, so no code path can build a receipt from local values.
     - Add tests proving a receipt cannot be constructed from arbitrary local input and that field sets match the protocol spec exactly.
     - _Requirements: 3.1, 1.3, 6.1_
-  - [ ] 2.4 Define verification status and value provenance
+  - [x] 2.4 Define verification status and value provenance
     - Define the verification level as an ordered lattice with the levels unverified, sequencer-signed, batch-included, state-proven, checkpoint-finalised and settlement-anchored, and expose comparison rather than a boolean.
     - Define the verified value wrapper that binds a decoded protocol value to its achieved level, the evidence identifiers it rests on, and the head sequence and checkpoint it is relative to.
     - Define the projection wrapper for locally estimated values, make it structurally distinct from a verified value, and forbid a projection from being placed in any receipt-shaped structure.
