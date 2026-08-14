@@ -152,13 +152,18 @@ fn raw_text_and_debug_values_cannot_enter_consensus_hashing() {
         entries
             .filter_map(Result::ok)
             .map(|entry| entry.path())
-            .find(|path| {
+            .filter(|path| {
                 path.file_name().is_some_and(|name| {
                     name.to_string_lossy().starts_with("liblayerx_wire-")
                         && path
                             .extension()
                             .is_some_and(|extension| extension == "rlib")
                 })
+            })
+            .max_by_key(|path| {
+                fs::metadata(path)
+                    .and_then(|metadata| metadata.modified())
+                    .ok()
             })
     });
     let Some(rlib) = rlib else {

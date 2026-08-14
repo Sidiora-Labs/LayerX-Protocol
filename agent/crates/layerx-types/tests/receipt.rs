@@ -52,13 +52,18 @@ fn receipt_has_no_arbitrary_local_constructor() {
         entries
             .filter_map(Result::ok)
             .map(|entry| entry.path())
-            .find(|path| {
+            .filter(|path| {
                 path.file_name().is_some_and(|name| {
                     name.to_string_lossy().starts_with("liblayerx_types-")
                         && path
                             .extension()
                             .is_some_and(|extension| extension == "rlib")
                 })
+            })
+            .max_by_key(|path| {
+                fs::metadata(path)
+                    .and_then(|metadata| metadata.modified())
+                    .ok()
             })
     });
     let Some(rlib) = rlib else {
@@ -93,6 +98,9 @@ fn receipt_has_no_arbitrary_local_constructor() {
         !output.status.success(),
         "receipt became locally constructible"
     );
-    assert!(String::from_utf8_lossy(&output.stderr)
-        .contains("no function or associated item named `new`"));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("no function or associated item named `new`"),
+        "unexpected compiler refusal: {stderr}"
+    );
 }
