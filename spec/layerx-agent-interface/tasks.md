@@ -230,7 +230,7 @@ entirely on the spine being real.
     - Verify the returned signature against the exact bytes before treating the signing as successful.
     - Add tests covering slow, hostile and flapping signers, asserting no duplicate signature is produced for one preparation.
     - _Requirements: 5.10, 5.2, 12.6_
-  - [ ] 4.6 Enforce secret hygiene as a build gate
+  - [x] 4.6 Enforce secret hygiene as a build gate
     - Implement a check that fails the build when a type holding key material derives an unredacted debug format or a serialisation that would emit it.
     - Extend the check to logging, metrics, tracing and error construction sites so a secret cannot reach an output surface.
     - Add a runtime redaction wrapper for secret-bearing values whose rendering is a fixed placeholder, and require its use through the type system.

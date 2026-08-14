@@ -5,7 +5,8 @@ use std::fmt;
 use argon2::{Algorithm, Argon2, Params, Version};
 use chacha20poly1305::aead::{Aead as _, KeyInit as _, Payload};
 use chacha20poly1305::{XChaCha20Poly1305, XNonce};
-use zeroize::Zeroizing;
+
+use crate::redact::Secret;
 
 const FORMAT_VERSION: u8 = 1;
 const SALT_BYTES: usize = 16;
@@ -103,18 +104,15 @@ fn authenticated_data(identity: &[u8], network_id: u32) -> Result<Vec<u8>, Keyst
     Ok(output)
 }
 
-fn derive_key(
-    secret: &[u8],
-    salt: &[u8; SALT_BYTES],
-) -> Result<Zeroizing<[u8; 32]>, KeystoreError> {
+fn derive_key(secret: &[u8], salt: &[u8; SALT_BYTES]) -> Result<Secret<[u8; 32]>, KeystoreError> {
     let params = Params::new(ARGON_MEMORY_KIB, ARGON_ITERATIONS, ARGON_LANES, Some(32))
         .map_err(|_| KeystoreError::KeyDerivation)?;
     let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-    let mut output = Zeroizing::new([0_u8; 32]);
+    let mut output = [0_u8; 32];
     argon
-        .hash_password_into(secret, salt, output.as_mut())
+        .hash_password_into(secret, salt, &mut output)
         .map_err(|_| KeystoreError::KeyDerivation)?;
-    Ok(output)
+    Ok(Secret::new(output))
 }
 
 fn ct_nonzero<const N: usize>(bytes: &[u8; N]) -> bool {
@@ -144,7 +142,8 @@ impl Keystore {
         }
         let KeystoreEntropy { salt, nonce } = entropy;
         let derived = derive_key(operator_secret, &salt)?;
-        let cipher = XChaCha20Poly1305::new_from_slice(derived.as_ref())
+        let cipher = derived
+            .expose(|value| XChaCha20Poly1305::new_from_slice(value))
             .map_err(|_| KeystoreError::KeyDerivation)?;
         let nonce_value = XNonce::from(nonce);
         let aad = authenticated_data(identity, network_id)?;
@@ -177,7 +176,7 @@ impl Keystore {
         operator_secret: &[u8],
         expected_identity: &[u8],
         expected_network_id: u32,
-    ) -> Result<Zeroizing<[u8; PRIVATE_KEY_BYTES]>, KeystoreError> {
+    ) -> Result<Secret<[u8; PRIVATE_KEY_BYTES]>, KeystoreError> {
         if self.identity != expected_identity {
             return Err(KeystoreError::IdentityMismatch);
         }
@@ -188,11 +187,12 @@ impl Keystore {
             return Err(KeystoreError::InvalidInput);
         }
         let derived = derive_key(operator_secret, &self.salt)?;
-        let cipher = XChaCha20Poly1305::new_from_slice(derived.as_ref())
+        let cipher = derived
+            .expose(|value| XChaCha20Poly1305::new_from_slice(value))
             .map_err(|_| KeystoreError::KeyDerivation)?;
         let nonce_value = XNonce::from(self.nonce);
         let aad = authenticated_data(&self.identity, self.network_id)?;
-        let plaintext = Zeroizing::new(
+        let plaintext = Secret::new(
             cipher
                 .decrypt(
                     &nonce_value,
@@ -203,11 +203,10 @@ impl Keystore {
                 )
                 .map_err(|_| KeystoreError::AuthenticationFailed)?,
         );
-        let key: [u8; PRIVATE_KEY_BYTES] = plaintext
-            .as_slice()
-            .try_into()
+        let key = plaintext
+            .expose(|value| value.as_slice().try_into())
             .map_err(|_| KeystoreError::AuthenticationFailed)?;
-        Ok(Zeroizing::new(key))
+        Ok(Secret::new(key))
     }
 
     /// Borrows the identity covered by authenticated encryption.

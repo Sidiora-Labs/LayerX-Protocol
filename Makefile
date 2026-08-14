@@ -1659,7 +1659,7 @@ agent-fuzz-wire-minimize:
 		cd ../..; \
 	done
 
-agent-check: agent-check-boundary
+agent-check: agent-check-boundary agent-check-secrets
 	$(AGENT_CARGO) check --manifest-path $(AGENT_MANIFEST) --locked --workspace --all-targets
 
 agent-test-errors:
@@ -1722,6 +1722,11 @@ agent-test-sanitize:
 agent-check-boundary:
 	$(AGENT_CARGO) test --manifest-path agent/tools/boundary-check/Cargo.toml --locked
 	$(AGENT_CARGO) run --manifest-path agent/tools/boundary-check/Cargo.toml --locked --quiet -- agent
+
+agent-check-secrets:
+	$(AGENT_CARGO) test --manifest-path agent/tools/secret-check/Cargo.toml --locked
+	$(AGENT_CARGO) run --manifest-path agent/tools/secret-check/Cargo.toml --locked --quiet -- agent
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-crypto --test secrets
 
 ci: public-audit test reproducible scan-consensus test-sanitizers
 

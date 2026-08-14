@@ -5,6 +5,7 @@ pub mod disclosure;
 pub mod ed25519;
 pub mod keystore;
 pub mod local;
+pub mod redact;
 pub mod remote;
 pub mod secp256k1;
 pub mod session;

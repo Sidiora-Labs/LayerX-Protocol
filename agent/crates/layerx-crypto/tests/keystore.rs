@@ -37,7 +37,7 @@ fn encrypted_keystore_round_trips_only_under_its_bound_context() {
     let Ok(opened) = restored.open(secret, identity, 17) else {
         panic!("correct keystore context rejected");
     };
-    assert_eq!(*opened, key);
+    assert!(opened.matches(&key));
     let rendered = format!("{restored:?}");
     assert!(!rendered.contains("5a5a5a5a"));
     assert!(!rendered.contains("operator supplied"));

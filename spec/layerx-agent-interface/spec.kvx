@@ -707,7 +707,7 @@ reqs = ["5.10","5.2","12.6"]
 
 [task.4.6]
 title = "Enforce secret hygiene as a build gate"
-status = "pending"
+status = "done"
 wave = 3
 requires = ["4.4"]
 do_1 = "Implement a check that fails the build when a type holding key material derives an unredacted debug format or a serialisation that would emit it."
