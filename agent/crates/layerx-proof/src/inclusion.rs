@@ -1,10 +1,11 @@
 //! Activity and state inclusion under an authorised signed batch header.
 
 use layerx_crypto::ed25519;
-use layerx_types::verify::VerificationLevel;
 use layerx_wire::hash::batch_header_digest;
 use layerx_wire::receipt::{decode_batch_header, encode_batch_header, BatchHeader};
 
+use crate::evidence::Evidence;
+use crate::level::achieved;
 use crate::merkle::{verify_path, MerkleError, Proof};
 
 /// The sequencer authority record valid for an inclusive batch range.
@@ -58,6 +59,7 @@ pub enum InclusionError {
 pub struct VerifiedBatchHeader {
     header: BatchHeader,
     canonical_bytes: Vec<u8>,
+    digest: [u8; 32],
 }
 
 impl VerifiedBatchHeader {
@@ -72,13 +74,19 @@ impl VerifiedBatchHeader {
     pub fn canonical_bytes(&self) -> &[u8] {
         &self.canonical_bytes
     }
+
+    /// Returns the exact signed header digest.
+    #[must_use]
+    pub const fn digest(&self) -> [u8; 32] {
+        self.digest
+    }
 }
 
 /// One locally established inclusion level and its signed batch header.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InclusionEvidence {
     header: VerifiedBatchHeader,
-    level: VerificationLevel,
+    evidence: Evidence,
 }
 
 impl InclusionEvidence {
@@ -90,8 +98,14 @@ impl InclusionEvidence {
 
     /// Returns only the level established by the called verifier.
     #[must_use]
-    pub const fn level(&self) -> VerificationLevel {
-        self.level
+    pub const fn level(&self) -> layerx_types::verify::VerificationLevel {
+        achieved(&self.evidence)
+    }
+
+    /// Returns the signed header and proof-root identifiers supporting the level.
+    #[must_use]
+    pub const fn evidence(&self) -> &Evidence {
+        &self.evidence
     }
 }
 
@@ -119,6 +133,7 @@ fn verify_header(
     Ok(VerifiedBatchHeader {
         header,
         canonical_bytes: reproduced,
+        digest,
     })
 }
 
@@ -136,12 +151,10 @@ pub fn verify_activity(
     authorization: &SequencerAuthorization,
 ) -> Result<InclusionEvidence, InclusionError> {
     let header = verify_header(header_bytes, header_signature, authorization)?;
-    verify_path(activity_bytes, proof, &header.header.activity_merkle_root())
-        .map_err(InclusionError::Merkle)?;
-    Ok(InclusionEvidence {
-        header,
-        level: VerificationLevel::BATCH_INCLUDED,
-    })
+    let activity_root = header.header.activity_merkle_root();
+    verify_path(activity_bytes, proof, &activity_root).map_err(InclusionError::Merkle)?;
+    let evidence = Evidence::batch(header.digest, activity_root);
+    Ok(InclusionEvidence { header, evidence })
 }
 
 /// Verifies canonical state-leaf bytes against a named resulting state root
@@ -165,8 +178,6 @@ pub fn verify_state(
     }
     verify_path(state_leaf_bytes, proof, named_resulting_state_root)
         .map_err(InclusionError::Merkle)?;
-    Ok(InclusionEvidence {
-        header,
-        level: VerificationLevel::STATE_PROVEN,
-    })
+    let evidence = Evidence::state(header.digest, *named_resulting_state_root);
+    Ok(InclusionEvidence { header, evidence })
 }

@@ -1,7 +1,7 @@
 use k256::ecdsa::{signature::hazmat::PrehashSigner as _, Signature, SigningKey};
 use layerx_proof::checkpoint::{
     checkpoint_id, verify_certificate, Attestation, Certificate, Checkpoint, CheckpointError,
-    GuarantorKey, ThresholdReport,
+    GuarantorKey,
 };
 use layerx_types::verify::VerificationLevel;
 use layerx_wire::encode::Encoder;
@@ -105,29 +105,32 @@ fn fixture() -> (Certificate, Vec<GuarantorKey>, [u8; 32]) {
 #[test]
 fn reports_distinct_threshold_and_settlement_levels() {
     let (certificate, keys, identifier) = fixture();
-    assert_eq!(
-        verify_certificate(&certificate, &keys, &identifier, None),
-        Ok(ThresholdReport {
-            achieved: 3,
-            required: 2,
-            level: VerificationLevel::CHECKPOINT_FINALISED,
-        })
-    );
+    let finalised = verify_certificate(&certificate, &keys, &identifier, None)
+        .unwrap_or_else(|error| panic!("finalised certificate failed: {error:?}"));
+    assert_eq!(finalised.achieved, 3);
+    assert_eq!(finalised.required, 2);
+    assert_eq!(finalised.level(), VerificationLevel::CHECKPOINT_FINALISED);
+    assert_eq!(finalised.evidence().checkpoint_id(), Some(identifier));
+    assert_eq!(finalised.evidence().settlement_reference(), None);
 
     let (anchored, anchored_keys, anchored_identifier) =
         fixture_with_settlement(Some(b"paxeer-registered-1".to_vec()));
+    let anchored_report = verify_certificate(
+        &anchored,
+        &anchored_keys,
+        &anchored_identifier,
+        Some(b"paxeer-registered-1"),
+    )
+    .unwrap_or_else(|error| panic!("anchored certificate failed: {error:?}"));
+    assert_eq!(anchored_report.achieved, 3);
+    assert_eq!(anchored_report.required, 2);
     assert_eq!(
-        verify_certificate(
-            &anchored,
-            &anchored_keys,
-            &anchored_identifier,
-            Some(b"paxeer-registered-1"),
-        ),
-        Ok(ThresholdReport {
-            achieved: 3,
-            required: 2,
-            level: VerificationLevel::SETTLEMENT_ANCHORED,
-        })
+        anchored_report.level(),
+        VerificationLevel::SETTLEMENT_ANCHORED
+    );
+    assert_eq!(
+        anchored_report.evidence().settlement_reference(),
+        Some(b"paxeer-registered-1".as_slice())
     );
     assert_eq!(
         verify_certificate(

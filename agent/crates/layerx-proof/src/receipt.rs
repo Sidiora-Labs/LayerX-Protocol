@@ -1,9 +1,11 @@
 //! Offline verification of sequencer-signed canonical receipts.
 
 use layerx_crypto::ed25519;
-use layerx_types::verify::VerificationLevel;
 use layerx_wire::hash::receipt_digest;
 use layerx_wire::receipt::{decode, encode, encode_unsigned, Receipt};
+
+use crate::evidence::Evidence;
+use crate::level::achieved;
 
 /// Core-published batch facts needed to establish sequencer authority and the
 /// state-root chain for one receipt.
@@ -90,7 +92,7 @@ impl VerificationFailure {
 pub struct VerifiedReceipt {
     receipt: Receipt,
     canonical_bytes: Vec<u8>,
-    level: VerificationLevel,
+    evidence: Evidence,
 }
 
 impl VerifiedReceipt {
@@ -108,8 +110,14 @@ impl VerifiedReceipt {
 
     /// Returns the exact level established by this verification routine.
     #[must_use]
-    pub const fn level(&self) -> VerificationLevel {
-        self.level
+    pub const fn level(&self) -> layerx_types::verify::VerificationLevel {
+        achieved(&self.evidence)
+    }
+
+    /// Returns the receipt digest and achieved level as one immutable record.
+    #[must_use]
+    pub const fn evidence(&self) -> &Evidence {
+        &self.evidence
     }
 }
 
@@ -184,6 +192,6 @@ pub fn verify(
     Ok(VerifiedReceipt {
         receipt,
         canonical_bytes: reproduced,
-        level: VerificationLevel::SEQUENCER_SIGNED,
+        evidence: Evidence::sequencer(digest),
     })
 }

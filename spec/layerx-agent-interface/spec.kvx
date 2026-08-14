@@ -802,7 +802,7 @@ reqs = ["6.5","15.2","15.3","15.4"]
 
 [task.5.6]
 title = "Define the verification level lattice and the negative corpora gate"
-status = "pending"
+status = "done"
 wave = 4
 requires = ["5.2","5.4","5.5"]
 do_1 = "Implement the level lattice so a level is produced only by the verification routine that established it and can never be raised by a caller."

@@ -3,9 +3,11 @@
 use std::collections::BTreeSet;
 
 use layerx_crypto::secp256k1;
-use layerx_types::verify::VerificationLevel;
 use layerx_wire::hash::{checkpoint_attestation_digest, checkpoint_id as hash_checkpoint_id};
 use layerx_wire::receipt::{decode_batch_header, encode_batch_header};
+
+use crate::evidence::Evidence;
+use crate::level::achieved;
 
 const ATTESTATION_BYTES: usize = 147;
 const ALL_AVAILABILITY_CLASSES: u8 = 0x1f;
@@ -136,14 +138,27 @@ impl Certificate {
 }
 
 /// Successful distinct-signature count and the level it established.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ThresholdReport {
     /// Number of distinct bonded signatures that verified.
     pub achieved: usize,
     /// Configured certificate threshold.
     pub required: usize,
-    /// Exact evidence level reached.
-    pub level: VerificationLevel,
+    evidence: Evidence,
+}
+
+impl ThresholdReport {
+    /// Returns the exact evidence-gated level established by the certificate.
+    #[must_use]
+    pub const fn level(&self) -> layerx_types::verify::VerificationLevel {
+        achieved(&self.evidence)
+    }
+
+    /// Returns the checkpoint and optional settlement identifiers that passed.
+    #[must_use]
+    pub const fn evidence(&self) -> &Evidence {
+        &self.evidence
+    }
 }
 
 /// Exact certificate verification failure.
@@ -233,17 +248,18 @@ pub fn verify_certificate(
             required: certificate.threshold,
         });
     }
-    let level = if let Some(reference) = certificate.settlement_reference.as_deref() {
+    let settlement_reference = if let Some(reference) = certificate.settlement_reference.as_deref()
+    {
         if reference.is_empty() || registered_settlement_reference != Some(reference) {
             return Err(CheckpointError::Settlement);
         }
-        VerificationLevel::SETTLEMENT_ANCHORED
+        Some(reference.to_vec())
     } else {
-        VerificationLevel::CHECKPOINT_FINALISED
+        None
     };
     Ok(ThresholdReport {
         achieved,
         required: certificate.threshold,
-        level,
+        evidence: Evidence::checkpoint(identifier, settlement_reference),
     })
 }

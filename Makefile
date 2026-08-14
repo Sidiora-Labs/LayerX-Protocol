@@ -1723,6 +1723,10 @@ agent-test-proof-checkpoint:
 agent-test-proof-availability:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-proof --test availability
 
+agent-test-proof-levels:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-proof --tests
+	$(AGENT_CARGO) check --manifest-path $(AGENT_MANIFEST) --locked -p layerx-proof --example offline_verify
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@

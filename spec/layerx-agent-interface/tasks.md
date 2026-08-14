@@ -276,7 +276,7 @@ entirely on the spine being real.
     - Report which of the five protocol availability classes were obtained and which were missing rather than reporting a single success flag.
     - Add negative tests covering altered chunks, reordered chunks, a chunk from a different batch and a withheld class.
     - _Requirements: 6.5, 15.2, 15.3, 15.4_
-  - [ ] 5.6 Define the verification level lattice and the negative corpora gate
+  - [x] 5.6 Define the verification level lattice and the negative corpora gate
     - Implement the level lattice so a level is produced only by the verification routine that established it and can never be raised by a caller.
     - Implement the evidence record that accompanies every level, naming the receipt, proof, header and certificate identifiers the level rests on.
     - Assemble the negative corpora covering altered values, re-signed receipts, truncated proofs, sub-threshold certificates, duplicated signers, swapped leaf and node domains, mismatched roots and withheld availability.
