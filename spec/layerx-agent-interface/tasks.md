@@ -124,7 +124,7 @@ entirely on the spine being real.
     - Define the unsigned envelope and the signed envelope as distinct types so that a signature can only be attached through the path that binds it to the exact canonical bytes.
     - Add tests proving an envelope cannot be constructed with a missing, repeated or undeclared field and that unsigned and signed forms are not interchangeable.
     - _Requirements: 3.1, 3.5, 12.1_
-  - [ ] 2.3 Define receipts, batch headers and checkpoint certificates
+  - [x] 2.3 Define receipts, batch headers and checkpoint certificates
     - Define the activity receipt with exactly its protocol fields and the 402LXP receipt with exactly its protocol fields, including before and after balances, roots, batch identifier and sequencer signature.
     - Define the batch header with exactly its fifteen protocol commitments and the checkpoint certificate with its guarantor signature set, threshold and settlement reference.
     - Define the proof types for activity inclusion, state inclusion and availability chunk inclusion, each carrying the root it is claimed against so a proof cannot be verified against an unrelated root by accident.

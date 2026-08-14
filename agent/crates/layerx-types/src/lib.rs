@@ -3,11 +3,14 @@
 pub mod account;
 pub mod activity;
 pub mod amount;
+pub mod batch;
+pub mod checkpoint;
 pub mod error;
 pub mod ids;
 pub mod limits;
 pub mod payload;
 pub mod policy;
+pub mod receipt;
 pub mod result;
 pub mod test_support;
 

@@ -487,7 +487,7 @@ reqs = ["3.1","3.5","12.1"]
 
 [task.2.3]
 title = "Define receipts, batch headers and checkpoint certificates"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["2.1"]
 do_1 = "Define the activity receipt with exactly its protocol fields and the 402LXP receipt with exactly its protocol fields, including before and after balances, roots, batch identifier and sequencer signature."
