@@ -143,7 +143,8 @@ LIBRARY := $(BUILD_DIR)/liblayerx.a
 	test-wave-12 \
 	test-wave-8 \
 	scan-consensus public-audit ci \
-	agent-build agent-test agent-lint agent-fuzz agent-check
+	agent-build agent-test agent-lint agent-fuzz agent-check \
+	agent-test-errors
 
 all: build
 
@@ -1607,6 +1608,9 @@ agent-fuzz:
 
 agent-check:
 	$(AGENT_CARGO) check --manifest-path $(AGENT_MANIFEST) --locked --workspace --all-targets
+
+agent-test-errors:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-types --test errors
 
 ci: public-audit test reproducible scan-consensus test-sanitizers
 

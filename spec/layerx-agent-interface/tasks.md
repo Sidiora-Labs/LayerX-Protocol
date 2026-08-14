@@ -87,7 +87,7 @@ entirely on the spine being real.
     - Enable the strict lint set including deny on unwrap and expect outside tests, on panicking arithmetic in protocol paths, and on implicit float conversion, and fail the build on warnings.
     - Add the supply-chain and lint gates to make agent-lint and to CI so the policy is enforced on every change rather than at review time.
     - _Requirements: 23.9, 2.2, 5.5_
-  - [ ] 1.3 Define the layer error model and the protocol result-code mapping
+  - [x] 1.3 Define the layer error model and the protocol result-code mapping
     - Define the layer error taxonomy with disjoint classes for transport failure, deadline, protocol incompatibility, unavailable capability, core rejection, verification failure, policy refusal, capability refusal, budget refusal, rate limit and internal fault.
     - Define the protocol result-code type that preserves the exact numeric code and its domain partition, mapping known codes to typed variants and preserving unknown codes verbatim rather than collapsing them.
     - Classify every protocol result code as terminal or retriable from the protocol taxonomy, and make the classification a data table derived from the protocol spec rather than scattered conditionals.

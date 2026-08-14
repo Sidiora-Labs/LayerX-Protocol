@@ -408,7 +408,7 @@ reqs = ["23.9","2.2","5.5"]
 
 [task.1.3]
 title = "Define the layer error model and the protocol result-code mapping"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["1.1"]
 do_1 = "Define the layer error taxonomy with disjoint classes for transport failure, deadline, protocol incompatibility, unavailable capability, core rejection, verification failure, policy refusal, capability refusal, budget refusal, rate limit and internal fault."
