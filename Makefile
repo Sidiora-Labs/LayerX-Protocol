@@ -1641,6 +1641,14 @@ agent-test-wire-rejection:
 agent-test-wire-hashing:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-wire --test hashing
 
+$(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
+	mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
+agent-test-wire-parity: $(BUILD_DIR)/agent-wire-reference
+	LAYERX_REPOSITORY_ROOT=$(CURDIR) LAYERX_C_REFERENCE=$(CURDIR)/$(BUILD_DIR)/agent-wire-reference \
+		$(AGENT_CARGO) test --manifest-path agent/tools/wire-differential/Cargo.toml --locked
+
 agent-test-sanitize:
 	sh agent/tools/run-sanitizers.sh
 

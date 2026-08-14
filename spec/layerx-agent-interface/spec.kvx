@@ -597,7 +597,7 @@ reqs = ["4.4","4.8","4.9","5.8"]
 
 [task.3.5]
 title = "Run the byte-parity differential harness against the C core"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["3.3","3.4"]
 do_1 = "Build a differential harness that drives the C reference encoder and this encoder over the same logical values and compares produced bytes, digests and identifiers byte for byte."

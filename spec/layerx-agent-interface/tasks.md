@@ -177,7 +177,7 @@ entirely on the spine being real.
     - Add a gate that fails the build if any consensus-critical hash input is a debug, text or JSON rendering rather than canonical bytes.
     - Add tests proving that identical bytes hashed under two different domains produce different digests and that a preimage for one network or protocol version does not verify for another.
     - _Requirements: 4.4, 4.8, 4.9, 5.8_
-  - [ ] 3.5 Run the byte-parity differential harness against the C core
+  - [x] 3.5 Run the byte-parity differential harness against the C core
     - Build a differential harness that drives the C reference encoder and this encoder over the same logical values and compares produced bytes, digests and identifiers byte for byte.
     - Drive the harness from both the published vectors and randomly generated structures covering every activity type, payload shape and boundary length.
     - Compare rejection classification for malformed and non-canonical inputs across both implementations and fail on any classification divergence.
