@@ -537,7 +537,7 @@ status = "pending"
 
 [task.3.1]
 title = "Implement the canonical primitive encoder and decoder"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["2.5"]
 do_1 = "Implement the canonical encoding of unsigned integers, byte strings, tagged unions, ordered maps and sequences exactly as the protocol codec defines them, with one legal encoding per logical value."

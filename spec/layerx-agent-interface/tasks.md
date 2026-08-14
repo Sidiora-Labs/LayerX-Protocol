@@ -149,7 +149,7 @@ entirely on the spine being real.
 ## Wave 2 - Canonical Bytes
 
 - [ ] 3. Build layerx-wire, the byte-exact canonical codec
-  - [ ] 3.1 Implement the canonical primitive encoder and decoder
+  - [x] 3.1 Implement the canonical primitive encoder and decoder
     - Implement the canonical encoding of unsigned integers, byte strings, tagged unions, ordered maps and sequences exactly as the protocol codec defines them, with one legal encoding per logical value.
     - Implement the decoder to reject non-minimal integers, indefinite-length items, duplicate map keys, out-of-order map keys, padding and trailing bytes, returning the protocol result-code domain for each rejection class.
     - Enforce declared length limits during decode before allocating, and bound total allocation per decode so a hostile message cannot exhaust memory.
