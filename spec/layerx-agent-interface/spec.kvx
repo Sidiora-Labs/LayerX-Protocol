@@ -393,7 +393,7 @@ reqs = ["1.1","2.2"]
 
 [task.1.2]
 title = "Lock the dependency, unsafe and supply-chain policy"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["1.1"]
 do_1 = "Forbid unsafe code across the workspace by default and enumerate every permitted exception with its justification in a single allowlist file that CI reads, so a new unsafe block cannot appear without editing that file."

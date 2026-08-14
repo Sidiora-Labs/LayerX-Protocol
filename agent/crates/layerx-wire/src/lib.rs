@@ -1,1 +1,1 @@
-//! Byte-exact canonical LayerX wire encoding.
+//! Byte-exact canonical `LayerX` wire encoding.

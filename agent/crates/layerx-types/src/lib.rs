@@ -1,4 +1,6 @@
-//! Canonical LayerX domain types shared by the interaction layer.
+//! Canonical `LayerX` domain types shared by the interaction layer.
+
+pub mod policy;
 
 /// Identifies the workspace manifest used by all interaction-layer crates.
 #[must_use]

@@ -80,7 +80,7 @@ entirely on the spine being real.
     - Keep the C build untouched: prove that make build and the existing protocol test targets succeed with the agent workspace present and that no C target gains a Rust dependency.
     - Add a workspace README fragment that states the non-authority rule and the boundary rule as the first two paragraphs a contributor reads.
     - _Requirements: 1.1, 2.2_
-  - [ ] 1.2 Lock the dependency, unsafe and supply-chain policy
+  - [x] 1.2 Lock the dependency, unsafe and supply-chain policy
     - Forbid unsafe code across the workspace by default and enumerate every permitted exception with its justification in a single allowlist file that CI reads, so a new unsafe block cannot appear without editing that file.
     - Configure the dependency policy to deny unmaintained, yanked and vulnerable crates, to require a license allowlist, and to fail the build rather than warn.
     - Forbid by policy any dependency that provides SQLite, that links the C core, that performs process-wide global initialisation, or that reads the ambient clock inside a verification path.

@@ -1,0 +1,31 @@
+name: Agent workspace
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-lint-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.91.1 --profile minimal --component clippy
+      - name: Build, lint, enforce boundaries, and test
+        run: make agent-build agent-lint agent-check agent-test
+      - name: Audit advisories, licenses, sources, and bans
+        run: cargo install cargo-deny --locked --version 0.19.0 && cargo deny --manifest-path agent/Cargo.toml check

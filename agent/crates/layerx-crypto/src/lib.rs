@@ -1,1 +1,1 @@
-//! Key custody and disclosure-bound LayerX signing.
+//! Key custody and disclosure-bound `LayerX` signing.

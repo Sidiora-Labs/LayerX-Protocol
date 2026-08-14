@@ -1,1 +1,1 @@
-//! Non-authoritative LayerX agent daemon.
+//! Non-authoritative `LayerX` agent daemon.

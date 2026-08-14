@@ -1600,6 +1600,7 @@ agent-test:
 
 agent-lint:
 	$(AGENT_CARGO) clippy --manifest-path $(AGENT_MANIFEST) --locked --workspace --all-targets -- -D warnings
+	sh agent/tools/dependency-policy.sh
 
 agent-fuzz:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked --workspace --tests
