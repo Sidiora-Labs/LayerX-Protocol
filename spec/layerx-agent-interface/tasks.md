@@ -269,7 +269,7 @@ entirely on the spine being real.
     - Return a typed failure identifying whether the shortfall was signature validity, signer membership, distinctness or threshold.
     - Add negative tests covering sub-threshold sets, duplicated signatures, a signer outside the bonded set and a certificate for a different checkpoint identifier.
     - _Requirements: 6.4, 6.6, 6.8_
-  - [ ] 5.5 Verify data-availability chunks and reassembled bytes
+  - [x] 5.5 Verify data-availability chunks and reassembled bytes
     - Implement chunk verification against the committed data_availability_root using the chunk inclusion proof and the protocol chunk hashing rule.
     - Implement reassembly verification that re-hashes the reassembled bytes and compares against the committed activity, receipt, event and oracle roots for the covered batches.
     - Classify a mismatch as an availability failure, retain the served bytes and the mismatching commitment as evidence, and name the failing check.

@@ -787,7 +787,7 @@ reqs = ["6.4","6.6","6.8"]
 
 [task.5.5]
 title = "Verify data-availability chunks and reassembled bytes"
-status = "pending"
+status = "done"
 wave = 4
 requires = ["5.1"]
 do_1 = "Implement chunk verification against the committed data_availability_root using the chunk inclusion proof and the protocol chunk hashing rule."

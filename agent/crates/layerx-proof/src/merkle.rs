@@ -132,6 +132,20 @@ pub fn root(leaves: &[&[u8]]) -> Result<[u8; 32], MerkleError> {
     reduce(&mut level)
 }
 
+/// Computes a protocol Merkle root from already domain-separated leaf hashes.
+///
+/// # Errors
+///
+/// Returns an empty-tree or hashing failure. Empty pre-hashed trees are
+/// rejected because their leaf domain cannot be inferred.
+pub fn root_from_leaf_hashes(leaves: &[[u8; 32]]) -> Result<[u8; 32], MerkleError> {
+    if leaves.is_empty() {
+        return Err(MerkleError::EmptyTree);
+    }
+    let mut level = leaves.to_vec();
+    reduce(&mut level)
+}
+
 fn reduce(level: &mut Vec<[u8; 32]>) -> Result<[u8; 32], MerkleError> {
     while level.len() > 1 {
         let next_len = level.len().div_ceil(2);
@@ -167,6 +181,47 @@ pub fn build_proof(leaves: &[&[u8]], leaf_index: usize) -> Result<(Proof, [u8; 3
         .iter()
         .map(|leaf| leaf_hash(leaf))
         .collect::<Result<Vec<_>, _>>()?;
+    let mut index = leaf_index;
+    let mut siblings = Vec::with_capacity(proof_depth(leaf_count));
+    while level.len() > 1 {
+        let sibling = index ^ 1;
+        siblings.push(level.get(sibling).copied().unwrap_or(level[index]));
+        let next_len = level.len().div_ceil(2);
+        for node in 0..next_len {
+            let left = level[node * 2];
+            let right = level.get(node * 2 + 1).copied().unwrap_or(left);
+            level[node] = node_hash(&left, &right)?;
+        }
+        level.truncate(next_len);
+        index /= 2;
+    }
+    let proof = Proof::new(proof_index, leaf_count, siblings)?;
+    let tree_root = level.first().copied().ok_or(MerkleError::EmptyTree)?;
+    Ok((proof, tree_root))
+}
+
+/// Builds an index-aware proof over already domain-separated leaf hashes.
+///
+/// # Errors
+///
+/// Returns a typed failure for an empty or over-large tree, an out-of-range
+/// index, or hashing failure.
+pub fn build_leaf_hash_proof(
+    leaf_hashes: &[[u8; 32]],
+    leaf_index: usize,
+) -> Result<(Proof, [u8; 32]), MerkleError> {
+    let leaf_count = u32::try_from(leaf_hashes.len()).map_err(|_| MerkleError::TreeTooLarge)?;
+    let proof_index = u32::try_from(leaf_index).map_err(|_| MerkleError::TreeTooLarge)?;
+    if leaf_count == 0 {
+        return Err(MerkleError::EmptyTree);
+    }
+    if proof_index >= leaf_count {
+        return Err(MerkleError::LeafIndex {
+            index: proof_index,
+            count: leaf_count,
+        });
+    }
+    let mut level = leaf_hashes.to_vec();
     let mut index = leaf_index;
     let mut siblings = Vec::with_capacity(proof_depth(leaf_count));
     while level.len() > 1 {

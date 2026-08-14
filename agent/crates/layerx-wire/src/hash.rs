@@ -247,6 +247,35 @@ pub fn checkpoint_attestation_digest(message: &[u8]) -> Result<[u8; 32], WireErr
     )
 }
 
+/// Computes the C17 data-availability chunk digest over its 25-byte metadata
+/// prefix and exact served bytes.
+///
+/// # Errors
+///
+/// Returns a length-limit error when the byte length exceeds `u32` framing or
+/// when the domain-prefixed input length cannot be represented safely.
+pub fn availability_chunk_digest(
+    batch_number: u64,
+    chunk_index: u32,
+    availability_class: u8,
+    class_offset: u64,
+    bytes: &[u8],
+) -> Result<[u8; 32], WireError> {
+    let byte_length =
+        u32::try_from(bytes.len()).map_err(|_| WireError::known(KnownResult::LengthLimit, 0))?;
+    let capacity = 25_usize
+        .checked_add(bytes.len())
+        .ok_or_else(|| WireError::known(KnownResult::LengthLimit, 0))?;
+    let mut canonical = Vec::with_capacity(capacity);
+    canonical.extend_from_slice(&batch_number.to_be_bytes());
+    canonical.extend_from_slice(&chunk_index.to_be_bytes());
+    canonical.push(availability_class);
+    canonical.extend_from_slice(&class_offset.to_be_bytes());
+    canonical.extend_from_slice(&byte_length.to_be_bytes());
+    canonical.extend_from_slice(bytes);
+    domain(Domain::DaChunk, &CanonicalBytes::from_wire(canonical))
+}
+
 const INITIAL_STATE: [u32; 8] = [
     0x6a09_e667,
     0xbb67_ae85,
