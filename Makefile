@@ -1617,6 +1617,9 @@ agent-test-errors:
 agent-test-types-ids:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-types --test ids
 
+agent-test-types-activity:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-types --test activity
+
 agent-test-sanitize:
 	sh agent/tools/run-sanitizers.sh
 

@@ -472,7 +472,7 @@ reqs = ["3.2","3.3","3.5"]
 
 [task.2.2]
 title = "Define the activity envelope and the module payload types"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["2.1"]
 do_1 = "Define the activity envelope with exactly the twelve protocol fields protocol_version, network_id, activity_type, actor_did, authority, account_sequence, timestamp_bound, idempotency_key, fee_limit, payload_hash, payload and signature, with no extra field and no optional field the protocol declares mandatory."

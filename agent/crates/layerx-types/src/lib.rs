@@ -1,10 +1,12 @@
 //! Canonical `LayerX` domain types shared by the interaction layer.
 
 pub mod account;
+pub mod activity;
 pub mod amount;
 pub mod error;
 pub mod ids;
 pub mod limits;
+pub mod payload;
 pub mod policy;
 pub mod result;
 pub mod test_support;

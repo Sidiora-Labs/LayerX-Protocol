@@ -117,7 +117,7 @@ entirely on the spine being real.
     - Enforce every protocol declared length limit at construction and return a typed error rather than truncating, with the limit constants derived from the protocol spec in one place.
     - Add tests proving namespace rejection, limit rejection, type non-interchangeability and the absence of any float conversion path.
     - _Requirements: 3.2, 3.3, 3.5_
-  - [ ] 2.2 Define the activity envelope and the module payload types
+  - [x] 2.2 Define the activity envelope and the module payload types
     - Define the activity envelope with exactly the twelve protocol fields protocol_version, network_id, activity_type, actor_did, authority, account_sequence, timestamp_bound, idempotency_key, fee_limit, payload_hash, payload and signature, with no extra field and no optional field the protocol declares mandatory.
     - Define the authority type as a closed enumeration over the six protocol authorisation kinds, so an unknown authorisation kind cannot be represented as a valid value.
     - Define the payload types for the asset, escrow, budget, stream, service, perps, governance and bridge modules, each tagged by its declared activity type, and reject construction of a payload whose activity type is not declared by a registered module.
