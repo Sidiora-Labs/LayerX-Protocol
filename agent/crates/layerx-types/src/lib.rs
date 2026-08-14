@@ -13,6 +13,7 @@ pub mod policy;
 pub mod receipt;
 pub mod result;
 pub mod test_support;
+pub mod vectors;
 pub mod verify;
 
 /// Identifies the workspace manifest used by all interaction-layer crates.

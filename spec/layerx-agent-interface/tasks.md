@@ -138,7 +138,7 @@ entirely on the spine being real.
     - Make the level unforgeable within the crate by constructing it only through layerx-proof verification outcomes, so no caller can assert a level it did not achieve.
     - Add tests proving a projection cannot be returned where a verified value is expected and that level cannot be raised without evidence.
     - _Requirements: 1.3, 1.5, 6.6_
-  - [ ] 2.5 Load and enforce the protocol conformance vectors
+  - [x] 2.5 Load and enforce the protocol conformance vectors
     - Implement a loader for the protocol conformance corpora that reads the published vectors from the repository rather than copying them, so a protocol vector change is visible to this workspace immediately.
     - Assert that every vector representing a structure this crate defines can be represented by the crate types, and treat an unrepresentable vector as a build failure naming the vector and the missing capability.
     - Record for each type the protocol version its definition derives from and fail the build when the corpora declare a protocol version the crate has not been updated for.

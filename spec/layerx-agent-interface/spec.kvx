@@ -517,7 +517,7 @@ reqs = ["1.3","1.5","6.6"]
 
 [task.2.5]
 title = "Load and enforce the protocol conformance vectors"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["2.2","2.3"]
 do_1 = "Implement a loader for the protocol conformance corpora that reads the published vectors from the repository rather than copying them, so a protocol vector change is visible to this workspace immediately."
