@@ -1,0 +1,395 @@
+//! Structured, byte-bound descriptions of canonical activities.
+
+use std::fmt;
+
+use layerx_types::payload::{ActivityType, ModuleId, ModuleRegistry};
+use layerx_wire::activity::{decode_unsigned, encode_unsigned, Activity, TimestampBound};
+use layerx_wire::decode::Decoder;
+use layerx_wire::hash;
+use layerx_wire::WireError;
+
+use crate::{ct, SignatureMessage};
+
+const ASSET_SEND_ORDINAL: u16 = 5;
+const SEND_WIRE_TAG: u16 = 0x5301;
+const SEND_FIELD_COUNT: u16 = 10;
+const MAX_SEND_CONDITIONS: usize = 8;
+const MAX_SEND_PAYLOAD_BYTES: usize = 512;
+
+/// The semantic role of one counterparty named in a disclosure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CounterpartyRole {
+    /// Account whose balance is debited.
+    Payer,
+    /// Account whose balance is credited.
+    Recipient,
+}
+
+/// One complete counterparty entry decoded from a module payload.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Counterparty {
+    /// Role this account has in the activity.
+    pub role: CounterpartyRole,
+    /// Canonical protocol account identifier.
+    pub account: [u8; 32],
+}
+
+/// The semantic role of one amount named in a disclosure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AmountRole {
+    /// Principal transferred from payer to recipient.
+    Transfer,
+}
+
+/// One complete amount entry decoded from a module payload.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DisclosedAmount {
+    /// Role this amount has in the activity.
+    pub role: AmountRole,
+    /// Unsigned protocol amount.
+    pub value: u128,
+}
+
+/// Every time bound that can make the disclosed activity expire.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Expiry {
+    /// Inclusive envelope lower bound.
+    pub not_before: u64,
+    /// Inclusive envelope upper bound.
+    pub not_after: u64,
+    /// Module-payload expiry enforced by the asset transfer.
+    pub payload_expires_at: u64,
+}
+
+/// A complete human-reviewable description derived from canonical bytes.
+///
+/// Semantic fields are public so a remote review surface can serialize and
+/// present them. Any change is detected before a signer receives a request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Disclosure {
+    /// Exact registered activity type.
+    pub activity_type: ActivityType,
+    /// Actor DID from the canonical envelope.
+    pub actor: Vec<u8>,
+    /// Exact protocol authority representation.
+    pub authority: Vec<u8>,
+    /// Every account whose balance participates in the operation.
+    pub counterparties: Vec<Counterparty>,
+    /// Every value transferred by the operation.
+    pub amounts: Vec<DisclosedAmount>,
+    /// Asset identifier the amounts are denominated in.
+    pub asset: [u8; 32],
+    /// Maximum fee authorised by the envelope.
+    pub fee_limit: u128,
+    /// Envelope and module expiry bounds.
+    pub expiry: Expiry,
+    /// Exact retry identity shared by envelope and payload.
+    pub idempotency_key: [u8; 32],
+    activity: Activity,
+    signing_digest: [u8; 32],
+}
+
+/// Typed refusal produced while deriving or validating a disclosure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DisclosureError {
+    /// The canonical activity envelope was rejected by the wire crate.
+    Wire(WireError),
+    /// No complete semantic decoder exists for the named activity.
+    UnsupportedActivity(u32),
+    /// The module payload was malformed or semantically inconsistent.
+    MalformedPayload,
+    /// The envelope's payload commitment did not cover its payload bytes.
+    PayloadHash,
+    /// A named disclosure field differed from the canonical bytes.
+    FieldMismatch(&'static str),
+}
+
+impl fmt::Display for DisclosureError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Wire(error) => write!(
+                formatter,
+                "canonical activity rejected at byte {} with result {}",
+                error.offset,
+                error.result.raw()
+            ),
+            Self::UnsupportedActivity(activity_type) => {
+                write!(
+                    formatter,
+                    "activity type {activity_type:#010x} has no complete disclosure"
+                )
+            }
+            Self::MalformedPayload => {
+                formatter.write_str("activity payload disclosure is malformed")
+            }
+            Self::PayloadHash => formatter.write_str("payload_hash does not match payload bytes"),
+            Self::FieldMismatch(field) => {
+                write!(
+                    formatter,
+                    "disclosure field {field} does not match canonical bytes"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for DisclosureError {}
+
+impl From<WireError> for DisclosureError {
+    fn from(error: WireError) -> Self {
+        Self::Wire(error)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct SendSemantics {
+    from: [u8; 32],
+    to: [u8; 32],
+    asset: [u8; 32],
+    amount: u128,
+    sequence: u64,
+    idempotency_key: [u8; 32],
+    expires_at: u64,
+}
+
+fn fixed<const N: usize>(decoder: &mut Decoder<'_>) -> Result<[u8; N], DisclosureError> {
+    decoder
+        .fixed(N)
+        .map_err(DisclosureError::from)?
+        .try_into()
+        .map_err(|_| DisclosureError::MalformedPayload)
+}
+
+fn decode_send(payload: &[u8], activity: &Activity) -> Result<SendSemantics, DisclosureError> {
+    let mut decoder = Decoder::new(payload, 0);
+    if decoder.u16()? != SEND_WIRE_TAG || decoder.u16()? != SEND_FIELD_COUNT {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    let from = fixed(&mut decoder)?;
+    let to = fixed(&mut decoder)?;
+    let asset = fixed(&mut decoder)?;
+    let amount = decoder.u128()?;
+    let sequence = decoder.u64()?;
+    let idempotency_key = fixed(&mut decoder)?;
+    let expires_at = decoder.u64()?;
+    let context_hash: [u8; 32] = fixed(&mut decoder)?;
+    let condition_count = usize::from(decoder.u8()?);
+    if condition_count > MAX_SEND_CONDITIONS {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    for _ in 0..condition_count {
+        if !matches!(decoder.u8()?, 1 | 2) {
+            return Err(DisclosureError::MalformedPayload);
+        }
+        let _ = decoder.u64()?;
+    }
+    if !(1..=6).contains(&decoder.u8()?) {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    let controller: [u8; 32] = fixed(&mut decoder)?;
+    let _public_key: [u8; 32] = fixed(&mut decoder)?;
+    let _signature: [u8; 64] = fixed(&mut decoder)?;
+    let signed_context_hash: [u8; 32] = fixed(&mut decoder)?;
+    let network_id = decoder.u32()?;
+    let protocol_version = decoder.u16()?;
+    decoder.finish()?;
+
+    if controller != from
+        || signed_context_hash != context_hash
+        || network_id != activity.network_id()
+        || protocol_version != activity.protocol_version()
+        || sequence != activity.account_sequence()
+        || idempotency_key != activity.idempotency_key()
+    {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    Ok(SendSemantics {
+        from,
+        to,
+        asset,
+        amount,
+        sequence,
+        idempotency_key,
+        expires_at,
+    })
+}
+
+fn semantics(activity: &Activity) -> Result<SendSemantics, DisclosureError> {
+    let activity_type = activity.activity_type();
+    if activity_type.module() != ModuleId::Asset || activity_type.ordinal() != ASSET_SEND_ORDINAL {
+        return Err(DisclosureError::UnsupportedActivity(activity_type.value()));
+    }
+    if activity.payload().len() > MAX_SEND_PAYLOAD_BYTES {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    decode_send(activity.payload(), activity)
+}
+
+fn decoded_fields(activity: &Activity) -> Result<DisclosureFields, DisclosureError> {
+    let send = semantics(activity)?;
+    let TimestampBound {
+        not_before,
+        not_after,
+    } = activity.timestamp_bound();
+    Ok(DisclosureFields {
+        activity_type: activity.activity_type(),
+        actor: activity.actor_did().to_vec(),
+        authority: activity.authority().to_vec(),
+        counterparties: vec![
+            Counterparty {
+                role: CounterpartyRole::Payer,
+                account: send.from,
+            },
+            Counterparty {
+                role: CounterpartyRole::Recipient,
+                account: send.to,
+            },
+        ],
+        amounts: vec![DisclosedAmount {
+            role: AmountRole::Transfer,
+            value: send.amount,
+        }],
+        asset: send.asset,
+        fee_limit: activity.fee_limit(),
+        expiry: Expiry {
+            not_before,
+            not_after,
+            payload_expires_at: send.expires_at,
+        },
+        idempotency_key: send.idempotency_key,
+    })
+}
+
+struct DisclosureFields {
+    activity_type: ActivityType,
+    actor: Vec<u8>,
+    authority: Vec<u8>,
+    counterparties: Vec<Counterparty>,
+    amounts: Vec<DisclosedAmount>,
+    asset: [u8; 32],
+    fee_limit: u128,
+    expiry: Expiry,
+    idempotency_key: [u8; 32],
+}
+
+impl Disclosure {
+    fn validate_fields(&self) -> Result<(), DisclosureError> {
+        let expected = decoded_fields(&self.activity)?;
+        macro_rules! require_field {
+            ($field:ident) => {
+                if self.$field != expected.$field {
+                    return Err(DisclosureError::FieldMismatch(stringify!($field)));
+                }
+            };
+        }
+        require_field!(activity_type);
+        require_field!(actor);
+        require_field!(authority);
+        require_field!(counterparties);
+        require_field!(amounts);
+        require_field!(asset);
+        require_field!(fee_limit);
+        require_field!(expiry);
+        require_field!(idempotency_key);
+        Ok(())
+    }
+
+    /// Re-encodes the activity represented by this disclosure.
+    ///
+    /// # Errors
+    ///
+    /// Names the first changed semantic field or returns a typed wire error.
+    pub fn reencode(&self) -> Result<Vec<u8>, DisclosureError> {
+        self.validate_fields()?;
+        encode_unsigned(&self.activity).map_err(DisclosureError::from)
+    }
+
+    pub(crate) fn validated_digest(&self) -> Result<[u8; 32], DisclosureError> {
+        let reencoded = self.reencode()?;
+        let message = SignatureMessage::new(
+            hash::Domain::SignaturePreimage,
+            self.activity.protocol_version(),
+            self.activity.network_id(),
+            &reencoded,
+        )
+        .map_err(|_| DisclosureError::MalformedPayload)?;
+        let digest = message.digest();
+        if !ct::eq_fixed(&digest, &self.signing_digest) {
+            return Err(DisclosureError::FieldMismatch("canonical_bytes"));
+        }
+        Ok(digest)
+    }
+
+    pub(crate) const fn scope(&self) -> (u16, u32) {
+        (self.activity.protocol_version(), self.activity.network_id())
+    }
+
+    pub(crate) fn validate_bytes(
+        &self,
+        canonical: &[u8],
+        registry: &ModuleRegistry,
+    ) -> Result<(), DisclosureError> {
+        let actual = bind(canonical, registry)?;
+        macro_rules! require_field {
+            ($field:ident) => {
+                if self.$field != actual.$field {
+                    return Err(DisclosureError::FieldMismatch(stringify!($field)));
+                }
+            };
+        }
+        require_field!(activity_type);
+        require_field!(actor);
+        require_field!(authority);
+        require_field!(counterparties);
+        require_field!(amounts);
+        require_field!(asset);
+        require_field!(fee_limit);
+        require_field!(expiry);
+        require_field!(idempotency_key);
+        let reencoded = self.reencode()?;
+        if !ct::eq(&reencoded, canonical) {
+            return Err(DisclosureError::FieldMismatch("canonical_bytes"));
+        }
+        Ok(())
+    }
+}
+
+/// Decodes canonical unsigned bytes into their complete structured disclosure.
+///
+/// Opaque module payloads are rejected until a complete semantic decoder is
+/// available; they can never pass through the signing interface undisclosed.
+///
+/// # Errors
+///
+/// Returns a typed wire, payload, commitment, or unsupported-activity refusal.
+pub fn bind(canonical: &[u8], registry: &ModuleRegistry) -> Result<Disclosure, DisclosureError> {
+    let activity = decode_unsigned(canonical, registry)?;
+    if !ct::eq_fixed(&hash::payload_hash(&activity)?, &activity.payload_hash()) {
+        return Err(DisclosureError::PayloadHash);
+    }
+    let reencoded = encode_unsigned(&activity)?;
+    if !ct::eq(&reencoded, canonical) {
+        return Err(DisclosureError::FieldMismatch("canonical_bytes"));
+    }
+    let fields = decoded_fields(&activity)?;
+    let message = SignatureMessage::new(
+        hash::Domain::SignaturePreimage,
+        activity.protocol_version(),
+        activity.network_id(),
+        canonical,
+    )
+    .map_err(|_| DisclosureError::MalformedPayload)?;
+    Ok(Disclosure {
+        activity_type: fields.activity_type,
+        actor: fields.actor,
+        authority: fields.authority,
+        counterparties: fields.counterparties,
+        amounts: fields.amounts,
+        asset: fields.asset,
+        fee_limit: fields.fee_limit,
+        expiry: fields.expiry,
+        idempotency_key: fields.idempotency_key,
+        activity,
+        signing_digest: message.digest(),
+    })
+}

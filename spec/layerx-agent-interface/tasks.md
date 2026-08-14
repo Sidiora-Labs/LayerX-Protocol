@@ -209,7 +209,7 @@ entirely on the spine being real.
     - Make the interface object-safe and asynchronous-friendly so a remote signer can implement it without changing callers.
     - Add tests proving key material never appears in a debug rendering, an error message or a panic payload.
     - _Requirements: 5.2, 5.5, 12.6_
-  - [ ] 4.3 Implement disclosure-bound signing
+  - [x] 4.3 Implement disclosure-bound signing
     - Define the disclosure structure carrying activity type, actor, authority, every counterparty, every amount, the asset, the fee limit, the expiry and the idempotency key, derived by decoding the bytes rather than by copying the caller request.
     - Require every signer call to carry both the canonical bytes and the disclosure, and make signing opaque bytes without a disclosure impossible through the public API.
     - Re-encode the disclosure to canonical bytes before signing and refuse to sign if the result is not byte-identical to the bytes presented.

@@ -1,6 +1,7 @@
 //! Key custody and disclosure-bound `LayerX` signing.
 
 pub mod ct;
+pub mod disclosure;
 pub mod ed25519;
 pub mod local;
 pub mod secp256k1;

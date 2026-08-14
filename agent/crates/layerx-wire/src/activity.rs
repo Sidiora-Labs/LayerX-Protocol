@@ -49,10 +49,52 @@ impl Activity {
         self.protocol_version
     }
 
+    /// Returns the protocol network decoded from the envelope.
+    #[must_use]
+    pub const fn network_id(&self) -> u32 {
+        self.network_id
+    }
+
     /// Returns the activity type decoded from the envelope.
     #[must_use]
     pub const fn activity_type(&self) -> ActivityType {
         self.kind
+    }
+
+    /// Borrows the actor DID decoded from the envelope.
+    #[must_use]
+    pub fn actor_did(&self) -> &[u8] {
+        &self.actor_did
+    }
+
+    /// Borrows the exact protocol authority representation.
+    #[must_use]
+    pub fn authority(&self) -> &[u8] {
+        &self.authority
+    }
+
+    /// Returns the core-derived account sequence.
+    #[must_use]
+    pub const fn account_sequence(&self) -> u64 {
+        self.account_sequence
+    }
+
+    /// Returns the inclusive validity interval decoded from the envelope.
+    #[must_use]
+    pub const fn timestamp_bound(&self) -> TimestampBound {
+        self.timestamp_bound
+    }
+
+    /// Returns the exact idempotency key decoded from the envelope.
+    #[must_use]
+    pub const fn idempotency_key(&self) -> [u8; 32] {
+        self.idempotency_key
+    }
+
+    /// Returns the maximum protocol fee authorised by the envelope.
+    #[must_use]
+    pub const fn fee_limit(&self) -> u128 {
+        self.fee_limit
     }
 
     /// Borrows canonical module payload bytes.

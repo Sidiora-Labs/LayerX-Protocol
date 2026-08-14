@@ -8,8 +8,11 @@ use std::pin::Pin;
 use std::time::Duration;
 
 use ed25519_dalek::VerifyingKey;
+use layerx_types::payload::ModuleRegistry;
+use layerx_wire::hash::Domain;
 
-use crate::{ed25519, SignatureMessage};
+use crate::disclosure::{Disclosure, DisclosureError};
+use crate::{ct, ed25519, SignatureMessage};
 
 pub use crate::local::LocalSigner;
 
@@ -19,54 +22,26 @@ const SSH_AGENT_FAILURE: u8 = 5;
 const SSH_ED25519: &[u8] = b"ssh-ed25519";
 const MAX_AGENT_RESPONSE: usize = 4096;
 
-/// A disclosure commitment that is byte-bound to one signing message.
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub struct DisclosureBinding([u8; 32]);
-
-impl DisclosureBinding {
-    /// Commits a disclosure handoff to one exact scoped canonical message.
-    #[must_use]
-    pub fn for_message(message: SignatureMessage<'_>) -> Self {
-        Self(message.digest())
-    }
-
-    fn matches(self, message: SignatureMessage<'_>) -> bool {
-        crate::ct::eq_fixed(&self.0, &message.digest())
-    }
-}
-
-impl fmt::Debug for DisclosureBinding {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("DisclosureBinding([bound])")
-    }
-}
-
 /// The only input accepted by a signer: scoped canonical bytes plus their
-/// byte-bound disclosure commitment.
+/// validated structured disclosure.
 #[derive(Clone, Copy)]
 pub struct SigningRequest<'a> {
     message: SignatureMessage<'a>,
-    disclosure: DisclosureBinding,
 }
 
 impl<'a> SigningRequest<'a> {
-    /// Couples canonical bytes to their disclosure commitment.
+    /// Couples canonical bytes to a complete validated disclosure.
     ///
     /// # Errors
     ///
-    /// Returns `DisclosureMismatch` when the commitment was created for any
-    /// other byte string, purpose, network, or protocol version.
-    pub fn new(
-        message: SignatureMessage<'a>,
-        disclosure: DisclosureBinding,
-    ) -> Result<Self, SignError> {
-        if !disclosure.matches(message) {
-            return Err(SignError::DisclosureMismatch);
+    /// Returns a typed refusal when any disclosed field was changed or the
+    /// disclosure was created for another byte string or scope.
+    pub fn new(message: SignatureMessage<'a>, disclosure: &Disclosure) -> Result<Self, SignError> {
+        let disclosure_digest = disclosure.validated_digest().map_err(SignError::from)?;
+        if !ct::eq_fixed(&disclosure_digest, &message.digest()) {
+            return Err(SignError::DisclosureMismatch("canonical_bytes"));
         }
-        Ok(Self {
-            message,
-            disclosure,
-        })
+        Ok(Self { message })
     }
 
     pub(crate) const fn message(self) -> SignatureMessage<'a> {
@@ -79,7 +54,7 @@ impl fmt::Debug for SigningRequest<'_> {
         formatter
             .debug_struct("SigningRequest")
             .field("message", &self.message)
-            .field("disclosure", &self.disclosure)
+            .field("disclosure", &"[validated]")
             .finish()
     }
 }
@@ -109,8 +84,10 @@ impl fmt::Debug for AgentSignature {
 /// Fixed, non-secret-bearing signing refusal taxonomy.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SignError {
-    /// The disclosure was prepared for different canonical bytes.
-    DisclosureMismatch,
+    /// One named disclosure field differs from the canonical bytes.
+    DisclosureMismatch(&'static str),
+    /// The canonical bytes could not produce a complete disclosure.
+    InvalidDisclosure,
     /// The configured key is malformed or weak.
     KeyRejected,
     /// The external key agent could not be reached or did not respond in time.
@@ -125,19 +102,46 @@ pub enum SignError {
 
 impl fmt::Display for SignError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let text = match self {
-            Self::DisclosureMismatch => "signing disclosure does not match canonical bytes",
-            Self::KeyRejected => "signing key was rejected",
-            Self::KeystoreUnavailable => "operating-system keystore is unavailable",
-            Self::KeystoreRefused => "operating-system keystore refused signing",
-            Self::MalformedResponse => "operating-system keystore returned malformed data",
-            Self::ReturnedSignatureInvalid => "operating-system keystore signature is invalid",
-        };
-        formatter.write_str(text)
+        match self {
+            Self::DisclosureMismatch(field) => {
+                write!(
+                    formatter,
+                    "signing disclosure field {field} does not match canonical bytes"
+                )
+            }
+            Self::InvalidDisclosure => {
+                formatter.write_str("canonical bytes have no complete disclosure")
+            }
+            Self::KeyRejected => formatter.write_str("signing key was rejected"),
+            Self::KeystoreUnavailable => {
+                formatter.write_str("operating-system keystore is unavailable")
+            }
+            Self::KeystoreRefused => {
+                formatter.write_str("operating-system keystore refused signing")
+            }
+            Self::MalformedResponse => {
+                formatter.write_str("operating-system keystore returned malformed data")
+            }
+            Self::ReturnedSignatureInvalid => {
+                formatter.write_str("operating-system keystore signature is invalid")
+            }
+        }
     }
 }
 
 impl std::error::Error for SignError {}
+
+impl From<DisclosureError> for SignError {
+    fn from(error: DisclosureError) -> Self {
+        match error {
+            DisclosureError::FieldMismatch(field) => Self::DisclosureMismatch(field),
+            DisclosureError::Wire(_)
+            | DisclosureError::UnsupportedActivity(_)
+            | DisclosureError::MalformedPayload
+            | DisclosureError::PayloadHash => Self::InvalidDisclosure,
+        }
+    }
+}
 
 /// Boxed future used to keep the signer trait object-safe without imposing one
 /// asynchronous runtime on the workspace.
@@ -152,6 +156,33 @@ pub trait Signer: fmt::Debug + Send + Sync {
 
     /// Signs one disclosure-bound canonical request or refuses it.
     fn sign<'a>(&'a self, request: SigningRequest<'a>) -> SignFuture<'a>;
+}
+
+/// Validates, re-encodes, and signs one canonical disclosed activity.
+///
+/// This is the only public route from activity bytes to a signer request.
+#[must_use]
+pub fn sign_disclosed<'a>(
+    signer: &'a dyn Signer,
+    canonical: &'a [u8],
+    disclosure: &'a Disclosure,
+    registry: &'a ModuleRegistry,
+) -> SignFuture<'a> {
+    Box::pin(async move {
+        disclosure
+            .validate_bytes(canonical, registry)
+            .map_err(SignError::from)?;
+        let (protocol_version, network_id) = disclosure.scope();
+        let message = SignatureMessage::new(
+            Domain::SignaturePreimage,
+            protocol_version,
+            network_id,
+            canonical,
+        )
+        .map_err(|_| SignError::InvalidDisclosure)?;
+        let request = SigningRequest::new(message, disclosure)?;
+        signer.sign(request).await
+    })
 }
 
 /// Ed25519 signer backed by an external OpenSSH-compatible OS key agent.

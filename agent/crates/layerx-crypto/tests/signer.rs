@@ -5,10 +5,11 @@ use std::sync::Arc;
 use std::task::{Context, Poll, Wake, Waker};
 use std::time::Duration;
 
+mod support;
+
+use layerx_crypto::disclosure::bind;
 use layerx_crypto::ed25519;
-use layerx_crypto::signer::{
-    DisclosureBinding, KeystoreSigner, LocalSigner, SignError, Signer, SigningRequest,
-};
+use layerx_crypto::signer::{sign_disclosed, KeystoreSigner, LocalSigner, SignError, Signer};
 use layerx_crypto::SignatureMessage;
 use layerx_wire::hash::Domain;
 
@@ -28,22 +29,6 @@ fn ready<F: Future>(future: F) -> F::Output {
     }
 }
 
-fn request() -> SigningRequest<'static> {
-    let Ok(message) = SignatureMessage::new(
-        Domain::SignaturePreimage,
-        1,
-        17,
-        b"canonical disclosure-bound request",
-    ) else {
-        panic!("valid signing message rejected");
-    };
-    let disclosure = DisclosureBinding::for_message(message);
-    let Ok(request) = SigningRequest::new(message, disclosure) else {
-        panic!("matching disclosure rejected");
-    };
-    request
-}
-
 #[test]
 fn local_signer_is_object_safe_and_never_renders_key_material() {
     let seed = [0x53; 32];
@@ -51,16 +36,21 @@ fn local_signer_is_object_safe_and_never_renders_key_material() {
     let rendered = format!("{signer:?}");
     assert_eq!(rendered, "LocalSigner([redacted key])");
     assert!(!rendered.contains("53535353"));
-    let signature = ready(signer.sign(request()));
+    let canonical = support::canonical_send(25);
+    let registry = support::registry();
+    let Ok(disclosure) = bind(&canonical, &registry) else {
+        panic!("canonical send disclosure rejected");
+    };
+    let signature = ready(sign_disclosed(
+        signer.as_ref(),
+        &canonical,
+        &disclosure,
+        &registry,
+    ));
     let Ok(signature) = signature else {
         panic!("local signer refused valid request");
     };
-    let Ok(message) = SignatureMessage::new(
-        Domain::SignaturePreimage,
-        1,
-        17,
-        b"canonical disclosure-bound request",
-    ) else {
+    let Ok(message) = SignatureMessage::new(Domain::SignaturePreimage, 1, 17, &canonical) else {
         panic!("valid verification message rejected");
     };
     assert_eq!(
@@ -80,15 +70,16 @@ fn local_signer_is_object_safe_and_never_renders_key_material() {
 
 #[test]
 fn mismatched_disclosure_is_refused_before_a_signer_runs() {
-    let Ok(first) = SignatureMessage::new(Domain::SignaturePreimage, 1, 17, b"first") else {
-        panic!("valid message rejected");
+    let canonical = support::canonical_send(25);
+    let registry = support::registry();
+    let Ok(mut disclosure) = bind(&canonical, &registry) else {
+        panic!("canonical send disclosure rejected");
     };
-    let Ok(second) = SignatureMessage::new(Domain::SignaturePreimage, 1, 17, b"second") else {
-        panic!("valid message rejected");
-    };
+    disclosure.amounts[0].value = 1;
+    let signer = LocalSigner::new([0x53; 32]);
     assert_eq!(
-        SigningRequest::new(second, DisclosureBinding::for_message(first)).err(),
-        Some(SignError::DisclosureMismatch)
+        ready(sign_disclosed(&signer, &canonical, &disclosure, &registry,)),
+        Err(SignError::DisclosureMismatch("amounts"))
     );
 }
 
@@ -205,16 +196,16 @@ fn operating_system_keystore_signer_uses_a_real_ssh_agent() {
         panic!("real external key was rejected");
     };
     assert_eq!(format!("{signer:?}"), "KeystoreSigner([external key])");
-    let signature = ready(signer.sign(request()));
+    let canonical = support::canonical_send(25);
+    let registry = support::registry();
+    let Ok(disclosure) = bind(&canonical, &registry) else {
+        panic!("canonical send disclosure rejected");
+    };
+    let signature = ready(sign_disclosed(&signer, &canonical, &disclosure, &registry));
     let Ok(signature) = signature else {
         panic!("real ssh-agent refused valid request");
     };
-    let Ok(message) = SignatureMessage::new(
-        Domain::SignaturePreimage,
-        1,
-        17,
-        b"canonical disclosure-bound request",
-    ) else {
+    let Ok(message) = SignatureMessage::new(Domain::SignaturePreimage, 1, 17, &canonical) else {
         panic!("valid verification message rejected");
     };
     assert_eq!(

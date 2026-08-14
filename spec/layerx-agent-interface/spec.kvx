@@ -662,7 +662,7 @@ reqs = ["5.2","5.5","12.6"]
 
 [task.4.3]
 title = "Implement disclosure-bound signing"
-status = "pending"
+status = "done"
 wave = 3
 requires = ["4.2","3.2"]
 do_1 = "Define the disclosure structure carrying activity type, actor, authority, every counterparty, every amount, the asset, the fee limit, the expiry and the idempotency key, derived by decoding the bytes rather than by copying the caller request."
