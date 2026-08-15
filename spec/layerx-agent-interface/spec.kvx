@@ -1484,7 +1484,7 @@ reqs = ["12.4","12.5","7.2"]
 
 [task.13.5]
 title = "Expire prepared activities and release their reservations"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["13.1"]
 do_1 = "Expire a prepared activity that is not submitted within its declared window and release every reservation it held."

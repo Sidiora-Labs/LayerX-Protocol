@@ -13,8 +13,14 @@ use layerx_wire::WireError;
 
 #[path = "disclose.rs"]
 mod disclosure_binding;
+#[path = "expiry.rs"]
+mod lifecycle;
 
 pub use disclosure_binding::{DisclosedPreparation, DisclosureBindingError};
+pub use lifecycle::{
+    ExpirationReport, LifecycleError, LifecycleState, PayloadRedaction, PreparationLifecycle,
+    RetentionReport,
+};
 
 /// Domain-separated digest of the validated structured disclosure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -108,6 +114,24 @@ pub fn disclose(
 /// Revalidates that a held preparation still matches its disclosure.
 pub fn verify_disclosure_binding(prepared: &Prepared) -> Result<(), DisclosureBindingError> {
     disclosure_binding::verify_binding(prepared)
+}
+
+/// Expires every elapsed unsubmitted preparation and releases its reservations.
+pub fn expire(
+    lifecycle: &PreparationLifecycle,
+    limiter: &crate::budget::BudgetLimiter,
+    core_batch_time: u64,
+) -> Result<ExpirationReport, LifecycleError> {
+    lifecycle::expire_elapsed(lifecycle, limiter, core_batch_time)
+}
+
+/// Discards terminal signed bytes while preserving every unresolved submission.
+pub fn retention_sweep(
+    lifecycle: &PreparationLifecycle,
+    current_sequence: u64,
+    retention_sequences: u64,
+) -> Result<RetentionReport, LifecycleError> {
+    lifecycle::sweep_retention(lifecycle, current_sequence, retention_sequences)
 }
 
 /// Constructs and canonically encodes an unsigned activity from core state.

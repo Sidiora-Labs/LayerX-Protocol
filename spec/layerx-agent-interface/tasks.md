@@ -603,7 +603,7 @@ entirely on the spine being real.
     - Record the activity identifier of the exact submitted bytes in the audit trail.
     - Add an adversarial test that alters amount, recipient and fee limit after signing and asserts refusal in each case.
     - _Requirements: 12.4, 12.5, 7.2_
-  - [ ] 13.5 Expire prepared activities and release their reservations
+  - [x] 13.5 Expire prepared activities and release their reservations
     - Expire a prepared activity that is not submitted within its declared window and release every reservation it held.
     - Refuse to submit a prepared activity whose timestamp_bound has already passed relative to the core-reported batch time.
     - Retain signed bytes only for the retention needed to complete submission and receipt resolution, then discard them.
