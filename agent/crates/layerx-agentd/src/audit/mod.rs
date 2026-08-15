@@ -1,11 +1,18 @@
 //! Tenant-scoped, fail-closed audit evidence.
 
+#[path = "export.rs"]
+mod exporting;
 pub mod log;
 #[path = "record.rs"]
 mod records;
 #[path = "redact.rs"]
 mod redaction;
 
+pub use exporting::{
+    export, review, verify_chain_material, AuditExport, ChainError, ChainLink, ChainMaterial,
+    EvidenceStore, ExportError, ExportedEntry, Query, ReferencedEvidence, ReviewError,
+    ReviewReport,
+};
 pub use log::{
     verify_chain, AppendReceipt, AuditError, ChainFailure, ChainIssue, Log, Verification,
 };

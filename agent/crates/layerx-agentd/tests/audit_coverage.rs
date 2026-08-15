@@ -67,6 +67,7 @@ fn entry(class: EventClass) -> Entry {
     .value;
     Entry {
         class,
+        observed_at_ms: 1_000,
         tenant: tenant(),
         agent: Did::new(b"did:layerx:agent-a")
             .unwrap_or_else(|error| panic!("agent DID: {error:?}")),

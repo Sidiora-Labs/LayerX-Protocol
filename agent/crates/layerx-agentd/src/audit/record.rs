@@ -14,7 +14,8 @@ use super::log::{read_payloads, AppendReceipt, AuditError, Log};
 use super::redaction::{PayloadEvidence, Redacted, RedactionError};
 
 const ENTRY_MAGIC: &[u8; 4] = b"LXAR";
-const ENTRY_VERSION: u8 = 1;
+const ENTRY_VERSION: u8 = 2;
+const LEGACY_ENTRY_VERSION: u8 = 1;
 const MAX_TEXT_BYTES: usize = 4_096;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -96,6 +97,7 @@ impl Decision {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Entry {
     pub class: EventClass,
+    pub observed_at_ms: u64,
     pub tenant: TenantId,
     pub agent: Did,
     pub session: Option<SessionId>,
@@ -333,6 +335,7 @@ fn encode_entry(entry: &Entry) -> Result<Vec<u8>, RecordError> {
     output.extend_from_slice(ENTRY_MAGIC);
     output.push(ENTRY_VERSION);
     output.push(entry.class as u8);
+    output.extend_from_slice(&entry.observed_at_ms.to_be_bytes());
     push_u16_bytes(&mut output, entry.tenant.as_str().as_bytes())?;
     push_u16_bytes(&mut output, entry.agent.as_bytes())?;
     push_optional_fixed(&mut output, entry.session.map(|value| value.0));
@@ -356,12 +359,21 @@ fn encode_entry(entry: &Entry) -> Result<Vec<u8>, RecordError> {
     Ok(output)
 }
 
-fn decode_entry(bytes: &[u8]) -> Result<Entry, RecordError> {
+pub(crate) fn decode_entry(bytes: &[u8]) -> Result<Entry, RecordError> {
     let mut decoder = Decoder::new(bytes);
-    if decoder.take(4)? != ENTRY_MAGIC || decoder.byte()? != ENTRY_VERSION {
+    if decoder.take(4)? != ENTRY_MAGIC {
         return Err(RecordError::Decode("invalid audit entry header"));
     }
+    let version = decoder.byte()?;
+    if version != ENTRY_VERSION && version != LEGACY_ENTRY_VERSION {
+        return Err(RecordError::Decode("invalid audit entry version"));
+    }
     let class = EventClass::from_byte(decoder.byte()?)?;
+    let observed_at_ms = if version == ENTRY_VERSION {
+        decoder.u64()?
+    } else {
+        0
+    };
     let tenant_text = std::str::from_utf8(decoder.u16_bytes()?)
         .map_err(|_| RecordError::Decode("tenant is not UTF-8"))?;
     let tenant = TenantId::new(tenant_text)
@@ -390,6 +402,7 @@ fn decode_entry(bytes: &[u8]) -> Result<Entry, RecordError> {
     }
     let entry = Entry {
         class,
+        observed_at_ms,
         tenant,
         agent,
         session,
@@ -538,6 +551,12 @@ impl<'a> Decoder<'a> {
                 .map_err(|_| RecordError::Decode("truncated text length"))?,
         );
         self.take(usize::from(length))
+    }
+
+    fn u64(&mut self) -> Result<u64, RecordError> {
+        Ok(u64::from_be_bytes(self.take(8)?.try_into().map_err(
+            |_| RecordError::Decode("truncated observation time"),
+        )?))
     }
 
     fn payload(&mut self) -> Result<Option<PayloadEvidence>, RecordError> {

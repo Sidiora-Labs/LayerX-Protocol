@@ -841,7 +841,7 @@ entirely on the spine being real.
     - Expose health distinguishing liveness, readiness for writes, boundary connectivity, verification backlog, unknown backlog and degraded modes.
     - Add tests asserting readiness reports not-ready rather than accepting writes that cannot be delivered.
     - _Requirements: 20.6, 20.7, 20.8_
-  - [ ] 19.5 Implement audit export with referenced receipts and proofs
+  - [x] 19.5 Implement audit export with referenced receipts and proofs
     - Implement export of an audit slice by tenant, agent or time range together with the receipts and proofs it references.
     - Include the chain verification material so a reviewer can confirm the slice is intact and unexcised.
     - Keep the export within tenancy and apply the tenant redaction configuration.

@@ -119,6 +119,7 @@ fn trace_spans_the_full_write_path_with_one_correlation_identifier() {
     .value;
     let audit_entry = Entry {
         class: EventClass::PolicyDecision,
+        observed_at_ms: 1_000,
         tenant: tenant("alpha"),
         agent: Did::new(b"did:layerx:alpha").unwrap_or_else(|error| panic!("DID: {error:?}")),
         session: None,

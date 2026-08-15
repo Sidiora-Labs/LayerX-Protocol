@@ -106,6 +106,14 @@ pub struct AppendReceipt {
     pub entry_hash: [u8; 32],
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct VerifiedFrame {
+    pub sequence: u64,
+    pub previous_hash: [u8; 32],
+    pub payload: Vec<u8>,
+    pub entry_hash: [u8; 32],
+}
+
 #[derive(Debug)]
 pub struct Log {
     path: PathBuf,
@@ -327,12 +335,23 @@ pub fn verify_chain(path: impl AsRef<Path>) -> Result<Verification, AuditError> 
 }
 
 pub(crate) fn read_payloads(path: impl AsRef<Path>) -> Result<Vec<Vec<u8>>, AuditError> {
+    Ok(read_frames(path)?
+        .into_iter()
+        .map(|frame| frame.payload)
+        .collect())
+}
+
+pub(crate) fn read_frames(path: impl AsRef<Path>) -> Result<Vec<VerifiedFrame>, AuditError> {
     let path = path.as_ref();
     let _verified = verify_chain(path)?;
     let bytes = fs::read(path)?;
     let mut offset = HEADER_BYTES;
-    let mut payloads = Vec::new();
+    let mut frames = Vec::new();
     while offset < bytes.len() {
+        let sequence_offset = offset.checked_add(4).ok_or(AuditError::SequenceOverflow)?;
+        let previous_hash_offset = sequence_offset
+            .checked_add(8)
+            .ok_or(AuditError::SequenceOverflow)?;
         let length_offset = offset.checked_add(44).ok_or(AuditError::SequenceOverflow)?;
         let payload_offset = length_offset
             .checked_add(4)
@@ -341,9 +360,9 @@ pub(crate) fn read_payloads(path: impl AsRef<Path>) -> Result<Vec<Vec<u8>>, Audi
         let payload_length = u32::from_be_bytes(
             bytes
                 .get(length_offset..length_end)
-                .ok_or_else(|| invalid(payloads.len() as u64, ChainIssue::TruncatedEntry))?
+                .ok_or_else(|| invalid(frames.len() as u64, ChainIssue::TruncatedEntry))?
                 .try_into()
-                .map_err(|_| invalid(payloads.len() as u64, ChainIssue::TruncatedEntry))?,
+                .map_err(|_| invalid(frames.len() as u64, ChainIssue::TruncatedEntry))?,
         );
         let payload_end = payload_offset
             .checked_add(payload_length as usize)
@@ -353,14 +372,36 @@ pub(crate) fn read_payloads(path: impl AsRef<Path>) -> Result<Vec<Vec<u8>>, Audi
             .ok_or(AuditError::SequenceOverflow)?;
         let payload = bytes
             .get(payload_offset..payload_end)
-            .ok_or_else(|| invalid(payloads.len() as u64, ChainIssue::TruncatedEntry))?;
+            .ok_or_else(|| invalid(frames.len() as u64, ChainIssue::TruncatedEntry))?;
         if frame_end > bytes.len() {
-            return Err(invalid(payloads.len() as u64, ChainIssue::TruncatedEntry));
+            return Err(invalid(frames.len() as u64, ChainIssue::TruncatedEntry));
         }
-        payloads.push(payload.to_vec());
+        let sequence = u64::from_be_bytes(
+            bytes
+                .get(sequence_offset..previous_hash_offset)
+                .ok_or_else(|| invalid(frames.len() as u64, ChainIssue::TruncatedEntry))?
+                .try_into()
+                .map_err(|_| invalid(frames.len() as u64, ChainIssue::TruncatedEntry))?,
+        );
+        let previous_hash: [u8; 32] = bytes
+            .get(previous_hash_offset..length_offset)
+            .ok_or_else(|| invalid(frames.len() as u64, ChainIssue::TruncatedEntry))?
+            .try_into()
+            .map_err(|_| invalid(frames.len() as u64, ChainIssue::TruncatedEntry))?;
+        let entry_hash = bytes
+            .get(payload_end..frame_end)
+            .ok_or_else(|| invalid(frames.len() as u64, ChainIssue::TruncatedEntry))?
+            .try_into()
+            .map_err(|_| invalid(frames.len() as u64, ChainIssue::TruncatedEntry))?;
+        frames.push(VerifiedFrame {
+            sequence,
+            previous_hash,
+            payload: payload.to_vec(),
+            entry_hash,
+        });
         offset = frame_end;
     }
-    Ok(payloads)
+    Ok(frames)
 }
 
 fn read_until_eof(reader: &mut impl Read, output: &mut [u8]) -> Result<usize, AuditError> {
@@ -392,7 +433,7 @@ fn read_array<const N: usize>(reader: &mut impl Read, entry: u64) -> Result<[u8;
     Ok(output)
 }
 
-fn entry_hash(
+pub(crate) fn entry_hash(
     tenant_hash: [u8; 32],
     sequence: u64,
     previous_hash: [u8; 32],

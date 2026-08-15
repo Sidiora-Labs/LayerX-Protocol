@@ -1989,7 +1989,7 @@ reqs = ["20.6","20.7","20.8"]
 
 [task.19.5]
 title = "Implement audit export with referenced receipts and proofs"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["19.2","15.6"]
 do_1 = "Implement export of an audit slice by tenant, agent or time range together with the receipts and proofs it references."

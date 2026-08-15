@@ -1969,6 +1969,10 @@ agent-test-agentd-redaction:
 agent-test-agentd-observability:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test observability
 
+agent-test-agentd-audit-export:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test audit_export
+	$(AGENT_CARGO) check --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --example review_audit_export
+
 agent-test-mcp-untrusted-input:
 	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
 
