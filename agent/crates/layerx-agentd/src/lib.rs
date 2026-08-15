@@ -4,6 +4,7 @@ pub mod authority;
 pub mod budget;
 pub mod cache;
 pub mod capability;
+pub mod export;
 pub mod finality;
 pub mod idempotency;
 pub mod identity;

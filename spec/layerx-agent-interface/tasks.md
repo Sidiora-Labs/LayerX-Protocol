@@ -691,7 +691,7 @@ entirely on the spine being real.
     - Bound cache size and report hit and staleness metrics per tenant.
     - Add tests asserting a cached value cannot be served at a higher level than when it was cached and that a stale value is revalidated.
     - _Requirements: 14.7, 1.3, 22.4_
-  - [ ] 15.6 Implement the offline verification export
+  - [x] 15.6 Implement the offline verification export
     - Implement an export that emits the receipts, proofs, certificates and headers needed for a third party to verify a stated fact set offline.
     - Include only core-produced bytes and their provenance, with no daemon-computed value presented as a fact.
     - Ship a verifier example that consumes the export with layerx-proof alone and confirms the facts without the daemon or a node.

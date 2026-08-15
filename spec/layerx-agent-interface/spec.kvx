@@ -1672,7 +1672,7 @@ reqs = ["14.7","1.3","22.4"]
 
 [task.15.6]
 title = "Implement the offline verification export"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["15.3","14.5"]
 do_1 = "Implement an export that emits the receipts, proofs, certificates and headers needed for a third party to verify a stated fact set offline."
