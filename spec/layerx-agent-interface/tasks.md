@@ -878,7 +878,7 @@ entirely on the spine being real.
     - Publish the compatibility matrix of daemon version against node interface version against contract version against SDK version and verify the supported range in CI against a real node.
     - Add tests covering migration from each supported prior version and shutdown at every write stage.
     - _Requirements: 22.6, 22.7, 22.8_
-  - [ ] 20.5 Implement the operator surface without protocol-mutating power
+  - [x] 20.5 Implement the operator surface without protocol-mutating power
     - Implement operator commands to inspect and act on unknown submissions, stalled subscriptions, budget divergence and verification backlog.
     - Make every operator action audited and non-mutating with respect to protocol state.
     - Expose no administrative path that alters a recorded receipt, a verification level, an audit entry or a protocol-derived value, and prove the absence of such a path in test.

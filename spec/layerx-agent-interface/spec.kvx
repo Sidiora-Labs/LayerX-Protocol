@@ -2068,7 +2068,7 @@ reqs = ["22.6","22.7","22.8"]
 
 [task.20.5]
 title = "Implement the operator surface without protocol-mutating power"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["20.3","19.4"]
 do_1 = "Implement operator commands to inspect and act on unknown submissions, stalled subscriptions, budget divergence and verification backlog."
