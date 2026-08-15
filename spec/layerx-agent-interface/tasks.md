@@ -626,7 +626,7 @@ entirely on the spine being real.
     - Persist idempotency records durably with an explicit retention and prove that retention expiry cannot cause a duplicate economic effect within the protocol retention window.
     - Add a concurrency test issuing the same key from many callers simultaneously and asserting exactly one economic result.
     - _Requirements: 13.6, 13.3, 23.5_
-  - [ ] 14.3 Implement unknown-state resolution by receipt lookup
+  - [x] 14.3 Implement unknown-state resolution by receipt lookup
     - Resolve an unknown submission only by looking up the receipt for its idempotency key, never by inferring the outcome from transport behaviour.
     - Apply bounded jittered backoff to resolution and expose the age and the attempt count of every unresolved submission.
     - Resend byte-identical bytes under the original idempotency key when a resend is warranted and treat an existing receipt as the outcome.

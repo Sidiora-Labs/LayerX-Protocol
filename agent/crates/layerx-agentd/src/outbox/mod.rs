@@ -5,6 +5,15 @@ use std::collections::BTreeMap;
 use crate::sign::VerifiedSubmission;
 use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
 
+#[path = "unknown.rs"]
+mod resolution;
+
+pub use resolution::{
+    resolve_unknown, ReceiptLookup, ResendObservation, ResolutionObservation, ResolvedReceipt,
+    ResolvedReceiptOutcome, UnknownAge, UnknownBoundaryError, UnknownResolution,
+    UnknownResolutionError,
+};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SubmissionState {
     Prepared,

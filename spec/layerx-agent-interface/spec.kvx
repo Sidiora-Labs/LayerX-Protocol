@@ -1533,7 +1533,7 @@ reqs = ["13.6","13.3","23.5"]
 
 [task.14.3]
 title = "Implement unknown-state resolution by receipt lookup"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["14.1","7.3"]
 do_1 = "Resolve an unknown submission only by looking up the receipt for its idempotency key, never by inferring the outcome from transport behaviour."
