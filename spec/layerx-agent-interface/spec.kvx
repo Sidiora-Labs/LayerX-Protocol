@@ -1295,7 +1295,7 @@ reqs = ["10.3","10.7","10.9"]
 
 [task.11.3]
 title = "Implement serialised reservations and deterministic release"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["11.2"]
 do_1 = "Implement reservation as a serialised decision per limit so concurrent or reordered requests cannot exceed the ceiling in aggregate."

@@ -513,7 +513,7 @@ entirely on the spine being real.
     - Expose reconciliation state including the last verified receipt applied, the protocol figure, the local figure and any divergence.
     - Add tests covering a rollover observed only through protocol state and a divergence introduced by a missed receipt.
     - _Requirements: 10.3, 10.7, 10.9_
-  - [ ] 11.3 Implement serialised reservations and deterministic release
+  - [x] 11.3 Implement serialised reservations and deterministic release
     - Implement reservation as a serialised decision per limit so concurrent or reordered requests cannot exceed the ceiling in aggregate.
     - Release a reservation deterministically on a terminal outcome or at a declared reservation expiry, and leave no reservation behind for a refused request.
     - Apply every applicable limit across tenant, agent, session, capability and counterparty simultaneously and refuse if any one is exceeded.
