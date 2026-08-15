@@ -361,7 +361,7 @@ entirely on the spine being real.
     - Implement history reads that preserve core bytes exactly and expose stable cursors with no gap and no repetition across pages.
     - Add tests proving a value is never returned at a level higher than its evidence and that a hostile node cannot raise the level by asserting it.
     - _Requirements: 7.6, 14.1, 14.2, 14.3_
-  - [ ] 7.5 Implement the ordered event stream and resumable cursors
+  - [x] 7.5 Implement the ordered event stream and resumable cursors
     - Implement the event stream that delivers core-produced events in strict global sequence order with no synthesis, enrichment or reordering.
     - Expose a resumable cursor that survives disconnection and process restart and resumes without a gap or a duplicate at the seam.
     - Detect a sequence gap and surface it explicitly as a gap with the missing range rather than closing it silently.

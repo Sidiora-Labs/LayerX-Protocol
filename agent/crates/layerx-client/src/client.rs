@@ -21,6 +21,7 @@ use crate::read::{
 use crate::receipt::{
     lookup, resolve_unknown, Lookup, LookupContext, ReceiptError, ReceiptSelector, Resolution,
 };
+use crate::stream::{subscribe, Cursor, EventStream, StreamConfig, StreamError};
 use crate::submit::{submit_signed, Submission, SubmissionContext, SubmitError, UnknownCause};
 
 /// Externally visible connection lifecycle state.
@@ -418,6 +419,33 @@ impl Client {
             head: self.head.current(),
             sequencer_authorization: authorization,
         }
+    }
+
+    /// Starts or resumes the ordered core event stream through this client's
+    /// sole boundary connection.
+    ///
+    /// # Errors
+    ///
+    /// Refuses capability/disconnection gaps, invalid bounds and request
+    /// transport failures.
+    pub fn subscribe_events(
+        &mut self,
+        cursor: Cursor,
+        mut config: StreamConfig,
+    ) -> Result<EventStream<'_>, StreamError> {
+        if !self
+            .handshake
+            .capabilities()
+            .contains(Capability::EventSubscribe)
+        {
+            return Err(StreamError::UnavailableCapability);
+        }
+        config.interface_version = self.handshake.node().interface_version;
+        let transport = self
+            .transport
+            .as_mut()
+            .ok_or(StreamError::DisconnectedClient)?;
+        subscribe(transport, cursor, config)
     }
 }
 
