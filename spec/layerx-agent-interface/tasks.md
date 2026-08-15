@@ -903,7 +903,7 @@ entirely on the spine being real.
     - Return the freshness reference with every result so a model sees what the value is relative to.
     - Add tests asserting every read tool response carries a level and that truncation is always explicit.
     - _Requirements: 17.3, 17.9, 1.3_
-  - [ ] 21.3 Implement write tools over prepare, disclose, sign and submit
+  - [x] 21.3 Implement write tools over prepare, disclose, sign and submit
     - Implement write tools that follow the prepare, disclose, sign, submit and track path exactly as any other client.
     - Return the receipt or the honest non-terminal state, and never report success before a verified receipt exists.
     - Return a typed error naming the failing stage and the protocol result code where one exists, never prose a model could mistake for a completed action.
