@@ -7,6 +7,8 @@ mod accounting;
 mod reservations;
 #[path = "hold.rs"]
 mod recovery;
+#[path = "divergence.rs"]
+mod divergence_reporting;
 
 pub use create::{
     create_protocol_budget, BudgetCreationError, BudgetKind, BudgetPipeline, BudgetRequest,
@@ -22,6 +24,7 @@ pub use reservations::{
 pub use recovery::{
     PersistedReceipt, RestartAccounting, RestartError, UnknownOutcome, UnknownReservation,
 };
+pub use divergence_reporting::{BudgetDivergenceAlert, BudgetHealth, DivergenceAuditRecord};
 
 /// Reconciles local budget cache state against verified protocol evidence.
 pub fn reconcile(
@@ -67,4 +70,12 @@ pub fn rebuild(
     protocol: ProtocolBudgetState,
 ) -> Result<RestartAccounting, RestartError> {
     recovery::rebuild_accounting(store, tenant, unknown_ids, receipts, protocol)
+}
+
+/// Raises an explicit alert for a local/protocol mismatch.
+pub fn divergence_alert(
+    state: &ReconciliationState,
+    local_ceiling: u128,
+) -> Option<BudgetDivergenceAlert> {
+    divergence_reporting::build_alert(state, local_ceiling)
 }

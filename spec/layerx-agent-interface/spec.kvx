@@ -1325,7 +1325,7 @@ reqs = ["10.6","10.10","13.4"]
 
 [task.11.5]
 title = "Report divergence rather than adopting the local figure"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["11.2"]
 do_1 = "Raise an explicit alert when the local and protocol figures diverge and refuse to adopt the local figure silently."

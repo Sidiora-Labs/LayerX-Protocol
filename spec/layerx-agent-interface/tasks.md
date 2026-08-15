@@ -527,7 +527,7 @@ entirely on the spine being real.
     - Expose held-but-unresolved amounts distinctly from consumed amounts so an operator can see why capacity is unavailable.
     - Add a fault-injection test that kills the daemon between submission and receipt and asserts the reservation survives and resolves correctly.
     - _Requirements: 10.6, 10.10, 13.4_
-  - [ ] 11.5 Report divergence rather than adopting the local figure
+  - [x] 11.5 Report divergence rather than adopting the local figure
     - Raise an explicit alert when the local and protocol figures diverge and refuse to adopt the local figure silently.
     - Record the divergence in the audit trail with both figures, the last verified receipt and the head sequence.
     - Expose divergence through health so an operator sees it without reading logs.
