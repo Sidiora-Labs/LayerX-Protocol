@@ -1880,7 +1880,7 @@ reqs = ["21.2","21.10","8.7"]
 
 [task.18.3]
 title = "Isolate signers, limits and subscriptions per tenant"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["18.2","16.2"]
 do_1 = "Scope every signer binding and key material to its tenant and forbid one tenant using another signer."

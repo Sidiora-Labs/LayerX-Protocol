@@ -790,7 +790,7 @@ entirely on the spine being real.
     - Record the resolved tenant in every audit entry, metric and trace.
     - Add tests covering a spoofed tenant field, a cross-tenant object identifier and a token replayed across tenants.
     - _Requirements: 21.2, 21.10, 8.7_
-  - [ ] 18.3 Isolate signers, limits and subscriptions per tenant
+  - [x] 18.3 Isolate signers, limits and subscriptions per tenant
     - Scope every signer binding and key material to its tenant and forbid one tenant using another signer.
     - Apply limits, quotas and shedding per tenant so one tenant cannot consume another capacity, reserving capacity for submission delivery and receipt resolution across tenants.
     - Scope subscriptions, streams and MCP servers to a tenant and guarantee no filter, cursor, backfill or error can expose another tenant data or existence.

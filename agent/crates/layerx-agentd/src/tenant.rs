@@ -5,6 +5,14 @@ use layerx_types::ids::Did;
 use crate::session::{SessionError, SessionId, Token};
 use crate::store::TenantId;
 
+#[path = "tenant/isolation.rs"]
+mod isolation;
+
+pub use isolation::{
+    ChannelBinding, ChannelKind, Config, IsolationError, RedactionPolicy, Retention, SignerBinding,
+    SignerMaterial, TenantIsolation,
+};
+
 /// Every public surface that must use the same authenticated tenant resolution.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Surface {
