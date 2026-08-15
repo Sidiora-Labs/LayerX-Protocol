@@ -776,7 +776,7 @@ entirely on the spine being real.
     - _Requirements: 19.9, 23.5, 13.3_
 
 - [ ] 18. Implement tenant isolation
-  - [ ] 18.1 Enforce tenancy in the storage access path
+  - [x] 18.1 Enforce tenancy in the storage access path
     - Scope every stored object to exactly one tenant in its key and make a query without a tenant unrepresentable rather than filtered at the edge.
     - Audit every storage call site to prove no path constructs a key without a tenant, enforced by a compile-time or checker-level gate.
     - Cover identities, sessions, capabilities, budgets, policies, prepared activities, outbox entries, receipts, subscriptions and audit entries.

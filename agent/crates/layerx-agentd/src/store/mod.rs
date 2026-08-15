@@ -2,8 +2,10 @@
 
 #[path = "migrate.rs"]
 mod migration;
+mod tenant;
 
 pub use migration::{MigrationError, CURRENT_SCHEMA_VERSION};
+pub use tenant::TenantScoped;
 
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
@@ -84,7 +86,11 @@ impl ObjectKind {
 /// A key that cannot be constructed without a tenant.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TenantKey {
-    tenant: TenantId,
+    scoped: TenantScoped<KeyParts>,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct KeyParts {
     kind: ObjectKind,
     object_id: Vec<u8>,
 }
@@ -101,29 +107,50 @@ impl TenantKey {
             return Err(StoreError::InvalidObjectId);
         }
         Ok(Self {
-            tenant,
-            kind,
-            object_id,
+            scoped: TenantScoped::new(tenant, KeyParts { kind, object_id }),
         })
     }
 
     /// Returns the tenant owning this key.
     #[must_use]
     pub fn tenant(&self) -> &TenantId {
-        &self.tenant
+        self.scoped.tenant()
     }
 
     /// Returns the object category.
     #[must_use]
     pub const fn kind(&self) -> ObjectKind {
-        self.kind
+        self.scoped.value().kind
     }
 
     /// Returns the opaque object identifier.
     #[must_use]
     pub fn object_id(&self) -> &[u8] {
-        &self.object_id
+        &self.scoped.value().object_id
     }
+
+    /// Returns an unambiguous length-delimited identity for checker and fuzz gates.
+    #[must_use]
+    pub fn canonical_bytes(&self) -> Vec<u8> {
+        let tenant = self.tenant().as_str().as_bytes();
+        let object_id = self.object_id();
+        let mut bytes = Vec::with_capacity(7 + tenant.len() + object_id.len());
+        bytes.extend_from_slice(&(tenant.len() as u16).to_be_bytes());
+        bytes.extend_from_slice(tenant);
+        bytes.push(self.kind() as u8);
+        bytes.extend_from_slice(&(object_id.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(object_id);
+        bytes
+    }
+}
+
+/// Constructs the only storage key type; tenant scope cannot be omitted.
+pub fn key(
+    tenant: TenantId,
+    kind: ObjectKind,
+    object_id: impl Into<Vec<u8>>,
+) -> Result<TenantKey, StoreError> {
+    TenantKey::new(tenant, kind, object_id)
 }
 
 /// Declares whether bytes are a daemon-local artefact or a cache of core output.
@@ -236,8 +263,8 @@ impl Store {
     pub fn list_object_ids(&self, tenant: &TenantId, kind: ObjectKind) -> Vec<Vec<u8>> {
         self.entries
             .keys()
-            .filter(|key| key.tenant == *tenant && key.kind == kind)
-            .map(|key| key.object_id.clone())
+            .filter(|key| key.tenant() == tenant && key.kind() == kind)
+            .map(|key| key.object_id().to_vec())
             .collect()
     }
 
@@ -349,8 +376,8 @@ impl Store {
         if receipt_keys.is_empty()
             || receipt_keys
                 .iter()
-                .any(|key| key.kind != ObjectKind::Receipt)
-            || metadata_key.kind != ObjectKind::Configuration
+                .any(|key| key.kind() != ObjectKind::Receipt)
+            || metadata_key.kind() != ObjectKind::Configuration
         {
             return Err(StoreError::Corrupt("invalid verified receipt record"));
         }
@@ -406,9 +433,9 @@ impl Store {
         watermark_key: TenantKey,
         watermark: Vec<u8>,
     ) -> Result<(), StoreError> {
-        if event_key.kind != ObjectKind::Event
-            || metadata_key.kind != ObjectKind::Configuration
-            || watermark_key.kind != ObjectKind::Configuration
+        if event_key.kind() != ObjectKind::Event
+            || metadata_key.kind() != ObjectKind::Configuration
+            || watermark_key.kind() != ObjectKind::Configuration
             || self.entries.contains_key(&event_key)
         {
             return Err(StoreError::Corrupt("invalid event ingestion record"));
@@ -489,10 +516,10 @@ fn encode(entries: &BTreeMap<TenantKey, StoredValue>) -> Result<Vec<u8>, StoreEr
     output.extend_from_slice(&CURRENT_SCHEMA_VERSION.to_be_bytes());
     push_len(&mut output, entries.len())?;
     for (key, value) in entries {
-        push_bytes(&mut output, key.tenant.as_str().as_bytes())?;
-        output.push(key.kind as u8);
+        push_bytes(&mut output, key.tenant().as_str().as_bytes())?;
+        output.push(key.kind() as u8);
         output.push(value.class as u8);
-        push_bytes(&mut output, &key.object_id)?;
+        push_bytes(&mut output, key.object_id())?;
         push_bytes(&mut output, &value.bytes)?;
     }
     Ok(output)

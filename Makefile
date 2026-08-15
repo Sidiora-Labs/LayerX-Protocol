@@ -1941,6 +1941,10 @@ agent-test-agentd-quota:
 agent-test-limits-exactly-once:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test limits-exactly-once
 
+agent-test-agentd-tenant-store:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test tenant_store
+	$(AGENT_CARGO) check --manifest-path agent/fuzz/Cargo.toml --locked --bin tenant_key
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@

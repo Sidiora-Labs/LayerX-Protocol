@@ -1850,7 +1850,7 @@ status = "pending"
 
 [task.18.1]
 title = "Enforce tenancy in the storage access path"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["9.1"]
 do_1 = "Scope every stored object to exactly one tenant in its key and make a query without a tenant unrepresentable rather than filtered at the edge."

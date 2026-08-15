@@ -23,7 +23,7 @@ fn tenant(name: &str) -> TenantId {
     }
 }
 
-fn key(tenant_id: &TenantId, kind: ObjectKind, id: &[u8]) -> TenantKey {
+fn tenant_key(tenant_id: &TenantId, kind: ObjectKind, id: &[u8]) -> TenantKey {
     match TenantKey::new(tenant_id.clone(), kind, id.to_vec()) {
         Ok(value) => value,
         Err(error) => panic!("test key must be valid: {error}"),
@@ -35,8 +35,8 @@ fn every_access_is_tenant_scoped_and_persists_exact_bytes() {
     let root = test_directory("scope");
     let alpha = tenant("alpha");
     let beta = tenant("beta");
-    let alpha_key = key(&alpha, ObjectKind::Policy, b"default");
-    let beta_key = key(&beta, ObjectKind::Policy, b"default");
+    let alpha_key = tenant_key(&alpha, ObjectKind::Policy, b"default");
+    let beta_key = tenant_key(&beta, ObjectKind::Policy, b"default");
     let mut store = match Store::open(&root) {
         Ok(value) => value,
         Err(error) => panic!("store open failed: {error}"),
@@ -87,7 +87,9 @@ fn signed_bytes_outbox_and_idempotency_are_one_durable_write() {
         ObjectKind::Outbox,
         ObjectKind::Idempotency,
     ] {
-        assert!(reopened.get(&key(&tenant_id, kind, b"intent-1")).is_some());
+        assert!(reopened
+            .get(&tenant_key(&tenant_id, kind, b"intent-1"))
+            .is_some());
     }
     let _ = fs::remove_dir_all(root);
 }
@@ -96,8 +98,8 @@ fn signed_bytes_outbox_and_idempotency_are_one_durable_write() {
 fn deletion_loses_only_declared_local_artifacts_and_core_cache_rebuilds() {
     let root = test_directory("rebuild");
     let tenant_id = tenant("tenant-a");
-    let receipt_key = key(&tenant_id, ObjectKind::Receipt, b"activity-7");
-    let policy_key = key(&tenant_id, ObjectKind::Policy, b"policy-1");
+    let receipt_key = tenant_key(&tenant_id, ObjectKind::Receipt, b"activity-7");
+    let policy_key = tenant_key(&tenant_id, ObjectKind::Policy, b"policy-1");
     let core_receipt = b"core-produced-receipt".to_vec();
 
     let mut store = match Store::open(&root) {
@@ -167,7 +169,7 @@ fn migrates_every_supported_prior_version_and_refuses_newer() {
         Ok(value) => value,
         Err(error) => panic!("migrated store did not open: {error}"),
     };
-    let receipt = key(&tenant("tenant-a"), ObjectKind::Receipt, b"receipt-1");
+    let receipt = tenant_key(&tenant("tenant-a"), ObjectKind::Receipt, b"receipt-1");
     assert_eq!(
         opened.get(&receipt).map(|value| value.class()),
         Some(StorageClass::CoreProducedCache)

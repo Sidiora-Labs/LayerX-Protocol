@@ -77,4 +77,11 @@ test = false
 doc = false
 bench = false
 
+[[bin]]
+name = "tenant_key"
+path = "fuzz_targets/tenant_key.rs"
+test = false
+doc = false
+bench = false
+
 [workspace]
