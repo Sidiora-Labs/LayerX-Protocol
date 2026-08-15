@@ -1865,7 +1865,7 @@ reqs = ["21.1","9.1"]
 
 [task.18.2]
 title = "Resolve tenancy from the authenticated principal only"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["18.1"]
 do_1 = "Resolve the tenant from the authenticated principal and ignore any tenant identifier supplied in a request body or header as authoritative."

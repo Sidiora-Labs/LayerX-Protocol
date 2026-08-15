@@ -70,6 +70,14 @@ impl Token {
     pub const fn token_id(&self) -> [u8; 32] {
         self.token_id
     }
+
+    pub(crate) const fn tenant(&self) -> &TenantId {
+        &self.tenant
+    }
+
+    pub(crate) const fn agent(&self) -> &Did {
+        &self.agent
+    }
 }
 
 /// Durable session record, including the protocol authority actually used.

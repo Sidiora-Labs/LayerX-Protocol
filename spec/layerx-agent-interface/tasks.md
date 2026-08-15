@@ -783,7 +783,7 @@ entirely on the spine being real.
     - Add a storage-level test that attempts a cross-tenant key construction and asserts it does not compile or is rejected.
     - Add a fuzz test over key construction asserting tenancy is always present and correctly delimited.
     - _Requirements: 21.1, 9.1_
-  - [ ] 18.2 Resolve tenancy from the authenticated principal only
+  - [x] 18.2 Resolve tenancy from the authenticated principal only
     - Resolve the tenant from the authenticated principal and ignore any tenant identifier supplied in a request body or header as authoritative.
     - Refuse a request whose target object belongs to another tenant with an authorisation error that reveals nothing about the object existence.
     - Apply the same resolution to every surface including the contract, the SDKs, the MCP tools, subscriptions and exports.
