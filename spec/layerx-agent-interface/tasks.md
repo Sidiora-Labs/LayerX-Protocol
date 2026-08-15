@@ -670,7 +670,7 @@ entirely on the spine being real.
     - Bound page size and total response size explicitly and report truncation as a cursor rather than as completeness.
     - Add tests covering concurrent writes during pagination, a restart mid-pagination and a cursor from a pruned range.
     - _Requirements: 14.3, 14.4, 19.7_
-  - [ ] 15.3 Serve checkpoints, certificates and proof bundles
+  - [x] 15.3 Serve checkpoints, certificates and proof bundles
     - Serve checkpoint certificates with their header commitments, guarantor signature set, achieved count and threshold, and settlement reference where one exists.
     - Verify a certificate before returning it and refuse to return an unverified certificate as verified.
     - Serve proof bundles for activity inclusion and state inclusion against a named root, with the root provenance included.

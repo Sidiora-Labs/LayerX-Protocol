@@ -28,6 +28,12 @@ impl Checkpoint {
             validity_proof,
         }
     }
+
+    /// Borrows the exact core-produced checkpoint header bytes.
+    #[must_use]
+    pub fn header_bytes(&self) -> &[u8] {
+        &self.header_bytes
+    }
 }
 
 /// One exact replay-and-possession attestation.
@@ -73,6 +79,16 @@ impl Attestation {
             attested_at_ms,
             signature,
         }
+    }
+
+    #[must_use]
+    pub const fn guarantor_id(&self) -> [u8; 32] {
+        self.guarantor_id
+    }
+
+    #[must_use]
+    pub const fn signature(&self) -> [u8; 64] {
+        self.signature
     }
 
     fn message(&self) -> [u8; ATTESTATION_BYTES] {
@@ -134,6 +150,26 @@ impl Certificate {
             threshold,
             settlement_reference,
         }
+    }
+
+    #[must_use]
+    pub const fn checkpoint(&self) -> &Checkpoint {
+        &self.checkpoint
+    }
+
+    #[must_use]
+    pub fn attestations(&self) -> &[Attestation] {
+        &self.attestations
+    }
+
+    #[must_use]
+    pub const fn threshold(&self) -> usize {
+        self.threshold
+    }
+
+    #[must_use]
+    pub fn settlement_reference(&self) -> Option<&[u8]> {
+        self.settlement_reference.as_deref()
     }
 }
 

@@ -1627,7 +1627,7 @@ reqs = ["14.3","14.4","19.7"]
 
 [task.15.3]
 title = "Serve checkpoints, certificates and proof bundles"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["15.1","5.4"]
 do_1 = "Serve checkpoint certificates with their header commitments, guarantor signature set, achieved count and threshold, and settlement reference where one exists."
