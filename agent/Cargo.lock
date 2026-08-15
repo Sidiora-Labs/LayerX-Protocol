@@ -370,6 +370,7 @@ version = "0.1.0"
 dependencies = [
  "layerx-agent-api",
  "layerx-client",
+ "layerx-crypto",
  "layerx-types",
  "layerx-wire",
  "sha2",

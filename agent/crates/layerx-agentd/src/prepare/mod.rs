@@ -11,6 +11,15 @@ use layerx_wire::hash::payload_hash_for;
 use layerx_wire::sign::preimage_unsigned;
 use layerx_wire::WireError;
 
+#[path = "disclose.rs"]
+mod disclosure_binding;
+
+pub use disclosure_binding::{DisclosedPreparation, DisclosureBindingError};
+
+/// Domain-separated digest of the validated structured disclosure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DisclosureDigest(pub [u8; 32]);
+
 /// Core-produced inputs required to prepare one activity.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CorePreparationState {
@@ -61,6 +70,17 @@ pub struct Prepared {
     pub canonical_bytes: Vec<u8>,
     pub signing_preimage: [u8; 32],
     pub observed_head_sequence: u64,
+    pub disclosure: layerx_crypto::disclosure::Disclosure,
+    pub disclosure_digest: DisclosureDigest,
+    pub audit: PreparationAuditEntry,
+}
+
+/// Preparation audit evidence emitted with every response.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PreparationAuditEntry {
+    pub idempotency_key: [u8; 32],
+    pub observed_head_sequence: u64,
+    pub disclosure_digest: DisclosureDigest,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -74,6 +94,20 @@ pub enum PrepareError {
     Payload(PayloadError),
     Activity(ActivityBuildError),
     Wire(WireError),
+    Disclosure(DisclosureBindingError),
+}
+
+/// Decodes a structured disclosure from canonical prepared bytes.
+pub fn disclose(
+    canonical_bytes: &[u8],
+    registry: &ModuleRegistry,
+) -> Result<DisclosedPreparation, DisclosureBindingError> {
+    disclosure_binding::decode_and_bind(canonical_bytes, registry)
+}
+
+/// Revalidates that a held preparation still matches its disclosure.
+pub fn verify_disclosure_binding(prepared: &Prepared) -> Result<(), DisclosureBindingError> {
+    disclosure_binding::verify_binding(prepared)
 }
 
 /// Constructs and canonically encodes an unsigned activity from core state.
@@ -151,10 +185,20 @@ pub fn prepare_activity(
     let signing_preimage = *preimage_unsigned(&envelope)
         .map_err(PrepareError::Wire)?
         .as_bytes();
+    let disclosed =
+        disclose(&canonical_bytes, &state.module_registry).map_err(PrepareError::Disclosure)?;
+    let audit = PreparationAuditEntry {
+        idempotency_key: envelope.idempotency_key().bytes(),
+        observed_head_sequence: state.observed_head_sequence,
+        disclosure_digest: disclosed.digest,
+    };
     Ok(Prepared {
         envelope,
         canonical_bytes,
         signing_preimage,
         observed_head_sequence: state.observed_head_sequence,
+        disclosure: disclosed.disclosure,
+        disclosure_digest: disclosed.digest,
+        audit,
     })
 }

@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+use sha2::{Digest as _, Sha256};
+
 use layerx_types::payload::{ActivityType, ModuleId, ModuleRegistry};
 use layerx_wire::activity::{decode_unsigned, encode_unsigned, Activity, TimestampBound};
 use layerx_wire::decode::Decoder;
@@ -304,6 +306,15 @@ impl Disclosure {
     pub fn reencode(&self) -> Result<Vec<u8>, DisclosureError> {
         self.validate_fields()?;
         encode_unsigned(&self.activity).map_err(DisclosureError::from)
+    }
+
+    /// Computes a domain-separated audit digest over the validated disclosure form.
+    pub fn audit_digest(&self) -> Result<[u8; 32], DisclosureError> {
+        let transport = self.transport_bytes()?;
+        let mut hasher = Sha256::new();
+        hasher.update(b"LXP/agent/disclosure/v1\0");
+        hasher.update(transport);
+        Ok(hasher.finalize().into())
     }
 
     pub(crate) fn transport_bytes(&self) -> Result<Vec<u8>, DisclosureError> {

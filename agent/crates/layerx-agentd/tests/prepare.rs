@@ -7,6 +7,7 @@ use layerx_types::amount::Amount;
 use layerx_types::ids::{Did, IdempotencyKey};
 use layerx_types::payload::{ActivityType, ModuleId, ModuleRegistration, ModuleRegistry};
 use layerx_wire::activity::decode_unsigned;
+use layerx_wire::encode::Encoder;
 use layerx_wire::sign::preimage;
 
 struct RecordedCoreBoundary {
@@ -20,7 +21,7 @@ impl CorePreparationBoundary for RecordedCoreBoundary {
 }
 
 fn activity_type() -> ActivityType {
-    ActivityType::new(ModuleId::Asset, 1).unwrap_or_else(|error| panic!("activity type: {error:?}"))
+    ActivityType::new(ModuleId::Asset, 5).unwrap_or_else(|error| panic!("activity type: {error:?}"))
 }
 
 fn registry() -> ModuleRegistry {
@@ -62,9 +63,68 @@ fn request() -> PrepareRequest {
         ),
         fee_limit: Some(Amount::from_u128(7)),
         idempotency_key: IdempotencyKey::new([4; 32]),
-        payload: b"canonical-module-payload".to_vec(),
+        payload: send_payload(),
         declared_payload_limit: 1_024,
     }
+}
+
+fn send_payload() -> Vec<u8> {
+    let mut encoder = Encoder::new(512);
+    encoder
+        .u16(0x5301)
+        .unwrap_or_else(|error| panic!("tag: {error:?}"));
+    encoder
+        .u16(10)
+        .unwrap_or_else(|error| panic!("fields: {error:?}"));
+    encoder
+        .fixed(&[0x11; 32])
+        .unwrap_or_else(|error| panic!("from: {error:?}"));
+    encoder
+        .fixed(&[0x22; 32])
+        .unwrap_or_else(|error| panic!("to: {error:?}"));
+    encoder
+        .fixed(&[0x33; 32])
+        .unwrap_or_else(|error| panic!("asset: {error:?}"));
+    encoder
+        .u128(25)
+        .unwrap_or_else(|error| panic!("amount: {error:?}"));
+    encoder
+        .u64(5)
+        .unwrap_or_else(|error| panic!("sequence: {error:?}"));
+    encoder
+        .fixed(&[4; 32])
+        .unwrap_or_else(|error| panic!("idempotency: {error:?}"));
+    encoder
+        .u64(1_010)
+        .unwrap_or_else(|error| panic!("expiry: {error:?}"));
+    encoder
+        .fixed(&[0x55; 32])
+        .unwrap_or_else(|error| panic!("context: {error:?}"));
+    encoder
+        .u8(0)
+        .unwrap_or_else(|error| panic!("conditions: {error:?}"));
+    encoder
+        .u8(1)
+        .unwrap_or_else(|error| panic!("authority kind: {error:?}"));
+    encoder
+        .fixed(&[0x11; 32])
+        .unwrap_or_else(|error| panic!("controller: {error:?}"));
+    encoder
+        .fixed(&[0x66; 32])
+        .unwrap_or_else(|error| panic!("public key: {error:?}"));
+    encoder
+        .fixed(&[0x77; 64])
+        .unwrap_or_else(|error| panic!("signature: {error:?}"));
+    encoder
+        .fixed(&[0x55; 32])
+        .unwrap_or_else(|error| panic!("signed context: {error:?}"));
+    encoder
+        .u32(17)
+        .unwrap_or_else(|error| panic!("network: {error:?}"));
+    encoder
+        .u16(1)
+        .unwrap_or_else(|error| panic!("version: {error:?}"));
+    encoder.finish()
 }
 
 #[test]
@@ -84,7 +144,7 @@ fn canonical_bytes_and_preimage_come_only_from_layerx_wire() {
     assert_eq!(decoded.timestamp_bound().not_after, 1_010);
     assert_eq!(decoded.idempotency_key(), [4; 32]);
     assert_eq!(decoded.fee_limit(), 7);
-    assert_eq!(decoded.payload(), b"canonical-module-payload");
+    assert_eq!(decoded.payload(), send_payload());
     assert_eq!(
         prepared.signing_preimage,
         *preimage(&decoded)
@@ -131,15 +191,16 @@ fn explicit_bounds_are_never_widened_and_payload_limits_are_exact() {
     );
 
     let mut oversized = request();
-    oversized.declared_payload_limit = 3;
+    let actual = oversized.payload.len();
+    oversized.declared_payload_limit = actual.saturating_sub(1);
     let mut boundary = RecordedCoreBoundary {
         result: Ok(state()),
     };
     assert_eq!(
         prepare_activity(&mut boundary, defaults(), oversized),
         Err(PrepareError::PayloadLimitExceeded {
-            actual: 24,
-            maximum: 3,
+            actual,
+            maximum: actual - 1,
         })
     );
 }

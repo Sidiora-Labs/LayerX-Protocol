@@ -1439,7 +1439,7 @@ reqs = ["12.1","12.3","12.8","1.1"]
 
 [task.13.2]
 title = "Produce the structured disclosure and prove it matches the bytes"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["13.1","4.3"]
 do_1 = "Produce the disclosure by decoding the prepared bytes rather than by copying the caller request, so the disclosure describes what would actually execute."

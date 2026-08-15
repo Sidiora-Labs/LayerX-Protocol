@@ -582,7 +582,7 @@ entirely on the spine being real.
     - Return the exact canonical bytes and the signing preimage produced by layerx-wire, with no second encoding path anywhere in the daemon.
     - Add tests covering a stale sequence, an unavailable core, a widened bound attempt and a payload that exceeds a declared limit.
     - _Requirements: 12.1, 12.3, 12.8, 1.1_
-  - [ ] 13.2 Produce the structured disclosure and prove it matches the bytes
+  - [x] 13.2 Produce the structured disclosure and prove it matches the bytes
     - Produce the disclosure by decoding the prepared bytes rather than by copying the caller request, so the disclosure describes what would actually execute.
     - Include activity type, actor, authority, every counterparty, every amount, the asset, the fee limit, the expiry and the idempotency key.
     - Re-encode the disclosure and refuse preparation if the result is not byte-identical to the prepared bytes.
