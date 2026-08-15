@@ -1706,7 +1706,7 @@ reqs = ["16.1","1.5","19.5"]
 
 [task.16.2]
 title = "Implement the durable subscription store and cursors"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["16.1"]
 do_1 = "Persist each subscription with its filter, start position, delivery target, owning tenant, agent and scope."

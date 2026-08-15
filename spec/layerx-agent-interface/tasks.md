@@ -707,7 +707,7 @@ entirely on the spine being real.
     - Record the ingestion watermark durably so a restart resumes without re-ingesting or skipping.
     - Add tests covering ingestion restart, a node that repeats an event and a node that emits out of order.
     - _Requirements: 16.1, 1.5, 19.5_
-  - [ ] 16.2 Implement the durable subscription store and cursors
+  - [x] 16.2 Implement the durable subscription store and cursors
     - Persist each subscription with its filter, start position, delivery target, owning tenant, agent and scope.
     - Restore and resume subscriptions after restart from the last acknowledged cursor.
     - Apply tenant and scope restrictions before any filter so a filter can never widen visibility.

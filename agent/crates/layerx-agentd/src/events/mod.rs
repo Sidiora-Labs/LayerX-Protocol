@@ -2,6 +2,7 @@
 
 #[path = "ingest.rs"]
 mod ingestion;
+pub mod subscription;
 
 pub use ingestion::{CoreEvent, EventIngestor, IngestError, Watermark};
 
