@@ -1503,7 +1503,7 @@ status = "pending"
 
 [task.14.1]
 title = "Implement the durable outbox and the submission state machine"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["13.4"]
 do_1 = "Record every submission in a durable outbox before transmission and retain it until a terminal state of executed, failed, expired or superseded."

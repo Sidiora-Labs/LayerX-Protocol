@@ -612,7 +612,7 @@ entirely on the spine being real.
     - _Requirements: 12.9, 12.10, 10.5_
 
 - [ ] 14. Implement submission, idempotency and receipt tracking
-  - [ ] 14.1 Implement the durable outbox and the submission state machine
+  - [x] 14.1 Implement the durable outbox and the submission state machine
     - Record every submission in a durable outbox before transmission and retain it until a terminal state of executed, failed, expired or superseded.
     - Implement the state machine over prepared, signed, queued, submitted, acknowledged, unknown, executed, failed and expired, recording every transition with its cause.
     - Expose the current state and its evidence through the contract, with unknown reported as unknown rather than as an error.
