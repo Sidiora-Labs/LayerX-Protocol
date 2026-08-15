@@ -1,4 +1,5 @@
 mod cases;
+mod gaps;
 
 use std::path::PathBuf;
 use std::process::ExitCode;

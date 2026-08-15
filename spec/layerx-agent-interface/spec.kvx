@@ -897,7 +897,7 @@ reqs = ["2.9","23.2","2.7"]
 
 [task.6.6]
 title = "Publish the capability gap report"
-status = "pending"
+status = "done"
 wave = 5
 requires = ["6.5"]
 do_1 = "Implement a report that enumerates every capability this specification requires, whether the connected node exposes it, and what the layer does when it is absent."

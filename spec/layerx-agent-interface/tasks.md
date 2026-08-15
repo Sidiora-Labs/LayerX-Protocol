@@ -322,7 +322,7 @@ entirely on the spine being real.
     - Cover node restart, node behind, node unreachable and node degraded, asserting the layer refusal behaviour in each case.
     - Wire the suite into make agent-test-boundary and mark it a release gate.
     - _Requirements: 2.9, 23.2, 2.7_
-  - [ ] 6.6 Publish the capability gap report
+  - [x] 6.6 Publish the capability gap report
     - Implement a report that enumerates every capability this specification requires, whether the connected node exposes it, and what the layer does when it is absent.
     - Fail a dependent request as unavailable when a capability is missing, and prove in test that no code path substitutes a locally reconstructed answer.
     - Record every gap discovered against the real node so the protocol feature can close it, without the agent layer working around it.

@@ -452,6 +452,7 @@ pub fn agent_boundary_conformance_suite(
     let mut connection = connect(&socket)?;
     let accepted = perform(&mut connection, &config(), None)
         .map_err(|error| format!("normal handshake failed: {error:?}"))?;
+    let capability_qualification = crate::gaps::verify_and_render(&accepted)?;
     let covered = exercise_live_messages(&mut connection, &accepted)?;
     if covered != (1_u16..=25).collect() {
         return Err(format!("incomplete live message coverage: {covered:?}"));
@@ -497,5 +498,7 @@ pub fn agent_boundary_conformance_suite(
 
     fs::remove_dir_all(&directory)
         .map_err(|error| format!("could not clean boundary directory: {error}"))?;
-    Ok("agent boundary conformance suite passed: real node, 25 messages, restart, behind, unreachable, degraded".to_owned())
+    Ok(format!(
+        "agent boundary conformance suite passed: real node, 25 messages, restart, behind, unreachable, degraded\n{capability_qualification}"
+    ))
 }

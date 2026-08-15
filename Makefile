@@ -1752,6 +1752,8 @@ agent-test-boundary: $(BUILD_DIR)/agent/layerxd-lni
 	$(AGENT_CARGO) run --manifest-path agent/tests/boundary/Cargo.toml --locked -- \
 		$(CURDIR)/$(BUILD_DIR)/agent/layerxd-lni $(CURDIR)
 
+agent-test-capability-report: agent-test-boundary
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
