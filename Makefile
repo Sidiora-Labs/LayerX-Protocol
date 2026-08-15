@@ -1954,6 +1954,10 @@ agent-test-agentd-tenant-isolation:
 agent-test-agentd-tenant-leakage:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test tenant_leakage
 
+agent-test-agentd-audit-chain:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test audit_chain
+	$(AGENT_CARGO) check --manifest-path agent/tools/audit-verify/Cargo.toml --locked
+
 agent-test-mcp-untrusted-input:
 	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
 

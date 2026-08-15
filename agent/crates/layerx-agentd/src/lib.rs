@@ -1,6 +1,7 @@
 //! Non-authoritative `LayerX` agent daemon.
 
 pub mod authority;
+pub mod audit;
 pub mod budget;
 pub mod cache;
 pub mod capability;

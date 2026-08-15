@@ -813,7 +813,7 @@ entirely on the spine being real.
     - _Requirements: 21.8, 21.9, 23.6_
 
 - [ ] 19. Implement the audit trail and observability
-  - [ ] 19.1 Implement the append-only hash-chained audit log
+  - [x] 19.1 Implement the append-only hash-chained audit log
     - Implement an append-only audit log with a hash chain over its entries so excision or reordering is detectable.
     - Ship a verifier tool that checks the chain and reports the first inconsistent entry.
     - Persist entries durably before the audited operation is allowed to proceed.

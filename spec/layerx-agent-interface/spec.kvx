@@ -1929,7 +1929,7 @@ status = "pending"
 
 [task.19.1]
 title = "Implement the append-only hash-chained audit log"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["12.3"]
 do_1 = "Implement an append-only audit log with a hash chain over its entries so excision or reordering is detectable."
