@@ -2182,7 +2182,7 @@ status = "pending"
 
 [task.22.1]
 title = "Author the Rust SDK surface"
-status = "pending"
+status = "done"
 wave = 11
 requires = ["8.6","7.6"]
 do_1 = "Implement the Rust SDK over layerx-client and the contract covering identity and sessions, capabilities and budgets, policy dry-run, preparation, signing integration, submission and tracking, verified reads, proof verification, availability retrieval and subscriptions."

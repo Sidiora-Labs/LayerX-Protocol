@@ -2009,6 +2009,9 @@ agent-test-mcp-injection:
 agent-test-mcp-readonly:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-mcp --test readonly
 
+agent-test-sdk-rust:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-sdk --test sdk
+
 agent-test-mcp-untrusted-input:
 	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
 

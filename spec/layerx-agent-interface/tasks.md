@@ -933,7 +933,7 @@ entirely on the spine being real.
     - _Requirements: 17.10, 17.1_
 
 - [ ] 22. Build layerx-sdk and the generated TypeScript and Python SDKs
-  - [ ] 22.1 Author the Rust SDK surface
+  - [x] 22.1 Author the Rust SDK surface
     - Implement the Rust SDK over layerx-client and the contract covering identity and sessions, capabilities and budgets, policy dry-run, preparation, signing integration, submission and tracking, verified reads, proof verification, availability retrieval and subscriptions.
     - Make the SDK usable both against a daemon and directly against a node with no daemon present.
     - Integrate external signers through an explicit interface and forbid any SDK path that exports key material.

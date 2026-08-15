@@ -434,6 +434,7 @@ version = "0.1.0"
 dependencies = [
  "layerx-agent-api",
  "layerx-client",
+ "layerx-proof",
  "layerx-types",
 ]
 
