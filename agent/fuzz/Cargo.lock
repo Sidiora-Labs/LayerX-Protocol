@@ -386,9 +386,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "layerx-agent-api"
+version = "0.1.0"
+dependencies = [
+ "layerx-client",
+ "layerx-types",
+]
+
+[[package]]
 name = "layerx-agent-fuzz"
 version = "0.0.0"
 dependencies = [
+ "layerx-agentd",
  "layerx-client",
  "layerx-types",
  "layerx-wire",
@@ -396,9 +405,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "layerx-agentd"
+version = "0.1.0"
+dependencies = [
+ "layerx-agent-api",
+ "layerx-client",
+ "layerx-types",
+]
+
+[[package]]
 name = "layerx-client"
 version = "0.1.0"
 dependencies = [
+ "layerx-crypto",
  "layerx-proof",
  "layerx-types",
  "layerx-wire",

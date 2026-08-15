@@ -1,10 +1,16 @@
 //! Deterministic local policy restrictions for daemon write requests.
 
 mod eval;
+#[path = "version.rs"]
+mod versioning;
 
 pub use eval::{
     EvaluationFailure, EvaluationInput, PolicyRequest, PolicySet, Rule, RuleConstraints,
     RuleEffect, RuleMatcher, SequenceWindow,
+};
+pub use versioning::{
+    load_policy_source, Activation, PolicyAuditEntry, PolicyRegistry, PolicySnapshot,
+    PolicySourceError, PolicyValidationError, MAX_POLICY_SOURCE_BYTES,
 };
 
 /// The local policy outcome. An allow is never protocol authorisation.
@@ -61,4 +67,17 @@ pub fn evaluate_with_matcher(
     matcher: &dyn RuleMatcher,
 ) -> Decision {
     eval::evaluate_with(policy, input, matcher)
+}
+
+/// Validates a policy set before it can become active.
+pub fn validate(policy: &PolicySet) -> Result<(), PolicyValidationError> {
+    versioning::validate_policy(policy)
+}
+
+/// Atomically activates a validated policy version for future requests.
+pub fn activate(
+    registry: &mut PolicyRegistry,
+    policy: PolicySet,
+) -> Result<Activation, PolicyValidationError> {
+    versioning::activate_policy(registry, policy)
 }

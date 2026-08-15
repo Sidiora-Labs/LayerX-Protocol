@@ -1359,7 +1359,7 @@ reqs = ["11.1","11.2","11.6","11.7"]
 
 [task.12.2]
 title = "Implement policy versioning, validation and activation"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["12.1"]
 do_1 = "Version every policy set, validate it before activation, and reject an invalid set while continuing under the previous version."

@@ -12,6 +12,7 @@ libfuzzer-sys = "0.4"
 layerx-types = { path = "../crates/layerx-types" }
 layerx-wire = { path = "../crates/layerx-wire" }
 layerx-client = { path = "../crates/layerx-client" }
+layerx-agentd = { path = "../crates/layerx-agentd" }
 
 [[bin]]
 name = "harness"
@@ -65,6 +66,13 @@ bench = false
 [[bin]]
 name = "lni_frame"
 path = "fuzz_targets/lni_frame.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "policy_loader"
+path = "fuzz_targets/policy_loader.rs"
 test = false
 doc = false
 bench = false

@@ -543,7 +543,7 @@ entirely on the spine being real.
     - Deny on evaluation failure, timeout or internal error, and prove there is no path that fails open.
     - Add tests covering an empty policy set, a conflicting rule pair and an evaluation that panics internally.
     - _Requirements: 11.1, 11.2, 11.6, 11.7_
-  - [ ] 12.2 Implement policy versioning, validation and activation
+  - [x] 12.2 Implement policy versioning, validation and activation
     - Version every policy set, validate it before activation, and reject an invalid set while continuing under the previous version.
     - Apply a new version only to requests received after activation and retain prior versions for audit reconstruction.
     - Record the active policy version in every decision, session and audit entry.
