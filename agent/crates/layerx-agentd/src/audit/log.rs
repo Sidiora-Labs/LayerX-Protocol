@@ -326,6 +326,43 @@ pub fn verify_chain(path: impl AsRef<Path>) -> Result<Verification, AuditError> 
     })
 }
 
+pub(crate) fn read_payloads(path: impl AsRef<Path>) -> Result<Vec<Vec<u8>>, AuditError> {
+    let path = path.as_ref();
+    let _verified = verify_chain(path)?;
+    let bytes = fs::read(path)?;
+    let mut offset = HEADER_BYTES;
+    let mut payloads = Vec::new();
+    while offset < bytes.len() {
+        let length_offset = offset.checked_add(44).ok_or(AuditError::SequenceOverflow)?;
+        let payload_offset = length_offset
+            .checked_add(4)
+            .ok_or(AuditError::SequenceOverflow)?;
+        let length_end = payload_offset;
+        let payload_length = u32::from_be_bytes(
+            bytes
+                .get(length_offset..length_end)
+                .ok_or_else(|| invalid(payloads.len() as u64, ChainIssue::TruncatedEntry))?
+                .try_into()
+                .map_err(|_| invalid(payloads.len() as u64, ChainIssue::TruncatedEntry))?,
+        );
+        let payload_end = payload_offset
+            .checked_add(payload_length as usize)
+            .ok_or(AuditError::SequenceOverflow)?;
+        let frame_end = payload_end
+            .checked_add(32)
+            .ok_or(AuditError::SequenceOverflow)?;
+        let payload = bytes
+            .get(payload_offset..payload_end)
+            .ok_or_else(|| invalid(payloads.len() as u64, ChainIssue::TruncatedEntry))?;
+        if frame_end > bytes.len() {
+            return Err(invalid(payloads.len() as u64, ChainIssue::TruncatedEntry));
+        }
+        payloads.push(payload.to_vec());
+        offset = frame_end;
+    }
+    Ok(payloads)
+}
+
 fn read_until_eof(reader: &mut impl Read, output: &mut [u8]) -> Result<usize, AuditError> {
     let mut read = 0;
     while read < output.len() {

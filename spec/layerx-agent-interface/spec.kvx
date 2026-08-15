@@ -1944,7 +1944,7 @@ reqs = ["20.3","20.9"]
 
 [task.19.2]
 title = "Record decision and mutation evidence on every path"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["19.1","14.4"]
 do_1 = "Record authentication, session lifecycle, capability decisions, policy decisions, budget reservations, preparations, signature requests, submissions, terminal outcomes, subscription changes, configuration changes and administrative actions."

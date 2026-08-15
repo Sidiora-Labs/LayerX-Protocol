@@ -1958,6 +1958,9 @@ agent-test-agentd-audit-chain:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test audit_chain
 	$(AGENT_CARGO) check --manifest-path agent/tools/audit-verify/Cargo.toml --locked
 
+agent-test-agentd-audit-coverage:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test audit_coverage
+
 agent-test-mcp-untrusted-input:
 	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
 

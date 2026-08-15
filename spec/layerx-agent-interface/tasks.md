@@ -820,7 +820,7 @@ entirely on the spine being real.
     - Refuse the operation when the audit entry cannot be written, because an unaudited mutation attempt is not permitted.
     - Add tests covering a tampered entry, a removed entry, a reordered segment and a write failure during audit.
     - _Requirements: 20.3, 20.9_
-  - [ ] 19.2 Record decision and mutation evidence on every path
+  - [x] 19.2 Record decision and mutation evidence on every path
     - Record authentication, session lifecycle, capability decisions, policy decisions, budget reservations, preparations, signature requests, submissions, terminal outcomes, subscription changes, configuration changes and administrative actions.
     - Carry tenant, agent, session, capability, policy version, request identifier, idempotency key, decision, reason, resulting activity identifier and verification level on every entry.
     - Make the trail sufficient to reconstruct why an activity was allowed, what exact bytes were submitted, which authority was used and what the core returned, using entries and stored receipts alone.
