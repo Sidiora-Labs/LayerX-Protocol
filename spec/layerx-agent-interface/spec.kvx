@@ -1612,7 +1612,7 @@ reqs = ["14.1","14.2","14.6","1.3"]
 
 [task.15.2]
 title = "Serve ordered history with stable cursors"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["15.1"]
 do_1 = "Serve activities, receipts and events as core-produced canonical bytes in strict global sequence order."

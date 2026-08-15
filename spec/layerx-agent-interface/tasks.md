@@ -663,7 +663,7 @@ entirely on the spine being real.
     - Return the current head, latest sealed batch and latest finalised checkpoint with every freshness-sensitive read.
     - Add tests asserting a value is never returned above its evidence and that a hostile node cannot raise the level by assertion.
     - _Requirements: 14.1, 14.2, 14.6, 1.3_
-  - [ ] 15.2 Serve ordered history with stable cursors
+  - [x] 15.2 Serve ordered history with stable cursors
     - Serve activities, receipts and events as core-produced canonical bytes in strict global sequence order.
     - Implement stable cursors such that a resumed page continues exactly where the previous ended with no gap and no repetition.
     - Preserve served bytes exactly so a caller re-hashing them reproduces the committed roots for the covered batches.

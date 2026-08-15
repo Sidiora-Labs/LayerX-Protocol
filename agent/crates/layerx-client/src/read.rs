@@ -118,6 +118,22 @@ pub struct HistoryCursor {
 }
 
 impl HistoryCursor {
+    /// Reconstructs a cursor from durable daemon coordinates.
+    #[must_use]
+    pub const fn from_coordinates(
+        next_sequence: u64,
+        end_sequence: u64,
+        head_sequence: u64,
+        checkpoint: [u8; 32],
+    ) -> Self {
+        Self {
+            next_sequence,
+            end_sequence,
+            head_sequence,
+            checkpoint,
+        }
+    }
+
     #[must_use]
     pub const fn next_sequence(self) -> u64 {
         self.next_sequence
