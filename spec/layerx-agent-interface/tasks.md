@@ -760,7 +760,7 @@ entirely on the spine being real.
     - Expose the population and age distribution of in-flight and unresolved work.
     - Add tests covering caller disconnect at every write stage and a deadline expiring during unknown resolution.
     - _Requirements: 19.6, 13.4, 1.6_
-  - [ ] 17.4 Implement durable resource quotas and load shedding
+  - [x] 17.4 Implement durable resource quotas and load shedding
     - Apply quotas to subscriptions, prepared activities, outbox entries, audit retention and stored receipts, refusing creation past a quota.
     - Detect a retry storm, a hot loop or a pathological client and shed load for that client specifically.
     - Never shed load for unrelated tenants to compensate and record every shedding decision.

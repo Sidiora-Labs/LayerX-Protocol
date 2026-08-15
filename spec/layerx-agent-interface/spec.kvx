@@ -1816,7 +1816,7 @@ reqs = ["19.6","13.4","1.6"]
 
 [task.17.4]
 title = "Implement durable resource quotas and load shedding"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["17.1"]
 do_1 = "Apply quotas to subscriptions, prepared activities, outbox entries, audit retention and stored receipts, refusing creation past a quota."

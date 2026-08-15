@@ -2,6 +2,9 @@
 
 pub mod admission;
 pub mod deadline;
+pub mod quota;
+
+pub use quota::Quota;
 
 /// Cancels caller-owned work or transfers an indeterminate submission to its resolver.
 pub fn cancel(
@@ -10,6 +13,15 @@ pub fn cancel(
     observed_at_ms: u64,
 ) -> Result<deadline::DisconnectOutcome, deadline::DeadlineError> {
     deadline::disconnect_request(tracker, request_id, observed_at_ms)
+}
+
+/// Records a client activity and durably sheds only that client when pathological.
+pub fn shed(
+    quota: &mut quota::Quota,
+    store: &mut crate::store::Store,
+    activity: quota::ClientActivity,
+) -> Result<Option<quota::SheddingDecision>, quota::QuotaError> {
+    quota.observe_activity(store, activity)
 }
 
 #[path = "rate.rs"]
