@@ -1771,7 +1771,7 @@ status = "pending"
 
 [task.17.1]
 title = "Implement layered limits and typed refusals"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["14.1"]
 do_1 = "Implement rate limits per tenant, per agent, per session, per capability and per operation class, applying every applicable limit."

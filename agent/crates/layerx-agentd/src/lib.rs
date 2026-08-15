@@ -9,6 +9,7 @@ pub mod export;
 pub mod finality;
 pub mod idempotency;
 pub mod identity;
+pub mod limits;
 pub mod outbox;
 pub mod policy;
 pub mod prepare;

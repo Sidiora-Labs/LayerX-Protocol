@@ -739,7 +739,7 @@ entirely on the spine being real.
 ## Wave 10 - Limits, Tenancy and Evidence
 
 - [ ] 17. Implement rate limits, quotas and backpressure
-  - [ ] 17.1 Implement layered limits and typed refusals
+  - [x] 17.1 Implement layered limits and typed refusals
     - Implement rate limits per tenant, per agent, per session, per capability and per operation class, applying every applicable limit.
     - Return a typed rate-limit error carrying the limit, the window, the remaining quota and a retry-after hint, and never queue indefinitely in place of refusing.
     - Enforce limits deterministically from recorded counters and the request, and document the consistency model plainly for multi-instance deployment.
