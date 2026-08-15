@@ -1763,6 +1763,10 @@ agent-qualify-fabrication:
 	$(MAKE) agent-test-sdk-py
 	$(AGENT_CARGO) run --manifest-path agent/tests/qualify/Cargo.toml --locked -- fabrication $(CURDIR)
 
+agent-qualify-faults: $(BUILD_DIR)/agent/layerxd-lni
+	$(MAKE) agent-test-sdk-parity
+	$(AGENT_CARGO) run --manifest-path agent/tests/qualify/Cargo.toml --locked -- faults $(CURDIR)
+
 agent-test-capability-report: agent-test-boundary
 
 agent-test-client-connection:

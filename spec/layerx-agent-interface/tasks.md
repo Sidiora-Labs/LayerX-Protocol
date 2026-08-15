@@ -1000,7 +1000,7 @@ entirely on the spine being real.
     - Cover every read surface, the streaming surface, the MCP tools and all three SDKs.
     - Wire the suite into make agent-qualify-fabrication as a release gate.
     - _Requirements: 23.3, 1.10, 1.3_
-  - [ ] 23.4 Run the fault-injection and exactly-once suite
+  - [x] 23.4 Run the fault-injection and exactly-once suite
     - Inject connection loss at every stage of submission, process kill between signing and transmission, duplicate delivery, delayed acknowledgement, restart mid-resolution and clock disturbance.
     - Assert exactly-once economic effect and honest unknown reporting in every case.
     - Prove idempotency end to end through repeated retries, concurrent duplicates and post-restart resubmission, asserting exactly one receipt and one economic effect.

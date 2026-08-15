@@ -1,7 +1,11 @@
 #[path = "../boundary.rs"]
 mod boundary;
+#[path = "../exactly_once.rs"]
+mod exactly_once;
 #[path = "../fabrication.rs"]
 mod fabrication;
+#[path = "../faults.rs"]
+mod faults;
 #[path = "../hostile_node.rs"]
 mod hostile_node;
 #[path = "../wire.rs"]
@@ -62,6 +66,19 @@ fn main() -> ExitCode {
             Err("fabrication gate received an unexpected argument".to_owned())
         } else {
             fabrication::agent_qualify_fabrication_gate(&repository)
+        }
+    } else if command == "faults" {
+        let Some(repository) = arguments.next().map(PathBuf::from) else {
+            eprintln!("fault gate is missing REPOSITORY");
+            return ExitCode::FAILURE;
+        };
+        if arguments.next().is_some() {
+            Err("fault gate received an unexpected argument".to_owned())
+        } else {
+            faults::agent_fault_injection_suite(&repository).and_then(|faults| {
+                exactly_once::agent_exactly_once_suite(&repository)
+                    .map(|exactly_once| format!("{faults}\n{exactly_once}"))
+            })
         }
     } else {
         Err(format!(
