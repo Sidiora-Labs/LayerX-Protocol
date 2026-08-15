@@ -499,7 +499,7 @@ entirely on the spine being real.
     - _Requirements: 9.9, 9.10, 10.2, 18.10_
 
 - [ ] 11. Implement budgets and spend control
-  - [ ] 11.1 Create protocol budgets and grants through signed activities
+  - [x] 11.1 Create protocol budgets and grants through signed activities
     - Implement budget creation that offers to express the limit as a protocol budget or capability grant and creates it through an ordinary prepared, signed and submitted activity.
     - Return the resulting protocol object identifier and its receipt so the limit existence is evidence rather than a daemon record.
     - Label a limit that exists only in the daemon explicitly as daemon-enforced with its bypass statement.

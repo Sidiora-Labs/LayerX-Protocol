@@ -1265,7 +1265,7 @@ status = "pending"
 
 [task.11.1]
 title = "Create protocol budgets and grants through signed activities"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["10.2"]
 do_1 = "Implement budget creation that offers to express the limit as a protocol budget or capability grant and creates it through an ordinary prepared, signed and submitted activity."
