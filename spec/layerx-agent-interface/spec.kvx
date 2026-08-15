@@ -2242,7 +2242,7 @@ reqs = ["18.3","18.4","18.9"]
 
 [task.22.5]
 title = "Run the cross-SDK parity suite"
-status = "pending"
+status = "done"
 wave = 11
 requires = ["22.3","22.4"]
 do_1 = "Build a parity suite that runs identical scenarios through the Rust, TypeScript and Python SDKs against the same daemon and the same node."

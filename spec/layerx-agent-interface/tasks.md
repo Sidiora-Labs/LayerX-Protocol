@@ -961,7 +961,7 @@ entirely on the spine being real.
     - Ship the same runnable example set as the other SDKs so behaviour can be compared directly.
     - Add a test asserting a hand edit to generated output fails the build.
     - _Requirements: 18.3, 18.4, 18.9_
-  - [ ] 22.5 Run the cross-SDK parity suite
+  - [x] 22.5 Run the cross-SDK parity suite
     - Build a parity suite that runs identical scenarios through the Rust, TypeScript and Python SDKs against the same daemon and the same node.
     - Assert identical observable behaviour including identical error taxonomy, identical verification levels and identical idempotency outcomes.
     - Cover the unknown submission path, a terminal rejection, a proven read, an availability failure and a subscription gap in every language.

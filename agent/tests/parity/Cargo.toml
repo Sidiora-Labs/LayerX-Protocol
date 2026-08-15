@@ -1,0 +1,16 @@
+[package]
+name = "agent-sdk-parity"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.91.1"
+publish = false
+
+[dependencies]
+layerx-agent-api = { path = "../../crates/layerx-agent-api" }
+layerx-agentd = { path = "../../crates/layerx-agentd" }
+layerx-client = { path = "../../crates/layerx-client" }
+layerx-proof = { path = "../../crates/layerx-proof" }
+layerx-sdk = { path = "../../crates/layerx-sdk" }
+layerx-types = { path = "../../crates/layerx-types" }
+
+[workspace]

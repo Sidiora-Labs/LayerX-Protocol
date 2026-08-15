@@ -1,0 +1,75 @@
+[meta]
+version = 1
+languages = ["rust","typescript","python"]
+
+[scenario.unknown_submission]
+state = "Unknown"
+error = "None"
+verification = "Unverified"
+idempotency = "Original"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.terminal_rejection]
+state = "Failed"
+error = "CoreRejection"
+verification = "Unverified"
+idempotency = "Original"
+result_code = "-77777"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.proven_read]
+state = "Value"
+error = "None"
+verification = "StateProven"
+idempotency = "None"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.availability_failure]
+state = "Refused"
+error = "UnavailableCapability"
+verification = "Unverified"
+idempotency = "None"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.subscription_gap]
+state = "Gap"
+error = "None"
+verification = "SequencerSigned"
+idempotency = "None"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.idempotency_repeat]
+state = "Executed"
+error = "None"
+verification = "SequencerSigned"
+idempotency = "RepeatedOriginal"
+result_code = "0"
+receipt_count = 1
+economic_effects = 1
+
+[scenario.idempotency_concurrent]
+state = "Executed"
+error = "None"
+verification = "SequencerSigned"
+idempotency = "Deduplicated"
+result_code = "0"
+receipt_count = 1
+economic_effects = 1
+
+[scenario.idempotency_restart]
+state = "Executed"
+error = "None"
+verification = "SequencerSigned"
+idempotency = "RestoredOriginal"
+result_code = "0"
+receipt_count = 1
+economic_effects = 1

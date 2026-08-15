@@ -2028,6 +2028,12 @@ agent-test-sdk-py:
 	PYTHONPATH=agent/sdk/python python3 -m unittest discover -s agent/sdk/python/tests -p 'test_*.py'
 	PYTHONPATH=agent/sdk/python python3 -m compileall -q agent/sdk/python/layerx_sdk agent/sdk/python/examples
 
+agent-test-sdk-parity: $(BUILD_DIR)/agent/layerxd-lni
+	$(MAKE) agent-test-sdk-ts
+	$(MAKE) agent-test-sdk-py
+	$(AGENT_CARGO) run --manifest-path agent/tests/parity/Cargo.toml --locked -- \
+		$(CURDIR)/$(BUILD_DIR)/agent/layerxd-lni $(CURDIR)
+
 agent-test-mcp-untrusted-input:
 	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
 
