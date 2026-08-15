@@ -8,8 +8,47 @@ use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
 #[derive(Default)]
 pub struct DaemonLifecycle {
     accepting_work: bool,
-    in_flight: BTreeMap<[u8; 32], Vec<u8>>,
+    in_flight: BTreeMap<[u8; 32], InFlight>,
     pending_audit: Vec<Vec<u8>>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum WriteStage {
+    Preparing,
+    Signing,
+    Queued,
+    Submitted,
+    Acknowledged,
+    Unknown,
+}
+
+impl WriteStage {
+    const fn code(self) -> u8 {
+        match self {
+            Self::Preparing => 1,
+            Self::Signing => 2,
+            Self::Queued => 3,
+            Self::Submitted => 4,
+            Self::Acknowledged => 5,
+            Self::Unknown => 6,
+        }
+    }
+
+    const fn outbox_state(self) -> Option<crate::outbox::SubmissionState> {
+        match self {
+            Self::Preparing | Self::Signing => None,
+            Self::Queued => Some(crate::outbox::SubmissionState::Queued),
+            Self::Submitted => Some(crate::outbox::SubmissionState::Submitted),
+            Self::Acknowledged => Some(crate::outbox::SubmissionState::Acknowledged),
+            Self::Unknown => Some(crate::outbox::SubmissionState::Unknown),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct InFlight {
+    stage: WriteStage,
+    durable_state: Vec<u8>,
 }
 
 impl DaemonLifecycle {
@@ -27,10 +66,31 @@ impl DaemonLifecycle {
         submission_id: [u8; 32],
         durable_state: Vec<u8>,
     ) -> Result<(), ShutdownError> {
+        self.begin_stage(submission_id, WriteStage::Queued, durable_state)
+    }
+
+    pub fn begin_stage(
+        &mut self,
+        work_id: [u8; 32],
+        stage: WriteStage,
+        durable_state: Vec<u8>,
+    ) -> Result<(), ShutdownError> {
         if !self.accepting_work {
             return Err(ShutdownError::NotAccepting);
         }
-        self.in_flight.insert(submission_id, durable_state);
+        if durable_state.is_empty() {
+            return Err(ShutdownError::EmptyInFlight);
+        }
+        if self.in_flight.contains_key(&work_id) {
+            return Err(ShutdownError::DuplicateInFlight(work_id));
+        }
+        self.in_flight.insert(
+            work_id,
+            InFlight {
+                stage,
+                durable_state,
+            },
+        );
         Ok(())
     }
 
@@ -51,6 +111,8 @@ impl DaemonLifecycle {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ShutdownReport {
     pub in_flight_recorded: usize,
+    pub pre_submission_recorded: usize,
+    pub outbox_submissions_verified: usize,
     pub audit_entries_flushed: usize,
     pub accepting_work: bool,
 }
@@ -58,8 +120,15 @@ pub struct ShutdownReport {
 #[derive(Debug)]
 pub enum ShutdownError {
     NotAccepting,
+    EmptyInFlight,
+    DuplicateInFlight([u8; 32]),
     EmptyAudit,
     MissingOutboxRecord([u8; 32]),
+    OutboxStageMismatch {
+        submission_id: [u8; 32],
+        expected: crate::outbox::SubmissionState,
+        actual: crate::outbox::SubmissionState,
+    },
     Store(StoreError),
     Arithmetic,
 }
@@ -78,10 +147,28 @@ pub fn graceful(
     lifecycle: &mut DaemonLifecycle,
 ) -> Result<ShutdownReport, ShutdownError> {
     lifecycle.accepting_work = false;
-    for (submission_id, durable_state) in &lifecycle.in_flight {
-        if outbox.status(*submission_id).is_none() {
-            return Err(ShutdownError::MissingOutboxRecord(*submission_id));
+    let mut pre_submission_recorded = 0_usize;
+    let mut outbox_submissions_verified = 0_usize;
+    for (submission_id, in_flight) in &lifecycle.in_flight {
+        if let Some(expected) = in_flight.stage.outbox_state() {
+            let actual = outbox
+                .status(*submission_id)
+                .ok_or(ShutdownError::MissingOutboxRecord(*submission_id))?
+                .state;
+            if actual != expected {
+                return Err(ShutdownError::OutboxStageMismatch {
+                    submission_id: *submission_id,
+                    expected,
+                    actual,
+                });
+            }
+            outbox_submissions_verified = outbox_submissions_verified.saturating_add(1);
+        } else {
+            pre_submission_recorded = pre_submission_recorded.saturating_add(1);
         }
+        let mut durable_state = Vec::with_capacity(in_flight.durable_state.len() + 1);
+        durable_state.push(in_flight.stage.code());
+        durable_state.extend_from_slice(&in_flight.durable_state);
         store.put_local(
             prefixed_key(
                 tenant.clone(),
@@ -89,7 +176,7 @@ pub fn graceful(
                 b"shutdown-inflight:",
                 submission_id,
             )?,
-            durable_state.clone(),
+            durable_state,
         )?;
     }
     for (index, audit) in lifecycle.pending_audit.iter().enumerate() {
@@ -112,9 +199,15 @@ pub fn graceful(
         )?,
         b"durable".to_vec(),
     )?;
+    let in_flight_recorded = lifecycle.in_flight.len();
+    let audit_entries_flushed = lifecycle.pending_audit.len();
+    lifecycle.in_flight.clear();
+    lifecycle.pending_audit.clear();
     Ok(ShutdownReport {
-        in_flight_recorded: lifecycle.in_flight.len(),
-        audit_entries_flushed: lifecycle.pending_audit.len(),
+        in_flight_recorded,
+        pre_submission_recorded,
+        outbox_submissions_verified,
+        audit_entries_flushed,
         accepting_work: false,
     })
 }

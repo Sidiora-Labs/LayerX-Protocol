@@ -10,8 +10,22 @@ const STORE_FILE: &str = "store.bin";
 const MIGRATION_TEMP_FILE: &str = "store.bin.migrating";
 
 /// Current durable store schema.
-pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 const OLDEST_SUPPORTED_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MigrationStep {
+    pub from: u32,
+    pub to: u32,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MigrationReport {
+    pub original_version: u32,
+    pub final_version: u32,
+    pub steps: Vec<MigrationStep>,
+    pub core_produced_records_preserved: u32,
+}
 
 /// Migration refusal and I/O failures.
 #[derive(Debug)]
@@ -51,13 +65,19 @@ impl From<io::Error> for MigrationError {
 }
 
 /// Migrates a store forward without deriving any protocol fact locally.
-pub(super) fn migrate_store(root: &Path) -> Result<(), MigrationError> {
+pub(super) fn migrate_store(root: &Path) -> Result<MigrationReport, MigrationError> {
     let path = root.join(STORE_FILE);
     if !path.exists() {
-        return Ok(());
+        return Ok(MigrationReport {
+            original_version: CURRENT_SCHEMA_VERSION,
+            final_version: CURRENT_SCHEMA_VERSION,
+            steps: Vec::new(),
+            core_produced_records_preserved: 0,
+        });
     }
-    let bytes = fs::read(&path)?;
-    let version = schema_version(&bytes)?;
+    let mut bytes = fs::read(&path)?;
+    let original_version = schema_version(&bytes)?;
+    let mut version = original_version;
     if version > CURRENT_SCHEMA_VERSION {
         return Err(MigrationError::NewerSchema {
             found: version,
@@ -68,24 +88,44 @@ pub(super) fn migrate_store(root: &Path) -> Result<(), MigrationError> {
         return Err(MigrationError::UnsupportedOldSchema(version));
     }
     if version == CURRENT_SCHEMA_VERSION {
-        return Ok(());
+        return Ok(MigrationReport {
+            original_version,
+            final_version: version,
+            steps: Vec::new(),
+            core_produced_records_preserved: validate_v2_or_v3(&bytes, version)?,
+        });
     }
 
-    let migrated = match version {
-        1 => migrate_v1_to_v2(&bytes)?,
-        _ => return Err(MigrationError::UnsupportedOldSchema(version)),
-    };
+    let mut steps = Vec::new();
+    while version < CURRENT_SCHEMA_VERSION {
+        bytes = match version {
+            1 => migrate_v1_to_v2(&bytes)?,
+            2 => migrate_v2_to_v3(&bytes)?,
+            _ => return Err(MigrationError::UnsupportedOldSchema(version)),
+        };
+        steps.push(MigrationStep {
+            from: version,
+            to: version + 1,
+        });
+        version += 1;
+    }
+    let core_produced_records_preserved = validate_v2_or_v3(&bytes, version)?;
     let temp_path = root.join(MIGRATION_TEMP_FILE);
     let mut file = OpenOptions::new()
         .create(true)
         .truncate(true)
         .write(true)
         .open(&temp_path)?;
-    file.write_all(&migrated)?;
+    file.write_all(&bytes)?;
     file.sync_all()?;
     fs::rename(temp_path, path)?;
     File::open(root)?.sync_all()?;
-    Ok(())
+    Ok(MigrationReport {
+        original_version,
+        final_version: version,
+        steps,
+        core_produced_records_preserved,
+    })
 }
 
 fn schema_version(bytes: &[u8]) -> Result<u32, MigrationError> {
@@ -106,7 +146,7 @@ fn migrate_v1_to_v2(bytes: &[u8]) -> Result<Vec<u8>, MigrationError> {
     let count = read_u32(bytes, &mut offset)?;
     let mut output = Vec::new();
     output.extend_from_slice(MAGIC);
-    output.extend_from_slice(&CURRENT_SCHEMA_VERSION.to_be_bytes());
+    output.extend_from_slice(&2_u32.to_be_bytes());
     output.extend_from_slice(&count.to_be_bytes());
     for _ in 0..count {
         copy_sized(bytes, &mut offset, &mut output)?;
@@ -121,6 +161,56 @@ fn migrate_v1_to_v2(bytes: &[u8]) -> Result<Vec<u8>, MigrationError> {
         return Err(MigrationError::CorruptV1);
     }
     Ok(output)
+}
+
+fn migrate_v2_to_v3(bytes: &[u8]) -> Result<Vec<u8>, MigrationError> {
+    let _core_records = validate_v2_or_v3(bytes, 2)?;
+    let mut output = bytes.to_vec();
+    output[4..8].copy_from_slice(&3_u32.to_be_bytes());
+    Ok(output)
+}
+
+fn validate_v2_or_v3(bytes: &[u8], expected_version: u32) -> Result<u32, MigrationError> {
+    if schema_version(bytes)? != expected_version {
+        return Err(MigrationError::InvalidHeader);
+    }
+    let mut offset = 8_usize;
+    let count = read_u32(bytes, &mut offset)?;
+    let mut core_records = 0_u32;
+    for _ in 0..count {
+        skip_sized(bytes, &mut offset)?;
+        let kind = *bytes.get(offset).ok_or(MigrationError::CorruptV1)?;
+        offset = offset.checked_add(1).ok_or(MigrationError::SizeOverflow)?;
+        if !(1..=13).contains(&kind) {
+            return Err(MigrationError::CorruptV1);
+        }
+        let class = *bytes.get(offset).ok_or(MigrationError::CorruptV1)?;
+        offset = offset.checked_add(1).ok_or(MigrationError::SizeOverflow)?;
+        match class {
+            1 => {}
+            2 => core_records = core_records.saturating_add(1),
+            _ => return Err(MigrationError::CorruptV1),
+        }
+        skip_sized(bytes, &mut offset)?;
+        skip_sized(bytes, &mut offset)?;
+    }
+    if offset != bytes.len() {
+        return Err(MigrationError::CorruptV1);
+    }
+    Ok(core_records)
+}
+
+fn skip_sized(input: &[u8], offset: &mut usize) -> Result<(), MigrationError> {
+    let length =
+        usize::try_from(read_u32(input, offset)?).map_err(|_| MigrationError::SizeOverflow)?;
+    let end = offset
+        .checked_add(length)
+        .ok_or(MigrationError::SizeOverflow)?;
+    if input.get(*offset..end).is_none() {
+        return Err(MigrationError::CorruptV1);
+    }
+    *offset = end;
+    Ok(())
 }
 
 fn copy_sized(

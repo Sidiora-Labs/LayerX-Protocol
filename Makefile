@@ -1982,6 +1982,10 @@ agent-test-agentd-handshake-gate:
 agent-test-agentd-degraded:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test degraded
 
+agent-test-agentd-migration:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test migration
+	$(MAKE) agent-test-boundary
+
 agent-test-mcp-untrusted-input:
 	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
 

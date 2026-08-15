@@ -1,9 +1,12 @@
 //! Durable tenant-scoped local storage.
 
+#[path = "migrate_forward.rs"]
+mod forward_migration;
 #[path = "migrate.rs"]
 mod migration;
 mod tenant;
 
+pub use forward_migration::{migrate_forward, MigrationReport, MigrationStep};
 pub use migration::{MigrationError, CURRENT_SCHEMA_VERSION};
 pub use tenant::TenantScoped;
 
@@ -20,7 +23,7 @@ const TEMP_FILE: &str = "store.bin.tmp";
 
 /// Migrates a store through every supported forward-only schema step.
 pub fn migrate(root: &Path) -> Result<(), MigrationError> {
-    migration::migrate_store(root)
+    forward_migration::migrate_forward(root).map(|_| ())
 }
 
 /// A validated tenant identifier that must be present in every storage key.

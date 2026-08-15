@@ -6,6 +6,7 @@ pub mod boot;
 pub mod budget;
 pub mod cache;
 pub mod capability;
+pub mod compat;
 pub mod config;
 pub mod degraded;
 pub mod events;

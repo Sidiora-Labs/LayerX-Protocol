@@ -871,7 +871,7 @@ entirely on the spine being real.
     - Make every degraded state visible through health, metrics and the status surface rather than only in logs.
     - Add tests covering core loss mid-write, core loss mid-stream and a core that returns to a lower finality than previously advertised.
     - _Requirements: 22.4, 22.5, 2.7_
-  - [ ] 20.4 Implement versioned store migration and graceful shutdown
+  - [x] 20.4 Implement versioned store migration and graceful shutdown
     - Implement forward-only versioned migration of local stores with a refusal to start against a store from a newer version.
     - Forbid re-deriving any receipt, proof or protocol fact from anything other than the core during migration.
     - Implement graceful shutdown that stops accepting work, completes or durably records in-flight submissions, flushes audit entries and exits cleanly.
