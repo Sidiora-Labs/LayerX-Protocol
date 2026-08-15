@@ -4,6 +4,13 @@ use std::collections::BTreeSet;
 
 use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
 
+mod narrowing;
+
+pub use narrowing::{
+    Binding, Enforcement, NarrowingError, NarrowingReport, ProtocolScope,
+};
+use crate::identity::ProtocolAuthority;
+
 /// Stable capability identifier.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct CapabilityId(pub [u8; 32]);
@@ -110,7 +117,7 @@ pub struct PreparedIntent {
 }
 
 /// Stable first-failing dimension order.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Dimension {
     Expiry,
     ActivityType,
@@ -169,6 +176,15 @@ pub fn evaluate(capability: &Capability, intent: &PreparedIntent) -> Decision {
         return Decision::Refuse(Dimension::Purpose);
     }
     Decision::Allow
+}
+
+/// Proves that a daemon capability is no wider than its protocol authority.
+pub fn assert_narrowing(
+    capability: &Capability,
+    authority: ProtocolAuthority,
+    protocol_scope: &ProtocolScope,
+) -> Result<Binding, NarrowingError> {
+    narrowing::check_narrowing(capability, authority, protocol_scope)
 }
 
 fn encode(capability: &Capability) -> Result<Vec<u8>, CapabilityError> {

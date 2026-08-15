@@ -469,7 +469,7 @@ entirely on the spine being real.
     - Persist capabilities with their tenant scope and expiry and restore them on restart.
     - Add tests covering each dimension at, inside and outside its bound.
     - _Requirements: 9.1, 9.2, 9.6_
-  - [ ] 10.2 Enforce narrowing against the underlying protocol authority
+  - [x] 10.2 Enforce narrowing against the underlying protocol authority
     - Resolve the underlying protocol authority at capability creation and reject any capability that would permit an activity type, asset, counterparty or amount that authority does not already permit.
     - Forbid presenting a capability to the core as authorisation, and prove in test that no submission path carries a capability identifier as protocol authority.
     - Record for every dimension whether it is protocol-enforced or daemon-enforced only.

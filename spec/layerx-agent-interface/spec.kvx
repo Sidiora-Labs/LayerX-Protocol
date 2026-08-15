@@ -1201,7 +1201,7 @@ reqs = ["9.1","9.2","9.6"]
 
 [task.10.2]
 title = "Enforce narrowing against the underlying protocol authority"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["10.1"]
 do_1 = "Resolve the underlying protocol authority at capability creation and reject any capability that would permit an activity type, asset, counterparty or amount that authority does not already permit."
