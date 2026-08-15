@@ -379,7 +379,7 @@ entirely on the spine being real.
 ## Wave 7 - The Agent Contract
 
 - [ ] 8. Define layerx-agent-api, the agent-facing service contract
-  - [ ] 8.1 Define the contract schema and its compatibility rules
+  - [x] 8.1 Define the contract schema and its compatibility rules
     - Author the agent-api contract as a single versioned schema artefact from which the Rust types, the daemon surface and every generated SDK derive, and make it the source of truth for the client surface.
     - Define the compatibility rule permitting only additive change within a major version, and implement the CI gate that fails a breaking change without a major increment.
     - Commit golden schema snapshots and golden request and response vectors so any surface change is visible as a reviewable diff.

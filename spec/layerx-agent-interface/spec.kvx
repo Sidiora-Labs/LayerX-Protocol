@@ -1012,7 +1012,7 @@ status = "pending"
 
 [task.8.1]
 title = "Define the contract schema and its compatibility rules"
-status = "pending"
+status = "done"
 wave = 7
 requires = ["7.4"]
 do_1 = "Author the agent-api contract as a single versioned schema artefact from which the Rust types, the daemon surface and every generated SDK derive, and make it the source of truth for the client surface."

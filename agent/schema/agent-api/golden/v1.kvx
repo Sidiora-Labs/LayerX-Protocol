@@ -1,0 +1,62 @@
+[schema]
+name = "LayerX Agent API"
+major = 1
+minor = 0
+node_interface_major = 1
+source_of_truth = "This schema and the schema files it includes define the daemon contract and every SDK surface. Generated output is never authoritative."
+compatibility = "Within one major version a release may only add sections or keys. Removing or changing an existing declaration requires a new major version."
+includes = ["identity.kvx","write.kvx","read.kvx","stream.kvx","errors.kvx"]
+
+[encoding]
+request = "contract_major:u16be contract_minor:u16be request_id:u64be operation:utf8 payload:canonical-map"
+response = "contract_major:u16be contract_minor:u16be request_id:u64be result_code:u32be payload:canonical-map"
+integer_boundary = "Consensus-critical integers are encoded as fixed-width unsigned integers in Rust and decimal strings in dynamic-language SDKs."
+
+[scalar.Amount]
+rust = "u128"
+typescript = "bigint"
+python = "int"
+wire = "decimal_string"
+consensus_integer = true
+
+[scalar.Sequence]
+rust = "u64"
+typescript = "bigint"
+python = "int"
+wire = "decimal_string"
+consensus_integer = true
+
+[scalar.BudgetLimit]
+rust = "u128"
+typescript = "bigint"
+python = "int"
+wire = "decimal_string"
+consensus_integer = true
+
+[scalar.TimestampSeconds]
+rust = "u64"
+typescript = "bigint"
+python = "int"
+wire = "decimal_string"
+consensus_integer = true
+
+[record.ContractVersion]
+fields = ["major:u16","minor:u16"]
+
+[record.VersionRequest]
+fields = ["request_id:Sequence","supported:ContractVersion"]
+
+[record.VersionResponse]
+fields = ["request_id:Sequence","contract:ContractVersion","node_interface_major:u16"]
+
+[golden.request.version]
+encoded_hex = "00010000000000000000000700000000010000"
+
+[golden.response.version]
+encoded_hex = "0001000000000000000000070000000000000100000001"
+
+[compatibility.matrix]
+sdk = "0.1.x"
+contract = "1.x"
+node_interface = "1.x"
+daemon = "0.1.x"
