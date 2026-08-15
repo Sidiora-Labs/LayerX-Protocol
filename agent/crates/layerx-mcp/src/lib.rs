@@ -4,3 +4,4 @@ pub mod approval;
 pub mod server;
 pub mod tools;
 pub mod untrusted;
+pub mod validate;

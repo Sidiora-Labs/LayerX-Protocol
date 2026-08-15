@@ -13,3 +13,7 @@ sha2 = "0.10"
 
 [lints]
 workspace = true
+
+[[test]]
+name = "injection"
+path = "../../tests/mcp/injection.rs"

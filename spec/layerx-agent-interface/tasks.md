@@ -917,7 +917,7 @@ entirely on the spine being real.
     - Record approver identity, decision and disclosure digest in the audit trail.
     - Add tests covering threshold boundary amounts, approval of an altered request and expiry during approval.
     - _Requirements: 17.5, 11.8, 12.2_
-  - [ ] 21.5 Treat all tool input as untrusted and resist instruction injection
+  - [x] 21.5 Treat all tool input as untrusted and resist instruction injection
     - Validate every tool argument against the contract schema before use and reject anything outside it.
     - Ensure instructions embedded in arguments, resource content or tool results cannot widen scope, alter a capability, change an approval requirement or redirect a counterparty.
     - Keep every authority, scope and threshold decision on data the daemon holds, never on text the model supplied.

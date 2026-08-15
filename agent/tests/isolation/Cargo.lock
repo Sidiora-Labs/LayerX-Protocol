@@ -420,6 +420,7 @@ dependencies = [
  "layerx-agent-api",
  "layerx-agentd",
  "layerx-types",
+ "sha2",
 ]
 
 [[package]]

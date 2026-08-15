@@ -2148,7 +2148,7 @@ reqs = ["17.5","11.8","12.2"]
 
 [task.21.5]
 title = "Treat all tool input as untrusted and resist instruction injection"
-status = "pending"
+status = "done"
 wave = 11
 requires = ["21.2","21.3"]
 do_1 = "Validate every tool argument against the contract schema before use and reject anything outside it."
