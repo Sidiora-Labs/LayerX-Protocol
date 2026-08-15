@@ -932,7 +932,7 @@ reqs = ["7.1","2.4","14.6"]
 
 [task.7.2]
 title = "Implement submission with exact-byte transmission"
-status = "pending"
+status = "done"
 wave = 6
 requires = ["7.1","3.2"]
 do_1 = "Implement submit to transmit exactly the signed bytes it was given, with no re-encoding, normalisation, reordering or augmentation anywhere in the path."

@@ -340,7 +340,7 @@ entirely on the spine being real.
     - Enforce that this crate is the only one in the workspace that opens a boundary connection, and add the check to the boundary purity gate.
     - Add tests covering reconnect during a request, head regression, and a node that advertises an unexpected network mid-session.
     - _Requirements: 7.1, 2.4, 14.6_
-  - [ ] 7.2 Implement submission with exact-byte transmission
+  - [x] 7.2 Implement submission with exact-byte transmission
     - Implement submit to transmit exactly the signed bytes it was given, with no re-encoding, normalisation, reordering or augmentation anywhere in the path.
     - Verify before transmission that the signature verifies over the exact bytes about to be sent, and fail rather than transmit otherwise.
     - Treat the acknowledgement as admission evidence only, returning a distinct type that cannot be confused with an executed outcome.

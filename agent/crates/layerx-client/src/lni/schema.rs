@@ -522,6 +522,7 @@ pub struct Envelope<'a> {
 pub enum SchemaError {
     UnknownMessage(u16),
     LengthLimit,
+    MalformedEnvelope,
 }
 
 /// Encodes the schema's fixed-width header and two bounded opaque byte strings.
@@ -554,4 +555,59 @@ pub fn encode_envelope(envelope: Envelope<'_>) -> Result<Vec<u8>, SchemaError> {
     encoded.extend_from_slice(&proof_length.to_be_bytes());
     encoded.extend_from_slice(envelope.proof_material);
     Ok(encoded)
+}
+
+/// Decodes one complete LNI envelope while retaining borrowed protocol bytes.
+///
+/// # Errors
+///
+/// Refuses unknown message tags, truncated lengths and payloads, arithmetic
+/// overflow, and trailing bytes outside the two declared byte strings.
+pub fn decode_envelope(bytes: &[u8]) -> Result<Envelope<'_>, SchemaError> {
+    let mut cursor = 0_usize;
+    let major = u16::from_be_bytes(take(bytes, &mut cursor)?);
+    let minor = u16::from_be_bytes(take(bytes, &mut cursor)?);
+    let message_tag = u16::from_be_bytes(take(bytes, &mut cursor)?);
+    if !MESSAGES.iter().any(|message| message.tag == message_tag) {
+        return Err(SchemaError::UnknownMessage(message_tag));
+    }
+    let correlation_id = u64::from_be_bytes(take(bytes, &mut cursor)?);
+    let payload_length = usize::try_from(u32::from_be_bytes(take(bytes, &mut cursor)?))
+        .map_err(|_| SchemaError::LengthLimit)?;
+    let canonical_payload = take_slice(bytes, &mut cursor, payload_length)?;
+    let proof_length = usize::try_from(u32::from_be_bytes(take(bytes, &mut cursor)?))
+        .map_err(|_| SchemaError::LengthLimit)?;
+    let proof_material = take_slice(bytes, &mut cursor, proof_length)?;
+    if cursor != bytes.len() {
+        return Err(SchemaError::MalformedEnvelope);
+    }
+    Ok(Envelope {
+        version: Version { major, minor },
+        message_tag,
+        correlation_id,
+        canonical_payload,
+        proof_material,
+    })
+}
+
+fn take<const LENGTH: usize>(
+    bytes: &[u8],
+    cursor: &mut usize,
+) -> Result<[u8; LENGTH], SchemaError> {
+    take_slice(bytes, cursor, LENGTH)?
+        .try_into()
+        .map_err(|_| SchemaError::MalformedEnvelope)
+}
+
+fn take_slice<'a>(
+    bytes: &'a [u8],
+    cursor: &mut usize,
+    length: usize,
+) -> Result<&'a [u8], SchemaError> {
+    let end = cursor.checked_add(length).ok_or(SchemaError::LengthLimit)?;
+    let value = bytes
+        .get(*cursor..end)
+        .ok_or(SchemaError::MalformedEnvelope)?;
+    *cursor = end;
+    Ok(value)
 }

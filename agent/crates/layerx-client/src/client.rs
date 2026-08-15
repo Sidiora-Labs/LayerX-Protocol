@@ -4,10 +4,14 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
+use layerx_types::payload::ModuleRegistry;
+
 use crate::head::{Head, HeadError, HeadTracker};
 use crate::lni::handshake::{perform, Handshake, HandshakeConfig, HandshakeError};
 use crate::lni::report::capability_report;
+use crate::lni::schema::Capability;
 use crate::lni::transport::{ConnectionGate, Limits, TransportError, Uds};
+use crate::submit::{submit_signed, Submission, SubmissionContext, SubmitError, UnknownCause};
 
 /// Externally visible connection lifecycle state.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -192,6 +196,46 @@ impl Client {
     /// Refuses an unadvertised key without attempting signature verification.
     pub fn require_receipt_key(&self, batch: u64, key: [u8; 32]) -> Result<(), HeadError> {
         self.head.require_sequencer_key(batch, key)
+    }
+
+    /// Verifies and transmits one signed activity through the sole boundary
+    /// connection.
+    ///
+    /// # Errors
+    ///
+    /// Refuses unavailable submission capability, a disconnected client, or
+    /// any pre-transmission canonical/signature failure.
+    pub fn submit_signed(
+        &mut self,
+        registry: &ModuleRegistry,
+        signer_public_key: [u8; 32],
+        correlation_id: u64,
+        attempt: u32,
+        signed_bytes: &[u8],
+    ) -> Result<Submission, SubmitError> {
+        if !self.handshake.capabilities().contains(Capability::Submit) {
+            return Err(SubmitError::UnavailableCapability);
+        }
+        let context = SubmissionContext {
+            interface_version: self.handshake.node().interface_version,
+            protocol_version: self.config.handshake.expected_protocol_version,
+            network_id: self.config.handshake.expected_network_id,
+            correlation_id,
+            signer_public_key,
+            attempt,
+        };
+        let transport = self.transport.as_mut().ok_or(SubmitError::Disconnected)?;
+        let submission = submit_signed(transport, registry, context, signed_bytes)?;
+        let transport_lost = matches!(
+            &submission,
+            Submission::Unknown(unknown)
+                if matches!(unknown.cause(), UnknownCause::Transport(_))
+        );
+        if transport_lost {
+            self.transport = None;
+            self.state = ConnectionState::Unreachable;
+        }
+        Ok(submission)
     }
 }
 
