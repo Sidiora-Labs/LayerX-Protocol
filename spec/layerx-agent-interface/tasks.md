@@ -910,7 +910,7 @@ entirely on the spine being real.
     - Record every tool invocation with its arguments digest, decision and outcome in the audit trail.
     - Add tests covering a refused policy, an unknown outcome, a terminal protocol rejection and a submission whose receipt arrives late.
     - _Requirements: 17.4, 17.8, 1.6_
-  - [ ] 21.4 Implement approval thresholds and deterministic expiry
+  - [x] 21.4 Implement approval thresholds and deterministic expiry
     - Require explicit approval before submission when a write tool would exceed a configured threshold.
     - Present the disclosure to the approver rather than the model request, so approval covers what would actually be signed.
     - Expire an unapproved request deterministically and never proceed on expiry.

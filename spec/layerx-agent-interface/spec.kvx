@@ -2133,7 +2133,7 @@ reqs = ["17.4","17.8","1.6"]
 
 [task.21.4]
 title = "Implement approval thresholds and deterministic expiry"
-status = "pending"
+status = "done"
 wave = 11
 requires = ["21.3","12.4"]
 do_1 = "Require explicit approval before submission when a write tool would exceed a configured threshold."
