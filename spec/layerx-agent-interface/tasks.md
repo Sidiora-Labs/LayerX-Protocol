@@ -301,7 +301,7 @@ entirely on the spine being real.
     - Return typed transport errors distinguishing connection failure, deadline, frame violation and peer shutdown, and never map any of them onto a verification or core-rejection error.
     - Fuzz the framing decoder and add tests covering truncated frames, oversized frames, interleaved streams and abrupt peer loss.
     - _Requirements: 2.1, 7.8, 7.9_
-  - [ ] 6.3 Implement the handshake, capability intersection and refusal rules
+  - [x] 6.3 Implement the handshake, capability intersection and refusal rules
     - Implement the handshake exchanging node interface version, protocol version, network identifier, node role, chain head, latest sealed batch, latest finalised checkpoint and the currently authorised sequencer public key.
     - Refuse the connection with an explicit incompatibility error naming both versions when the major node interface version differs from the built-against version, with no best-effort interpretation.
     - Refuse to operate against a network identifier or protocol version the layer was not configured for, and make that refusal a startup failure rather than a per-request one.

@@ -852,7 +852,7 @@ reqs = ["2.1","7.8","7.9"]
 
 [task.6.3]
 title = "Implement the handshake, capability intersection and refusal rules"
-status = "pending"
+status = "done"
 wave = 5
 requires = ["6.2"]
 do_1 = "Implement the handshake exchanging node interface version, protocol version, network identifier, node role, chain head, latest sealed batch, latest finalised checkpoint and the currently authorised sequencer public key."
