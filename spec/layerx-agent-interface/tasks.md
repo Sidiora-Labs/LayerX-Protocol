@@ -462,7 +462,7 @@ entirely on the spine being real.
     - _Requirements: 8.5, 8.9, 9.5_
 
 - [ ] 10. Implement capabilities and their attenuation
-  - [ ] 10.1 Implement the capability model and its dimensions
+  - [x] 10.1 Implement the capability model and its dimensions
     - Implement the capability record with permitted activity types, permitted counterparties, permitted assets, amount ceilings, rate ceilings, purpose constraints and expiry, rejecting a capability that leaves any dimension unspecified.
     - Implement evaluation that checks a prepared activity against every dimension and refuses on the first exceeded dimension, naming it.
     - Make evaluation deterministic from the recorded capability and the prepared activity alone, with no ambient input, and prove identical decisions for identical inputs.
