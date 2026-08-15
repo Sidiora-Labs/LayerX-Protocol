@@ -490,7 +490,7 @@ entirely on the spine being real.
     - Rebuild consumption from persisted receipts on restart before permitting a write under that capability.
     - Add a concurrency test that drives many simultaneous uses of one ceiling and asserts the aggregate never exceeds it.
     - _Requirements: 9.7, 10.5, 10.6_
-  - [ ] 10.5 Report protocol-enforced versus daemon-enforced restrictions
+  - [x] 10.5 Report protocol-enforced versus daemon-enforced restrictions
     - Implement the capability report listing every restriction, its enforcement location and, for daemon-enforced restrictions, the plain statement that bypassing the daemon bypasses them.
     - Prefer expressing a restriction as a protocol capability grant, session key scope, budget or payer grant wherever the protocol offers an equivalent, and record the protocol object identifier when it does.
     - Expose the report through the contract, the command line and the audit trail with the same content.

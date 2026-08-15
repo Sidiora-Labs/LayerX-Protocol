@@ -1246,7 +1246,7 @@ reqs = ["9.7","10.5","10.6"]
 
 [task.10.5]
 title = "Report protocol-enforced versus daemon-enforced restrictions"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["10.4"]
 do_1 = "Implement the capability report listing every restriction, its enforcement location and, for daemon-enforced restrictions, the plain statement that bypassing the daemon bypasses them."

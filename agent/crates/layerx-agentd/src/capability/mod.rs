@@ -9,6 +9,8 @@ mod narrowing;
 mod attenuation;
 #[path = "consume.rs"]
 mod consumption;
+#[path = "report.rs"]
+mod reporting;
 
 pub use narrowing::{
     Binding, Enforcement, NarrowingError, NarrowingReport, ProtocolScope,
@@ -18,6 +20,10 @@ pub use attenuation::{
 };
 pub use consumption::{
     Ceiling, CeilingError, CeilingSnapshot, ReceiptOutcome, Reservation, VerifiedReceipt,
+};
+pub use reporting::{
+    check_guarantee_wording, CapabilityReport, DecisionEvidence, ReportError, ReportSurfaces,
+    RestrictionReport,
 };
 use crate::identity::ProtocolAuthority;
 
@@ -230,6 +236,15 @@ pub fn consume(
         expiry_sequence,
         current_sequence,
     )
+}
+
+/// Builds one byte-identical report for contract, CLI and audit surfaces.
+pub fn enforcement_report(
+    binding: &Binding,
+    derivation_chain: Vec<CapabilityId>,
+    decision: DecisionEvidence,
+) -> Result<ReportSurfaces, ReportError> {
+    reporting::build_report(binding, derivation_chain, decision)
 }
 
 pub(crate) fn encode(capability: &Capability) -> Result<Vec<u8>, CapabilityError> {
