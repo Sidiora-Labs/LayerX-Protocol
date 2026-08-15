@@ -65,6 +65,9 @@ fn writes_are_refused_until_receipts_and_protocol_state_reconcile() {
     ).unwrap_or_else(|error| panic!("rebuild: {error:?}"));
     assert_eq!(accounting.protocol_consumed, 200);
     assert_eq!(accounting.receipt_consumed, 100);
-    assert_eq!(accounting.require_write_ready(), Err(RestartError::Unreconciled));
+    assert!(matches!(
+        accounting.require_write_ready(),
+        Err(RestartError::Unreconciled)
+    ));
     let _ = fs::remove_dir_all(root);
 }

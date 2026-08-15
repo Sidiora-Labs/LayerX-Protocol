@@ -520,7 +520,7 @@ entirely on the spine being real.
     - Name the limit, the ceiling, the consumed amount and the requested amount in every refusal.
     - Add a concurrency test asserting aggregate compliance and a test asserting no reservation leak across thousands of refused requests.
     - _Requirements: 10.4, 10.5, 10.8_
-  - [-] 11.4 Hold reservations across unknown outcomes and restarts
+  - [x] 11.4 Hold reservations across unknown outcomes and restarts
     - Keep a reservation held while the outcome of its activity is unknown and refuse to release it optimistically.
     - Persist reservations so a restart restores them before any write is accepted against that limit.
     - Rebuild spend accounting from persisted receipts and protocol state on restart and refuse writes against an unreconciled limit.
