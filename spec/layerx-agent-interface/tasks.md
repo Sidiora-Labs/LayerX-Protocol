@@ -979,7 +979,7 @@ entirely on the spine being real.
 ## Wave 12 - Qualification
 
 - [ ] 23. Qualify the interaction layer against the real core
-  - [ ] 23.1 Run the differential wire conformance gate
+  - [x] 23.1 Run the differential wire conformance gate
     - Run the differential harness over the published vectors and generated inputs across every activity type, payload shape and boundary length.
     - Compare produced bytes, digests, identifiers and rejection classifications against the C reference implementation.
     - Fail the build on any divergence and record the offending value, both byte strings and the first differing offset.

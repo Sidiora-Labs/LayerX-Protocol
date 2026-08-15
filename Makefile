@@ -2055,6 +2055,12 @@ agent-test-wire-parity: $(BUILD_DIR)/agent-wire-reference
 	LAYERX_REPOSITORY_ROOT=$(CURDIR) LAYERX_C_REFERENCE=$(CURDIR)/$(BUILD_DIR)/agent-wire-reference \
 		$(AGENT_CARGO) test --manifest-path agent/tools/wire-differential/Cargo.toml --locked
 
+agent-qualify-wire: $(BUILD_DIR)/agent-wire-reference
+	$(AGENT_CARGO) build --manifest-path agent/tools/wire-differential/Cargo.toml --locked
+	$(AGENT_CARGO) run --manifest-path agent/tests/qualify/Cargo.toml --locked -- wire \
+		$(CURDIR) $(CURDIR)/$(BUILD_DIR)/agent-wire-reference \
+		$(CURDIR)/agent/tools/wire-differential/target/debug/agent-wire-differential
+
 agent-test-sanitize:
 	sh agent/tools/run-sanitizers.sh
 

@@ -2277,7 +2277,7 @@ status = "pending"
 
 [task.23.1]
 title = "Run the differential wire conformance gate"
-status = "pending"
+status = "done"
 wave = 12
 requires = ["3.5","22.5"]
 do_1 = "Run the differential harness over the published vectors and generated inputs across every activity type, payload shape and boundary length."
