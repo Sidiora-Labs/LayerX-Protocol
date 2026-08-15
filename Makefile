@@ -1901,6 +1901,9 @@ agent-test-agentd-history:
 agent-test-agentd-checkpoint:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test checkpoint
 
+agent-test-agentd-availability:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test availability
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@

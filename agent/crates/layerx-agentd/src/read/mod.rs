@@ -1,5 +1,7 @@
 //! Proof-gated daemon read surfaces.
 
+#[path = "availability.rs"]
+mod available;
 #[path = "balance.rs"]
 mod balances;
 #[path = "checkpoint.rs"]
@@ -7,6 +9,9 @@ mod checkpoint_impl;
 #[path = "history.rs"]
 mod historical;
 
+pub use available::{
+    availability, AvailabilityAudit, AvailabilityFailure, AvailabilityRead, ReplayFraming,
+};
 pub use balances::{balance, BalanceRead, Freshness};
 pub use checkpoint_impl::{
     proof_bundle, CheckpointReadError, GuarantorSignature, HeaderCommitments, ProofBundleKind,

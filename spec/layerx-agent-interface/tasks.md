@@ -677,7 +677,7 @@ entirely on the spine being real.
     - Report the checkpoint as unavailable for verification purposes when its availability data cannot be obtained.
     - Add tests covering sub-threshold, duplicated-signer and mismatched-settlement certificates.
     - _Requirements: 14.5, 6.4, 15.8_
-  - [ ] 15.4 Serve availability retrieval and report failures as evidence
+  - [x] 15.4 Serve availability retrieval and report failures as evidence
     - Expose retrieval by checkpoint, batch, sequence range and activity identifier with streaming and explicit bounds.
     - Verify chunks and reassembled bytes before returning and report which of the five availability classes were obtained.
     - Classify a verification mismatch as an availability failure, retain the served bytes and the mismatching commitment, and record the failure with checkpoint, batch, chunk index and provider in the audit trail.

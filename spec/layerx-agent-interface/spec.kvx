@@ -1642,7 +1642,7 @@ reqs = ["14.5","6.4","15.8"]
 
 [task.15.4]
 title = "Serve availability retrieval and report failures as evidence"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["7.6"]
 do_1 = "Expose retrieval by checkpoint, batch, sequence range and activity identifier with streaming and explicit bounds."
