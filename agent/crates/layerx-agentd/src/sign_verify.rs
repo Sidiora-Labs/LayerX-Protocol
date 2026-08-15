@@ -15,6 +15,7 @@ use super::SigningError;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SubmissionBindingAudit {
     pub activity_id: [u8; 32],
+    pub idempotency_key: [u8; 32],
     pub signed_byte_length: usize,
 }
 
@@ -79,6 +80,7 @@ pub(crate) fn verify_exact(
         signed_canonical_bytes: signed_canonical_bytes.to_vec(),
         audit: SubmissionBindingAudit {
             activity_id,
+            idempotency_key: activity.idempotency_key(),
             signed_byte_length: signed_canonical_bytes.len(),
         },
     })

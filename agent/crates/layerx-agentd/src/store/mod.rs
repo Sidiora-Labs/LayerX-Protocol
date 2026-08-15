@@ -239,6 +239,24 @@ impl Store {
         self.put(key, StorageClass::CoreProducedCache, bytes)
     }
 
+    /// Removes one daemon-local object with rollback on persistence failure.
+    pub fn remove_local(&mut self, key: &TenantKey) -> Result<bool, StoreError> {
+        let Some(previous) = self.entries.remove(key) else {
+            return Ok(false);
+        };
+        if previous.class != StorageClass::LocalOnly {
+            self.entries.insert(key.clone(), previous);
+            return Err(StoreError::Corrupt(
+                "attempted to remove core-produced cache",
+            ));
+        }
+        if let Err(error) = self.persist() {
+            self.entries.insert(key.clone(), previous);
+            return Err(error);
+        }
+        Ok(true)
+    }
+
     /// Atomically records the three local records required before transmission.
     pub fn record_submission(
         &mut self,

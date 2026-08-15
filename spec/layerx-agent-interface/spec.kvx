@@ -1518,7 +1518,7 @@ reqs = ["13.1","13.2","1.6"]
 
 [task.14.2]
 title = "Implement idempotency records and conflict detection"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["14.1"]
 do_1 = "Implement caller-supplied idempotency keys across every mutating contract operation, storing the request digest and the original result."

@@ -57,7 +57,7 @@ fn registry() -> ModuleRegistry {
     .unwrap_or_else(|error| panic!("registry: {error:?}"))
 }
 
-fn send_payload() -> Vec<u8> {
+fn send_payload(id: u8) -> Vec<u8> {
     let mut encoder = Encoder::new(512);
     encoder
         .u16(0x5301)
@@ -81,7 +81,7 @@ fn send_payload() -> Vec<u8> {
         .u64(5)
         .unwrap_or_else(|error| panic!("sequence: {error:?}"));
     encoder
-        .fixed(&[4; 32])
+        .fixed(&[id; 32])
         .unwrap_or_else(|error| panic!("idempotency: {error:?}"));
     encoder
         .u64(1_010)
@@ -116,7 +116,7 @@ fn send_payload() -> Vec<u8> {
     encoder.finish()
 }
 
-fn verified_submission() -> VerifiedSubmission {
+fn verified_submission(id: u8) -> VerifiedSubmission {
     let mut core = RecordedCore(CorePreparationState {
         network_id: 17,
         account_sequence: 5,
@@ -142,8 +142,8 @@ fn verified_submission() -> VerifiedSubmission {
                     .unwrap_or_else(|error| panic!("timestamp: {error:?}")),
             ),
             fee_limit: Some(Amount::from_u128(7)),
-            idempotency_key: IdempotencyKey::new([4; 32]),
-            payload: send_payload(),
+            idempotency_key: IdempotencyKey::new([id; 32]),
+            payload: send_payload(id),
             declared_payload_limit: 1_024,
         },
     )
@@ -192,7 +192,7 @@ fn transition(
 #[test]
 fn outbox_is_durable_before_transmission_and_unknown_is_a_real_state() {
     let root = directory();
-    let verified = verified_submission();
+    let verified = verified_submission(1);
     let expected_bytes = verified.exact_bytes().to_vec();
     let mut store = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
     let mut outbox = Outbox::default();
@@ -242,10 +242,10 @@ fn outbox_is_durable_before_transmission_and_unknown_is_a_real_state() {
 #[test]
 fn every_legal_terminal_path_is_recorded_and_illegal_transitions_fail() {
     let root = directory();
-    let verified = verified_submission();
     let mut store = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
     let mut outbox = Outbox::default();
     for id in 1_u8..=6 {
+        let verified = verified_submission(id);
         enqueue(&mut outbox, &mut store, id, &verified);
     }
     transition(&mut outbox, &mut store, 1, SubmissionState::Submitted, None);
@@ -347,7 +347,7 @@ fn every_legal_terminal_path_is_recorded_and_illegal_transitions_fail() {
 #[test]
 fn executed_is_impossible_without_a_verified_receipt_reference() {
     let root = directory();
-    let verified = verified_submission();
+    let verified = verified_submission(1);
     let mut store = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
     let mut outbox = Outbox::default();
     enqueue(&mut outbox, &mut store, 1, &verified);

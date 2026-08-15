@@ -107,6 +107,9 @@ impl Outbox {
         if self.records.contains_key(&submission_id) {
             return Err(OutboxError::Duplicate);
         }
+        if verified.audit.idempotency_key != submission_id {
+            return Err(OutboxError::IdempotencyMismatch);
+        }
         let activity_id = verified.audit.activity_id;
         let signed_canonical_bytes = verified.into_exact_bytes();
         let transitions = vec![
@@ -242,6 +245,7 @@ impl Outbox {
 #[derive(Debug)]
 pub enum OutboxError {
     Duplicate,
+    IdempotencyMismatch,
     NotFound,
     NotQueued,
     EmptyCause,

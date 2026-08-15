@@ -619,7 +619,7 @@ entirely on the spine being real.
     - Forbid any transition that reports success without a verified receipt reference and prove the absence of such a path in test.
     - Add tests driving every legal transition and asserting every illegal transition is rejected.
     - _Requirements: 13.1, 13.2, 1.6_
-  - [ ] 14.2 Implement idempotency records and conflict detection
+  - [x] 14.2 Implement idempotency records and conflict detection
     - Implement caller-supplied idempotency keys across every mutating contract operation, storing the request digest and the original result.
     - Return the original result for a repeated key and a typed conflict error for a repeated key whose request body differs.
     - Carry the protocol idempotency_key through preparation and submission so one caller intent maps to exactly one protocol idempotency key.
