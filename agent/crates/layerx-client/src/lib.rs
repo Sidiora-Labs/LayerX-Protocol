@@ -1,5 +1,6 @@
 //! Versioned client for the `LayerX` Node Interface.
 
+pub mod availability;
 pub mod client;
 pub mod head;
 pub mod lni;

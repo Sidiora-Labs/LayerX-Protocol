@@ -368,7 +368,7 @@ entirely on the spine being real.
     - Apply bounded buffering with explicit backpressure so a slow consumer cannot cause unbounded memory growth or event loss.
     - Add tests covering disconnect mid-stream, restart from cursor, an out-of-order node and a deliberately skipped sequence.
     - _Requirements: 7.7, 16.1, 16.4_
-  - [ ] 7.6 Implement availability retrieval and verification
+  - [x] 7.6 Implement availability retrieval and verification
     - Implement availability retrieval by checkpoint identifier, batch number, sequence range and activity identifier, streaming large retrievals rather than buffering them whole.
     - Verify each chunk and the reassembled bytes through layerx-proof before treating the retrieval as successful, and report which availability classes were obtained.
     - Support multiple providers, treat a provider serving non-verifying bytes as failed for that request, and never merge bytes from two providers into one unverified result.

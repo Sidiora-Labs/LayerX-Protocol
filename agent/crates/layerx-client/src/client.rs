@@ -9,6 +9,10 @@ use layerx_proof::receipt::AuthorizedBatch;
 use layerx_types::payload::ModuleRegistry;
 use layerx_types::verify::VerificationLevel;
 
+use crate::availability::{
+    fetch, AvailabilitySelector, FetchContext, FetchError, FetchOutcome, Progress, Provider,
+    ProviderSet,
+};
 use crate::head::{Head, HeadError, HeadTracker};
 use crate::lni::handshake::{perform, Handshake, HandshakeConfig, HandshakeError};
 use crate::lni::report::capability_report;
@@ -446,6 +450,40 @@ impl Client {
             .as_mut()
             .ok_or(StreamError::DisconnectedClient)?;
         subscribe(transport, cursor, config)
+    }
+
+    /// Retrieves and verifies availability data from the active node provider.
+    /// Additional provider transports use the same `ProviderSet` fetch path.
+    ///
+    /// # Errors
+    ///
+    /// Refuses capability/disconnection gaps and invalid retrieval context.
+    pub fn fetch_availability<F>(
+        &mut self,
+        selector: AvailabilitySelector,
+        mut context: FetchContext,
+        on_chunk: F,
+    ) -> Result<FetchOutcome, FetchError>
+    where
+        F: FnMut(Progress<'_>),
+    {
+        if !self
+            .handshake
+            .capabilities()
+            .contains(Capability::AvailabilityFetch)
+        {
+            return Err(FetchError::UnavailableCapability);
+        }
+        context.interface_version = self.handshake.node().interface_version;
+        let transport = self
+            .transport
+            .as_mut()
+            .ok_or(FetchError::DisconnectedClient)?;
+        let mut providers = ProviderSet::new(vec![Provider {
+            name: "primary".to_owned(),
+            transport,
+        }]);
+        fetch(&mut providers, selector, context, on_chunk)
     }
 }
 

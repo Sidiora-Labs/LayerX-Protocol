@@ -992,7 +992,7 @@ reqs = ["7.7","16.1","16.4"]
 
 [task.7.6]
 title = "Implement availability retrieval and verification"
-status = "pending"
+status = "done"
 wave = 6
 requires = ["7.1","5.5"]
 do_1 = "Implement availability retrieval by checkpoint identifier, batch number, sequence range and activity identifier, streaming large retrievals rather than buffering them whole."
