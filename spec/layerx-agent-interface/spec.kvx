@@ -1895,7 +1895,7 @@ reqs = ["21.3","21.4","21.5","21.7"]
 
 [task.18.4]
 title = "Remove tenancy leakage from errors, metrics and traces"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["18.3"]
 do_1 = "Ensure an internal error message, trace or metric label carries no data belonging to another tenant, including raw identifiers from a failed cross-tenant lookup."

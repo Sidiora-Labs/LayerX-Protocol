@@ -797,7 +797,7 @@ entirely on the spine being real.
     - Support per-tenant configuration of policy, redaction, retention, verification defaults and approval requirements.
     - Add tests covering signer cross-use, capacity starvation and a cross-tenant subscription filter.
     - _Requirements: 21.3, 21.4, 21.5, 21.7_
-  - [ ] 18.4 Remove tenancy leakage from errors, metrics and traces
+  - [x] 18.4 Remove tenancy leakage from errors, metrics and traces
     - Ensure an internal error message, trace or metric label carries no data belonging to another tenant, including raw identifiers from a failed cross-tenant lookup.
     - Keep metric cardinality bounded by forbidding high-cardinality identifiers such as activity identifiers in labels.
     - Normalise not-found and not-authorised responses so existence is not distinguishable across tenants.
