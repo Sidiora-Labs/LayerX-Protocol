@@ -753,7 +753,7 @@ entirely on the spine being real.
     - Bound every internal queue with explicit capacity and a defined overflow behaviour.
     - Add tests covering saturation, a slow node and a burst of reconnecting subscriptions.
     - _Requirements: 19.4, 19.5, 7.8_
-  - [ ] 17.3 Bound request lifetime and cancel orphaned work
+  - [x] 17.3 Bound request lifetime and cancel orphaned work
     - Apply an explicit deadline to every request and every boundary call within it.
     - Cancel downstream work when a caller disconnects, except work whose cancellation would orphan a submission.
     - Guarantee that no submission is left without an owner resolving its state, and prove it with a disconnect-mid-submission test.

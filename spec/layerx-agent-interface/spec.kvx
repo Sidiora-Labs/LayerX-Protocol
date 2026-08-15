@@ -1801,7 +1801,7 @@ reqs = ["19.4","19.5","7.8"]
 
 [task.17.3]
 title = "Bound request lifetime and cancel orphaned work"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["17.2"]
 do_1 = "Apply an explicit deadline to every request and every boundary call within it."
