@@ -7,6 +7,13 @@ use layerx_types::ids::Did;
 use crate::identity::{IdentityRecord, ProtocolAuthority};
 use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
 
+#[path = "session_revocation.rs"]
+mod revocation;
+
+pub use revocation::{
+    InvalidationReason, InvalidationReport, PendingActivity, PreparationState, RevocationEvent,
+};
+
 /// Stable session identifier supplied by the daemon's secure identifier source.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct SessionId(pub [u8; 32]);
@@ -91,6 +98,10 @@ impl SessionRegistry {
     pub fn open_count(&self) -> usize {
         self.records.values().filter(|record| record.open).count()
     }
+
+    pub(crate) fn records_mut(&mut self) -> &mut BTreeMap<SessionId, SessionRecord> {
+        &mut self.records
+    }
 }
 
 /// Session refusal taxonomy suitable for audit recording.
@@ -149,7 +160,7 @@ pub fn open(
         budget_reserved: 0,
         subscription_cursor: 0,
     };
-    persist(store, &record)?;
+    persist_record(store, &record)?;
     registry.records.insert(record.request.session_id, record);
     Ok(token)
 }
@@ -170,9 +181,19 @@ pub fn close(
     }
     let mut closed = existing;
     closed.open = false;
-    persist(store, &closed)?;
+    persist_record(store, &closed)?;
     registry.records.insert(session_id, closed);
     Ok(())
+}
+
+/// Applies a core revocation event to sessions and unsubmitted preparations.
+pub fn invalidate_on_revocation(
+    store: &mut Store,
+    registry: &mut SessionRegistry,
+    activities: &mut [PendingActivity],
+    event: &RevocationEvent,
+) -> Result<InvalidationReport, SessionError> {
+    revocation::apply_revocation(store, registry, activities, event)
 }
 
 fn validate_request(
@@ -204,7 +225,7 @@ fn validate_request(
     Ok(())
 }
 
-fn persist(store: &mut Store, record: &SessionRecord) -> Result<(), SessionError> {
+pub(crate) fn persist_record(store: &mut Store, record: &SessionRecord) -> Result<(), SessionError> {
     let key = TenantKey::new(
         record.request.tenant.clone(),
         ObjectKind::Session,

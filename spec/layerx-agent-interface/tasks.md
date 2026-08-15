@@ -453,7 +453,7 @@ entirely on the spine being real.
     - Report in every response which protocol authority was actually used for the activity.
     - Add tests covering revocation between session open and preparation, and rotation between preparation and submission.
     - _Requirements: 8.3, 8.4, 1.1_
-  - [ ] 9.5 Propagate rotation and revocation into sessions
+  - [x] 9.5 Propagate rotation and revocation into sessions
     - Observe identity, key rotation, session key and capability grant revocation events from the event stream and apply them to session state immediately.
     - Invalidate every session whose authority no longer verifies, report the invalidation reason to affected clients, and cancel prepared but unsubmitted activities bound to it.
     - Leave activities the protocol already executed untouched and prove that no local invalidation is presented as reversing a protocol effect.

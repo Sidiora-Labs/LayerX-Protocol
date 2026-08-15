@@ -1167,7 +1167,7 @@ reqs = ["8.3","8.4","1.1"]
 
 [task.9.5]
 title = "Propagate rotation and revocation into sessions"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["9.4"]
 do_1 = "Observe identity, key rotation, session key and capability grant revocation events from the event stream and apply them to session state immediately."
