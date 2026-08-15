@@ -1,0 +1,190 @@
+use layerx_agentd::store::{
+    migrate, MigrationError, ObjectKind, StorageClass, Store, StoreError, TenantId, TenantKey,
+    CURRENT_SCHEMA_VERSION,
+};
+use std::fs;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(1);
+
+fn test_directory(name: &str) -> PathBuf {
+    let sequence = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!(
+        "layerx-agentd-{name}-{}-{sequence}",
+        std::process::id()
+    ))
+}
+
+fn tenant(name: &str) -> TenantId {
+    match TenantId::new(name) {
+        Ok(value) => value,
+        Err(error) => panic!("test tenant must be valid: {error}"),
+    }
+}
+
+fn key(tenant_id: &TenantId, kind: ObjectKind, id: &[u8]) -> TenantKey {
+    match TenantKey::new(tenant_id.clone(), kind, id.to_vec()) {
+        Ok(value) => value,
+        Err(error) => panic!("test key must be valid: {error}"),
+    }
+}
+
+#[test]
+fn every_access_is_tenant_scoped_and_persists_exact_bytes() {
+    let root = test_directory("scope");
+    let alpha = tenant("alpha");
+    let beta = tenant("beta");
+    let alpha_key = key(&alpha, ObjectKind::Policy, b"default");
+    let beta_key = key(&beta, ObjectKind::Policy, b"default");
+    let mut store = match Store::open(&root) {
+        Ok(value) => value,
+        Err(error) => panic!("store open failed: {error}"),
+    };
+    if let Err(error) = store.put_local(alpha_key.clone(), b"alpha-policy".to_vec()) {
+        panic!("put failed: {error}");
+    }
+    assert!(store.get(&beta_key).is_none());
+    drop(store);
+
+    let reopened = match Store::open(&root) {
+        Ok(value) => value,
+        Err(error) => panic!("store reopen failed: {error}"),
+    };
+    let stored = match reopened.get(&alpha_key) {
+        Some(value) => value,
+        None => panic!("persisted value missing"),
+    };
+    assert_eq!(stored.bytes(), b"alpha-policy");
+    assert_eq!(stored.class(), StorageClass::LocalOnly);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn signed_bytes_outbox_and_idempotency_are_one_durable_write() {
+    let root = test_directory("transaction");
+    let tenant_id = tenant("tenant-a");
+    let mut store = match Store::open(&root) {
+        Ok(value) => value,
+        Err(error) => panic!("store open failed: {error}"),
+    };
+    if let Err(error) = store.record_submission(
+        tenant_id.clone(),
+        b"intent-1".to_vec(),
+        b"signed-canonical-activity".to_vec(),
+        b"queued".to_vec(),
+    ) {
+        panic!("submission transaction failed: {error}");
+    }
+    drop(store);
+
+    let reopened = match Store::open(&root) {
+        Ok(value) => value,
+        Err(error) => panic!("store reopen failed: {error}"),
+    };
+    for kind in [
+        ObjectKind::PreparedActivity,
+        ObjectKind::Outbox,
+        ObjectKind::Idempotency,
+    ] {
+        assert!(reopened.get(&key(&tenant_id, kind, b"intent-1")).is_some());
+    }
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn deletion_loses_only_declared_local_artifacts_and_core_cache_rebuilds() {
+    let root = test_directory("rebuild");
+    let tenant_id = tenant("tenant-a");
+    let receipt_key = key(&tenant_id, ObjectKind::Receipt, b"activity-7");
+    let policy_key = key(&tenant_id, ObjectKind::Policy, b"policy-1");
+    let core_receipt = b"core-produced-receipt".to_vec();
+
+    let mut store = match Store::open(&root) {
+        Ok(value) => value,
+        Err(error) => panic!("store open failed: {error}"),
+    };
+    if let Err(error) = store.put_core_cache(receipt_key.clone(), core_receipt.clone()) {
+        panic!("cache write failed: {error}");
+    }
+    if let Err(error) = store.put_local(policy_key.clone(), b"local-policy".to_vec()) {
+        panic!("local write failed: {error}");
+    }
+    drop(store);
+    if let Err(error) = fs::remove_dir_all(&root) {
+        panic!("store deletion failed: {error}");
+    }
+
+    let mut restarted = match Store::open(&root) {
+        Ok(value) => value,
+        Err(error) => panic!("store restart failed: {error}"),
+    };
+    assert!(restarted.get(&receipt_key).is_none());
+    assert!(restarted.get(&policy_key).is_none());
+    if let Err(error) = restarted.restore_core_cache([(receipt_key.clone(), core_receipt)]) {
+        panic!("core reconstruction failed: {error}");
+    }
+    let rebuilt = match restarted.get(&receipt_key) {
+        Some(value) => value,
+        None => panic!("core-produced receipt did not reconstruct"),
+    };
+    assert_eq!(rebuilt.class(), StorageClass::CoreProducedCache);
+    assert!(restarted.get(&policy_key).is_none());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn migrates_every_supported_prior_version_and_refuses_newer() {
+    let root = test_directory("migration");
+    if let Err(error) = fs::create_dir_all(&root) {
+        panic!("test directory failed: {error}");
+    }
+    let mut v1 = Vec::new();
+    v1.extend_from_slice(b"LXAS");
+    v1.extend_from_slice(&1_u32.to_be_bytes());
+    v1.extend_from_slice(&1_u32.to_be_bytes());
+    for bytes in [b"tenant-a".as_slice()] {
+        v1.extend_from_slice(&u32::try_from(bytes.len()).unwrap_or(0).to_be_bytes());
+        v1.extend_from_slice(bytes);
+    }
+    v1.push(ObjectKind::Receipt as u8);
+    for bytes in [b"receipt-1".as_slice(), b"receipt-bytes".as_slice()] {
+        v1.extend_from_slice(&u32::try_from(bytes.len()).unwrap_or(0).to_be_bytes());
+        v1.extend_from_slice(bytes);
+    }
+    if let Err(error) = fs::write(root.join("store.bin"), v1) {
+        panic!("v1 store write failed: {error}");
+    }
+    if let Err(error) = migrate(&root) {
+        panic!("migration failed: {error}");
+    }
+    let migrated = match fs::read(root.join("store.bin")) {
+        Ok(value) => value,
+        Err(error) => panic!("migrated read failed: {error}"),
+    };
+    assert_eq!(&migrated[4..8], &CURRENT_SCHEMA_VERSION.to_be_bytes());
+    let opened = match Store::open(&root) {
+        Ok(value) => value,
+        Err(error) => panic!("migrated store did not open: {error}"),
+    };
+    let receipt = key(&tenant("tenant-a"), ObjectKind::Receipt, b"receipt-1");
+    assert_eq!(
+        opened.get(&receipt).map(|value| value.class()),
+        Some(StorageClass::CoreProducedCache)
+    );
+
+    let mut newer = b"LXAS".to_vec();
+    newer.extend_from_slice(&(CURRENT_SCHEMA_VERSION + 1).to_be_bytes());
+    if let Err(error) = fs::write(root.join("store.bin"), newer) {
+        panic!("newer store write failed: {error}");
+    }
+    let error = match Store::open(&root) {
+        Ok(_) => panic!("newer schema was accepted"),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        error,
+        StoreError::Migration(MigrationError::NewerSchema { .. })
+    ));
+    let _ = fs::remove_dir_all(root);
+}

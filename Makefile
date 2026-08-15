@@ -1797,6 +1797,18 @@ agent-test-contract-stream:
 agent-test-contract-errors:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agent-api --test errors
 
+agent-test-agentd-store:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test store
+
+agent-test-agentd-identity:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test identity
+
+agent-test-agentd-session:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test session
+
+agent-test-agentd-authority:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test authority
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@

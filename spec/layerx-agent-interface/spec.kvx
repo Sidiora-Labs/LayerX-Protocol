@@ -1107,7 +1107,7 @@ status = "pending"
 
 [task.9.1]
 title = "Implement the tenant-scoped store and its migrations"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["8.6"]
 do_1 = "Implement the daemon local store with every object type carrying its tenant as part of its key, so a query without a tenant is unrepresentable in the storage access path."
@@ -1122,7 +1122,7 @@ reqs = ["21.1","22.6","1.9"]
 
 [task.9.2]
 title = "Bind agents to DIDs verified against the core"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["9.1","7.4"]
 do_1 = "Implement agent registration that resolves the DID against current protocol state through the boundary and refuses registration for an unknown or frozen identity."
@@ -1137,7 +1137,7 @@ reqs = ["8.1","8.10","1.2"]
 
 [task.9.3]
 title = "Implement the session lifecycle and token binding"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["9.2"]
 do_1 = "Implement session open recording agent DID, tenant, presented authority, permitted activity types, expiry, opening client and policy version, refusing an open that omits any of them."
@@ -1152,7 +1152,7 @@ reqs = ["8.2","8.6","8.7","8.8"]
 
 [task.9.4]
 title = "Re-evaluate protocol authority before every write"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["9.3"]
 do_1 = "Re-resolve the underlying protocol authority against core state before every preparation and refuse when it has expired, rotated, been revoked or fallen out of scope."

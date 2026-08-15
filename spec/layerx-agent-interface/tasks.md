@@ -425,28 +425,28 @@ entirely on the spine being real.
 ## Wave 8 - Identity, Authority and Policy
 
 - [ ] 9. Implement identity and sessions in layerx-agentd
-  - [ ] 9.1 Implement the tenant-scoped store and its migrations
+  - [x] 9.1 Implement the tenant-scoped store and its migrations
     - Implement the daemon local store with every object type carrying its tenant as part of its key, so a query without a tenant is unrepresentable in the storage access path.
     - Implement versioned schema migrations with a forward-only path, a refusal to start against a store from a newer version, and a migration test from every supported prior version.
     - Declare explicitly which stored data is local-only, being policy, cursors, audit, idempotency records and configuration, and which is a cache of core-produced bytes.
     - Implement durable write ordering so a crash cannot leave a signed submission recorded without its outbox entry or an outbox entry without its idempotency record.
     - Add a test that deletes the store, restarts against the same core, and asserts every protocol-derived answer is reconstructible while only declared local artefacts are lost.
     - _Requirements: 21.1, 22.6, 1.9_
-  - [ ] 9.2 Bind agents to DIDs verified against the core
+  - [x] 9.2 Bind agents to DIDs verified against the core
     - Implement agent registration that resolves the DID against current protocol state through the boundary and refuses registration for an unknown or frozen identity.
     - Record the identity binding with the head sequence it was verified at, and re-verify it before first use after a restart rather than trusting the stored copy.
     - Reject a registration that supplies identity facts as configuration instead of verifying them, and prove the absence of such a path in test.
     - Expose the identity record with its verification level and the protocol authority set it currently holds.
     - Add tests covering an unknown DID, a frozen identity, an identity that becomes frozen after registration and a core that is unavailable at registration time.
     - _Requirements: 8.1, 8.10, 1.2_
-  - [ ] 9.3 Implement the session lifecycle and token binding
+  - [x] 9.3 Implement the session lifecycle and token binding
     - Implement session open recording agent DID, tenant, presented authority, permitted activity types, expiry, opening client and policy version, refusing an open that omits any of them.
     - Issue session tokens bound to tenant, agent, scope and expiry, and treat a token strictly as a daemon authenticator that is never protocol authority.
     - Verify at open time that the presented protocol authority exists, is currently valid and is unrevoked, and refuse otherwise.
     - Support many concurrent sessions per agent and many agents per tenant with independent state, and prove closing one leaves others untouched.
     - Add tests covering an expired token, a token from another tenant, a token whose scope omits the operation and a session whose authority was never registered in protocol state.
     - _Requirements: 8.2, 8.6, 8.7, 8.8_
-  - [ ] 9.4 Re-evaluate protocol authority before every write
+  - [x] 9.4 Re-evaluate protocol authority before every write
     - Re-resolve the underlying protocol authority against core state before every preparation and refuse when it has expired, rotated, been revoked or fallen out of scope.
     - Cache the authority resolution only within an explicit freshness bound and revalidate past it rather than trusting the session record.
     - Name the failing authority condition in the refusal so a caller can distinguish expiry from revocation from scope.
