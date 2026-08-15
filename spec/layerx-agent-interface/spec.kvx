@@ -837,7 +837,7 @@ reqs = ["2.1","2.9","2.3"]
 
 [task.6.2]
 title = "Implement framing, transports and connection limits"
-status = "pending"
+status = "done"
 wave = 5
 requires = ["6.1"]
 do_1 = "Implement length-prefixed canonical framing with an explicit maximum message size, rejecting an over-long frame before allocating for it."

@@ -9,6 +9,7 @@ license.workspace = true
 layerx-types = { path = "../layerx-types" }
 layerx-wire = { path = "../layerx-wire" }
 layerx-proof = { path = "../layerx-proof" }
+rustls = { version = "0.23.32", default-features = false, features = ["ring", "std", "tls12"] }
 
 [lints]
 workspace = true

@@ -294,7 +294,7 @@ entirely on the spine being real.
     - Define the capability list a node advertises, so a node that cannot serve availability retrieval or historical proofs is describable rather than merely failing.
     - Document the schema in docs/node-boundary.md alongside the framing, transport and handshake rules and keep the document generated from or checked against the schema.
     - _Requirements: 2.1, 2.9, 2.3_
-  - [ ] 6.2 Implement framing, transports and connection limits
+  - [x] 6.2 Implement framing, transports and connection limits
     - Implement length-prefixed canonical framing with an explicit maximum message size, rejecting an over-long frame before allocating for it.
     - Implement the Unix domain socket transport as the default and the mutual-TLS TCP transport for remote deployment, with identical message semantics on both.
     - Implement connection limits, per-connection deadlines and stream multiplexing such that a slow read cannot starve submission delivery on the same connection.

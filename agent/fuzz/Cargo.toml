@@ -11,6 +11,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 layerx-types = { path = "../crates/layerx-types" }
 layerx-wire = { path = "../crates/layerx-wire" }
+layerx-client = { path = "../crates/layerx-client" }
 
 [[bin]]
 name = "harness"
@@ -57,6 +58,13 @@ bench = false
 [[bin]]
 name = "roundtrip"
 path = "fuzz_targets/roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lni_frame"
+path = "fuzz_targets/lni_frame.rs"
 test = false
 doc = false
 bench = false
