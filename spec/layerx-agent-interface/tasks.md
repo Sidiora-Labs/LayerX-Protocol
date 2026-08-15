@@ -896,7 +896,7 @@ entirely on the spine being real.
     - Route every operation through the daemon so policy, capability, budget, rate limit and audit apply identically, with no bypass path.
     - Add tests proving a tool outside scope is absent and that no tool reaches the boundary except through the daemon.
     - _Requirements: 17.1, 17.2, 17.7_
-  - [ ] 21.2 Implement read tools that return verified values only
+  - [x] 21.2 Implement read tools that return verified values only
     - Implement read tools for balances, history, receipts, checkpoints, proofs and availability that return core-produced values with their verification level attached.
     - Forbid a read tool from returning a summary, estimate or inference presented as a protocol fact, and label any projection explicitly.
     - Bound tool result size and paginate large results with stable cursors, never truncating silently in a way that reads as completeness.

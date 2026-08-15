@@ -59,9 +59,9 @@ pub use write_contract::SubmissionState;
 pub mod read {
     pub use crate::read_contract::{
         AccountRef, AccountValue, BalanceSelector, BalanceValue, BatchRef, BatchValue,
-        CheckpointRef, CheckpointValue, CoreProduced, Freshness, HistorySelector, HistoryValue,
-        ModuleRef, ModuleStateSelector, ModuleStateValue, ProjectionResult, ReadRequest,
-        RelativeTo, VerifiedRead,
+        CheckpointRef, CheckpointValue, CoreProduced, Freshness, HistoryCursor, HistorySelector,
+        HistoryValue, ModuleRef, ModuleStateSelector, ModuleStateValue, ProjectionResult,
+        ReadRequest, RelativeTo, VerifiedRead,
     };
 }
 

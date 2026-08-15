@@ -2103,7 +2103,7 @@ reqs = ["17.1","17.2","17.7"]
 
 [task.21.2]
 title = "Implement read tools that return verified values only"
-status = "pending"
+status = "done"
 wave = 11
 requires = ["21.1","15.1"]
 do_1 = "Implement read tools for balances, history, receipts, checkpoints, proofs and availability that return core-produced values with their verification level attached."
