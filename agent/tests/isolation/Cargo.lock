@@ -13,6 +13,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "agent-isolation-suite"
+version = "0.1.0"
+dependencies = [
+ "layerx-agentd",
+ "layerx-mcp",
+ "layerx-types",
+]
+
+[[package]]
 name = "argon2"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -405,9 +414,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "layerx-policy-harness"
+name = "layerx-mcp"
 version = "0.1.0"
 dependencies = [
+ "layerx-agent-api",
  "layerx-agentd",
  "layerx-types",
 ]

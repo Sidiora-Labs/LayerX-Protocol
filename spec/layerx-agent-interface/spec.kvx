@@ -1910,7 +1910,7 @@ reqs = ["21.6","21.8","20.6"]
 
 [task.18.5]
 title = "Ship the cross-tenant isolation suite and tenant deletion"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["18.4"]
 do_1 = "Build a suite that attempts cross-tenant access through every public surface including the API, the SDKs, the MCP tools, subscriptions, exports and error paths."

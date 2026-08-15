@@ -1954,6 +1954,13 @@ agent-test-agentd-tenant-isolation:
 agent-test-agentd-tenant-leakage:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test tenant_leakage
 
+agent-test-mcp-untrusted-input:
+	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
+
+agent-test-isolation: agent-test-policy-adversarial agent-test-mcp-untrusted-input
+	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked agent_isolation
+	$(AGENT_CARGO) run --manifest-path agent/tests/isolation/Cargo.toml --locked --quiet
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@

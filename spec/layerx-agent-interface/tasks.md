@@ -804,7 +804,7 @@ entirely on the spine being real.
     - Review timing-sensitive paths so a distinguishable timing signal does not reveal existence, and document the mitigations applied.
     - Add tests asserting response shape and timing indistinguishability for existing and non-existing cross-tenant objects.
     - _Requirements: 21.6, 21.8, 20.6_
-  - [ ] 18.5 Ship the cross-tenant isolation suite and tenant deletion
+  - [x] 18.5 Ship the cross-tenant isolation suite and tenant deletion
     - Build a suite that attempts cross-tenant access through every public surface including the API, the SDKs, the MCP tools, subscriptions, exports and error paths.
     - Treat any leakage, including a distinguishable existence or timing signal, as a build-breaking defect rather than a tracked issue.
     - Implement tenant deletion that removes or irreversibly key-destroys tenant data per the configured retention policy and records the deletion in the audit trail.

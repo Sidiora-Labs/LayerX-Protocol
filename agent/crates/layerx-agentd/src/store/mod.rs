@@ -8,6 +8,7 @@ pub use migration::{MigrationError, CURRENT_SCHEMA_VERSION};
 pub use tenant::TenantScoped;
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
@@ -235,6 +236,13 @@ impl From<MigrationError> for StoreError {
 pub struct Store {
     root: PathBuf,
     entries: BTreeMap<TenantKey, StoredValue>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct TenantRemoval {
+    pub local_removed: usize,
+    pub core_cache_removed: usize,
+    pub legal_audits_retained: usize,
 }
 
 impl Store {
@@ -468,6 +476,65 @@ impl Store {
             return Err(error);
         }
         Ok(())
+    }
+
+    /// Atomically removes one tenant except prevalidated legal audit records,
+    /// then appends the deletion audit produced from the exact removal counts.
+    pub(crate) fn delete_tenant_entries<F>(
+        &mut self,
+        tenant: &TenantId,
+        retained_audit_ids: &BTreeSet<Vec<u8>>,
+        deletion_audit_id: Vec<u8>,
+        audit: F,
+    ) -> Result<TenantRemoval, StoreError>
+    where
+        F: FnOnce(TenantRemoval) -> Result<Vec<u8>, StoreError>,
+    {
+        let mut removal = TenantRemoval {
+            local_removed: 0,
+            core_cache_removed: 0,
+            legal_audits_retained: 0,
+        };
+        for (key, value) in &self.entries {
+            if key.tenant() != tenant {
+                continue;
+            }
+            if key.kind() == ObjectKind::Audit
+                && retained_audit_ids.contains(key.object_id())
+                && value.class == StorageClass::LocalOnly
+            {
+                removal.legal_audits_retained += 1;
+                continue;
+            }
+            match value.class {
+                StorageClass::LocalOnly => removal.local_removed += 1,
+                StorageClass::CoreProducedCache => removal.core_cache_removed += 1,
+            }
+        }
+        if removal.legal_audits_retained != retained_audit_ids.len() {
+            return Err(StoreError::Corrupt("invalid legal-retention audit set"));
+        }
+        let deletion_key = TenantKey::new(tenant.clone(), ObjectKind::Audit, deletion_audit_id)?;
+        let deletion_bytes = audit(removal)?;
+        let before = self.entries.clone();
+        self.entries.retain(|key, value| {
+            key.tenant() != tenant
+                || (key.kind() == ObjectKind::Audit
+                    && retained_audit_ids.contains(key.object_id())
+                    && value.class == StorageClass::LocalOnly)
+        });
+        self.entries.insert(
+            deletion_key,
+            StoredValue {
+                class: StorageClass::LocalOnly,
+                bytes: deletion_bytes,
+            },
+        );
+        if let Err(error) = self.persist() {
+            self.entries = before;
+            return Err(error);
+        }
+        Ok(removal)
     }
 
     fn put(

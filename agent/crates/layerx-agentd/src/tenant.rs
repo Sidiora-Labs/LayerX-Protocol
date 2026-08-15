@@ -5,8 +5,14 @@ use layerx_types::ids::Did;
 use crate::session::{SessionError, SessionId, Token};
 use crate::store::TenantId;
 
+pub mod delete;
 #[path = "tenant/errors.rs"]
 mod errors;
+
+pub use delete::{
+    record_legal_audit, DeletionError, DeletionReport, LegalAuditClass, LegalAuditRecord,
+    LegalRetention,
+};
 #[path = "tenant/isolation.rs"]
 mod isolation;
 
@@ -27,6 +33,17 @@ pub fn normalize_error(
     metrics: &mut BoundedMetrics,
 ) -> NormalizedError {
     errors::normalize(error, tenant, surface, metrics)
+}
+
+/// Deletes one tenant atomically under an explicit legal-retention policy.
+pub fn delete_tenant_data(
+    store: &mut crate::store::Store,
+    tenant: &TenantId,
+    policy: &LegalRetention,
+    current_sequence: u64,
+    deletion_id: [u8; 16],
+) -> Result<DeletionReport, DeletionError> {
+    delete::delete_tenant(store, tenant, policy, current_sequence, deletion_id)
 }
 
 /// Every public surface that must use the same authenticated tenant resolution.
