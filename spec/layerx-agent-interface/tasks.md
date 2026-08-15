@@ -684,7 +684,7 @@ entirely on the spine being real.
     - Emit retrieved history in a form an independent verifier can replay with no index or database, and document the ordering and framing.
     - Add tests covering withholding, corruption, partial classes and repeated failures from one provider.
     - _Requirements: 15.3, 15.4, 15.6, 15.9_
-  - [ ] 15.5 Cache only with evidence and revalidate before serving stale
+  - [x] 15.5 Cache only with evidence and revalidate before serving stale
     - Cache core-produced bytes together with their verification evidence and never cache a decoded value without it.
     - Revalidate against the core before serving a value past its declared freshness bound and never serve above the evidence held.
     - Invalidate cached values on head movement, reorganisation-free sequence advance and checkpoint finalisation in a way that cannot raise a level.

@@ -2,6 +2,7 @@
 
 pub mod authority;
 pub mod budget;
+pub mod cache;
 pub mod capability;
 pub mod finality;
 pub mod idempotency;

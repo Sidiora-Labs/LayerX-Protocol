@@ -1657,7 +1657,7 @@ reqs = ["15.3","15.4","15.6","15.9"]
 
 [task.15.5]
 title = "Cache only with evidence and revalidate before serving stale"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["15.1"]
 do_1 = "Cache core-produced bytes together with their verification evidence and never cache a decoded value without it."
