@@ -1404,7 +1404,7 @@ reqs = ["11.8","12.2","20.2"]
 
 [task.12.5]
 title = "Ship the policy test harness and the adversarial corpus"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["12.3","12.4"]
 do_1 = "Ship a harness that evaluates a policy set against recorded request corpora and reports every decision, so a change can be verified before activation."

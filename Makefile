@@ -1855,6 +1855,10 @@ agent-test-agentd-policy-dryrun:
 agent-test-agentd-approval:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test approval
 
+agent-test-policy-adversarial:
+	$(AGENT_CARGO) test --manifest-path agent/tools/policy-harness/Cargo.toml --locked
+	$(AGENT_CARGO) run --manifest-path agent/tools/policy-harness/Cargo.toml --locked --quiet
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@

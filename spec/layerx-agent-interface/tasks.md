@@ -564,7 +564,7 @@ entirely on the spine being real.
     - Record the approver identity, the decision and the disclosure digest in the audit trail.
     - Add tests covering approval after expiry, approval of an altered request and concurrent approvals.
     - _Requirements: 11.8, 12.2, 20.2_
-  - [ ] 12.5 Ship the policy test harness and the adversarial corpus
+  - [x] 12.5 Ship the policy test harness and the adversarial corpus
     - Ship a harness that evaluates a policy set against recorded request corpora and reports every decision, so a change can be verified before activation.
     - Assemble an adversarial corpus attempting to widen scope through crafted purposes, counterparties, unicode confusables, oversized fields and boundary amounts.
     - Assert deny-by-default holds across the corpus and that no crafted input produces an allow the policy did not intend.
