@@ -506,7 +506,7 @@ entirely on the spine being real.
     - Refuse to describe a daemon-enforced limit as equivalent to a protocol budget anywhere in the response.
     - Add tests covering creation, the failure of creation, and the state of the daemon record when creation fails.
     - _Requirements: 10.1, 10.2, 1.1_
-  - [-] 11.2 Reconcile local accounting against protocol budget state
+  - [x] 11.2 Reconcile local accounting against protocol budget state
     - Derive consumption from verified receipts and protocol budget state and treat the local figure strictly as a cache.
     - Take window boundaries and remaining allowance from protocol state rather than from a local timer, so the window view matches the deterministic protocol view.
     - Correct the local figure to the protocol figure whenever they differ and record the correction.

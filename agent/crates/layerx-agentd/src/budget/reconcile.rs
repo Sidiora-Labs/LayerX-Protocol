@@ -51,7 +51,7 @@ pub enum ReconcileError {
 }
 
 /// Reconciles the cache to verified protocol state and records any correction.
-pub fn reconcile(
+pub(crate) fn reconcile_state(
     local: &mut LocalAccounting,
     protocol: ProtocolBudgetState,
     receipts: &[VerifiedSpendReceipt],

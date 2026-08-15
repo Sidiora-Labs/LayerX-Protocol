@@ -1280,7 +1280,7 @@ reqs = ["10.1","10.2","1.1"]
 
 [task.11.2]
 title = "Reconcile local accounting against protocol budget state"
-status = "in_progress"
+status = "done"
 wave = 8
 requires = ["11.1"]
 do_1 = "Derive consumption from verified receipts and protocol budget state and treat the local figure strictly as a cache."
