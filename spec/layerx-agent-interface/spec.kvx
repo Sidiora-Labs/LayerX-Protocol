@@ -2023,7 +2023,7 @@ reqs = ["22.1","22.2"]
 
 [task.20.2]
 title = "Gate writes on a successful boundary handshake"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["20.1","6.3"]
 do_1 = "Perform the boundary handshake at startup and report node interface version, protocol version, network identifier, capability intersection and every missing capability."

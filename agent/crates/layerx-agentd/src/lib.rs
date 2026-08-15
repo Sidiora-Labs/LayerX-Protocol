@@ -2,6 +2,7 @@
 
 pub mod audit;
 pub mod authority;
+pub mod boot;
 pub mod budget;
 pub mod cache;
 pub mod capability;

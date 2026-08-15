@@ -857,7 +857,7 @@ entirely on the spine being real.
     - Refuse to start on invalid, ambiguous or unsafe configuration with an error naming the setting and why it was rejected.
     - Add tests covering each missing security-relevant setting and an ambiguous precedence case.
     - _Requirements: 22.1, 22.2_
-  - [ ] 20.2 Gate writes on a successful boundary handshake
+  - [x] 20.2 Gate writes on a successful boundary handshake
     - Perform the boundary handshake at startup and report node interface version, protocol version, network identifier, capability intersection and every missing capability.
     - Refuse writes until the handshake succeeds and report not-ready rather than queuing them.
     - Refuse to operate against a network identifier or protocol version the daemon was not configured for.
