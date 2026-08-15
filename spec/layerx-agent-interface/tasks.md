@@ -700,7 +700,7 @@ entirely on the spine being real.
     - _Requirements: 14.10, 14.9, 1.10_
 
 - [ ] 16. Implement streaming and durable subscriptions
-  - [ ] 16.1 Ingest core events and preserve global order
+  - [x] 16.1 Ingest core events and preserve global order
     - Ingest events from the boundary stream and persist them in strict global sequence order with no synthesis, enrichment or reordering.
     - Attach to each stored event the receipt reference and verification level of any receipt it depends on.
     - Bound the ingestion buffer explicitly and apply backpressure to ingestion rather than dropping events.

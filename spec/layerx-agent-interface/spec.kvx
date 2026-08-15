@@ -1691,7 +1691,7 @@ status = "pending"
 
 [task.16.1]
 title = "Ingest core events and preserve global order"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["7.5"]
 do_1 = "Ingest events from the boundary stream and persist them in strict global sequence order with no synthesis, enrichment or reordering."

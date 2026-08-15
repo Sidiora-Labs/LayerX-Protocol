@@ -57,6 +57,7 @@ pub enum ObjectKind {
     Audit = 10,
     Idempotency = 11,
     Configuration = 12,
+    Event = 13,
 }
 
 impl ObjectKind {
@@ -74,6 +75,7 @@ impl ObjectKind {
             10 => Ok(Self::Audit),
             11 => Ok(Self::Idempotency),
             12 => Ok(Self::Configuration),
+            13 => Ok(Self::Event),
             _ => Err(StoreError::Corrupt("unknown object kind")),
         }
     }
@@ -384,6 +386,54 @@ impl Store {
             StoredValue {
                 class: StorageClass::LocalOnly,
                 bytes: metadata,
+            },
+        );
+        if let Err(error) = self.persist() {
+            self.entries = before;
+            return Err(error);
+        }
+        Ok(())
+    }
+
+    /// Atomically records exact core event bytes, their local evidence
+    /// metadata and the durable ingestion watermark.
+    pub fn record_event(
+        &mut self,
+        event_key: TenantKey,
+        event_bytes: Vec<u8>,
+        metadata_key: TenantKey,
+        metadata: Vec<u8>,
+        watermark_key: TenantKey,
+        watermark: Vec<u8>,
+    ) -> Result<(), StoreError> {
+        if event_key.kind != ObjectKind::Event
+            || metadata_key.kind != ObjectKind::Configuration
+            || watermark_key.kind != ObjectKind::Configuration
+            || self.entries.contains_key(&event_key)
+        {
+            return Err(StoreError::Corrupt("invalid event ingestion record"));
+        }
+
+        let before = self.entries.clone();
+        self.entries.insert(
+            event_key,
+            StoredValue {
+                class: StorageClass::CoreProducedCache,
+                bytes: event_bytes,
+            },
+        );
+        self.entries.insert(
+            metadata_key,
+            StoredValue {
+                class: StorageClass::LocalOnly,
+                bytes: metadata,
+            },
+        );
+        self.entries.insert(
+            watermark_key,
+            StoredValue {
+                class: StorageClass::LocalOnly,
+                bytes: watermark,
             },
         );
         if let Err(error) = self.persist() {
