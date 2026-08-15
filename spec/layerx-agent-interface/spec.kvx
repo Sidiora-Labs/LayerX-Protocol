@@ -1231,7 +1231,7 @@ reqs = ["9.4","9.5"]
 
 [task.10.4]
 title = "Account capability ceilings from verified receipts"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["10.3"]
 do_1 = "Account consumption against a spending ceiling from verified receipts only, counting a failed activity as unconsumed."

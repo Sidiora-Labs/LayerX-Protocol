@@ -483,7 +483,7 @@ entirely on the spine being real.
     - Persist chains and revocations and restore them consistently after restart.
     - Add tests covering deep chains, a revoked middle node and an attempt to widen at derivation.
     - _Requirements: 9.4, 9.5_
-  - [ ] 10.4 Account capability ceilings from verified receipts
+  - [x] 10.4 Account capability ceilings from verified receipts
     - Account consumption against a spending ceiling from verified receipts only, counting a failed activity as unconsumed.
     - Serialise the reservation decision so concurrent uses of one capability cannot exceed the ceiling in aggregate.
     - Hold a reservation while an outcome is unknown and release it only on a terminal state or a declared reservation expiry.

@@ -7,12 +7,17 @@ use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
 mod narrowing;
 #[path = "attenuate.rs"]
 mod attenuation;
+#[path = "consume.rs"]
+mod consumption;
 
 pub use narrowing::{
     Binding, Enforcement, NarrowingError, NarrowingReport, ProtocolScope,
 };
 pub use attenuation::{
     AttenuationError, CapabilityGraph, RevocableActivity, RevocationResult,
+};
+pub use consumption::{
+    Ceiling, CeilingError, CeilingSnapshot, ReceiptOutcome, Reservation, VerifiedReceipt,
 };
 use crate::identity::ProtocolAuthority;
 
@@ -208,6 +213,23 @@ pub fn revoke_subtree(
     activities: &mut [RevocableActivity],
 ) -> Result<RevocationResult, AttenuationError> {
     attenuation::revoke(graph, root, activities)
+}
+
+/// Serialises one reservation decision against a capability ceiling.
+pub fn consume(
+    ceiling: &Ceiling,
+    reservation_id: [u8; 32],
+    amount: u128,
+    expiry_sequence: u64,
+    current_sequence: u64,
+) -> Result<Reservation, CeilingError> {
+    consumption::reserve(
+        ceiling,
+        reservation_id,
+        amount,
+        expiry_sequence,
+        current_sequence,
+    )
 }
 
 pub(crate) fn encode(capability: &Capability) -> Result<Vec<u8>, CapabilityError> {
