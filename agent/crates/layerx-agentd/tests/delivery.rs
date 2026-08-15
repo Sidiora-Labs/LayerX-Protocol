@@ -294,7 +294,7 @@ fn loaded_seam_is_ordered_observable_and_has_no_duplicate() {
     ];
     assert_eq!(order, expected);
     assert!(delivery.seam_confirmed());
-    assert_eq!(delivery.health().lag_sequences, 0);
+    assert_eq!(delivery.health_snapshot().lag_sequences, 0);
     assert!(CONSUMER_DEDUPLICATION_OBLIGATION.contains("must deduplicate"));
     let _ = fs::remove_dir_all(root);
 }
@@ -327,8 +327,8 @@ fn stalled_consumer_keeps_the_seam_and_event_under_bounded_retry() {
         delivery.fail_front(300, "still unavailable"),
         Err(DeliveryError::RetryExhausted { attempts: 2 })
     ));
-    assert!(delivery.health().lagging);
-    assert_eq!(delivery.health().failure_count, 2);
+    assert!(delivery.health_snapshot().lagging);
+    assert_eq!(delivery.health_snapshot().failure_count, 2);
     assert!(matches!(
         deliver(&mut delivery),
         Ok(Some(DeliveryItem::Event(ref event))) if *event == first

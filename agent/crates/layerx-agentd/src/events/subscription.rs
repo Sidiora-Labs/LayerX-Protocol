@@ -43,6 +43,15 @@ pub enum Continuity {
     },
 }
 
+/// Durable reason delivery was permanently stopped while retaining its audit record.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Termination {
+    Deleted,
+    SessionRevoked,
+    CapabilityRevoked,
+    TenantRevoked,
+}
+
 impl From<ApiCursor> for Cursor {
     fn from(value: ApiCursor) -> Self {
         Self(value.0 .0)
@@ -61,6 +70,7 @@ struct DurableRecord {
     delivered_unacknowledged: BTreeSet<Cursor>,
     current_delivery: Cursor,
     continuity: Continuity,
+    termination: Option<Termination>,
 }
 
 /// Durable subscription store failures.
@@ -178,6 +188,7 @@ impl Store {
             delivered_unacknowledged: BTreeSet::new(),
             current_delivery: Cursor::from(request.start),
             continuity: Continuity::Healthy,
+            termination: None,
         };
         self.persist(&record)?;
         self.records.insert(id, record.clone());
@@ -191,7 +202,7 @@ impl Store {
         }
         self.records
             .values()
-            .filter(|record| record.public.scope == *scope)
+            .filter(|record| record.public.scope == *scope && record.termination.is_none())
             .map(|record| record.public.clone())
             .collect()
     }
@@ -287,15 +298,30 @@ impl Store {
         self.set_paused(target, false)
     }
 
-    /// Removes one exact-scope subscription durably.
+    /// Stops one exact-scope subscription while retaining its durable audit record.
     pub fn delete(&mut self, target: &SubscriptionTarget) -> Result<(), SubscriptionError> {
-        self.target(target)?;
-        let key = subscription_key(self.tenant.clone(), &target.subscription_id)?;
-        if !self.durable.remove_local(&key)? {
-            return Err(SubscriptionError::NotFound);
-        }
-        self.records.remove(target.subscription_id.as_str());
+        self.terminate(target, Termination::Deleted)?;
         Ok(())
+    }
+
+    /// Stops a subscription immediately for an owner revocation reason.
+    pub fn revoke(
+        &mut self,
+        target: &SubscriptionTarget,
+        reason: Termination,
+    ) -> Result<(), SubscriptionError> {
+        if reason == Termination::Deleted {
+            return Err(SubscriptionError::Corrupt);
+        }
+        self.terminate(target, reason)
+    }
+
+    /// Returns the retained terminal audit state without exposing another scope.
+    pub fn termination(
+        &self,
+        target: &SubscriptionTarget,
+    ) -> Result<Option<Termination>, SubscriptionError> {
+        Ok(self.record_any(target)?.termination)
     }
 
     /// Returns the cursor from which restart delivery must resume.
@@ -414,6 +440,15 @@ impl Store {
     }
 
     fn target(&self, target: &SubscriptionTarget) -> Result<&DurableRecord, SubscriptionError> {
+        let record = self.record_any(target)?;
+        if record.termination.is_some() {
+            Err(SubscriptionError::NotFound)
+        } else {
+            Ok(record)
+        }
+    }
+
+    fn record_any(&self, target: &SubscriptionTarget) -> Result<&DurableRecord, SubscriptionError> {
         if self.validate_scope(&target.scope).is_err() {
             return Err(SubscriptionError::NotFound);
         }
@@ -423,12 +458,25 @@ impl Store {
             .ok_or(SubscriptionError::NotFound)
     }
 
+    fn terminate(
+        &mut self,
+        target: &SubscriptionTarget,
+        reason: Termination,
+    ) -> Result<(), SubscriptionError> {
+        let id = target.subscription_id.as_str().to_owned();
+        let mut updated = self.target(target)?.clone();
+        updated.public.paused = true;
+        updated.delivered_unacknowledged.clear();
+        updated.termination = Some(reason);
+        self.persist(&updated)?;
+        self.records.insert(id, updated);
+        Ok(())
+    }
+
     fn validate_scope(&self, scope: &SubscriptionScope) -> Result<(), SubscriptionError> {
-        if scope.tenant.as_str() != self.tenant.as_str() {
-            Err(SubscriptionError::InvalidScope)
-        } else {
-            Ok(())
-        }
+        (scope.tenant.as_str() == self.tenant.as_str())
+            .then_some(())
+            .ok_or(SubscriptionError::InvalidScope)
     }
 
     fn persist(&mut self, record: &DurableRecord) -> Result<(), SubscriptionError> {
@@ -498,6 +546,13 @@ fn encode_record(record: &DurableRecord) -> Result<Vec<u8>, SubscriptionError> {
     }
     bytes.push(u8::from(record.public.paused));
     encode_continuity(&mut bytes, record.continuity);
+    bytes.push(match record.termination {
+        None => 0,
+        Some(Termination::Deleted) => 1,
+        Some(Termination::SessionRevoked) => 2,
+        Some(Termination::CapabilityRevoked) => 3,
+        Some(Termination::TenantRevoked) => 4,
+    });
     encode_filter(&mut bytes, &record.public.filter)?;
     Ok(bytes)
 }
@@ -569,6 +624,14 @@ fn decode_record(bytes: &[u8]) -> Result<DurableRecord, SubscriptionError> {
         return Err(SubscriptionError::Corrupt);
     }
     let continuity = decode_continuity(&mut decoder)?;
+    let termination = match decoder.byte()? {
+        0 => None,
+        1 => Some(Termination::Deleted),
+        2 => Some(Termination::SessionRevoked),
+        3 => Some(Termination::CapabilityRevoked),
+        4 => Some(Termination::TenantRevoked),
+        _ => return Err(SubscriptionError::Corrupt),
+    };
     let scope = SubscriptionScope {
         tenant,
         agent,
@@ -600,6 +663,7 @@ fn decode_record(bytes: &[u8]) -> Result<DurableRecord, SubscriptionError> {
         delivered_unacknowledged,
         current_delivery: Cursor::from(last_acknowledged),
         continuity,
+        termination,
     })
 }
 

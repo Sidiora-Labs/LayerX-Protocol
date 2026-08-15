@@ -1751,7 +1751,7 @@ reqs = ["16.4","16.9","1.5"]
 
 [task.16.5]
 title = "Implement outbound delivery, authentication and lag reporting"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["16.3"]
 do_1 = "Implement delivery to external endpoints with mutual authentication and a signed or otherwise bound payload so a receiver can confirm origin."

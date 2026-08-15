@@ -728,7 +728,7 @@ entirely on the spine being real.
     - Mark a subscription truncated rather than silently repaired when undelivered events fall outside the declared retention bound.
     - Add tests covering a skipped sequence, an unrecoverable gap and retention truncation during an outage.
     - _Requirements: 16.4, 16.9, 1.5_
-  - [ ] 16.5 Implement outbound delivery, authentication and lag reporting
+  - [x] 16.5 Implement outbound delivery, authentication and lag reporting
     - Implement delivery to external endpoints with mutual authentication and a signed or otherwise bound payload so a receiver can confirm origin.
     - Include the underlying receipt or event bytes required for the receiver to verify independently.
     - Retry failures with bounded jittered backoff without exceeding at-least-once semantics, and stop delivery immediately on revocation or deletion.

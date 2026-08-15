@@ -5,6 +5,7 @@ mod delivery;
 pub mod gap;
 #[path = "ingest.rs"]
 mod ingestion;
+pub mod outbound;
 pub mod subscription;
 
 pub use delivery::{
@@ -27,4 +28,10 @@ pub fn backfill(engine: &mut DeliveryEngine) -> Result<PumpReport, DeliveryError
 /// Returns the current at-least-once delivery attempt without removing it.
 pub fn deliver(engine: &mut DeliveryEngine) -> Result<Option<DeliveryItem>, DeliveryError> {
     delivery::delivery_attempt(engine)
+}
+
+/// Returns complete subscription delivery health including durable cursor and lag.
+#[must_use]
+pub fn health(engine: &DeliveryEngine) -> DeliveryHealth {
+    engine.health_snapshot().clone()
 }

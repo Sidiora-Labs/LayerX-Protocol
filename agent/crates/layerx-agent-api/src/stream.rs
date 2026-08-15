@@ -1,14 +1,13 @@
 //! Tenant-scoped durable subscription and delivery contract types.
 
-use layerx_types::result::ResultCode;
 use crate::identity::{
-    ActivityType, AgentDid, Asset, CapabilityId, ContractError, Counterparty, ExplicitSet,
-    TenantId,
+    ActivityType, AgentDid, Asset, CapabilityId, ContractError, Counterparty, ExplicitSet, TenantId,
 };
 use crate::read::{AccountRef, ModuleRef};
 use crate::track::ReceiptRef;
 use crate::verify::Level;
 use crate::{Sequence, TimestampSeconds};
+use layerx_types::result::ResultCode;
 
 macro_rules! required_reference {
     ($name:ident, $field:literal) => {
@@ -73,16 +72,36 @@ impl SubscriptionFilter {
     /// Returns [`ContractError::Empty`] naming the first cross-tenant dimension.
     pub fn validate_for(self, scope: &SubscriptionScope) -> Result<Self, ContractError> {
         let inside = |tenant: &TenantId| tenant == &scope.tenant;
-        if self.agents.values().iter().any(|item| !inside(&item.tenant)) {
+        if self
+            .agents
+            .values()
+            .iter()
+            .any(|item| !inside(&item.tenant))
+        {
             return Err(ContractError::Empty("filter_agent_outside_tenant"));
         }
-        if self.accounts.values().iter().any(|item| !inside(&item.tenant)) {
+        if self
+            .accounts
+            .values()
+            .iter()
+            .any(|item| !inside(&item.tenant))
+        {
             return Err(ContractError::Empty("filter_account_outside_tenant"));
         }
-        if self.modules.values().iter().any(|item| !inside(&item.tenant)) {
+        if self
+            .modules
+            .values()
+            .iter()
+            .any(|item| !inside(&item.tenant))
+        {
             return Err(ContractError::Empty("filter_module_outside_tenant"));
         }
-        if self.assets.values().iter().any(|item| !inside(&item.tenant)) {
+        if self
+            .assets
+            .values()
+            .iter()
+            .any(|item| !inside(&item.tenant))
+        {
             return Err(ContractError::Empty("filter_asset_outside_tenant"));
         }
         if self
@@ -156,6 +175,11 @@ impl EventIdentity {
     pub const fn new(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
+
+    #[must_use]
+    pub const fn as_bytes(self) -> [u8; 32] {
+        self.0
+    }
 }
 
 /// Deduplication identifier is derived only from the immutable event identity.
@@ -166,6 +190,11 @@ impl DeduplicationId {
     #[must_use]
     pub const fn from_event_identity(identity: EventIdentity) -> Self {
         Self(identity.0)
+    }
+
+    #[must_use]
+    pub const fn as_bytes(self) -> [u8; 32] {
+        self.0
     }
 }
 

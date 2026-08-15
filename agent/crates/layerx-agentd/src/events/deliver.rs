@@ -11,7 +11,9 @@ use layerx_agent_api::Sequence;
 use sha2::{Digest, Sha256};
 
 use super::ingestion::{durable_event, durable_sequences, IngestError};
-use super::subscription::{Continuity, Cursor, Store as SubscriptionStore, SubscriptionError};
+use super::subscription::{
+    Continuity, Cursor, Store as SubscriptionStore, SubscriptionError, Termination,
+};
 use crate::store::TenantId;
 
 /// Public consumer contract for the at-least-once delivery interface.
@@ -81,6 +83,7 @@ pub struct RetryPlan {
 /// Subscription delivery health derived from durable cursor positions.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DeliveryHealth {
+    pub acknowledged_cursor: Cursor,
     pub lagging: bool,
     pub lag_sequences: u64,
     pub last_delivery_at_ms: Option<u64>,
@@ -205,6 +208,7 @@ impl DeliveryEngine {
             retry_policy,
             consecutive_failures: 0,
             health: DeliveryHealth {
+                acknowledged_cursor: Cursor(next_sequence),
                 lagging: false,
                 lag_sequences: 0,
                 last_delivery_at_ms: None,
@@ -216,7 +220,7 @@ impl DeliveryEngine {
 
     /// Returns the current health without exposing another subscription.
     #[must_use]
-    pub const fn health(&self) -> &DeliveryHealth {
+    pub const fn health_snapshot(&self) -> &DeliveryHealth {
         &self.health
     }
 
@@ -308,6 +312,30 @@ impl DeliveryEngine {
     #[must_use]
     pub fn into_subscriptions(self) -> SubscriptionStore {
         self.subscriptions
+    }
+
+    /// Deletes the subscription durably and discards every buffered item.
+    pub fn stop_deleted(&mut self) -> Result<(), DeliveryError> {
+        if self.subscriptions.termination(&self.target)? != Some(Termination::Deleted) {
+            self.subscriptions.delete(&self.target)?;
+        }
+        self.buffer.clear();
+        Ok(())
+    }
+
+    /// Applies a durable owner revocation and discards every buffered item.
+    pub fn stop_revoked(&mut self, reason: Termination) -> Result<(), DeliveryError> {
+        if self.subscriptions.termination(&self.target)? != Some(reason) {
+            self.subscriptions.revoke(&self.target, reason)?;
+        }
+        self.buffer.clear();
+        Ok(())
+    }
+
+    /// Returns the exact subscription target owned by this engine.
+    #[must_use]
+    pub const fn target(&self) -> &SubscriptionTarget {
+        &self.target
     }
 
     fn pump(&mut self) -> Result<PumpReport, DeliveryError> {
@@ -407,9 +435,9 @@ impl DeliveryEngine {
         let head = sequences
             .last()
             .copied()
-            .map(|sequence| sequence.saturating_add(1))
-            .unwrap_or(self.next_sequence);
+            .map_or(self.next_sequence, |sequence| sequence.saturating_add(1));
         let acknowledged = self.subscriptions.resume_cursor(&self.target)?.0;
+        self.health.acknowledged_cursor = Cursor(acknowledged);
         self.health.lag_sequences = head.saturating_sub(acknowledged);
         self.health.lagging = self.health.lag_sequences > 0
             || self.consecutive_failures > 0
