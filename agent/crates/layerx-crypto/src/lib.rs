@@ -56,8 +56,6 @@ impl<'a> SignatureMessage<'a> {
     pub fn digest(self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update(self.domain.tag());
-        hasher.update(self.protocol_version.to_be_bytes());
-        hasher.update(self.network_id.to_be_bytes());
         hasher.update(self.canonical);
         hasher.finalize().into()
     }

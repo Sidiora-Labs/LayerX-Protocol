@@ -40,6 +40,8 @@ pub struct IssuedSessionKey {
     pub registration_payload: Vec<u8>,
     /// Exact protocol session-key authority representation, not a local record.
     pub authority: Authority,
+    /// Public key bound into the protocol session authority.
+    pub session_public_key: [u8; 32],
     /// Core-compatible authority-hash identifier of the grant payload.
     pub grant_id: [u8; 32],
     /// Exact activity set represented by the protocol scope.
@@ -215,6 +217,7 @@ pub fn issue_session_key(
     Ok(IssuedSessionKey {
         registration_payload,
         authority,
+        session_public_key: request.session_public_key,
         grant_id,
         permitted_activity_types,
         expires_at,

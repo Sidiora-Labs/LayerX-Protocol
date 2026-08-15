@@ -7,4 +7,5 @@ pub mod identity;
 pub mod policy;
 pub mod prepare;
 pub mod session;
+pub mod sign;
 pub mod store;

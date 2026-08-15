@@ -589,7 +589,7 @@ entirely on the spine being real.
     - Return the disclosure with every preparation response and record its digest in the audit trail.
     - Add an adversarial test that mutates the prepared bytes after disclosure generation and asserts the mismatch is detected.
     - _Requirements: 12.2, 5.3, 5.4_
-  - [ ] 13.3 Support external signing and session-key self-signing
+  - [x] 13.3 Support external signing and session-key self-signing
     - Implement external signing as the default posture, in which preparation output leaves the daemon, a signature returns, and the daemon never holds an agent primary key.
     - Implement optional self-signing under an explicitly provisioned protocol session key, confined to the activity types, expiry and scope that key declares.
     - Record every self-signed activity distinctly in the audit trail and in the response so a reader can tell who signed.

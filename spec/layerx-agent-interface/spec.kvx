@@ -1454,7 +1454,7 @@ reqs = ["12.2","5.3","5.4"]
 
 [task.13.3]
 title = "Support external signing and session-key self-signing"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["13.2"]
 do_1 = "Implement external signing as the default posture, in which preparation output leaves the daemon, a signature returns, and the daemon never holds an agent primary key."
