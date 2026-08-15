@@ -834,7 +834,7 @@ entirely on the spine being real.
     - Fail the build when a new output surface bypasses the redaction wrapper.
     - Document the redaction model and its limits plainly rather than implying completeness it does not have.
     - _Requirements: 20.4, 21.7, 5.5_
-  - [ ] 19.4 Emit metrics, traces and health surfaces
+  - [x] 19.4 Emit metrics, traces and health surfaces
     - Emit metrics for submission outcomes by result class, unknown-state population and age, verification levels achieved, boundary latency and error classes, policy and capability decisions, budget utilisation, subscription lag and rate-limit refusals.
     - Label metrics by tenant while keeping cardinality bounded and forbidding high-cardinality identifiers in labels.
     - Emit traces spanning caller, policy, preparation, signing, submission and receipt resolution with a request identifier shared by logs, traces and audit entries.

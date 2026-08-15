@@ -1,5 +1,9 @@
 //! Observability output is constrained by the same tenant redaction seam as audit.
 
+pub mod health;
+pub mod metrics;
+pub mod trace;
+
 use crate::audit::{self, DataClass, OutputSurface, RedactionError, RenderedOutput};
 use crate::store::TenantId;
 use crate::tenant::Config;

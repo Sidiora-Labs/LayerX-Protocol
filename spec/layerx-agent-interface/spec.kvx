@@ -1974,7 +1974,7 @@ reqs = ["20.4","21.7","5.5"]
 
 [task.19.4]
 title = "Emit metrics, traces and health surfaces"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["19.2"]
 do_1 = "Emit metrics for submission outcomes by result class, unknown-state population and age, verification levels achieved, boundary latency and error classes, policy and capability decisions, budget utilisation, subscription lag and rate-limit refusals."
