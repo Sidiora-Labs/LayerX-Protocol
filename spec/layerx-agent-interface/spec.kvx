@@ -822,7 +822,7 @@ status = "pending"
 
 [task.6.1]
 title = "Specify the node interface schema and its version rules"
-status = "pending"
+status = "done"
 wave = 5
 requires = ["2.5"]
 do_1 = "Author the node interface schema as a versioned artefact under source control declaring every request, response and stream message, with node info, submit, receipt lookup, account read, history range, batch header, checkpoint, proof bundle, availability fetch and event subscribe as the initial message set."

@@ -51,18 +51,24 @@ source of bytes and proofs, not a source of truth-by-assertion.
 
 ## 3. Message set (v1)
 
-| Message | Kind | Request carries | Response carries |
+The normative, machine-readable source is `agent/schema/lni/v1.kvx`. The
+`layerx-client` schema test checks every name, capability, and literal golden
+encoding below against that artefact, making this document a checked projection
+of the schema rather than a second authority.
+
+| Operation | Schema messages | Request carries | Response or stream carries |
 |---|---|---|---|
-| `NodeInfo` | unary | nothing | LNI version, protocol version, network id, role, head sequence, latest sealed batch, latest finalised checkpoint, authorised sequencer keys, capability list |
-| `Submit` | unary | signed activity bytes | admission acknowledgement or rejection result code |
-| `GetReceipt` | unary | activity id, idempotency key or global sequence | receipt bytes, or a not-found marker |
-| `GetAccount` | unary | account id, asset, optional root selector, proof request flag | account state bytes, optional state inclusion proof |
-| `GetHistory` | server stream | sequence range or cursor, filter, page bound | canonical activity, receipt and event bytes in sequence order, next cursor |
-| `GetBatchHeader` | unary | batch number or checkpoint id | batch header bytes, sequencer signature |
-| `GetCheckpoint` | unary | checkpoint id or batch number | certificate, guarantor signature set, threshold, settlement reference |
-| `GetProof` | unary | activity id or account id, target root selector | activity inclusion proof, state inclusion proof |
-| `FetchAvailability` | server stream | checkpoint id / batch / sequence range / activity id, class selector | DA chunks with inclusion proofs, class report |
-| `SubscribeEvents` | server stream | start cursor, filter | ordered event records, gap markers, heartbeat |
+| Node info | `NodeInfoRequest`, `NodeInfoResponse` | empty selector | LNI version, protocol version, network id, role, head sequence, latest sealed batch, latest finalised checkpoint, authorised sequencer keys, capability list |
+| Submit | `SubmitRequest`, `SubmitResponse` | signed activity bytes | admission acknowledgement or rejection result code and evidence |
+| Receipt lookup | `ReceiptLookupRequest`, `ReceiptLookupResponse` | activity id, idempotency key or global sequence | receipt bytes and verification context, or canonical absence marker |
+| Account read | `AccountReadRequest`, `AccountReadResponse` | account id, asset, optional root selector, proof request flag | account state bytes and state inclusion evidence |
+| History range | `HistoryRangeRequest`, `HistoryItem`, `HistoryEnd` | sequence range or cursor, filter, page bound | canonical activity, receipt and event bytes in sequence order, evidence, next cursor |
+| Batch header | `BatchHeaderRequest`, `BatchHeaderResponse` | batch number or checkpoint id | batch header bytes and authorised sequencer evidence |
+| Checkpoint | `CheckpointRequest`, `CheckpointResponse` | checkpoint id or batch number | checkpoint bytes, certificate, guarantor signature set, threshold, settlement reference |
+| Proof bundle | `ProofBundleRequest`, `ProofBundleResponse` | activity id or account id, target root selector | opaque target bytes, activity inclusion proof, state inclusion proof |
+| Availability fetch | `AvailabilityFetchRequest`, `AvailabilityChunk`, `AvailabilityEnd` | checkpoint id / batch / sequence range / activity id, class selector | DA chunks with inclusion proofs and final class report |
+| Event subscribe | `EventSubscribeRequest`, `EventRecord`, `EventGap`, `EventHeartbeat` | start cursor, filter | ordered event records, gap markers, heartbeat |
+| Shared failure | `ErrorResponse` | not applicable | typed boundary failure distinct from core rejection and proof failure |
 
 Every response that carries protocol data carries it as canonical bytes. Every
 response that supports a verification level carries the material for it, or says
@@ -104,6 +110,12 @@ Every connection begins with `NodeInfo`. The client refuses to proceed when:
 messages, new optional fields, new capabilities. Golden encoding vectors are
 committed for every message, so any encoding change appears as a reviewable diff
 rather than as a silent behaviour change.
+
+LNI v1.0 encodes `major:u16be`, `minor:u16be`, `message_tag:u16be`,
+`correlation_id:u64be`, then a `u32be`-length canonical payload and a
+`u32be`-length proof-material byte string. The schema records a literal vector
+for every request, response, and stream tag. Tags are never reused within a
+major version.
 
 ---
 

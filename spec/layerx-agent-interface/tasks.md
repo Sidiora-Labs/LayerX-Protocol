@@ -287,7 +287,7 @@ entirely on the spine being real.
 ## Wave 5 - The Node Boundary
 
 - [ ] 6. Define and qualify the LayerX Node Interface
-  - [ ] 6.1 Specify the node interface schema and its version rules
+  - [x] 6.1 Specify the node interface schema and its version rules
     - Author the node interface schema as a versioned artefact under source control declaring every request, response and stream message, with node info, submit, receipt lookup, account read, history range, batch header, checkpoint, proof bundle, availability fetch and event subscribe as the initial message set.
     - Declare that every payload carrying protocol data is opaque canonical LayerX bytes plus the proof material required to verify it, so the schema never restates a protocol structure in a second encoding.
     - Define the version rule as a major and minor pair where minor changes are additive only, and record golden encoding vectors for every message so a change to the encoding is visible as a diff.
