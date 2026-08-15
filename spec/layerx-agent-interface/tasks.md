@@ -954,7 +954,7 @@ entirely on the spine being real.
     - Ship runnable examples for payment with receipt verification, a 402-style settlement, budget-constrained delegated spending, a service lifecycle interaction and offline receipt verification.
     - Add a test asserting a hand edit to generated output fails the build.
     - _Requirements: 18.3, 18.4, 18.9_
-  - [ ] 22.4 Generate and package the Python SDK
+  - [x] 22.4 Generate and package the Python SDK
     - Generate the Python SDK from the schema with exact integer handling for every consensus-critical value.
     - Preserve verification levels, unknown submission state, idempotency handling and the typed error taxonomy in the generated surface.
     - Package it with type stubs, an integration test suite against a running daemon and reproducible build metadata.

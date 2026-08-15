@@ -2227,7 +2227,7 @@ reqs = ["18.3","18.4","18.9"]
 
 [task.22.4]
 title = "Generate and package the Python SDK"
-status = "pending"
+status = "done"
 wave = 11
 requires = ["22.2"]
 do_1 = "Generate the Python SDK from the schema with exact integer handling for every consensus-critical value."

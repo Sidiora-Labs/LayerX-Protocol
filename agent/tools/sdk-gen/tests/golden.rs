@@ -38,7 +38,7 @@ fn golden_schema_generation_is_byte_deterministic() {
     let second =
         agent_sdk_generator(&schema()).unwrap_or_else(|error| panic!("second generation: {error}"));
     assert_eq!(first, second);
-    assert_eq!(first.files.len(), 4);
+    assert_eq!(first.files.len(), 5);
     let typescript = first
         .files
         .get(Path::new("typescript/src/generated/client.ts"))
@@ -51,6 +51,13 @@ fn golden_schema_generation_is_byte_deterministic() {
         .unwrap_or_else(|| panic!("Python output missing"));
     assert!(python.contains("Amount = int"));
     assert!(!python.contains("Amount = float"));
+    assert!(python.contains("class SubmissionUnknown"));
+    assert!(python.contains("def require_verified"));
+    let python_stub = first
+        .files
+        .get(Path::new("python/layerx_sdk/generated/client.pyi"))
+        .unwrap_or_else(|| panic!("Python type stub missing"));
+    assert!(python_stub.contains("Amount: TypeAlias = int"));
 }
 
 #[test]
@@ -70,6 +77,25 @@ fn drift_gate_detects_a_hand_edit() {
         Err(error) => error,
     };
     assert!(error.contains("generated SDK drift"));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn drift_gate_detects_a_python_hand_edit() {
+    let root = directory("python-drift");
+    let generated =
+        agent_sdk_generator(&schema()).unwrap_or_else(|error| panic!("generation: {error}"));
+    write(&generated, &root);
+    let path = root.join("python/layerx_sdk/generated/client.py");
+    let mut edited =
+        fs::read_to_string(&path).unwrap_or_else(|error| panic!("read generated output: {error}"));
+    edited.push_str("# hand edit\n");
+    fs::write(&path, edited).unwrap_or_else(|error| panic!("edit generated output: {error}"));
+    let error = match agent_sdk_drift_gate(&generated, &root) {
+        Ok(()) => panic!("Python hand edit passed drift gate"),
+        Err(error) => error,
+    };
+    assert!(error.contains("python/layerx_sdk/generated/client.py"));
     let _ = fs::remove_dir_all(root);
 }
 

@@ -2023,6 +2023,11 @@ agent-test-sdk-ts:
 	$(MAKE) agent-test-sdk-generate
 	cd agent/sdk/typescript && npm test
 
+agent-test-sdk-py:
+	$(MAKE) agent-test-sdk-generate
+	PYTHONPATH=agent/sdk/python python3 -m unittest discover -s agent/sdk/python/tests -p 'test_*.py'
+	PYTHONPATH=agent/sdk/python python3 -m compileall -q agent/sdk/python/layerx_sdk agent/sdk/python/examples
+
 agent-test-mcp-untrusted-input:
 	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
 

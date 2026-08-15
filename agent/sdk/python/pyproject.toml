@@ -1,0 +1,22 @@
+[build-system]
+requires = []
+build-backend = "build_backend"
+backend-path = ["."]
+
+[project]
+name = "layerx-sdk"
+version = "0.1.0"
+description = "Generated LayerX Agent API Python SDK"
+requires-python = ">=3.11"
+license = { text = "See the LayerX repository LICENSE" }
+authors = [{ name = "Sidiora Labs" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Typing :: Typed",
+]
+
+[tool.layerx-build]
+contract-major = 1
+source-date-epoch = 315532800

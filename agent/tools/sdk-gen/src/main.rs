@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 const TYPESCRIPT_TEMPLATE: &str = include_str!("../templates/typescript.tpl");
 const PYTHON_TEMPLATE: &str = include_str!("../templates/python.tpl");
+const PYTHON_STUB_TEMPLATE: &str = include_str!("../templates/python.pyi.tpl");
 const GUARANTEES_TEMPLATE: &str = include_str!("../templates/guarantees.md.tpl");
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -315,6 +316,43 @@ fn python(model: &Model) -> Result<String, String> {
         .replace("{{OPERATIONS}}", &operations))
 }
 
+fn python_stub(model: &Model) -> Result<String, String> {
+    let mut scalars = String::new();
+    for scalar in &model.scalars {
+        let function = snake_case(&scalar.name);
+        write!(
+            &mut scalars,
+            "{0}: TypeAlias = int\ndef parse_{1}(value: str) -> {0}: ...\n\n",
+            scalar.name, function
+        )
+        .map_err(|_| "format Python scalar stub".to_owned())?;
+    }
+    let levels = model
+        .levels
+        .iter()
+        .enumerate()
+        .map(|(rank, level)| format!("    {} = {rank}", snake_case(level).to_ascii_uppercase()))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let errors = model
+        .errors
+        .iter()
+        .map(|error| format!("\"{error}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let operations = model
+        .operations
+        .iter()
+        .map(|operation| format!("\"{operation}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    Ok(PYTHON_STUB_TEMPLATE
+        .replace("{{SCALARS}}", scalars.trim_end())
+        .replace("{{LEVELS}}", &levels)
+        .replace("{{ERRORS}}", &errors)
+        .replace("{{OPERATIONS}}", &operations))
+}
+
 fn guarantees(model: &Model) -> String {
     let rows = model
         .guarantees
@@ -348,6 +386,10 @@ pub fn agent_sdk_generator(schema_root: &Path) -> Result<Generated, String> {
             (
                 PathBuf::from("python/layerx_sdk/generated/client.py"),
                 python(&model)?,
+            ),
+            (
+                PathBuf::from("python/layerx_sdk/generated/client.pyi"),
+                python_stub(&model)?,
             ),
             (
                 PathBuf::from("python/layerx_sdk/generated/guarantees.md"),
