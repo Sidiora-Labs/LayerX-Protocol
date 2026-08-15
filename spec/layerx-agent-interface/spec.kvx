@@ -1469,7 +1469,7 @@ reqs = ["12.6","12.7","5.7"]
 
 [task.13.4]
 title = "Verify signature over exact bytes before submission"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["13.3"]
 do_1 = "Verify before submission that the signature verifies over the exact bytes about to be transmitted and refuse otherwise."

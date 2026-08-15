@@ -5,12 +5,18 @@ use std::collections::BTreeSet;
 use layerx_crypto::local::LocalSigner;
 use layerx_crypto::session::IssuedSessionKey;
 use layerx_crypto::signer::{sign_disclosed, SignError, Signer};
-use layerx_types::activity::Authority;
+use layerx_types::activity::{ActivityBuildError, Authority};
 use layerx_types::payload::{ActivityType, ModuleRegistry};
+use layerx_wire::WireError;
 
 use crate::prepare::{
     verify_disclosure_binding, DisclosureBindingError, DisclosureDigest, Prepared,
 };
+
+#[path = "sign_verify.rs"]
+mod verification;
+
+pub use verification::{SubmissionBindingAudit, VerifiedSubmission};
 
 /// Signing location made explicit in every response and audit record.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -44,6 +50,7 @@ pub struct SelfSigningAudit {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SignedPreparation {
     pub canonical_bytes: Vec<u8>,
+    pub signed_canonical_bytes: Vec<u8>,
     pub signature: [u8; 64],
     pub signer_public_key: [u8; 32],
     pub mode: SigningMode,
@@ -104,6 +111,10 @@ pub enum SigningError {
     Revoked,
     AuthorityMismatch,
     Crypto(SignError),
+    SignatureEncoding(ActivityBuildError),
+    Wire(WireError),
+    PreparedBytesChanged,
+    SignatureInvalid,
 }
 
 /// Returns the default key-free package for an external signer.
@@ -153,9 +164,12 @@ pub async fn self_sign(
     .map_err(SigningError::Crypto)?;
     let public_key = provisioned.signer.public_key();
     let authority_bytes = provisioned.authority.as_bytes().to_vec();
+    let signature_bytes = *signature.as_bytes();
+    let signed_canonical_bytes = verification::attach_signature(prepared, signature_bytes)?;
     Ok(SignedPreparation {
         canonical_bytes: prepared.canonical_bytes.clone(),
-        signature: *signature.as_bytes(),
+        signed_canonical_bytes,
+        signature: signature_bytes,
         signer_public_key: public_key,
         mode: SigningMode::ProtocolSessionKey,
         audit: SelfSigningAudit {
@@ -168,4 +182,28 @@ pub async fn self_sign(
             revocation_sequence: provisioned.revocation_sequence,
         },
     })
+}
+
+/// Attaches a returned external signature through the canonical wire encoder.
+pub fn attach_external_signature(
+    prepared: &Prepared,
+    signature: [u8; 64],
+) -> Result<Vec<u8>, SigningError> {
+    verify_disclosure_binding(prepared).map_err(SigningError::Disclosure)?;
+    verification::attach_signature(prepared, signature)
+}
+
+/// Verifies the exact signed bytes and returns the only submit-capable wrapper.
+pub fn verify_before_submit(
+    signed_canonical_bytes: &[u8],
+    prepared: &Prepared,
+    signer_public_key: &[u8; 32],
+    registry: &ModuleRegistry,
+) -> Result<VerifiedSubmission, SigningError> {
+    verification::verify_exact(
+        signed_canonical_bytes,
+        prepared,
+        signer_public_key,
+        registry,
+    )
 }

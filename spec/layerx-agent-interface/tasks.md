@@ -596,7 +596,7 @@ entirely on the spine being real.
     - Refuse self-signing for any activity type outside the provisioned session key scope even when policy would allow it.
     - Add tests covering an unprovisioned daemon asked to sign, a scope-exceeding self-sign attempt and an expired session key.
     - _Requirements: 12.6, 12.7, 5.7_
-  - [ ] 13.4 Verify signature over exact bytes before submission
+  - [x] 13.4 Verify signature over exact bytes before submission
     - Verify before submission that the signature verifies over the exact bytes about to be transmitted and refuse otherwise.
     - Detect any post-signature alteration through that verification and refuse submission, so a modified activity can never ride an earlier signature.
     - Carry the verified bytes through to the client submit path unchanged, with no re-encoding step between verification and transmission.
