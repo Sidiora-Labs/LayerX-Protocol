@@ -1786,7 +1786,7 @@ reqs = ["19.1","19.2","19.3","19.10"]
 
 [task.17.2]
 title = "Implement boundary admission control and priority"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["17.1","7.2"]
 do_1 = "Apply admission control to outbound boundary traffic so retries, backfills and subscription catch-up cannot saturate the node interface."

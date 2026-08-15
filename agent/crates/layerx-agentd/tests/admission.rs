@@ -1,0 +1,283 @@
+use std::collections::BTreeMap;
+
+use layerx_agentd::limits::admission::{
+    AdmissionConfig, AdmissionError, BackpressureSource, BoundaryAdmission, BoundaryWork,
+    CoreAvailability, CoreOutcome, Priority, QueueBound,
+};
+
+fn config(maximum_in_flight: usize, requests_per_lane: usize) -> AdmissionConfig {
+    AdmissionConfig::new(
+        maximum_in_flight,
+        64,
+        Priority::ALL.into_iter().map(|priority| {
+            (
+                priority,
+                QueueBound {
+                    requests: requests_per_lane,
+                    bytes: requests_per_lane * 64,
+                },
+            )
+        }),
+    )
+    .expect("complete finite boundary configuration")
+}
+
+fn work(request_id: u64, priority: Priority) -> BoundaryWork {
+    BoundaryWork {
+        request_id,
+        tenant: "tenant-a".to_owned(),
+        priority,
+        bytes: request_id.to_be_bytes().to_vec(),
+    }
+}
+
+#[test]
+fn submission_and_receipt_dispatch_before_a_synthetic_bulk_storm() {
+    let mut controller = BoundaryAdmission::new(config(2, 128));
+    for request_id in 1..=128 {
+        controller
+            .admit(
+                work(request_id, Priority::BulkRead),
+                CoreAvailability::Ready,
+            )
+            .expect("bounded bulk lane accepts up to its declared limit");
+    }
+    assert!(matches!(
+        controller.admit(work(129, Priority::BulkRead), CoreAvailability::Ready),
+        Err(AdmissionError::Backpressure {
+            source: BackpressureSource::QueueRequests,
+            priority: Priority::BulkRead,
+            queued_requests: 128,
+            ..
+        })
+    ));
+
+    controller
+        .admit(
+            work(1_000, Priority::ReceiptResolution),
+            CoreAvailability::Ready,
+        )
+        .expect("receipt lane remains available during bulk saturation");
+    controller
+        .admit(work(1_001, Priority::Submission), CoreAvailability::Ready)
+        .expect("submission lane remains available during bulk saturation");
+
+    let first = controller
+        .dispatch(CoreAvailability::Ready)
+        .expect("dispatch succeeds")
+        .expect("submission is queued");
+    let second = controller
+        .dispatch(CoreAvailability::Ready)
+        .expect("dispatch succeeds")
+        .expect("receipt is queued");
+    assert_eq!(first.work.priority, Priority::Submission);
+    assert_eq!(second.work.priority, Priority::ReceiptResolution);
+    assert_eq!(
+        controller.utilization(Priority::BulkRead).queued_requests,
+        128
+    );
+}
+
+#[test]
+fn a_slow_node_holds_only_the_explicit_in_flight_capacity() {
+    let mut controller = BoundaryAdmission::new(config(1, 4));
+    controller
+        .admit(work(1, Priority::Submission), CoreAvailability::Ready)
+        .expect("submission admitted");
+    controller
+        .admit(work(2, Priority::BulkRead), CoreAvailability::Ready)
+        .expect("bulk read admitted");
+
+    let dispatched = controller
+        .dispatch(CoreAvailability::Ready)
+        .expect("first dispatch succeeds")
+        .expect("submission is queued");
+    assert_eq!(dispatched.work.request_id, 1);
+    assert_eq!(controller.in_flight(), 1);
+    assert!(matches!(
+        controller.dispatch(CoreAvailability::Ready),
+        Err(AdmissionError::Backpressure {
+            source: BackpressureSource::InFlight,
+            priority: Priority::BulkRead,
+            ..
+        })
+    ));
+    assert_eq!(
+        controller.utilization(Priority::BulkRead).queued_requests,
+        1
+    );
+
+    controller
+        .finish(1, CoreOutcome::Completed)
+        .expect("slow call eventually completes");
+    assert_eq!(
+        controller
+            .dispatch(CoreAvailability::Ready)
+            .expect("capacity is released")
+            .expect("bulk read remains queued")
+            .work
+            .request_id,
+        2
+    );
+}
+
+#[test]
+fn core_backpressure_and_unavailability_are_returned_without_hidden_queues() {
+    let mut controller = BoundaryAdmission::new(config(1, 2));
+    assert!(matches!(
+        controller.admit(
+            work(1, Priority::Retry),
+            CoreAvailability::Backpressured { retry_after_ms: 25 }
+        ),
+        Err(AdmissionError::Backpressure {
+            source: BackpressureSource::CoreBackpressured,
+            retry_after_ms: Some(25),
+            ..
+        })
+    ));
+    assert_eq!(controller.utilization(Priority::Retry).queued_requests, 0);
+
+    controller
+        .admit(work(2, Priority::Submission), CoreAvailability::Ready)
+        .expect("work admitted while core is ready");
+    assert!(matches!(
+        controller.dispatch(CoreAvailability::Unavailable { retry_after_ms: 80 }),
+        Err(AdmissionError::Backpressure {
+            source: BackpressureSource::CoreUnavailable,
+            retry_after_ms: Some(80),
+            ..
+        })
+    ));
+    assert_eq!(
+        controller.utilization(Priority::Submission).queued_requests,
+        1
+    );
+
+    let request_id = controller
+        .dispatch(CoreAvailability::Ready)
+        .expect("dispatch resumes")
+        .expect("submission remains owned")
+        .work
+        .request_id;
+    assert!(matches!(
+        controller.finish(
+            request_id,
+            CoreOutcome::Backpressured { retry_after_ms: 40 }
+        ),
+        Err(AdmissionError::Backpressure {
+            source: BackpressureSource::CoreBackpressured,
+            retry_after_ms: Some(40),
+            ..
+        })
+    ));
+    assert_eq!(controller.in_flight(), 0);
+    assert_eq!(
+        controller.utilization(Priority::Submission).queued_requests,
+        0
+    );
+}
+
+#[test]
+fn reconnecting_subscription_burst_cannot_consume_other_lanes() {
+    let mut lanes = Priority::ALL
+        .into_iter()
+        .map(|priority| {
+            (
+                priority,
+                QueueBound {
+                    requests: 4,
+                    bytes: 64,
+                },
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    lanes.insert(
+        Priority::SubscriptionCatchUp,
+        QueueBound {
+            requests: 2,
+            bytes: 16,
+        },
+    );
+    let configuration = AdmissionConfig::new(2, 64, lanes).expect("valid lane map");
+    let mut controller = BoundaryAdmission::new(configuration);
+
+    controller
+        .admit(
+            work(1, Priority::SubscriptionCatchUp),
+            CoreAvailability::Ready,
+        )
+        .expect("first reconnect admitted");
+    controller
+        .admit(
+            work(2, Priority::SubscriptionCatchUp),
+            CoreAvailability::Ready,
+        )
+        .expect("second reconnect admitted");
+    assert!(matches!(
+        controller.admit(
+            work(3, Priority::SubscriptionCatchUp),
+            CoreAvailability::Ready
+        ),
+        Err(AdmissionError::Backpressure {
+            source: BackpressureSource::QueueRequests,
+            priority: Priority::SubscriptionCatchUp,
+            ..
+        })
+    ));
+    controller
+        .admit(work(4, Priority::Submission), CoreAvailability::Ready)
+        .expect("independently bounded submission lane remains available");
+    assert_eq!(
+        controller
+            .dispatch(CoreAvailability::Ready)
+            .expect("dispatch succeeds")
+            .expect("submission exists")
+            .work
+            .priority,
+        Priority::Submission
+    );
+}
+
+#[test]
+fn every_lane_and_message_has_an_explicit_finite_bound() {
+    assert!(matches!(
+        AdmissionConfig::new(1, 64, []),
+        Err(AdmissionError::InvalidConfiguration)
+    ));
+    let mut controller = BoundaryAdmission::new(config(1, 1));
+    let mut oversized = work(1, Priority::InteractiveRead);
+    oversized.bytes = vec![0; 65];
+    assert_eq!(
+        controller.admit(oversized, CoreAvailability::Ready),
+        Err(AdmissionError::InvalidWork)
+    );
+
+    let mut byte_bounded = BoundaryAdmission::new(
+        AdmissionConfig::new(
+            1,
+            64,
+            Priority::ALL.into_iter().map(|priority| {
+                (
+                    priority,
+                    QueueBound {
+                        requests: 2,
+                        bytes: 8,
+                    },
+                )
+            }),
+        )
+        .expect("valid byte-bounded configuration"),
+    );
+    byte_bounded
+        .admit(work(1, Priority::Backfill), CoreAvailability::Ready)
+        .expect("first eight-byte record fits");
+    assert!(matches!(
+        byte_bounded.admit(work(2, Priority::Backfill), CoreAvailability::Ready),
+        Err(AdmissionError::Backpressure {
+            source: BackpressureSource::QueueBytes,
+            priority: Priority::Backfill,
+            queued_bytes: 8,
+            ..
+        })
+    ));
+}

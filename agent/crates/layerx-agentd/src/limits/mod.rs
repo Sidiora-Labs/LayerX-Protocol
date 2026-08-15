@@ -1,5 +1,7 @@
 //! Layered tenant admission limits and bounded work controls.
 
+pub mod admission;
+
 #[path = "rate.rs"]
 mod rate_limit;
 

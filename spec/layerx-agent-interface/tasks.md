@@ -746,7 +746,7 @@ entirely on the spine being real.
     - Expose live configuration and utilisation per tenant so a refusal is diagnosable without reading logs.
     - Add tests covering each limit scope, a burst at the boundary and a multi-instance counter divergence scenario.
     - _Requirements: 19.1, 19.2, 19.3, 19.10_
-  - [ ] 17.2 Implement boundary admission control and priority
+  - [x] 17.2 Implement boundary admission control and priority
     - Apply admission control to outbound boundary traffic so retries, backfills and subscription catch-up cannot saturate the node interface.
     - Prioritise submission delivery and receipt resolution over bulk reads under contention, and prove the priority holds under a synthetic bulk-read storm.
     - Propagate core backpressure and unavailability to callers as backpressure rather than absorbing it internally.
