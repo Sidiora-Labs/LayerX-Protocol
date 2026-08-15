@@ -850,7 +850,7 @@ entirely on the spine being real.
     - _Requirements: 20.10, 21.9, 14.10_
 
 - [ ] 20. Implement configuration, degraded modes and operations
-  - [ ] 20.1 Validate configuration fully and refuse unsafe startup
+  - [x] 20.1 Validate configuration fully and refuse unsafe startup
     - Load configuration from explicit files and environment with a documented precedence and validate it completely at startup.
     - Require explicit network identifier, node endpoint, expected protocol version, tenant set, policy source, signer configuration and verification defaults.
     - Treat an unset security-relevant setting as a startup failure rather than a permissive default, and enumerate those settings in one place.

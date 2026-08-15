@@ -2008,7 +2008,7 @@ status = "pending"
 
 [task.20.1]
 title = "Validate configuration fully and refuse unsafe startup"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["9.1"]
 do_1 = "Load configuration from explicit files and environment with a documented precedence and validate it completely at startup."
