@@ -4,17 +4,18 @@ use std::path::Path;
 
 use layerx_types::ids::{ActivityId, Did, IdempotencyKey};
 use layerx_types::verify::VerificationLevel;
+use sha2::{Digest, Sha256};
 
 use crate::identity::ProtocolAuthority;
 use crate::session::SessionId;
 use crate::store::TenantId;
 
 use super::log::{read_payloads, AppendReceipt, AuditError, Log};
+use super::redaction::{PayloadEvidence, Redacted, RedactionError};
 
 const ENTRY_MAGIC: &[u8; 4] = b"LXAR";
 const ENTRY_VERSION: u8 = 1;
 const MAX_TEXT_BYTES: usize = 4_096;
-const MAX_EVIDENCE_BYTES: usize = 1_048_576;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[repr(u8)]
@@ -103,11 +104,11 @@ pub struct Entry {
     pub request_id: [u8; 32],
     pub idempotency_key: Option<IdempotencyKey>,
     pub decision: Decision,
-    pub reason: String,
+    pub reason: Redacted,
     pub resulting_activity_id: Option<ActivityId>,
     pub verification_level: VerificationLevel,
     pub protocol_authority: Option<ProtocolAuthority>,
-    pub submitted_bytes: Option<Vec<u8>>,
+    pub submitted_bytes: Option<PayloadEvidence>,
     pub receipt_id: Option<[u8; 32]>,
 }
 
@@ -158,7 +159,7 @@ impl Coverage {
 pub struct DecisionEvidence {
     pub class: EventClass,
     pub decision: Decision,
-    pub reason: String,
+    pub reason: Redacted,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -171,11 +172,18 @@ pub struct Reconstruction {
     pub verification_level: VerificationLevel,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StoredReceiptEvidence {
+    pub submitted_bytes: Vec<u8>,
+    pub core_receipt_bytes: Vec<u8>,
+}
+
 #[derive(Debug)]
 pub enum RecordError {
     Audit(AuditError),
     Invalid(&'static str),
     Decode(&'static str),
+    Redaction(RedactionError),
     IncompleteCoverage(Vec<EventClass>),
     IncompleteReconstruction(&'static str),
 }
@@ -186,6 +194,7 @@ impl Display for RecordError {
             Self::Audit(error) => write!(formatter, "{error}"),
             Self::Invalid(reason) => write!(formatter, "invalid audit entry: {reason}"),
             Self::Decode(reason) => write!(formatter, "cannot decode audit entry: {reason}"),
+            Self::Redaction(error) => write!(formatter, "cannot redact audit entry: {error}"),
             Self::IncompleteCoverage(classes) => {
                 write!(formatter, "unaudited event classes: {classes:?}")
             }
@@ -201,6 +210,12 @@ impl std::error::Error for RecordError {}
 impl From<AuditError> for RecordError {
     fn from(value: AuditError) -> Self {
         Self::Audit(value)
+    }
+}
+
+impl From<RedactionError> for RecordError {
+    fn from(value: RedactionError) -> Self {
+        Self::Redaction(value)
     }
 }
 
@@ -227,12 +242,12 @@ pub fn read_entries(path: impl AsRef<Path>) -> Result<Vec<Entry>, RecordError> {
 
 pub fn reconstruct_session(
     entries: &[Entry],
-    receipts: &BTreeMap<[u8; 32], Vec<u8>>,
+    receipts: &BTreeMap<[u8; 32], StoredReceiptEvidence>,
     session_id: SessionId,
     idempotency_key: IdempotencyKey,
 ) -> Result<Reconstruction, RecordError> {
     let mut decisions = Vec::new();
-    let mut submission: Option<(&[u8], &ProtocolAuthority)> = None;
+    let mut submission: Option<([u8; 32], &ProtocolAuthority)> = None;
     let mut terminal: Option<(ActivityId, [u8; 32], VerificationLevel)> = None;
     for entry in entries.iter().filter(|entry| {
         entry.session == Some(session_id) && entry.idempotency_key == Some(idempotency_key)
@@ -243,13 +258,13 @@ pub fn reconstruct_session(
             reason: entry.reason.clone(),
         });
         if entry.class == EventClass::Submission {
-            let bytes =
-                entry
-                    .submitted_bytes
-                    .as_deref()
-                    .ok_or(RecordError::IncompleteReconstruction(
-                        "submission bytes are absent",
-                    ))?;
+            let digest = entry
+                .submitted_bytes
+                .as_ref()
+                .and_then(PayloadEvidence::digest)
+                .ok_or(RecordError::IncompleteReconstruction(
+                    "submission digest is absent",
+                ))?;
             let authority =
                 entry
                     .protocol_authority
@@ -257,7 +272,7 @@ pub fn reconstruct_session(
                     .ok_or(RecordError::IncompleteReconstruction(
                         "protocol authority is absent",
                     ))?;
-            if submission.replace((bytes, authority)).is_some() {
+            if submission.replace((digest, authority)).is_some() {
                 return Err(RecordError::IncompleteReconstruction(
                     "multiple submission records are ambiguous",
                 ));
@@ -285,25 +300,29 @@ pub fn reconstruct_session(
             }
         }
     }
-    let (submitted_bytes, protocol_authority) = submission.ok_or(
+    let (submitted_digest, protocol_authority) = submission.ok_or(
         RecordError::IncompleteReconstruction("submission record is absent"),
     )?;
     let (resulting_activity_id, receipt_id, verification_level) = terminal.ok_or(
         RecordError::IncompleteReconstruction("terminal record is absent"),
     )?;
-    let core_receipt_bytes =
-        receipts
-            .get(&receipt_id)
-            .cloned()
-            .ok_or(RecordError::IncompleteReconstruction(
-                "referenced core receipt is absent",
-            ))?;
+    let stored = receipts
+        .get(&receipt_id)
+        .ok_or(RecordError::IncompleteReconstruction(
+            "referenced core receipt is absent",
+        ))?;
+    let observed_digest: [u8; 32] = Sha256::digest(&stored.submitted_bytes).into();
+    if observed_digest != submitted_digest {
+        return Err(RecordError::IncompleteReconstruction(
+            "stored submission does not match the audit digest",
+        ));
+    }
     Ok(Reconstruction {
         decisions,
-        submitted_bytes: submitted_bytes.to_vec(),
+        submitted_bytes: stored.submitted_bytes.clone(),
         protocol_authority: protocol_authority.clone(),
         resulting_activity_id,
-        core_receipt_bytes,
+        core_receipt_bytes: stored.core_receipt_bytes.clone(),
         verification_level,
     })
 }
@@ -325,14 +344,14 @@ fn encode_entry(entry: &Entry) -> Result<Vec<u8>, RecordError> {
         entry.idempotency_key.map(IdempotencyKey::bytes),
     );
     output.push(entry.decision as u8);
-    push_u16_bytes(&mut output, entry.reason.as_bytes())?;
+    push_u16_bytes(&mut output, entry.reason.as_str().as_bytes())?;
     push_optional_fixed(
         &mut output,
         entry.resulting_activity_id.map(ActivityId::bytes),
     );
     output.push(entry.verification_level.wire_rank());
     push_authority(&mut output, entry.protocol_authority.as_ref());
-    push_optional_bytes(&mut output, entry.submitted_bytes.as_deref())?;
+    push_payload(&mut output, entry.submitted_bytes.as_ref());
     push_optional_fixed(&mut output, entry.receipt_id);
     Ok(output)
 }
@@ -360,10 +379,11 @@ fn decode_entry(bytes: &[u8]) -> Result<Entry, RecordError> {
     let reason = std::str::from_utf8(decoder.u16_bytes()?)
         .map_err(|_| RecordError::Decode("reason is not UTF-8"))?
         .to_owned();
+    let reason = Redacted::stored(reason)?;
     let resulting_activity_id = decoder.optional_fixed()?.map(ActivityId::new);
     let verification_level = verification_level(decoder.byte()?)?;
     let protocol_authority = decoder.authority()?;
-    let submitted_bytes = decoder.optional_bytes()?;
+    let submitted_bytes = decoder.payload()?;
     let receipt_id = decoder.optional_fixed()?;
     if !decoder.finished() {
         return Err(RecordError::Decode("trailing audit entry bytes"));
@@ -390,19 +410,10 @@ fn decode_entry(bytes: &[u8]) -> Result<Entry, RecordError> {
 }
 
 fn validate_entry(entry: &Entry) -> Result<(), RecordError> {
-    for text in [&entry.policy_version, &entry.reason] {
+    for text in [&entry.policy_version, entry.reason.as_str()] {
         if text.is_empty() || text.len() > MAX_TEXT_BYTES || text.as_bytes().contains(&0) {
             return Err(RecordError::Invalid("required text is empty or invalid"));
         }
-    }
-    if entry
-        .submitted_bytes
-        .as_ref()
-        .is_some_and(|bytes| bytes.is_empty() || bytes.len() > MAX_EVIDENCE_BYTES)
-    {
-        return Err(RecordError::Invalid(
-            "submitted bytes are empty or oversized",
-        ));
     }
     if entry.class == EventClass::Submission
         && (entry.submitted_bytes.is_none() || entry.protocol_authority.is_none())
@@ -438,18 +449,15 @@ fn push_optional_fixed(output: &mut Vec<u8>, value: Option<[u8; 32]>) {
     }
 }
 
-fn push_optional_bytes(output: &mut Vec<u8>, value: Option<&[u8]>) -> Result<(), RecordError> {
+fn push_payload(output: &mut Vec<u8>, value: Option<&PayloadEvidence>) {
     match value {
-        Some(bytes) => {
+        Some(PayloadEvidence::Digest(digest)) => {
             output.push(1);
-            let length = u32::try_from(bytes.len())
-                .map_err(|_| RecordError::Invalid("evidence is too large"))?;
-            output.extend_from_slice(&length.to_be_bytes());
-            output.extend_from_slice(bytes);
+            output.extend_from_slice(digest);
         }
+        Some(PayloadEvidence::Redacted) => output.push(2),
         None => output.push(0),
     }
-    Ok(())
 }
 
 fn push_authority(output: &mut Vec<u8>, authority: Option<&ProtocolAuthority>) {
@@ -532,23 +540,14 @@ impl<'a> Decoder<'a> {
         self.take(usize::from(length))
     }
 
-    fn optional_bytes(&mut self) -> Result<Option<Vec<u8>>, RecordError> {
+    fn payload(&mut self) -> Result<Option<PayloadEvidence>, RecordError> {
         match self.byte()? {
             0 => Ok(None),
-            1 => {
-                let length = u32::from_be_bytes(
-                    self.take(4)?
-                        .try_into()
-                        .map_err(|_| RecordError::Decode("truncated evidence length"))?,
-                );
-                let length = usize::try_from(length)
-                    .map_err(|_| RecordError::Decode("evidence length overflow"))?;
-                if length > MAX_EVIDENCE_BYTES {
-                    return Err(RecordError::Decode("evidence exceeds its bound"));
-                }
-                self.take(length).map(|bytes| Some(bytes.to_vec()))
-            }
-            _ => Err(RecordError::Decode("invalid optional evidence tag")),
+            1 => self
+                .fixed()
+                .map(|digest| Some(PayloadEvidence::Digest(digest))),
+            2 => Ok(Some(PayloadEvidence::Redacted)),
+            _ => Err(RecordError::Decode("invalid payload evidence tag")),
         }
     }
 

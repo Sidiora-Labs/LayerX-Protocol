@@ -1961,6 +1961,11 @@ agent-test-agentd-audit-chain:
 agent-test-agentd-audit-coverage:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test audit_coverage
 
+agent-test-agentd-redaction:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test redaction
+	$(AGENT_CARGO) test --manifest-path agent/tools/secret-check/Cargo.toml --locked
+	$(AGENT_CARGO) run --manifest-path agent/tools/secret-check/Cargo.toml --locked --quiet -- agent
+
 agent-test-mcp-untrusted-input:
 	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
 

@@ -1959,7 +1959,7 @@ reqs = ["20.1","20.2","20.5"]
 
 [task.19.3]
 title = "Enforce redaction and secret hygiene across all outputs"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["19.2"]
 do_1 = "Forbid private key material, session token values, unredacted secret configuration and out-of-retention payload contents from audit entries, logs, metrics, traces and error messages."

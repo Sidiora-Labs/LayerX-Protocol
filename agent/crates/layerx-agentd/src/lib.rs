@@ -1,7 +1,7 @@
 //! Non-authoritative `LayerX` agent daemon.
 
-pub mod authority;
 pub mod audit;
+pub mod authority;
 pub mod budget;
 pub mod cache;
 pub mod capability;
@@ -11,6 +11,7 @@ pub mod finality;
 pub mod idempotency;
 pub mod identity;
 pub mod limits;
+pub mod obs;
 pub mod outbox;
 pub mod policy;
 pub mod prepare;

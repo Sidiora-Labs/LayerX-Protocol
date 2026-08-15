@@ -88,3 +88,16 @@ fn secret_bearing_errors_fail() {
         "secret-bearing-error",
     );
 }
+
+#[test]
+fn direct_output_requires_the_redaction_boundary() {
+    rejects(
+        "fn leak(value: &[u8]) { tracing::info!(?value); }",
+        "unwrapped-output-surface",
+    );
+    let output = Fixture::new(
+        "struct Redacted; fn emit(value: Redacted) { tracing::info!(?Redacted); let _ = value; }\n",
+    )
+    .run();
+    assert!(output.status.success());
+}

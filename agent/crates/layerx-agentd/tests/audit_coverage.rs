@@ -4,12 +4,13 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use layerx_agentd::audit::{
-    read_entries, reconstruct_session, record, Coverage, Decision, Entry, EventClass, Log,
-    RecordError,
+    protect_payload, read_entries, reconstruct_session, record, redact, Coverage, DataClass,
+    Decision, Entry, EventClass, Log, OutputSurface, RecordError, StoredReceiptEvidence,
 };
 use layerx_agentd::identity::ProtocolAuthority;
 use layerx_agentd::session::SessionId;
 use layerx_agentd::store::TenantId;
+use layerx_agentd::tenant::{Config, RedactionPolicy, Retention};
 use layerx_types::ids::{ActivityId, Did, IdempotencyKey};
 use layerx_types::verify::VerificationLevel;
 
@@ -27,6 +28,21 @@ fn tenant() -> TenantId {
     TenantId::new("tenant-a").unwrap_or_else(|error| panic!("tenant: {error}"))
 }
 
+fn config() -> Config {
+    Config {
+        tenant: tenant(),
+        policy_version: "policy-v7".to_owned(),
+        redaction: RedactionPolicy::Standard,
+        retention: Retention {
+            event_sequences: 100,
+            audit_sequences: 100,
+            receipt_sequences: 100,
+        },
+        verification_default: VerificationLevel::STATE_PROVEN,
+        approval_required_for: Default::default(),
+    }
+}
+
 fn entry(class: EventClass) -> Entry {
     let decision = match class {
         EventClass::CapabilityDecision | EventClass::PolicyDecision => Decision::Allowed,
@@ -38,6 +54,17 @@ fn entry(class: EventClass) -> Entry {
         EventClass::SignatureRequest => Decision::Requested,
         _ => Decision::Observed,
     };
+    let reason = format!("{class:?}-evidence");
+    let reason = redact(
+        &config(),
+        &tenant(),
+        OutputSurface::Audit,
+        DataClass::PublicText,
+        reason.as_bytes(),
+        10,
+    )
+    .unwrap_or_else(|error| panic!("reason redaction: {error}"))
+    .value;
     Entry {
         class,
         tenant: tenant(),
@@ -49,7 +76,7 @@ fn entry(class: EventClass) -> Entry {
         request_id: [3; 32],
         idempotency_key: Some(IdempotencyKey::new([4; 32])),
         decision,
-        reason: format!("{class:?}-evidence"),
+        reason,
         resulting_activity_id: (class == EventClass::TerminalOutcome)
             .then(|| ActivityId::new([5; 32])),
         verification_level: if class == EventClass::TerminalOutcome {
@@ -60,7 +87,7 @@ fn entry(class: EventClass) -> Entry {
         protocol_authority: (class == EventClass::Submission)
             .then_some(ProtocolAuthority::CapabilityGrant([6; 32])),
         submitted_bytes: (class == EventClass::Submission)
-            .then(|| b"exact-canonical-signed-activity".to_vec()),
+            .then(|| protect_payload(&config(), 10, 10, b"exact-canonical-signed-activity")),
         receipt_id: (class == EventClass::TerminalOutcome).then_some([7; 32]),
     }
 }
@@ -112,7 +139,13 @@ fn recorded_session_reconstructs_decision_bytes_authority_and_core_receipt() {
     }
     drop(log);
     let restored = read_entries(&path).unwrap_or_else(|error| panic!("read entries: {error}"));
-    let receipts = BTreeMap::from([([7; 32], b"exact-core-produced-receipt".to_vec())]);
+    let receipts = BTreeMap::from([(
+        [7; 32],
+        StoredReceiptEvidence {
+            submitted_bytes: b"exact-canonical-signed-activity".to_vec(),
+            core_receipt_bytes: b"exact-core-produced-receipt".to_vec(),
+        },
+    )]);
     let replay = reconstruct_session(
         &restored,
         &receipts,

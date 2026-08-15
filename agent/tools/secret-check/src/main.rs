@@ -29,11 +29,37 @@ const OUTPUT_SURFACES: &[&str] = &[
     "eprint!(",
     "eprintln!(",
     "panic!(",
+    "tracing::trace!(",
+    "tracing::debug!(",
+    "tracing::info!(",
+    "tracing::warn!(",
+    "tracing::error!(",
+    "tracing::event!(",
+    "tracing::span!(",
+    "log::trace!(",
+    "log::debug!(",
+    "log::info!(",
+    "log::warn!(",
+    "log::error!(",
+    "metrics::counter!(",
+    "metrics::gauge!(",
+    "metrics::histogram!(",
+    "metrics::describe_",
+    ".serialize(",
+    "serde_json::to_",
+];
+
+const DIRECT_OUTPUT_SURFACES: &[&str] = &[
+    "print!(",
+    "println!(",
+    "eprint!(",
+    "eprintln!(",
+    "panic!(",
     "tracing::",
     "log::",
     "metrics::",
-    ".serialize(",
     "serde_json::to_",
+    ".serialize(",
 ];
 
 #[derive(Debug, Eq, PartialEq)]
@@ -213,6 +239,19 @@ fn scan_source(path: &Path, body: &str) -> Vec<Violation> {
                     path: path.to_path_buf(),
                     line: index + 1,
                     rule: "secret-output-surface",
+                });
+            }
+            if path.file_name().is_none_or(|name| name != "redact.rs")
+                && DIRECT_OUTPUT_SURFACES
+                    .iter()
+                    .any(|surface| statement.contains(surface))
+                && !statement.contains("Redacted")
+                && !statement.contains("redact(")
+            {
+                violations.push(Violation {
+                    path: path.to_path_buf(),
+                    line: index + 1,
+                    rule: "unwrapped-output-surface",
                 });
             }
         }

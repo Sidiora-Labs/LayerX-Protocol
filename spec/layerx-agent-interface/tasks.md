@@ -827,7 +827,7 @@ entirely on the spine being real.
     - Assert reconstruction in a test that replays a recorded session from the audit trail alone.
     - Add coverage reporting over audited event classes and fail if a class is unaudited.
     - _Requirements: 20.1, 20.2, 20.5_
-  - [ ] 19.3 Enforce redaction and secret hygiene across all outputs
+  - [x] 19.3 Enforce redaction and secret hygiene across all outputs
     - Forbid private key material, session token values, unredacted secret configuration and out-of-retention payload contents from audit entries, logs, metrics, traces and error messages.
     - Implement per-tenant redaction configuration applied uniformly across every output surface.
     - Add an output-scanning test that drives every error and log path with loaded secrets and asserts no secret appears.
