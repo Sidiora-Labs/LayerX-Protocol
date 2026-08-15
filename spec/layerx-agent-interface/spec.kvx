@@ -1310,7 +1310,7 @@ reqs = ["10.4","10.5","10.8"]
 
 [task.11.4]
 title = "Hold reservations across unknown outcomes and restarts"
-status = "pending"
+status = "in_progress"
 wave = 8
 requires = ["11.3"]
 do_1 = "Keep a reservation held while the outcome of its activity is unknown and refuse to release it optimistically."
