@@ -1,5 +1,9 @@
 #[path = "../boundary.rs"]
 mod boundary;
+#[path = "../fabrication.rs"]
+mod fabrication;
+#[path = "../hostile_node.rs"]
+mod hostile_node;
 #[path = "../wire.rs"]
 mod wire;
 
@@ -48,6 +52,16 @@ fn main() -> ExitCode {
             Err("boundary gate received an unexpected argument".to_owned())
         } else {
             boundary::agent_qualify_boundary_gate(&repository, &node, &harness)
+        }
+    } else if command == "fabrication" {
+        let Some(repository) = arguments.next().map(PathBuf::from) else {
+            eprintln!("fabrication gate is missing REPOSITORY");
+            return ExitCode::FAILURE;
+        };
+        if arguments.next().is_some() {
+            Err("fabrication gate received an unexpected argument".to_owned())
+        } else {
+            fabrication::agent_qualify_fabrication_gate(&repository)
         }
     } else {
         Err(format!(

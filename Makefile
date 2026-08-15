@@ -1758,6 +1758,11 @@ agent-qualify-boundary: $(BUILD_DIR)/agent/layerxd-lni
 		$(CURDIR) $(CURDIR)/$(BUILD_DIR)/agent/layerxd-lni \
 		$(CURDIR)/agent/tests/boundary/target/debug/agent-boundary-conformance
 
+agent-qualify-fabrication:
+	$(MAKE) agent-test-sdk-ts
+	$(MAKE) agent-test-sdk-py
+	$(AGENT_CARGO) run --manifest-path agent/tests/qualify/Cargo.toml --locked -- fabrication $(CURDIR)
+
 agent-test-capability-report: agent-test-boundary
 
 agent-test-client-connection:

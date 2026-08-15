@@ -993,7 +993,7 @@ entirely on the spine being real.
     - Record the capability gap report produced during the run.
     - Include the result and the gap report in the qualification report.
     - _Requirements: 23.2, 2.9, 2.10_
-  - [ ] 23.3 Run the hostile-node no-fabrication suite
+  - [x] 23.3 Run the hostile-node no-fabrication suite
     - Build a hostile node harness that returns altered balances, altered receipts, re-signed receipts, sub-threshold certificates, truncated proofs, reordered events and withheld availability data.
     - Assert the layer reports a verification failure or unavailability in every case and never surfaces the altered value as a result.
     - Assert that a hostile layer implementation that alters a reported value is caught by independent verification of the exported evidence.

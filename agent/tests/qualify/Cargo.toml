@@ -6,6 +6,9 @@ rust-version = "1.91.1"
 publish = false
 
 [dependencies]
+layerx-agent-api = { path = "../../crates/layerx-agent-api" }
+layerx-proof = { path = "../../crates/layerx-proof" }
+layerx-sdk = { path = "../../crates/layerx-sdk" }
 layerx-types = { path = "../../crates/layerx-types" }
 
 [workspace]
