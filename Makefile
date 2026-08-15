@@ -1659,7 +1659,7 @@ agent-fuzz-wire-minimize:
 		cd ../..; \
 	done
 
-agent-check: agent-check-boundary agent-check-secrets
+agent-check: agent-check-boundary agent-check-secrets agent-test-boundary
 	$(AGENT_CARGO) check --manifest-path $(AGENT_MANIFEST) --locked --workspace --all-targets
 
 agent-test-errors:
@@ -1741,6 +1741,16 @@ agent-test-lni-abi:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-client --test lni_abi
 	$(AGENT_CARGO) test --manifest-path agent/tools/boundary-check/Cargo.toml --locked
 	$(AGENT_CARGO) run --manifest-path agent/tools/boundary-check/Cargo.toml --locked --quiet -- agent
+
+$(BUILD_DIR)/agent/layerxd-lni: agent/tests/boundary/node/layerxd_lni.c \
+		$(LAYERXD_SOURCES) $(LIBRARY)
+	mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) agent/tests/boundary/node/layerxd_lni.c \
+		$(LAYERXD_SOURCES) $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
+agent-test-boundary: $(BUILD_DIR)/agent/layerxd-lni
+	$(AGENT_CARGO) run --manifest-path agent/tests/boundary/Cargo.toml --locked -- \
+		$(CURDIR)/$(BUILD_DIR)/agent/layerxd-lni $(CURDIR)
 
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)

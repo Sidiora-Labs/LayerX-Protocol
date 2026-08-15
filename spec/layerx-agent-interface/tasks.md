@@ -315,7 +315,7 @@ entirely on the spine being real.
     - Confine every unsafe block required by the ABI to one module listed in the unsafe allowlist, with its safety argument written next to it.
     - Run the boundary conformance suite over the ABI transport as well as the socket transport and assert identical observable behaviour.
     - _Requirements: 2.3, 23.9, 2.5_
-  - [ ] 6.5 Build the boundary conformance suite against a real node
+  - [x] 6.5 Build the boundary conformance suite against a real node
     - Build a harness that starts a real layerxd from this repository with a genesis manifest and runs the suite against it, with no in-process substitute for the node anywhere in the suite.
     - Cover every message in the schema including its error cases, its streaming behaviour, its pagination, its version negotiation and its capability reporting.
     - Assert that responses carrying protocol data are canonical bytes that re-hash to the identifiers they claim, so the suite tests the boundary rather than the client belief about it.

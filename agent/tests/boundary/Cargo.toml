@@ -1,0 +1,22 @@
+[package]
+name = "agent-boundary-conformance"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+layerx-client = { path = "../../crates/layerx-client" }
+layerx-proof = { path = "../../crates/layerx-proof" }
+layerx-types = { path = "../../crates/layerx-types" }
+layerx-wire = { path = "../../crates/layerx-wire" }
+
+[workspace]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"

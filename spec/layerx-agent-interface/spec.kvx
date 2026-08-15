@@ -882,7 +882,7 @@ reqs = ["2.3","23.9","2.5"]
 
 [task.6.5]
 title = "Build the boundary conformance suite against a real node"
-status = "pending"
+status = "done"
 wave = 5
 requires = ["6.3"]
 do_1 = "Build a harness that starts a real layerxd from this repository with a genesis manifest and runs the suite against it, with no in-process substitute for the node anywhere in the suite."
