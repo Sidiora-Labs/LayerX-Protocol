@@ -1831,7 +1831,7 @@ reqs = ["19.7","19.8","21.4"]
 
 [task.17.5]
 title = "Prove limits never cause a duplicate economic effect"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["17.4","14.2"]
 do_1 = "Assert that a refused retry leaves the idempotency record and the outbox in a state that resolves to exactly one outcome."

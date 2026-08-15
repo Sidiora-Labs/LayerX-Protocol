@@ -767,7 +767,7 @@ entirely on the spine being real.
     - Report quota utilisation per tenant through health and metrics.
     - Add tests covering quota exhaustion, a pathological client and the isolation of an unrelated tenant during shedding.
     - _Requirements: 19.7, 19.8, 21.4_
-  - [ ] 17.5 Prove limits never cause a duplicate economic effect
+  - [x] 17.5 Prove limits never cause a duplicate economic effect
     - Assert that a refused retry leaves the idempotency record and the outbox in a state that resolves to exactly one outcome.
     - Assert that shedding, quota refusal and deadline cancellation never release a reservation whose activity is unresolved.
     - Drive a combined storm of retries, shedding and restarts and assert exactly one receipt per intent.

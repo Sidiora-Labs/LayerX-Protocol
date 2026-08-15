@@ -18,5 +18,9 @@ sha2 = "=0.10.9"
 ed25519-dalek = "=2.2.0"
 k256 = { version = "=0.13.4", default-features = false, features = ["ecdsa", "std"] }
 
+[[test]]
+name = "limits-exactly-once"
+path = "../../tests/limits/exactly_once.rs"
+
 [lints]
 workspace = true

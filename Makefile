@@ -1938,6 +1938,9 @@ agent-test-agentd-deadlines:
 agent-test-agentd-quota:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test quota
 
+agent-test-limits-exactly-once:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test limits-exactly-once
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
