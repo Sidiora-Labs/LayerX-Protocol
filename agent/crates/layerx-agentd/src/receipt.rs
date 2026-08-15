@@ -140,6 +140,30 @@ pub fn serve(
     })
 }
 
+pub(crate) fn raise_verification_level(
+    durable: &mut Store,
+    tenant: TenantId,
+    idempotency_key: [u8; 32],
+    expected_receipt_bytes: &[u8],
+    achieved: VerificationLevel,
+) -> Result<ReceiptMetadata, ReceiptStoreError> {
+    let served = serve(
+        durable,
+        tenant.clone(),
+        ReceiptLookupKey::Idempotency(idempotency_key),
+    )?;
+    if served.canonical_bytes != expected_receipt_bytes {
+        return Err(ReceiptStoreError::Corrupt);
+    }
+    let mut metadata = served.metadata;
+    if achieved > metadata.verification_level {
+        metadata.verification_level = achieved;
+        let digest: [u8; 32] = Sha256::digest(expected_receipt_bytes).into();
+        durable.put_local(metadata_key(tenant, digest)?, encode_metadata(metadata))?;
+    }
+    Ok(metadata)
+}
+
 fn lookup_key(tenant: TenantId, lookup: ReceiptLookupKey) -> Result<TenantKey, StoreError> {
     let mut object_id = match lookup {
         ReceiptLookupKey::Activity(_) => b"receipt:activity:".to_vec(),

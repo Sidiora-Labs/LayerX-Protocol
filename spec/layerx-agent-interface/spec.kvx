@@ -1563,7 +1563,7 @@ reqs = ["13.5","13.10","1.7"]
 
 [task.14.5]
 title = "Augment records with checkpoint proofs as finality advances"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["14.4","5.4"]
 do_1 = "Follow checkpoint progress and augment stored submission records with the activity inclusion proof, the state inclusion proof, the checkpoint identifier, the guarantor certificate and the settlement reference."

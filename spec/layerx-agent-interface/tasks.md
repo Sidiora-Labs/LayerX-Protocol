@@ -640,7 +640,7 @@ entirely on the spine being real.
     - Surface the result code unmodified to the caller with no local reinterpretation or substituted explanation.
     - Add tests asserting byte equality between stored and served receipts and asserting no retry occurs for each terminal code class.
     - _Requirements: 13.5, 13.10, 1.7_
-  - [ ] 14.5 Augment records with checkpoint proofs as finality advances
+  - [x] 14.5 Augment records with checkpoint proofs as finality advances
     - Follow checkpoint progress and augment stored submission records with the activity inclusion proof, the state inclusion proof, the checkpoint identifier, the guarantor certificate and the settlement reference.
     - Verify each augmentation before recording it and never alter a pre-checkpoint receipt field.
     - Raise the recorded verification level only to the level the verified evidence supports.

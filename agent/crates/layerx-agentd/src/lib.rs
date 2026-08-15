@@ -3,6 +3,7 @@
 pub mod authority;
 pub mod budget;
 pub mod capability;
+pub mod finality;
 pub mod idempotency;
 pub mod identity;
 pub mod outbox;
