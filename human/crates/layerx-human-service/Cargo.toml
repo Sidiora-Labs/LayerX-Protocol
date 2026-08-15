@@ -1,0 +1,17 @@
+[package]
+name = "layerx-human-service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+layerx-types.workspace = true
+layerx-wire.workspace = true
+layerx-crypto.workspace = true
+layerx-proof.workspace = true
+layerx-client.workspace = true
+layerx-sdk.workspace = true
+
+[lints]
+workspace = true

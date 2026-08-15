@@ -1,0 +1,31 @@
+[workspace]
+members = [
+    "crates/layerx-human-service",
+    "crates/layerx-intents",
+    "crates/layerx-paxeer-client",
+    "crates/layerx-explorer-index",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.91.1"
+version = "0.1.0"
+license = "LicenseRef-Centra-ai-Protocol"
+
+[workspace.dependencies]
+layerx-types = { path = "../agent/crates/layerx-types" }
+layerx-wire = { path = "../agent/crates/layerx-wire" }
+layerx-crypto = { path = "../agent/crates/layerx-crypto" }
+layerx-proof = { path = "../agent/crates/layerx-proof" }
+layerx-client = { path = "../agent/crates/layerx-client" }
+layerx-sdk = { path = "../agent/crates/layerx-sdk" }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"

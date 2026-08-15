@@ -29,7 +29,7 @@ This file is a GENERATED pointer to it. Do not hand-edit it; edit `spec/workflow
 
 ## Active feature
 
-`spec/layerx-agent-interface/spec.kvx` — read its `[meta]` status, `[req.*]` acceptance criteria, and the `[task.*]` list (status + wave + requires). Work one task at a time in wave order; update `status` in the kvx as you go.
+`spec/layerx-human-interface/spec.kvx` — read its `[meta]` status, `[req.*]` acceptance criteria, and the `[task.*]` list (status + wave + requires). Work one task at a time in wave order; update `status` in the kvx as you go.
 
 ## Hard rules
 

@@ -13,6 +13,10 @@ FUZZ_QUAL_ITERATIONS ?= 100000
 AGENT_CARGO ?= cargo
 AGENT_MANIFEST := agent/Cargo.toml
 AGENT_FUZZ_TOOLCHAIN ?= nightly-2025-11-10
+HUMAN_CARGO ?= cargo
+HUMAN_MANIFEST := human/Cargo.toml
+HUMAN_WEB_DIR := human/apps/web
+HUMAN_NPM ?= npm --prefix $(HUMAN_WEB_DIR)
 
 CPPFLAGS := -Iinclude \
 	-DLXP_BUILD_TARGET_TRIPLE=\"$(shell $(CC) -dumpmachine)\" \
@@ -1597,6 +1601,30 @@ public-audit:
 
 agent-build:
 	$(AGENT_CARGO) build --manifest-path $(AGENT_MANIFEST) --locked --workspace
+
+human-build:
+	$(HUMAN_CARGO) build --manifest-path $(HUMAN_MANIFEST) --locked --workspace
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run build
+
+human-test:
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked --workspace
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) test
+
+human-lint:
+	$(HUMAN_CARGO) clippy --manifest-path $(HUMAN_MANIFEST) --locked --workspace --all-targets -- -D warnings
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run lint
+
+human-check:
+	$(HUMAN_CARGO) check --manifest-path $(HUMAN_MANIFEST) --locked --workspace
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run typecheck
+
+human-e2e:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run e2e
 
 agent-test:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked --workspace
