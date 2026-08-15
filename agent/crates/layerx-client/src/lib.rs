@@ -3,6 +3,7 @@
 pub mod client;
 pub mod head;
 pub mod lni;
+pub mod read;
 pub mod receipt;
 pub mod submit;
 

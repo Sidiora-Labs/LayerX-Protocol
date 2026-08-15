@@ -962,7 +962,7 @@ reqs = ["7.4","7.5","13.4","13.5"]
 
 [task.7.4]
 title = "Implement verified reads at a requested level"
-status = "pending"
+status = "done"
 wave = 6
 requires = ["7.1","5.6"]
 do_1 = "Implement balance, account, module state and history reads that take a requested verification level and fetch the proof material that level requires."

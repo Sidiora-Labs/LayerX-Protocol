@@ -4,14 +4,20 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
+use layerx_proof::inclusion::SequencerAuthorization;
 use layerx_proof::receipt::AuthorizedBatch;
 use layerx_types::payload::ModuleRegistry;
+use layerx_types::verify::VerificationLevel;
 
 use crate::head::{Head, HeadError, HeadTracker};
 use crate::lni::handshake::{perform, Handshake, HandshakeConfig, HandshakeError};
 use crate::lni::report::capability_report;
 use crate::lni::schema::Capability;
 use crate::lni::transport::{ConnectionGate, Limits, TransportError, Uds};
+use crate::read::{
+    account, balance, history, module_state, Balance, HistoryCursor, HistoryPage, ReadContext,
+    ReadError, ReadValue, Requested,
+};
 use crate::receipt::{
     lookup, resolve_unknown, Lookup, LookupContext, ReceiptError, ReceiptSelector, Resolution,
 };
@@ -304,6 +310,114 @@ impl Client {
             },
             policy,
         )
+    }
+
+    /// Retrieves a proof-gated balance through the sole boundary.
+    ///
+    /// # Errors
+    ///
+    /// Refuses capability/disconnection gaps and all read verification errors.
+    pub fn balance(
+        &mut self,
+        account_id: [u8; 32],
+        asset_id: [u8; 32],
+        requested: VerificationLevel,
+        correlation_id: u64,
+        authorization: SequencerAuthorization,
+    ) -> Result<Balance, ReadError> {
+        self.require_read_capability(Capability::AccountRead)?;
+        let context = self.read_context(requested, correlation_id, authorization);
+        let transport = self.transport.as_mut().ok_or(ReadError::Disconnected)?;
+        balance(transport, account_id, asset_id, context)
+    }
+
+    /// Retrieves exact proof-gated account bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns the complete balance-read refusal set.
+    pub fn account(
+        &mut self,
+        account_id: [u8; 32],
+        requested: VerificationLevel,
+        correlation_id: u64,
+        authorization: SequencerAuthorization,
+    ) -> Result<ReadValue, ReadError> {
+        self.require_read_capability(Capability::AccountRead)?;
+        let context = self.read_context(requested, correlation_id, authorization);
+        let transport = self.transport.as_mut().ok_or(ReadError::Disconnected)?;
+        account(transport, account_id, context)
+    }
+
+    /// Retrieves exact proof-gated module state bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns the complete point-read refusal set.
+    pub fn module_state(
+        &mut self,
+        module_id: u16,
+        key: &[u8],
+        requested: VerificationLevel,
+        correlation_id: u64,
+        authorization: SequencerAuthorization,
+    ) -> Result<ReadValue, ReadError> {
+        self.require_read_capability(Capability::AccountRead)?;
+        let context = self.read_context(requested, correlation_id, authorization);
+        let transport = self.transport.as_mut().ok_or(ReadError::Disconnected)?;
+        module_state(transport, module_id, key, context)
+    }
+
+    /// Retrieves one gap-free, cursor-bound history page.
+    ///
+    /// # Errors
+    ///
+    /// Returns capability, disconnection, proof and sequence failures.
+    #[allow(clippy::too_many_arguments)]
+    pub fn history(
+        &mut self,
+        start_sequence: u64,
+        end_sequence: u64,
+        page_bound: u16,
+        cursor: Option<HistoryCursor>,
+        requested: VerificationLevel,
+        correlation_id: u64,
+        authorization: SequencerAuthorization,
+    ) -> Result<HistoryPage, ReadError> {
+        self.require_read_capability(Capability::HistoryRange)?;
+        let context = self.read_context(requested, correlation_id, authorization);
+        let transport = self.transport.as_mut().ok_or(ReadError::Disconnected)?;
+        history(
+            transport,
+            start_sequence,
+            end_sequence,
+            page_bound,
+            cursor,
+            context,
+        )
+    }
+
+    fn require_read_capability(&self, capability: Capability) -> Result<(), ReadError> {
+        if self.handshake.capabilities().contains(capability) {
+            Ok(())
+        } else {
+            Err(ReadError::UnavailableCapability)
+        }
+    }
+
+    fn read_context(
+        &self,
+        requested: VerificationLevel,
+        correlation_id: u64,
+        authorization: SequencerAuthorization,
+    ) -> ReadContext {
+        ReadContext {
+            interface_version: self.handshake.node().interface_version,
+            correlation_id,
+            requested: Requested::new(requested),
+            head: self.head.current(),
+            sequencer_authorization: authorization,
+        }
     }
 }
 

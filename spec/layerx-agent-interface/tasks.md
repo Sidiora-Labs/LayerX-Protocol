@@ -354,7 +354,7 @@ entirely on the spine being real.
     - Resend byte-identical bytes under the original idempotency key when a resend is warranted, and treat the return of an existing receipt as the correct outcome.
     - Add tests covering a receipt that appears late, a receipt that never appears within the deadline, and a node that returns a receipt for a different activity.
     - _Requirements: 7.4, 7.5, 13.4, 13.5_
-  - [ ] 7.4 Implement verified reads at a requested level
+  - [x] 7.4 Implement verified reads at a requested level
     - Implement balance, account, module state and history reads that take a requested verification level and fetch the proof material that level requires.
     - Verify the proof material locally before returning and attach the level actually achieved together with the head and checkpoint the value is relative to.
     - Refuse rather than downgrade when the requested level cannot be achieved, returning a typed error naming the missing evidence.
