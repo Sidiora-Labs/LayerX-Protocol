@@ -382,7 +382,7 @@ reqs = ["1.10","23.8"]
 
 [task.1.3]
 title = "Create the copy catalog and the copy lint"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["1.1"]
 do_1 = "Create the versioned copy catalog as the single home of every user-facing string, with ICU plural and selection support and per-key context notes for future localization."

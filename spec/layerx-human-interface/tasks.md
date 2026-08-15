@@ -68,7 +68,7 @@ money or claims something about money, and both depend on the spine being real.
     - Enable the strict lint sets for both ecosystems - clippy with deny on unwrap and expect outside tests for the crates, strict TypeScript with no implicit any and exhaustive switches for the app - and fail the build on warnings.
     - Wire all of it into make human-lint and CI so the policy is enforced on every change.
     - _Requirements: 1.10, 23.8_
-  - [ ] 1.3 Create the copy catalog and the copy lint
+  - [x] 1.3 Create the copy catalog and the copy lint
     - Create the versioned copy catalog as the single home of every user-facing string, with ICU plural and selection support and per-key context notes for future localization.
     - Encode the banned-vocabulary list - DID, session key, capability, nullifier, checkpoint, payload, canonical, idempotency, attestation, proof - and enforce it with a lint that fails the build when a banned term appears in copy outside Technical details surfaces.
     - Encode the format rules as lint checks: the single date format, the single amount format with explicit sign and currency code, sentence case, and no exclamation marks in money-adjacent copy.

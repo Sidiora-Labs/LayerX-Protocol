@@ -2,15 +2,16 @@
   "name": "@layerx/human-web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "engines": {
     "node": ">=24.0.0"
   },
   "scripts": {
     "build": "next build",
-    "test": "node --test e2e/scaffold.test.mjs",
-    "lint": "tsc --noEmit && eslint --max-warnings=0 \"src/**/*.{ts,tsx}\" && node policy/check.mjs && npm audit --audit-level=high",
+    "test": "node --test e2e/scaffold.test.mjs e2e/copy.test.ts",
+    "lint": "tsc --noEmit && eslint --max-warnings=0 \"src/**/*.{ts,tsx}\" \"copy/**/*.ts\" && node policy/check.mjs && npm audit --audit-level=high",
     "typecheck": "tsc --noEmit",
-    "e2e": "node --test e2e/scaffold.test.mjs"
+    "e2e": "node --test e2e/scaffold.test.mjs e2e/copy.test.ts"
   },
   "dependencies": {
     "next": "16.3.1",

@@ -1612,7 +1612,7 @@ human-test:
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) test
 
-human-lint:
+human-lint: human-lint-copy
 	$(HUMAN_CARGO) clippy --manifest-path $(HUMAN_MANIFEST) --locked --workspace --all-targets -- -D warnings
 	$(HUMAN_CARGO) test --manifest-path human/tools/boundary-check/Cargo.toml --locked
 	$(HUMAN_CARGO) run --manifest-path human/tools/boundary-check/Cargo.toml --locked -- human/crates
@@ -1620,6 +1620,13 @@ human-lint:
 	cargo deny --manifest-path $(HUMAN_MANIFEST) check advisories bans sources
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) run lint
+
+human-lint-copy:
+	$(HUMAN_CARGO) clippy --manifest-path human/tools/copy-lint/Cargo.toml --locked --all-targets -- -D warnings
+	$(HUMAN_CARGO) test --manifest-path human/tools/copy-lint/Cargo.toml --locked
+	$(HUMAN_CARGO) run --manifest-path human/tools/copy-lint/Cargo.toml --locked -- human/apps/web
+	$(HUMAN_NPM) run typecheck
+	$(HUMAN_NPM) test
 
 human-check:
 	$(HUMAN_CARGO) check --manifest-path $(HUMAN_MANIFEST) --locked --workspace

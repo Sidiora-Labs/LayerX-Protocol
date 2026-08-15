@@ -1,6 +1,8 @@
+import { copyEntry } from "../../copy/catalog.ts";
+
 export function human_web_app_scaffold() {
   return Object.freeze({
-    application: "LayerX Human Interface",
+    application: copyEntry("application.name").message,
     planes: ["/app", "/explorer"] as const,
   });
 }
