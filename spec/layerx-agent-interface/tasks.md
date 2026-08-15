@@ -557,7 +557,7 @@ entirely on the spine being real.
     - Make the explanation stable and machine-readable so it can be asserted in tests and diffed across policy versions.
     - Add tests asserting dry-run and live evaluation return identical decisions for identical inputs.
     - _Requirements: 11.4, 11.3, 11.9_
-  - [ ] 12.4 Implement approval holds and deterministic expiry
+  - [x] 12.4 Implement approval holds and deterministic expiry
     - Implement the awaiting-approval state holding the request with its disclosure until an approver decides.
     - Expire an unapproved request deterministically at its declared window and never auto-approve on expiry.
     - Present the disclosure to the approver rather than the caller request, so approval covers what would actually be signed.

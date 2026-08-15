@@ -1,5 +1,6 @@
 //! Deterministic local policy restrictions for daemon write requests.
 
+pub mod approval;
 #[path = "dry_run.rs"]
 mod dry_run_evaluation;
 mod eval;

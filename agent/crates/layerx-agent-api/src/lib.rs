@@ -35,8 +35,8 @@ pub mod budget {
 /// Preparation contract namespace.
 pub mod prepare {
     pub use crate::write_contract::{
-        CanonicalBytes, Disclosure, IdempotencyRef, PayloadBytes, PrepareRequest, Prepared,
-        PreparationRef, SigningPreimage, TimestampBound,
+        CanonicalBytes, DisclosedAmount, Disclosure, IdempotencyRef, PayloadBytes, PrepareRequest,
+        Prepared, PreparationRef, SigningPreimage, TimestampBound,
     };
 }
 

@@ -1389,7 +1389,7 @@ reqs = ["11.4","11.3","11.9"]
 
 [task.12.4]
 title = "Implement approval holds and deterministic expiry"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["12.2"]
 do_1 = "Implement the awaiting-approval state holding the request with its disclosure until an approver decides."
