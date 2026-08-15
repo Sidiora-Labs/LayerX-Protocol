@@ -2,6 +2,7 @@
 
 #[path = "deliver.rs"]
 mod delivery;
+pub mod gap;
 #[path = "ingest.rs"]
 mod ingestion;
 pub mod subscription;

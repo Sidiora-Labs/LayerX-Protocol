@@ -11,7 +11,7 @@ use layerx_agent_api::Sequence;
 use sha2::{Digest, Sha256};
 
 use super::ingestion::{durable_event, durable_sequences, IngestError};
-use super::subscription::{Cursor, Store as SubscriptionStore, SubscriptionError};
+use super::subscription::{Continuity, Cursor, Store as SubscriptionStore, SubscriptionError};
 use crate::store::TenantId;
 
 /// Public consumer contract for the at-least-once delivery interface.
@@ -106,6 +106,7 @@ pub enum DeliveryError {
     InvalidTenant,
     InvalidEvent,
     SequenceExhausted,
+    ContinuityBlocked,
     Backpressure { capacity: usize, lag_sequences: u64 },
     NoPendingDelivery,
     RetryExhausted { attempts: u32 },
@@ -121,6 +122,7 @@ impl Display for DeliveryError {
             Self::InvalidTenant => formatter.write_str("subscription tenant is invalid"),
             Self::InvalidEvent => formatter.write_str("durable event cannot form a delivery"),
             Self::SequenceExhausted => formatter.write_str("delivery cursor is exhausted"),
+            Self::ContinuityBlocked => formatter.write_str("subscription continuity is blocked"),
             Self::Backpressure {
                 capacity,
                 lag_sequences,
@@ -416,6 +418,9 @@ impl DeliveryEngine {
     }
 
     fn eligible_sequences(&self) -> Result<Vec<u64>, DeliveryError> {
+        if self.subscriptions.continuity(&self.target)? != Continuity::Healthy {
+            return Err(DeliveryError::ContinuityBlocked);
+        }
         // The tenant is fixed by the structurally scoped durable store and the
         // exact subscription target was resolved before its narrowing filter.
         let filter = &self.subscriptions.get(&self.target)?.filter;

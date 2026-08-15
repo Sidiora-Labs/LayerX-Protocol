@@ -721,7 +721,7 @@ entirely on the spine being real.
     - Apply bounded buffering with explicit backpressure and never drop an event silently to keep up.
     - Add tests covering the seam under load, a consumer that stalls at the seam and a subscription started before genesis of its filter subject.
     - _Requirements: 16.3, 16.5, 16.7_
-  - [ ] 16.4 Detect and surface gaps instead of closing them silently
+  - [x] 16.4 Detect and surface gaps instead of closing them silently
     - Detect a global sequence gap and emit an explicit gap event naming the missing range.
     - Attempt backfill from the core for the missing range and report the outcome of that attempt to the consumer.
     - Refuse to continue delivering past a gap as though the stream were contiguous, and mark the subscription state accordingly.

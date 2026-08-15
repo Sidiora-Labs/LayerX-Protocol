@@ -25,6 +25,24 @@ const RECORD_MAGIC: &[u8; 4] = b"LXSB";
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Cursor(pub u64);
 
+/// Durable continuity state that prevents delivery from crossing an
+/// unresolved gap or an expired retention window.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Continuity {
+    Healthy,
+    GapBlocked {
+        missing_first: u64,
+        missing_last: u64,
+        backfill_attempted: bool,
+        recovered_through: Option<u64>,
+    },
+    Truncated {
+        requested_from: u64,
+        oldest_available: u64,
+        lost_through: u64,
+    },
+}
+
 impl From<ApiCursor> for Cursor {
     fn from(value: ApiCursor) -> Self {
         Self(value.0 .0)
@@ -42,6 +60,7 @@ struct DurableRecord {
     public: SubscriptionRecord,
     delivered_unacknowledged: BTreeSet<Cursor>,
     current_delivery: Cursor,
+    continuity: Continuity,
 }
 
 /// Durable subscription store failures.
@@ -158,6 +177,7 @@ impl Store {
             },
             delivered_unacknowledged: BTreeSet::new(),
             current_delivery: Cursor::from(request.start),
+            continuity: Continuity::Healthy,
         };
         self.persist(&record)?;
         self.records.insert(id, record.clone());
@@ -283,6 +303,91 @@ impl Store {
         Ok(Cursor::from(self.target(target)?.public.last_acknowledged))
     }
 
+    /// Returns the durable continuity state for the exact subscription scope.
+    pub fn continuity(&self, target: &SubscriptionTarget) -> Result<Continuity, SubscriptionError> {
+        Ok(self.target(target)?.continuity)
+    }
+
+    /// Blocks delivery at an explicit missing global-sequence range.
+    pub fn block_gap(
+        &mut self,
+        target: &SubscriptionTarget,
+        missing_first: u64,
+        missing_last: u64,
+    ) -> Result<(), SubscriptionError> {
+        let id = target.subscription_id.as_str().to_owned();
+        let mut updated = self.target(target)?.clone();
+        updated.continuity = Continuity::GapBlocked {
+            missing_first,
+            missing_last,
+            backfill_attempted: false,
+            recovered_through: None,
+        };
+        self.persist(&updated)?;
+        self.records.insert(id, updated);
+        Ok(())
+    }
+
+    /// Records exact backfill progress while leaving the gap blocked.
+    pub fn record_backfill(
+        &mut self,
+        target: &SubscriptionTarget,
+        recovered_through: Option<u64>,
+    ) -> Result<(), SubscriptionError> {
+        let id = target.subscription_id.as_str().to_owned();
+        let mut updated = self.target(target)?.clone();
+        let Continuity::GapBlocked {
+            missing_first,
+            missing_last,
+            ..
+        } = updated.continuity
+        else {
+            return Err(SubscriptionError::Corrupt);
+        };
+        updated.continuity = Continuity::GapBlocked {
+            missing_first,
+            missing_last,
+            backfill_attempted: true,
+            recovered_through,
+        };
+        self.persist(&updated)?;
+        self.records.insert(id, updated);
+        Ok(())
+    }
+
+    /// Clears a gap only after complete contiguous backfill was verified.
+    pub fn clear_gap(&mut self, target: &SubscriptionTarget) -> Result<(), SubscriptionError> {
+        let id = target.subscription_id.as_str().to_owned();
+        let mut updated = self.target(target)?.clone();
+        if !matches!(updated.continuity, Continuity::GapBlocked { .. }) {
+            return Err(SubscriptionError::Corrupt);
+        }
+        updated.continuity = Continuity::Healthy;
+        self.persist(&updated)?;
+        self.records.insert(id, updated);
+        Ok(())
+    }
+
+    /// Marks retention loss durably; truncated state is terminal.
+    pub fn mark_truncated(
+        &mut self,
+        target: &SubscriptionTarget,
+        requested_from: u64,
+        oldest_available: u64,
+        lost_through: u64,
+    ) -> Result<(), SubscriptionError> {
+        let id = target.subscription_id.as_str().to_owned();
+        let mut updated = self.target(target)?.clone();
+        updated.continuity = Continuity::Truncated {
+            requested_from,
+            oldest_available,
+            lost_through,
+        };
+        self.persist(&updated)?;
+        self.records.insert(id, updated);
+        Ok(())
+    }
+
     /// Consumes the subscription collection and returns the underlying store.
     #[must_use]
     pub fn into_durable(self) -> DurableStore {
@@ -392,6 +497,7 @@ fn encode_record(record: &DurableRecord) -> Result<Vec<u8>, SubscriptionError> {
         bytes.extend_from_slice(&cursor.0.to_be_bytes());
     }
     bytes.push(u8::from(record.public.paused));
+    encode_continuity(&mut bytes, record.continuity);
     encode_filter(&mut bytes, &record.public.filter)?;
     Ok(bytes)
 }
@@ -462,6 +568,7 @@ fn decode_record(bytes: &[u8]) -> Result<DurableRecord, SubscriptionError> {
     if paused > 1 {
         return Err(SubscriptionError::Corrupt);
     }
+    let continuity = decode_continuity(&mut decoder)?;
     let scope = SubscriptionScope {
         tenant,
         agent,
@@ -492,7 +599,81 @@ fn decode_record(bytes: &[u8]) -> Result<DurableRecord, SubscriptionError> {
         },
         delivered_unacknowledged,
         current_delivery: Cursor::from(last_acknowledged),
+        continuity,
     })
+}
+
+fn encode_continuity(bytes: &mut Vec<u8>, continuity: Continuity) {
+    match continuity {
+        Continuity::Healthy => bytes.push(0),
+        Continuity::GapBlocked {
+            missing_first,
+            missing_last,
+            backfill_attempted,
+            recovered_through,
+        } => {
+            bytes.push(1);
+            bytes.extend_from_slice(&missing_first.to_be_bytes());
+            bytes.extend_from_slice(&missing_last.to_be_bytes());
+            bytes.push(u8::from(backfill_attempted));
+            bytes.push(u8::from(recovered_through.is_some()));
+            bytes.extend_from_slice(&recovered_through.unwrap_or(0).to_be_bytes());
+        }
+        Continuity::Truncated {
+            requested_from,
+            oldest_available,
+            lost_through,
+        } => {
+            bytes.push(2);
+            bytes.extend_from_slice(&requested_from.to_be_bytes());
+            bytes.extend_from_slice(&oldest_available.to_be_bytes());
+            bytes.extend_from_slice(&lost_through.to_be_bytes());
+        }
+    }
+}
+
+fn decode_continuity(decoder: &mut Decoder<'_>) -> Result<Continuity, SubscriptionError> {
+    match decoder.byte()? {
+        0 => Ok(Continuity::Healthy),
+        1 => {
+            let missing_first = decoder.u64()?;
+            let missing_last = decoder.u64()?;
+            let attempted = decoder.byte()?;
+            let recovered_present = decoder.byte()?;
+            let recovered = decoder.u64()?;
+            if missing_last < missing_first || attempted > 1 || recovered_present > 1 {
+                return Err(SubscriptionError::Corrupt);
+            }
+            let recovered_through = (recovered_present == 1).then_some(recovered);
+            if recovered_through.is_some_and(|value| value < missing_first || value > missing_last)
+                || (attempted == 0 && recovered_through.is_some())
+            {
+                return Err(SubscriptionError::Corrupt);
+            }
+            Ok(Continuity::GapBlocked {
+                missing_first,
+                missing_last,
+                backfill_attempted: attempted == 1,
+                recovered_through,
+            })
+        }
+        2 => {
+            let requested_from = decoder.u64()?;
+            let oldest_available = decoder.u64()?;
+            let lost_through = decoder.u64()?;
+            if oldest_available <= requested_from
+                || lost_through.saturating_add(1) != oldest_available
+            {
+                return Err(SubscriptionError::Corrupt);
+            }
+            Ok(Continuity::Truncated {
+                requested_from,
+                oldest_available,
+                lost_through,
+            })
+        }
+        _ => Err(SubscriptionError::Corrupt),
+    }
 }
 
 fn decode_filter(decoder: &mut Decoder<'_>) -> Result<SubscriptionFilter, SubscriptionError> {
