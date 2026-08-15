@@ -1216,7 +1216,7 @@ reqs = ["9.3","9.8","11.9"]
 
 [task.10.3]
 title = "Implement attenuation, derivation chains and revocation subtrees"
-status = "in_progress"
+status = "done"
 wave = 8
 requires = ["10.2"]
 do_1 = "Implement attenuation as the intersection of every dimension and forbid a derived capability from exceeding its parent in any dimension."

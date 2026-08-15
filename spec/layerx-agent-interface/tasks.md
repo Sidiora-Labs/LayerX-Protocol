@@ -476,7 +476,7 @@ entirely on the spine being real.
     - Re-check narrowing when the underlying authority changes and disable a capability that would now be wider than its parent.
     - Add tests covering a capability created wider than its authority, and an authority narrowed after the capability was created.
     - _Requirements: 9.3, 9.8, 11.9_
-  - [-] 10.3 Implement attenuation, derivation chains and revocation subtrees
+  - [x] 10.3 Implement attenuation, derivation chains and revocation subtrees
     - Implement attenuation as the intersection of every dimension and forbid a derived capability from exceeding its parent in any dimension.
     - Record the derivation chain so any exercised capability is traceable to its root authority.
     - Implement revocation of a capability, its parent or the underlying authority as refusal of the entire subtree, applied to prepared but unsubmitted activities.

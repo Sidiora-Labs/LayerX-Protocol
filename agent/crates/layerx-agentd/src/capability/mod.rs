@@ -5,12 +5,13 @@ use std::collections::BTreeSet;
 use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
 
 mod narrowing;
-mod attenuate;
+#[path = "attenuate.rs"]
+mod attenuation;
 
 pub use narrowing::{
     Binding, Enforcement, NarrowingError, NarrowingReport, ProtocolScope,
 };
-pub use attenuate::{
+pub use attenuation::{
     AttenuationError, CapabilityGraph, RevocableActivity, RevocationResult,
 };
 use crate::identity::ProtocolAuthority;
@@ -197,7 +198,7 @@ pub fn attenuate(
     parent: CapabilityId,
     child: Capability,
 ) -> Result<(), AttenuationError> {
-    attenuate::derive(graph, parent, child)
+    attenuation::derive(graph, parent, child)
 }
 
 /// Revokes one capability and every descendant, cancelling only unsubmitted work.
@@ -206,7 +207,7 @@ pub fn revoke_subtree(
     root: CapabilityId,
     activities: &mut [RevocableActivity],
 ) -> Result<RevocationResult, AttenuationError> {
-    attenuate::revoke(graph, root, activities)
+    attenuation::revoke(graph, root, activities)
 }
 
 pub(crate) fn encode(capability: &Capability) -> Result<Vec<u8>, CapabilityError> {
