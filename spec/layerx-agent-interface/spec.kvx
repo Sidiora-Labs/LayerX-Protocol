@@ -1374,7 +1374,7 @@ reqs = ["11.5","11.3","23.7"]
 
 [task.12.3]
 title = "Implement dry-run and decision explanation"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["12.1"]
 do_1 = "Implement dry-run evaluation returning the decision and its explanation without preparing, signing or submitting anything."

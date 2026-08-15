@@ -1,9 +1,12 @@
 //! Deterministic local policy restrictions for daemon write requests.
 
+#[path = "dry_run.rs"]
+mod dry_run_evaluation;
 mod eval;
 #[path = "version.rs"]
 mod versioning;
 
+pub use dry_run_evaluation::{DryRunResult, EvaluationMode};
 pub use eval::{
     EvaluationFailure, EvaluationInput, PolicyRequest, PolicySet, Rule, RuleConstraints,
     RuleEffect, RuleMatcher, SequenceWindow,
@@ -39,6 +42,27 @@ pub struct Decision {
     pub matched_rules: Vec<String>,
     pub deciding_rule: Option<String>,
     pub reason: DecisionReason,
+}
+
+/// Stable, machine-readable explanation of one policy decision.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Explanation {
+    pub schema_version: u16,
+    pub mode: EvaluationMode,
+    pub outcome: Outcome,
+    pub policy_version: String,
+    pub matched_rules: Vec<String>,
+    pub deciding_rule: Option<String>,
+    pub reason: DecisionReason,
+    pub authority_statement: &'static str,
+}
+
+impl Explanation {
+    /// Encodes a deterministic length-delimited record suitable for audit diffs.
+    #[must_use]
+    pub fn machine_bytes(&self) -> Vec<u8> {
+        dry_run_evaluation::encode_explanation(self)
+    }
 }
 
 impl Decision {
@@ -80,4 +104,20 @@ pub fn activate(
     policy: PolicySet,
 ) -> Result<Activation, PolicyValidationError> {
     versioning::activate_policy(registry, policy)
+}
+
+/// Evaluates without creating a preparation, signature or submission.
+pub fn dry_run(
+    registry: &mut PolicyRegistry,
+    request_id: [u8; 32],
+    policy: &PolicySet,
+    input: &EvaluationInput<'_>,
+) -> DryRunResult {
+    dry_run_evaluation::evaluate_dry_run(registry, request_id, policy, input)
+}
+
+/// Builds the same stable explanation for a live decision.
+#[must_use]
+pub fn explain(decision: &Decision, mode: EvaluationMode) -> Explanation {
+    dry_run_evaluation::explain_decision(decision, mode)
 }

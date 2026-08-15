@@ -550,7 +550,7 @@ entirely on the spine being real.
     - Fuzz the policy loader so a malformed policy source cannot panic or hang the daemon.
     - Add tests covering activation during in-flight requests and a rejected invalid set.
     - _Requirements: 11.5, 11.3, 23.7_
-  - [ ] 12.3 Implement dry-run and decision explanation
+  - [x] 12.3 Implement dry-run and decision explanation
     - Implement dry-run evaluation returning the decision and its explanation without preparing, signing or submitting anything.
     - Return the matched rules, the deciding rule and the reason, and guarantee dry-run has no side effect beyond its audit entry.
     - State in every allow decision that policy is a local restriction and never protocol authorisation.

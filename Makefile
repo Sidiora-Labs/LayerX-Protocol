@@ -1849,6 +1849,9 @@ agent-test-agentd-policy-version:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test policy_version
 	$(AGENT_CARGO) check --manifest-path agent/fuzz/Cargo.toml --locked --bin policy_loader
 
+agent-test-agentd-policy-dryrun:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test policy_dryrun
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
