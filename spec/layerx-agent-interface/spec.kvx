@@ -867,7 +867,7 @@ reqs = ["2.4","2.5","2.6","2.10"]
 
 [task.6.4]
 title = "Constrain the optional stable C ABI transport"
-status = "pending"
+status = "done"
 wave = 5
 requires = ["6.3"]
 do_1 = "Define the optional C ABI transport as an opaque-handle interface exchanging only canonical byte buffers and carrying its own ABI version, with the identical message set as the socket transport."

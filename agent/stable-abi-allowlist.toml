@@ -1,2 +1,4 @@
 version = 1
-paths = []
+paths = [
+  "crates/layerx-client/src/lni/abi.rs",
+]

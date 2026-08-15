@@ -69,9 +69,11 @@ fn source_rule(body: &str, allow_c_layout: bool) -> Option<&'static str> {
     if body.contains("include!(") && body.contains("include/layerx")
         || body.contains("include_bytes!(") && body.contains("include/layerx")
         || body.contains("bindgen::")
-        || body.contains("extern \"C\"")
         || body.contains("#[link(name = \"layerx")
     {
+        return Some("private-c-boundary");
+    }
+    if !allow_c_layout && body.contains("extern \"C\"") {
         return Some("private-c-boundary");
     }
     if !allow_c_layout && (body.contains("#[repr(C)]") || body.contains("#[repr(C,")) {
@@ -89,8 +91,8 @@ fn source_rule(body: &str, allow_c_layout: bool) -> Option<&'static str> {
     None
 }
 
-fn allowlisted_paths(agent_root: &Path) -> Result<Vec<PathBuf>, String> {
-    let path = agent_root.join("stable-abi-allowlist.toml");
+fn allowlisted_paths(agent_root: &Path, name: &str) -> Result<Vec<PathBuf>, String> {
+    let path = agent_root.join(name);
     let body = fs::read_to_string(&path)
         .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
     let mut paths = Vec::new();
@@ -98,6 +100,11 @@ fn allowlisted_paths(agent_root: &Path) -> Result<Vec<PathBuf>, String> {
         let line = line.trim();
         if line.starts_with('"') && line.ends_with("\",") {
             paths.push(agent_root.join(line.trim_matches(&['"', ','][..])));
+        } else if let Some(value) = line
+            .strip_prefix("path = \"")
+            .and_then(|value| value.strip_suffix('"'))
+        {
+            paths.push(agent_root.join(value));
         }
     }
     Ok(paths)
@@ -105,14 +112,17 @@ fn allowlisted_paths(agent_root: &Path) -> Result<Vec<PathBuf>, String> {
 
 fn agent_boundary_purity_check(agent_root: &Path) -> Result<(), Vec<Violation>> {
     let crate_root = agent_root.join("crates");
-    let allowlist = match allowlisted_paths(agent_root) {
-        Ok(paths) => paths,
-        Err(_) => {
-            return Err(vec![Violation {
-                path: agent_root.join("stable-abi-allowlist.toml"),
-                rule: "missing-stable-abi-allowlist",
-            }]);
-        }
+    let Ok(allowlist) = allowlisted_paths(agent_root, "stable-abi-allowlist.toml") else {
+        return Err(vec![Violation {
+            path: agent_root.join("stable-abi-allowlist.toml"),
+            rule: "missing-stable-abi-allowlist",
+        }]);
+    };
+    let Ok(unsafe_allowlist) = allowlisted_paths(agent_root, "unsafe-allowlist.toml") else {
+        return Err(vec![Violation {
+            path: agent_root.join("unsafe-allowlist.toml"),
+            rule: "missing-unsafe-allowlist",
+        }]);
     };
     let mut files = Vec::new();
     if visit_files(&crate_root, &mut files).is_err() {
@@ -137,8 +147,23 @@ fn agent_boundary_purity_check(agent_root: &Path) -> Result<(), Vec<Violation>> 
                     rule: "forbidden-dependency",
                 });
             }
-        } else if let Some(rule) = source_rule(&body, allowlist.contains(&path)) {
-            violations.push(Violation { path, rule });
+        } else {
+            if let Some(rule) = source_rule(&body, allowlist.contains(&path)) {
+                violations.push(Violation {
+                    path: path.clone(),
+                    rule,
+                });
+            }
+            let uses_unsafe = body.contains("unsafe {")
+                || body.contains("unsafe fn")
+                || body.contains("unsafe extern")
+                || body.contains("extern \"C\"");
+            if uses_unsafe && !unsafe_allowlist.contains(&path) {
+                violations.push(Violation {
+                    path,
+                    rule: "unapproved-unsafe",
+                });
+            }
         }
     }
     if violations.is_empty() {

@@ -308,7 +308,7 @@ entirely on the spine being real.
     - Compute the capability intersection, expose every unavailable capability through a capability report, and fail dependent requests as unavailable rather than emulating them.
     - Add tests covering a newer node, an older node, a wrong network, a missing capability and a node that changes its advertised sequencer key across reconnects.
     - _Requirements: 2.4, 2.5, 2.6, 2.10_
-  - [ ] 6.4 Constrain the optional stable C ABI transport
+  - [x] 6.4 Constrain the optional stable C ABI transport
     - Define the optional C ABI transport as an opaque-handle interface exchanging only canonical byte buffers and carrying its own ABI version, with the identical message set as the socket transport.
     - Forbid any shared struct layout across the ABI, and extend the boundary purity checker to fail the build if a repr C type mirrors an include/layerx structure outside the published ABI allowlist.
     - Implement version negotiation across the ABI with the same refusal rules as the socket handshake, so an ABI mismatch is a refusal rather than undefined behaviour.

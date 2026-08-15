@@ -1,2 +1,6 @@
 version = 1
-exceptions = []
+
+[[exceptions]]
+path = "crates/layerx-client/src/lni/abi.rs"
+reason = "The optional stable ABI must call operator-supplied C function pointers and copy their returned byte buffer."
+safety = "The module accepts only an opaque non-null handle, bounds every buffer before slice creation, copies returned bytes before calling the required release function, and exposes no C protocol layout."

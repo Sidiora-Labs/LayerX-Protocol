@@ -1737,6 +1737,11 @@ agent-test-lni-transport:
 agent-test-lni-handshake:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-client --test lni_handshake
 
+agent-test-lni-abi:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-client --test lni_abi
+	$(AGENT_CARGO) test --manifest-path agent/tools/boundary-check/Cargo.toml --locked
+	$(AGENT_CARGO) run --manifest-path agent/tools/boundary-check/Cargo.toml --locked --quiet -- agent
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@

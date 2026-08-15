@@ -19,7 +19,7 @@ version = "0.1.0"
 license = "LicenseRef-Centra-ai-Protocol"
 
 [workspace.lints.rust]
-unsafe_code = "forbid"
+unsafe_code = "deny"
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }

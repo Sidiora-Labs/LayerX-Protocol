@@ -1,5 +1,6 @@
 //! The sole versioned protocol boundary between clients and the `LayerX` core.
 
+pub mod abi;
 pub mod capabilities;
 pub mod framing;
 pub mod handshake;
