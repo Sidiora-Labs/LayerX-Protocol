@@ -10,6 +10,8 @@ use layerx_agentd::session::{SessionId, SessionRecord, SessionRegistry};
 use layerx_agentd::store::{Store, TenantId};
 use sha2::{Digest, Sha256};
 
+pub use crate::readonly::ReadOnly;
+
 const MAX_ARGUMENT_BYTES: usize = 1_048_576;
 const MAX_TOOL_NAME_BYTES: usize = 128;
 
@@ -17,6 +19,20 @@ const MAX_TOOL_NAME_BYTES: usize = 128;
 pub enum ToolKind {
     Read,
     Write,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DeploymentMode {
+    Full,
+    ReadOnly,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CapabilityDeclaration {
+    pub mode: DeploymentMode,
+    pub read_tools: usize,
+    pub write_tools: usize,
+    pub mutations_reachable: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -273,6 +289,7 @@ pub struct Server {
     tools: Vec<ToolDefinition>,
     audit: Log,
     next_invocation_id: u64,
+    mode: DeploymentMode,
 }
 
 impl Server {
@@ -289,13 +306,33 @@ impl Server {
         core_sequence: u64,
         audit_root: impl AsRef<Path>,
     ) -> Result<Self, ServerError> {
+        Self::bind_for_mode(
+            store,
+            sessions,
+            session_id,
+            capability_id,
+            core_sequence,
+            audit_root,
+            DeploymentMode::Full,
+        )
+    }
+
+    pub(crate) fn bind_for_mode(
+        store: &Store,
+        sessions: &SessionRegistry,
+        session_id: SessionId,
+        capability_id: CapabilityId,
+        core_sequence: u64,
+        audit_root: impl AsRef<Path>,
+        mode: DeploymentMode,
+    ) -> Result<Self, ServerError> {
         let session = sessions
             .get(session_id)
             .ok_or(ServerError::MissingSession)?;
         let capability = Capability::restore(store, session.request.tenant.clone(), capability_id)
             .map_err(ServerError::Capability)?
             .ok_or(ServerError::MissingCapability)?;
-        Self::bind_records(session, &capability, core_sequence, audit_root)
+        Self::bind_records_for_mode(session, &capability, core_sequence, audit_root, mode)
     }
 
     /// Binds from already-resolved daemon records without accepting ambient scopes.
@@ -309,16 +346,35 @@ impl Server {
         core_sequence: u64,
         audit_root: impl AsRef<Path>,
     ) -> Result<Self, ServerError> {
+        Self::bind_records_for_mode(
+            session,
+            capability,
+            core_sequence,
+            audit_root,
+            DeploymentMode::Full,
+        )
+    }
+
+    pub(crate) fn bind_records_for_mode(
+        session: &SessionRecord,
+        capability: &Capability,
+        core_sequence: u64,
+        audit_root: impl AsRef<Path>,
+        mode: DeploymentMode,
+    ) -> Result<Self, ServerError> {
         let binding = ScopeBinding::derive(session, capability, core_sequence)?;
         let tools = TOOL_CATALOGUE
             .iter()
-            .filter(|tool| binding.scopes.contains(tool.required_scope))
+            .filter(|tool| {
+                binding.scopes.contains(tool.required_scope)
+                    && (mode == DeploymentMode::Full || tool.kind == ToolKind::Read)
+            })
             .copied()
             .collect::<Vec<_>>();
         if tools.is_empty() {
             return Err(ServerError::NoScope);
         }
-        let binding_digest = binding_digest(&binding);
+        let binding_digest = binding_digest(&binding, mode);
         let audit = Log::open(audit_root, binding.tenant()).map_err(ServerError::Audit)?;
         Ok(Self {
             binding,
@@ -326,6 +382,7 @@ impl Server {
             tools,
             audit,
             next_invocation_id: 0,
+            mode,
         })
     }
 
@@ -337,6 +394,22 @@ impl Server {
     #[must_use]
     pub fn tools(&self) -> &[ToolDefinition] {
         &self.tools
+    }
+
+    #[must_use]
+    pub fn capability_declaration(&self) -> CapabilityDeclaration {
+        let read_tools = self
+            .tools
+            .iter()
+            .filter(|tool| tool.kind == ToolKind::Read)
+            .count();
+        let write_tools = self.tools.len() - read_tools;
+        CapabilityDeclaration {
+            mode: self.mode,
+            read_tools,
+            write_tools,
+            mutations_reachable: write_tools != 0,
+        }
     }
 
     #[must_use]
@@ -445,11 +518,15 @@ pub enum ServerError {
     Audit(AuditError),
 }
 
-fn binding_digest(binding: &ScopeBinding) -> [u8; 32] {
+fn binding_digest(binding: &ScopeBinding, mode: DeploymentMode) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(binding.tenant.as_str().as_bytes());
     hasher.update(binding.session_id.0);
     hasher.update(binding.capability_id.0);
+    hasher.update([match mode {
+        DeploymentMode::Full => 1,
+        DeploymentMode::ReadOnly => 2,
+    }]);
     for scope in &binding.scopes {
         hasher.update((scope.len() as u64).to_be_bytes());
         hasher.update(scope.as_bytes());

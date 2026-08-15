@@ -2163,7 +2163,7 @@ reqs = ["17.6","23.6","11.1"]
 
 [task.21.6]
 title = "Ship the read-only deployment mode"
-status = "pending"
+status = "done"
 wave = 11
 requires = ["21.5"]
 do_1 = "Implement a read-only deployment in which every write tool is absent from the tool list rather than merely refused."

@@ -924,7 +924,7 @@ entirely on the spine being real.
     - Build an injection corpus attempting each escalation through crafted text, unicode confusables, embedded directives and oversized arguments.
     - Wire the corpus into make agent-test-mcp-injection as a build gate and treat any escape as build-breaking.
     - _Requirements: 17.6, 23.6, 11.1_
-  - [ ] 21.6 Ship the read-only deployment mode
+  - [x] 21.6 Ship the read-only deployment mode
     - Implement a read-only deployment in which every write tool is absent from the tool list rather than merely refused.
     - Prove by test that no write path is reachable in read-only mode, including through pagination, resources and errors.
     - Make the mode visible in the server capability declaration so a client can see what it is connected to.

@@ -145,6 +145,17 @@ refusing. Tests assert no write path is reachable in this mode, including throug
 pagination, resources and error paths, and the mode is visible in the server's
 capability declaration so a client can see what it is connected to.
 
+| Declared mode | Tool-list guarantee | Mutation guarantee |
+|---|---|---|
+| `full` | Tools are the intersection of the session scopes and server catalogue. | A listed write tool can emit only an ordinary, fully gated daemon invocation. |
+| `read_only` | Only scoped read tools with `mutation = none` are listed. | The server cannot emit or accept a write invocation; its mode is bound into the server identity. |
+
+Pagination, resource lookup and error recovery are names inside the same exact
+tool router, not alternate dispatch channels. Adding a cursor, resource prefix or
+retry/error prefix to a write name therefore remains an absent tool. Read-only
+mode does not make the node or daemon trusted: read results still carry their
+ordinary verification level and freshness evidence.
+
 ---
 
 ## 8. What a model can and cannot do
