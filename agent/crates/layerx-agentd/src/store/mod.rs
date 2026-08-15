@@ -325,6 +325,64 @@ impl Store {
         Ok(())
     }
 
+    /// Atomically records byte-identical core receipt indexes and local
+    /// verification metadata, rejecting any conflicting existing index.
+    pub fn record_verified_receipt(
+        &mut self,
+        receipt_keys: &[TenantKey],
+        receipt_bytes: &[u8],
+        metadata_key: TenantKey,
+        metadata: Vec<u8>,
+    ) -> Result<(), StoreError> {
+        if receipt_keys.is_empty()
+            || receipt_keys
+                .iter()
+                .any(|key| key.kind != ObjectKind::Receipt)
+            || metadata_key.kind != ObjectKind::Configuration
+        {
+            return Err(StoreError::Corrupt("invalid verified receipt record"));
+        }
+        for key in receipt_keys {
+            if self
+                .entries
+                .get(key)
+                .is_some_and(|value| value.bytes != receipt_bytes)
+            {
+                return Err(StoreError::Corrupt("conflicting receipt index"));
+            }
+        }
+        if self
+            .entries
+            .get(&metadata_key)
+            .is_some_and(|value| value.bytes != metadata)
+        {
+            return Err(StoreError::Corrupt("conflicting receipt metadata"));
+        }
+
+        let before = self.entries.clone();
+        for key in receipt_keys {
+            self.entries.insert(
+                key.clone(),
+                StoredValue {
+                    class: StorageClass::CoreProducedCache,
+                    bytes: receipt_bytes.to_vec(),
+                },
+            );
+        }
+        self.entries.insert(
+            metadata_key,
+            StoredValue {
+                class: StorageClass::LocalOnly,
+                bytes: metadata,
+            },
+        );
+        if let Err(error) = self.persist() {
+            self.entries = before;
+            return Err(error);
+        }
+        Ok(())
+    }
+
     fn put(
         &mut self,
         key: TenantKey,

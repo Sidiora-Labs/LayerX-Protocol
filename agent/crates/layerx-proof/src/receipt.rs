@@ -132,6 +132,23 @@ pub fn verify(
     receipt_bytes: &[u8],
     authorised: &AuthorizedBatch,
 ) -> Result<VerifiedReceipt, VerificationFailure> {
+    let verified = verify_outcome(receipt_bytes, authorised)?;
+    if verified
+        .receipt
+        .protocol()
+        .is_some_and(|receipt| receipt.result_code() != 0)
+    {
+        return Err(VerificationFailure::at(ReceiptCheck::ResultCode));
+    }
+    Ok(verified)
+}
+
+/// Verifies a full sequencer-signed receipt while preserving either its
+/// successful or rejected protocol result exactly.
+pub fn verify_outcome(
+    receipt_bytes: &[u8],
+    authorised: &AuthorizedBatch,
+) -> Result<VerifiedReceipt, VerificationFailure> {
     let receipt =
         decode(receipt_bytes).map_err(|_| VerificationFailure::at(ReceiptCheck::Decode))?;
     let reproduced =
@@ -144,9 +161,6 @@ pub fn verify(
         .ok_or_else(|| VerificationFailure::at(ReceiptCheck::ReceiptShape))?;
     if protocol.protocol_version() != 1 {
         return Err(VerificationFailure::at(ReceiptCheck::ProtocolVersion));
-    }
-    if protocol.result_code() != 0 {
-        return Err(VerificationFailure::at(ReceiptCheck::ResultCode));
     }
     if protocol.operation() == 0 {
         return Err(VerificationFailure::at(ReceiptCheck::Operation));
@@ -166,19 +180,21 @@ pub fn verify(
     if protocol.resulting_state_root() != authorised.resulting_state_root {
         return Err(VerificationFailure::at(ReceiptCheck::ResultingStateRoot));
     }
-    if protocol
-        .debit_balance_before()
-        .checked_sub(protocol.amount())
-        != Some(protocol.debit_balance_after())
-    {
-        return Err(VerificationFailure::at(ReceiptCheck::DebitBalance));
-    }
-    if protocol
-        .credit_balance_before()
-        .checked_add(protocol.amount())
-        != Some(protocol.credit_balance_after())
-    {
-        return Err(VerificationFailure::at(ReceiptCheck::CreditBalance));
+    if protocol.result_code() == 0 {
+        if protocol
+            .debit_balance_before()
+            .checked_sub(protocol.amount())
+            != Some(protocol.debit_balance_after())
+        {
+            return Err(VerificationFailure::at(ReceiptCheck::DebitBalance));
+        }
+        if protocol
+            .credit_balance_before()
+            .checked_add(protocol.amount())
+            != Some(protocol.credit_balance_after())
+        {
+            return Err(VerificationFailure::at(ReceiptCheck::CreditBalance));
+        }
     }
     let signature = protocol
         .sequencer_signature()

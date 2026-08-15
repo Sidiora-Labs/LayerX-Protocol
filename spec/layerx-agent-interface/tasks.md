@@ -633,7 +633,7 @@ entirely on the spine being real.
     - Keep every reservation and every consumed ceiling held while the state remains unknown.
     - Add fault-injection tests covering acknowledgement loss, response loss, node restart mid-flight and a receipt that appears minutes later.
     - _Requirements: 13.4, 1.6, 10.6_
-  - [ ] 14.4 Verify, store and serve receipt bytes unchanged
+  - [x] 14.4 Verify, store and serve receipt bytes unchanged
     - Verify every retrieved receipt through layerx-proof before recording a terminal state and record the achieved verification level with it.
     - Store the exact receipt bytes and serve them unchanged by activity identifier, idempotency key and global sequence.
     - Record the exact protocol result code for a rejection, classify it as terminal or retriable from the protocol taxonomy, and never retry a terminal rejection.

@@ -8,6 +8,7 @@ pub mod identity;
 pub mod outbox;
 pub mod policy;
 pub mod prepare;
+pub mod receipt;
 pub mod session;
 pub mod sign;
 pub mod store;

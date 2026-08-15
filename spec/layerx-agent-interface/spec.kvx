@@ -1548,7 +1548,7 @@ reqs = ["13.4","1.6","10.6"]
 
 [task.14.4]
 title = "Verify, store and serve receipt bytes unchanged"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["14.3","5.2"]
 do_1 = "Verify every retrieved receipt through layerx-proof before recording a terminal state and record the achieved verification level with it."
