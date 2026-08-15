@@ -61,7 +61,7 @@ money or claims something about money, and both depend on the spine being real.
     - Prove the existing builds are untouched: make build and make agent-build succeed with the human workspace present, and no C or agent target gains a human dependency.
     - Add a workspace README whose first two paragraphs state the receipt-backed-truth rule and the five-ideas simplicity contract.
     - _Requirements: 1.10, 1.1_
-  - [ ] 1.2 Lock the dependency, boundary and supply-chain policy
+  - [x] 1.2 Lock the dependency, boundary and supply-chain policy
     - Apply the dependency policy to the Rust crates: deny unmaintained, yanked and vulnerable crates, require the license allowlist, forbid SQLite drivers and node-internal access exactly as the agent workspace boundary rules require, and fail the build rather than warn.
     - Apply the equivalent policy to the web application: a pinned lockfile, an audit gate on advisories, a license allowlist, and a dependency budget that flags any new runtime dependency for review.
     - Forbid ambient clock reads inside verification and journey-resolution paths through the lint set, mirroring the agent workspace rule.

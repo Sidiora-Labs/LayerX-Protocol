@@ -1614,6 +1614,10 @@ human-test:
 
 human-lint:
 	$(HUMAN_CARGO) clippy --manifest-path $(HUMAN_MANIFEST) --locked --workspace --all-targets -- -D warnings
+	$(HUMAN_CARGO) test --manifest-path human/tools/boundary-check/Cargo.toml --locked
+	$(HUMAN_CARGO) run --manifest-path human/tools/boundary-check/Cargo.toml --locked -- human/crates
+	sh human/tools/dependency-policy.sh
+	cargo deny --manifest-path $(HUMAN_MANIFEST) check advisories bans sources
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) run lint
 

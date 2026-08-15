@@ -5,7 +5,7 @@
 pub struct HumanWorkspaceManifest {
     /// Human-plane crates in build order.
     pub crates: [&'static str; 4],
-    /// The only contract through which the human plane reaches LayerX.
+    /// The only contract through which the human plane reaches `LayerX`.
     pub core_boundary: &'static str,
 }
 

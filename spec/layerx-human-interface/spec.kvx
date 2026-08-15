@@ -367,7 +367,7 @@ reqs = ["1.10","1.1"]
 
 [task.1.2]
 title = "Lock the dependency, boundary and supply-chain policy"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["1.1"]
 do_1 = "Apply the dependency policy to the Rust crates: deny unmaintained, yanked and vulnerable crates, require the license allowlist, forbid SQLite drivers and node-internal access exactly as the agent workspace boundary rules require, and fail the build rather than warn."

@@ -1,0 +1,37 @@
+name: Human workspace
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-lint-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install pinned Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.11.0
+          cache: npm
+          cache-dependency-path: human/apps/web/package-lock.json
+      - name: Install pinned Rust toolchain and policy auditor
+        run: >-
+          rustup toolchain install 1.91.1 --profile minimal --component clippy &&
+          cargo install cargo-deny --locked --version 0.19.0
+      - name: Enforce policies and strict lints
+        run: make human-lint
+      - name: Build and test the isolated human workspace
+        run: make human-build human-test

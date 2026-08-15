@@ -8,7 +8,7 @@
   "scripts": {
     "build": "next build",
     "test": "node --test e2e/scaffold.test.mjs",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit && eslint --max-warnings=0 \"src/**/*.{ts,tsx}\" && node policy/check.mjs && npm audit --audit-level=high",
     "typecheck": "tsc --noEmit",
     "e2e": "node --test e2e/scaffold.test.mjs"
   },
@@ -21,6 +21,8 @@
     "@types/node": "26.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
+    "eslint": "10.8.1",
+    "typescript-eslint": "8.67.0",
     "typescript": "5.9.3"
   }
 }
