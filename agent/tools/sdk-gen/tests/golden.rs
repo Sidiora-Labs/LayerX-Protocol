@@ -38,7 +38,7 @@ fn golden_schema_generation_is_byte_deterministic() {
     let second =
         agent_sdk_generator(&schema()).unwrap_or_else(|error| panic!("second generation: {error}"));
     assert_eq!(first, second);
-    assert_eq!(first.files.len(), 5);
+    assert_eq!(first.files.len(), 6);
     let typescript = first
         .files
         .get(Path::new("typescript/src/generated/client.ts"))
@@ -58,6 +58,13 @@ fn golden_schema_generation_is_byte_deterministic() {
         .get(Path::new("python/layerx_sdk/generated/client.pyi"))
         .unwrap_or_else(|| panic!("Python type stub missing"));
     assert!(python_stub.contains("Amount: TypeAlias = int"));
+    let compatibility = first
+        .files
+        .get(Path::new("COMPATIBILITY.md"))
+        .unwrap_or_else(|| panic!("SDK compatibility matrix missing"));
+    assert!(compatibility.contains("| `0.1.x` | `1.x` | `1.x` | `0.1.x` | supported |"));
+    assert!(compatibility.contains("Bypassing the daemon bypasses them"));
+    assert!(compatibility.contains("layerx-proof --example offline_verify"));
 }
 
 #[test]

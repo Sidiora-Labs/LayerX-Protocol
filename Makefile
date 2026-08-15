@@ -2034,6 +2034,12 @@ agent-test-sdk-parity: $(BUILD_DIR)/agent/layerxd-lni
 	$(AGENT_CARGO) run --manifest-path agent/tests/parity/Cargo.toml --locked -- \
 		$(CURDIR)/$(BUILD_DIR)/agent/layerxd-lni $(CURDIR)
 
+agent-test-sdk-compat:
+	$(MAKE) agent-test-contract-schema
+	$(MAKE) agent-test-sdk-generate
+	$(AGENT_CARGO) test --manifest-path agent/tools/doc-check/Cargo.toml --locked
+	$(AGENT_CARGO) run --manifest-path agent/tools/doc-check/Cargo.toml --locked -- $(CURDIR)
+
 agent-test-mcp-untrusted-input:
 	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
 

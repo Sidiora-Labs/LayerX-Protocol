@@ -2257,7 +2257,7 @@ reqs = ["18.6","23.5","1.6"]
 
 [task.22.6]
 title = "Publish the compatibility matrix and guarantee documentation"
-status = "pending"
+status = "done"
 wave = 11
 requires = ["22.5"]
 do_1 = "Publish the matrix of SDK version against contract version against node interface version against daemon version and verify the supported range in CI."

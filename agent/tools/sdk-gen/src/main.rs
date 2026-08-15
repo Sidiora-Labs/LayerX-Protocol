@@ -8,6 +8,7 @@ const TYPESCRIPT_TEMPLATE: &str = include_str!("../templates/typescript.tpl");
 const PYTHON_TEMPLATE: &str = include_str!("../templates/python.tpl");
 const PYTHON_STUB_TEMPLATE: &str = include_str!("../templates/python.pyi.tpl");
 const GUARANTEES_TEMPLATE: &str = include_str!("../templates/guarantees.md.tpl");
+const COMPATIBILITY_TEMPLATE: &str = include_str!("../templates/compatibility.md.tpl");
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Scalar {
@@ -26,6 +27,15 @@ struct Model {
     levels: Vec<String>,
     errors: Vec<String>,
     guarantees: Vec<(String, String, String)>,
+    compatibility: Compatibility,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct Compatibility {
+    sdk: String,
+    contract: String,
+    node_interface: String,
+    daemon: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -179,6 +189,12 @@ fn read_schema(schema_root: &Path) -> Result<Model, String> {
             ),
             ("DaemonLimit".to_owned(), daemon, notice),
         ],
+        compatibility: Compatibility {
+            sdk: unquote(required(&root, "compatibility.matrix.sdk")?)?,
+            contract: unquote(required(&root, "compatibility.matrix.contract")?)?,
+            node_interface: unquote(required(&root, "compatibility.matrix.node_interface")?)?,
+            daemon: unquote(required(&root, "compatibility.matrix.daemon")?)?,
+        },
     };
     validate_model(&model)?;
     Ok(model)
@@ -365,6 +381,14 @@ fn guarantees(model: &Model) -> String {
     GUARANTEES_TEMPLATE.replace("{{GUARANTEES}}", &rows)
 }
 
+fn compatibility(model: &Model) -> String {
+    COMPATIBILITY_TEMPLATE
+        .replace("{{SDK}}", &model.compatibility.sdk)
+        .replace("{{CONTRACT}}", &model.compatibility.contract)
+        .replace("{{NODE_INTERFACE}}", &model.compatibility.node_interface)
+        .replace("{{DAEMON}}", &model.compatibility.daemon)
+}
+
 /// Generates both language SDKs and their guarantee documentation from one model.
 ///
 /// # Errors
@@ -373,8 +397,10 @@ fn guarantees(model: &Model) -> String {
 pub fn agent_sdk_generator(schema_root: &Path) -> Result<Generated, String> {
     let model = read_schema(schema_root)?;
     let documentation = guarantees(&model);
+    let compatibility = compatibility(&model);
     Ok(Generated {
         files: BTreeMap::from([
+            (PathBuf::from("COMPATIBILITY.md"), compatibility),
             (
                 PathBuf::from("typescript/src/generated/client.ts"),
                 typescript(&model)?,

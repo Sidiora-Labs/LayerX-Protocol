@@ -968,7 +968,7 @@ entirely on the spine being real.
     - Report any divergence with the scenario, the language and both observed behaviours.
     - Wire the suite into make agent-test-sdk-parity as a release gate.
     - _Requirements: 18.6, 23.5, 1.6_
-  - [ ] 22.6 Publish the compatibility matrix and guarantee documentation
+  - [x] 22.6 Publish the compatibility matrix and guarantee documentation
     - Publish the matrix of SDK version against contract version against node interface version against daemon version and verify the supported range in CI.
     - Document precisely which guarantees are protocol-enforced and which are daemon-enforced across every SDK.
     - Add a documentation check that fails when generated documentation describes a daemon-enforced restriction as a protocol guarantee.
