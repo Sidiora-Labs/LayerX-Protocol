@@ -2012,6 +2012,13 @@ agent-test-mcp-readonly:
 agent-test-sdk-rust:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-sdk --test sdk
 
+agent-sdk-generate:
+	cargo run --manifest-path agent/tools/sdk-gen/Cargo.toml --locked -- --write
+
+agent-test-sdk-generate:
+	cargo test --manifest-path agent/tools/sdk-gen/Cargo.toml --locked
+	cargo run --manifest-path agent/tools/sdk-gen/Cargo.toml --locked -- --check
+
 agent-test-mcp-untrusted-input:
 	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
 

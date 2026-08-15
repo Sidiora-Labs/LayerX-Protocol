@@ -940,7 +940,7 @@ entirely on the spine being real.
     - Preserve verification levels, honest unknown state, idempotency handling and typed protocol result codes across the whole surface.
     - Add tests covering both deployment shapes and asserting identical guarantees in each.
     - _Requirements: 18.2, 18.4, 18.8, 7.10_
-  - [ ] 22.2 Build the schema-to-SDK generator and the drift gate
+  - [x] 22.2 Build the schema-to-SDK generator and the drift gate
     - Implement the generator that emits SDK client code from the contract schema for each target language from one shared model.
     - Regenerate and diff generated output in CI and fail the build on drift or on a hand-edit to generated files.
     - Enforce that consensus-critical integers map to exact integer representations in every target and fail rather than lose precision.

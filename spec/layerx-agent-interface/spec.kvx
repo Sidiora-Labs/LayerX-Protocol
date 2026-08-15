@@ -2197,7 +2197,7 @@ reqs = ["18.2","18.4","18.8","7.10"]
 
 [task.22.2]
 title = "Build the schema-to-SDK generator and the drift gate"
-status = "pending"
+status = "done"
 wave = 11
 requires = ["22.1"]
 do_1 = "Implement the generator that emits SDK client code from the contract schema for each target language from one shared model."
