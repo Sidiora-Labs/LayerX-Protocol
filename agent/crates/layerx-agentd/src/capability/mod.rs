@@ -5,9 +5,13 @@ use std::collections::BTreeSet;
 use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
 
 mod narrowing;
+mod attenuate;
 
 pub use narrowing::{
     Binding, Enforcement, NarrowingError, NarrowingReport, ProtocolScope,
+};
+pub use attenuate::{
+    AttenuationError, CapabilityGraph, RevocableActivity, RevocationResult,
 };
 use crate::identity::ProtocolAuthority;
 
@@ -187,7 +191,25 @@ pub fn assert_narrowing(
     narrowing::check_narrowing(capability, authority, protocol_scope)
 }
 
-fn encode(capability: &Capability) -> Result<Vec<u8>, CapabilityError> {
+/// Derives a child capability while preserving its chain to the root.
+pub fn attenuate(
+    graph: &mut CapabilityGraph,
+    parent: CapabilityId,
+    child: Capability,
+) -> Result<(), AttenuationError> {
+    attenuate::derive(graph, parent, child)
+}
+
+/// Revokes one capability and every descendant, cancelling only unsubmitted work.
+pub fn revoke_subtree(
+    graph: &mut CapabilityGraph,
+    root: CapabilityId,
+    activities: &mut [RevocableActivity],
+) -> Result<RevocationResult, AttenuationError> {
+    attenuate::revoke(graph, root, activities)
+}
+
+pub(crate) fn encode(capability: &Capability) -> Result<Vec<u8>, CapabilityError> {
     let mut bytes = Vec::new();
     bytes.extend_from_slice(&capability.id.0);
     push_string(&mut bytes, capability.tenant.as_str())?;
@@ -214,7 +236,7 @@ fn encode(capability: &Capability) -> Result<Vec<u8>, CapabilityError> {
     Ok(bytes)
 }
 
-fn decode(bytes: &[u8]) -> Result<Capability, CapabilityError> {
+pub(crate) fn decode(bytes: &[u8]) -> Result<Capability, CapabilityError> {
     let mut decoder = Decoder { bytes, offset: 0 };
     let mut id = [0_u8; 32];
     id.copy_from_slice(decoder.take(32)?);
