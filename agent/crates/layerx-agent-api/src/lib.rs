@@ -5,6 +5,8 @@ pub mod generated;
 mod identity_contract;
 #[path = "write.rs"]
 mod write_contract;
+#[path = "read.rs"]
+mod read_contract;
 
 /// Identity and session contract namespace.
 pub mod identity {
@@ -48,6 +50,34 @@ pub mod track {
 }
 
 pub use write_contract::SubmissionState;
+
+/// Verified read contract namespace.
+pub mod read {
+    pub use crate::read_contract::{
+        AccountRef, AccountValue, BalanceSelector, BalanceValue, BatchRef, BatchValue,
+        CheckpointRef, CheckpointValue, CoreProduced, Freshness, HistorySelector, HistoryValue,
+        ModuleRef, ModuleStateSelector, ModuleStateValue, ProjectionResult, ReadRequest,
+        RelativeTo, VerifiedRead,
+    };
+}
+
+/// Proof retrieval contract namespace.
+pub mod proof {
+    pub use crate::read_contract::ProofBundle;
+}
+
+/// Availability retrieval contract namespace.
+pub mod availability {
+    pub use crate::read_contract::{
+        AvailabilityClass, AvailabilityCompletion, AvailabilityReport, AvailabilityRequest,
+        ClassReport, ProviderRef, ProviderReport,
+    };
+}
+
+/// Offline verification export namespace.
+pub mod export {
+    pub use crate::read_contract::{FactRef, OfflineExport};
+}
 
 pub use generated::{
     agent_api_compat_gate, agent_api_schema_v1, Amount, BudgetLimit, ContractSchema,

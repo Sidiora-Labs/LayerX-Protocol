@@ -1,0 +1,56 @@
+[module]
+name = "read"
+contract_major = 1
+compatibility = "additive_only"
+
+[type.VerifiedRead]
+required = ["value","achieved_verification_level","freshness"]
+value_constraint = "core_produced_only"
+
+[type.Freshness]
+required = ["chain_head","latest_sealed_batch","latest_finalised_checkpoint","value_sequence","relative_to"]
+
+[operation.read.balance]
+request_required = ["account","asset","requested_verification_level"]
+response = "VerifiedRead<BalanceValue>"
+
+[operation.read.account]
+request_required = ["account","requested_verification_level"]
+response = "VerifiedRead<AccountValue>"
+
+[operation.read.module_state]
+request_required = ["module","key","requested_verification_level"]
+response = "VerifiedRead<ModuleStateValue>"
+
+[operation.read.history]
+request_required = ["range","cursor","page_limit","requested_verification_level"]
+response = "VerifiedRead<HistoryValue>"
+
+[operation.read.batch]
+request_required = ["batch","requested_verification_level"]
+response = "VerifiedRead<BatchValue>"
+
+[operation.read.checkpoint]
+request_required = ["checkpoint","requested_verification_level"]
+response = "VerifiedRead<CheckpointValue>"
+
+[operation.read.proof_bundle]
+request_required = ["target","requested_verification_level"]
+response = "VerifiedRead<ProofBundle>"
+
+[operation.availability.fetch]
+request_required = ["selector","requested_verification_level","maximum_bytes","maximum_chunks","deadline"]
+response = "VerifiedRead<AvailabilityReport>"
+response_required = ["completion","classes","providers"]
+provider_isolation = "A complete result names one provider. Partial reports remain provider attributed and bytes are never merged across providers."
+
+[operation.export.offline]
+request_required = ["fact_set","requested_verification_level"]
+response = "VerifiedRead<OfflineExport>"
+response_required = ["facts","receipts","proofs","certificates","headers"]
+verification_environment = "layerx-proof_without_daemon_or_network"
+
+[operation.project]
+response = "ProjectionResult"
+forbidden_response = "VerifiedRead"
+semantics = "An estimate is never core-produced, never receipt-shaped and never an executed outcome."

@@ -400,7 +400,7 @@ entirely on the spine being real.
     - Define the wait operation that takes a requested verification level and a deadline and returns the level actually reached.
     - Add contract tests asserting that no response shape allows an executed outcome to be reported without a receipt reference.
     - _Requirements: 12.1, 12.2, 13.2, 13.9_
-  - [ ] 8.4 Define read, proof and availability operations
+  - [x] 8.4 Define read, proof and availability operations
     - Define balance, account, module state, history, batch, checkpoint and proof-bundle reads, each taking a requested verification level and returning the achieved level with the value.
     - Define the availability retrieval operation with its class report, provider report and partial completion reporting.
     - Define the offline verification export that returns the receipts, proofs, certificates and headers needed to verify a stated fact set without the daemon.

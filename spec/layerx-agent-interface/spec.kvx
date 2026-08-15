@@ -1057,7 +1057,7 @@ reqs = ["12.1","12.2","13.2","13.9"]
 
 [task.8.4]
 title = "Define read, proof and availability operations"
-status = "pending"
+status = "done"
 wave = 7
 requires = ["8.1"]
 do_1 = "Define balance, account, module state, history, batch, checkpoint and proof-bundle reads, each taking a requested verification level and returning the achieved level with the value."
@@ -1066,7 +1066,7 @@ do_3 = "Define the offline verification export that returns the receipts, proofs
 do_4 = "Define the projection operations distinctly so an estimate can never be returned in a field that carries a verified value."
 do_5 = "Add contract tests asserting every read response carries a verification level and a freshness reference."
 verify_cmd = "make agent-test-contract-read"
-symbols = ["agent_api::read","agent_api::proof","agent_api::availability","agent_api::export"]
+symbols = ["layerx_agent_api::read","layerx_agent_api::proof","layerx_agent_api::availability","layerx_agent_api::export"]
 touches = ["agent/schema/agent-api/read.kvx","agent/crates/layerx-agent-api/src/read.rs","agent/crates/layerx-agent-api/tests/read.rs"]
 reqs = ["14.1","14.6","14.10","1.5"]
 

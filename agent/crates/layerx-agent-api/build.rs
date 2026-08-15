@@ -206,7 +206,7 @@ pub fn agent_api_compat_gate(
     ))
 }
 
-fn read(path: &Path) -> String {
+fn read_file(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()))
 }
 
@@ -222,8 +222,8 @@ fn main() {
     println!("cargo:rerun-if-changed={}", baseline.display());
     println!("cargo:rerun-if-changed={}", committed.display());
 
-    let current = section_map(&read(&schema)).unwrap_or_else(|error| panic!("invalid schema: {error}"));
-    let old = section_map(&read(&baseline)).unwrap_or_else(|error| panic!("invalid baseline: {error}"));
+    let current = section_map(&read_file(&schema)).unwrap_or_else(|error| panic!("invalid schema: {error}"));
+    let old = section_map(&read_file(&baseline)).unwrap_or_else(|error| panic!("invalid baseline: {error}"));
     validate(&current).unwrap_or_else(|error| panic!("invalid schema: {error}"));
     compatibility_gate(&old, &current).unwrap_or_else(|error| panic!("incompatible schema: {error}"));
 
@@ -238,12 +238,12 @@ fn main() {
             .join(module);
         println!("cargo:rerun-if-changed={}", current_module.display());
         println!("cargo:rerun-if-changed={}", baseline_module.display());
-        let current_entries = section_map(&read(&current_module))
+        let current_entries = section_map(&read_file(&current_module))
             .unwrap_or_else(|error| panic!("invalid {}: {error}", current_module.display()));
         validate(&current_entries)
             .unwrap_or_else(|error| panic!("invalid {}: {error}", current_module.display()));
         if baseline_module.exists() {
-            let baseline_entries = section_map(&read(&baseline_module))
+            let baseline_entries = section_map(&read_file(&baseline_module))
                 .unwrap_or_else(|error| panic!("invalid {}: {error}", baseline_module.display()));
             compatibility_gate(&baseline_entries, &current_entries)
                 .unwrap_or_else(|error| panic!("incompatible {}: {error}", current_module.display()));
@@ -256,6 +256,6 @@ fn main() {
     )
     .join("generated.rs");
     fs::write(&out, &fresh).unwrap_or_else(|error| panic!("failed to write {}: {error}", out.display()));
-    let checked_in = read(&committed);
+    let checked_in = read_file(&committed);
     assert_eq!(checked_in, fresh, "generated Rust contract drift; regenerate src/generated.rs from v1.kvx");
 }
