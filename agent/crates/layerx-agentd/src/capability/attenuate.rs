@@ -154,7 +154,10 @@ pub(crate) fn derive(
     parent: CapabilityId,
     child: Capability,
 ) -> Result<(), AttenuationError> {
-    let parent_node = graph.nodes.get(&parent).ok_or(AttenuationError::MissingParent)?;
+    let parent_node = graph
+        .nodes
+        .get(&parent)
+        .ok_or(AttenuationError::MissingParent)?;
     if child.tenant != graph.tenant {
         return Err(AttenuationError::Tenant);
     }
@@ -263,14 +266,20 @@ fn decode_graph(tenant: TenantId, bytes: &[u8]) -> Result<CapabilityGraph, Atten
     for _ in 0..count {
         let length = usize::try_from(read_u32(bytes, &mut offset)?)
             .map_err(|_| AttenuationError::SizeOverflow)?;
-        let end = offset.checked_add(length).ok_or(AttenuationError::Corrupt)?;
+        let end = offset
+            .checked_add(length)
+            .ok_or(AttenuationError::Corrupt)?;
         let capability = decode(bytes.get(offset..end).ok_or(AttenuationError::Corrupt)?)?;
         offset = end;
         let has_parent = *bytes.get(offset).ok_or(AttenuationError::Corrupt)?;
         offset += 1;
         let parent = if has_parent == 1 {
             let mut id = [0_u8; 32];
-            id.copy_from_slice(bytes.get(offset..offset + 32).ok_or(AttenuationError::Corrupt)?);
+            id.copy_from_slice(
+                bytes
+                    .get(offset..offset + 32)
+                    .ok_or(AttenuationError::Corrupt)?,
+            );
             offset += 32;
             Some(CapabilityId(id))
         } else if has_parent == 0 {
@@ -284,7 +293,14 @@ fn decode_graph(tenant: TenantId, bytes: &[u8]) -> Result<CapabilityGraph, Atten
             _ => return Err(AttenuationError::Corrupt),
         };
         offset += 1;
-        graph.nodes.insert(capability.id, Node { capability, parent, revoked });
+        graph.nodes.insert(
+            capability.id,
+            Node {
+                capability,
+                parent,
+                revoked,
+            },
+        );
     }
     if offset != bytes.len() {
         return Err(AttenuationError::Corrupt);
@@ -294,14 +310,22 @@ fn decode_graph(tenant: TenantId, bytes: &[u8]) -> Result<CapabilityGraph, Atten
 
 fn read_u16(bytes: &[u8], offset: &mut usize) -> Result<u16, AttenuationError> {
     let mut value = [0_u8; 2];
-    value.copy_from_slice(bytes.get(*offset..*offset + 2).ok_or(AttenuationError::Corrupt)?);
+    value.copy_from_slice(
+        bytes
+            .get(*offset..*offset + 2)
+            .ok_or(AttenuationError::Corrupt)?,
+    );
     *offset += 2;
     Ok(u16::from_be_bytes(value))
 }
 
 fn read_u32(bytes: &[u8], offset: &mut usize) -> Result<u32, AttenuationError> {
     let mut value = [0_u8; 4];
-    value.copy_from_slice(bytes.get(*offset..*offset + 4).ok_or(AttenuationError::Corrupt)?);
+    value.copy_from_slice(
+        bytes
+            .get(*offset..*offset + 4)
+            .ok_or(AttenuationError::Corrupt)?,
+    );
     *offset += 4;
     Ok(u32::from_be_bytes(value))
 }

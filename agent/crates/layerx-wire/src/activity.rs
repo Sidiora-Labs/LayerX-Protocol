@@ -1,5 +1,6 @@
 //! Canonical signed and unsigned activity-envelope wire forms.
 
+use layerx_types::activity::UnsignedEnvelope;
 use layerx_types::payload::{ActivityType, ModuleRegistry};
 use layerx_types::result::KnownResult;
 
@@ -307,6 +308,11 @@ pub fn encode_unsigned(activity: &Activity) -> Result<Vec<u8>, WireError> {
     encode_internal(activity, false)
 }
 
+/// Encodes a newly constructed typed unsigned envelope through the sole wire path.
+pub fn encode_unsigned_envelope(envelope: &UnsignedEnvelope) -> Result<Vec<u8>, WireError> {
+    encode_internal(&activity_from_unsigned(envelope), false)
+}
+
 /// Encodes the exact twelve-field submitted signed form.
 ///
 /// # Errors
@@ -323,4 +329,24 @@ pub fn encode_signed(activity: &Activity) -> Result<Vec<u8>, WireError> {
 /// Returns a typed encoding error if the decoded value violates a bound.
 pub fn signing_bytes(activity: &Activity) -> Result<SigningBytes, WireError> {
     encode_unsigned(activity).map(SigningBytes)
+}
+
+fn activity_from_unsigned(envelope: &UnsignedEnvelope) -> Activity {
+    Activity {
+        protocol_version: envelope.protocol_version(),
+        network_id: envelope.network_id(),
+        kind: envelope.activity_type(),
+        actor_did: envelope.actor_did().as_bytes().to_vec(),
+        authority: envelope.authority().as_bytes().to_vec(),
+        account_sequence: envelope.account_sequence(),
+        timestamp_bound: TimestampBound {
+            not_before: envelope.timestamp_bound().not_before(),
+            not_after: envelope.timestamp_bound().not_after(),
+        },
+        idempotency_key: envelope.idempotency_key().bytes(),
+        fee_limit: envelope.fee_limit().value(),
+        payload_hash: envelope.payload_hash(),
+        payload: envelope.payload().as_bytes().to_vec(),
+        signature: None,
+    }
 }

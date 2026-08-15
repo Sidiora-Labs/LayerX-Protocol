@@ -575,7 +575,7 @@ entirely on the spine being real.
 ## Wave 9 - The Write Path and the Read Path
 
 - [ ] 13. Implement activity preparation and signing
-  - [ ] 13.1 Prepare complete unsigned canonical activities from core state
+  - [x] 13.1 Prepare complete unsigned canonical activities from core state
     - Implement preparation that constructs the complete unsigned canonical activity including actor, authority, account_sequence, timestamp_bound, idempotency_key, fee_limit, payload and payload_hash.
     - Take account_sequence and every other protocol-derived input from core state through the boundary and fail preparation when that state is unavailable rather than assuming a value.
     - Derive timestamp_bound and fee_limit from explicit caller input or explicit configured defaults and never widen a caller-supplied bound.

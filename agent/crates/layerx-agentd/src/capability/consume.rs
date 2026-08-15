@@ -205,6 +205,8 @@ pub(crate) fn reserve(
         expiry_sequence,
         unknown: false,
     };
-    state.reservations.insert(reservation_id, reservation.clone());
+    state
+        .reservations
+        .insert(reservation_id, reservation.clone());
     Ok(reservation)
 }

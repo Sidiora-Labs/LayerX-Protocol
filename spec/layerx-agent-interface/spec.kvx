@@ -1424,7 +1424,7 @@ status = "pending"
 
 [task.13.1]
 title = "Prepare complete unsigned canonical activities from core state"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["12.1","11.3"]
 do_1 = "Implement preparation that constructs the complete unsigned canonical activity including actor, authority, account_sequence, timestamp_bound, idempotency_key, fee_limit, payload and payload_hash."

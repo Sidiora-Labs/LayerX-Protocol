@@ -112,7 +112,11 @@ pub fn register(
 ) -> Result<IdentityRecord, IdentityError> {
     let observation = resolver.resolve(&did)?.ok_or(IdentityError::UnknownDid)?;
     validate_observation(&observation)?;
-    let key = TenantKey::new(tenant.clone(), ObjectKind::Identity, did.as_bytes().to_vec())?;
+    let key = TenantKey::new(
+        tenant.clone(),
+        ObjectKind::Identity,
+        did.as_bytes().to_vec(),
+    )?;
     let record = IdentityRecord {
         tenant,
         did,
@@ -150,11 +154,12 @@ fn validate_observation(observation: &CoreIdentity) -> Result<(), IdentityError>
 }
 
 fn encode_record(record: &IdentityRecord) -> Result<Vec<u8>, StoreError> {
-    let did_len = u16::try_from(record.did.as_bytes().len()).map_err(|_| StoreError::SizeOverflow)?;
+    let did_len =
+        u16::try_from(record.did.as_bytes().len()).map_err(|_| StoreError::SizeOverflow)?;
     let authority_len =
         u16::try_from(record.authorities.len()).map_err(|_| StoreError::SizeOverflow)?;
-    let core_len = u32::try_from(record.canonical_core_bytes.len())
-        .map_err(|_| StoreError::SizeOverflow)?;
+    let core_len =
+        u32::try_from(record.canonical_core_bytes.len()).map_err(|_| StoreError::SizeOverflow)?;
     let mut bytes = Vec::new();
     bytes.extend_from_slice(&did_len.to_be_bytes());
     bytes.extend_from_slice(record.did.as_bytes());

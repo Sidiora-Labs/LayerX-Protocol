@@ -225,7 +225,10 @@ fn validate_request(
     Ok(())
 }
 
-pub(crate) fn persist_record(store: &mut Store, record: &SessionRecord) -> Result<(), SessionError> {
+pub(crate) fn persist_record(
+    store: &mut Store,
+    record: &SessionRecord,
+) -> Result<(), SessionError> {
     let key = TenantKey::new(
         record.request.tenant.clone(),
         ObjectKind::Session,

@@ -194,6 +194,61 @@ pub struct UnsignedEnvelope {
 }
 
 impl UnsignedEnvelope {
+    #[must_use]
+    pub const fn protocol_version(&self) -> u16 {
+        self.protocol_version
+    }
+
+    #[must_use]
+    pub const fn network_id(&self) -> u32 {
+        self.network_id
+    }
+
+    #[must_use]
+    pub const fn activity_type(&self) -> ActivityType {
+        self.activity_type
+    }
+
+    #[must_use]
+    pub const fn actor_did(&self) -> &Did {
+        &self.actor_did
+    }
+
+    #[must_use]
+    pub const fn authority(&self) -> &Authority {
+        &self.authority
+    }
+
+    #[must_use]
+    pub const fn account_sequence(&self) -> u64 {
+        self.account_sequence
+    }
+
+    #[must_use]
+    pub const fn timestamp_bound(&self) -> TimestampBound {
+        self.timestamp_bound
+    }
+
+    #[must_use]
+    pub const fn idempotency_key(&self) -> IdempotencyKey {
+        self.idempotency_key
+    }
+
+    #[must_use]
+    pub const fn fee_limit(&self) -> Amount {
+        self.fee_limit
+    }
+
+    #[must_use]
+    pub const fn payload_hash(&self) -> [u8; IDENTIFIER_BYTES] {
+        self.payload_hash
+    }
+
+    #[must_use]
+    pub const fn payload(&self) -> &Payload {
+        &self.payload
+    }
+
     /// Consumes this exact unsigned value and attaches its signature, producing
     /// the non-interchangeable signed envelope type.
     #[must_use]

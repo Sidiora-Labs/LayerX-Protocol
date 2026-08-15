@@ -1,9 +1,10 @@
 //! Non-authoritative `LayerX` agent daemon.
 
-pub mod store;
-pub mod identity;
-pub mod session;
 pub mod authority;
-pub mod capability;
 pub mod budget;
+pub mod capability;
+pub mod identity;
 pub mod policy;
+pub mod prepare;
+pub mod session;
+pub mod store;

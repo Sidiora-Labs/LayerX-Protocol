@@ -1,6 +1,8 @@
 //! Signature preimages derived only from canonical unsigned activities.
 
-use crate::activity::{encode_unsigned, Activity};
+use layerx_types::activity::UnsignedEnvelope;
+
+use crate::activity::{encode_unsigned, encode_unsigned_envelope, Activity};
 use crate::hash::{domain, CanonicalBytes, Domain};
 use crate::WireError;
 
@@ -29,5 +31,11 @@ impl std::fmt::Debug for SigningPreimage {
 /// Returns a typed canonical encoding or hash length error.
 pub fn preimage(activity: &Activity) -> Result<SigningPreimage, WireError> {
     let unsigned = CanonicalBytes::from_wire(encode_unsigned(activity)?);
+    domain(Domain::SignaturePreimage, &unsigned).map(SigningPreimage)
+}
+
+/// Computes the signature preimage from a newly constructed typed envelope.
+pub fn preimage_unsigned(envelope: &UnsignedEnvelope) -> Result<SigningPreimage, WireError> {
+    let unsigned = CanonicalBytes::from_wire(encode_unsigned_envelope(envelope)?);
     domain(Domain::SignaturePreimage, &unsigned).map(SigningPreimage)
 }

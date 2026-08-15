@@ -9,6 +9,7 @@ license.workspace = true
 layerx-types = { path = "../layerx-types" }
 layerx-client = { path = "../layerx-client" }
 layerx-agent-api = { path = "../layerx-agent-api" }
+layerx-wire = { path = "../layerx-wire" }
 sha2 = "=0.10.9"
 
 [lints]

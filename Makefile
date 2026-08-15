@@ -1859,6 +1859,9 @@ agent-test-policy-adversarial:
 	$(AGENT_CARGO) test --manifest-path agent/tools/policy-harness/Cargo.toml --locked
 	$(AGENT_CARGO) run --manifest-path agent/tools/policy-harness/Cargo.toml --locked --quiet
 
+agent-test-agentd-prepare:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test prepare
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@

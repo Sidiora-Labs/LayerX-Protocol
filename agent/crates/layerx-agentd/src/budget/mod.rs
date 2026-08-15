@@ -1,30 +1,30 @@
 //! Protocol-backed and explicitly local spending limits.
 
-mod create;
 #[path = "reconcile.rs"]
 mod accounting;
-#[path = "reserve.rs"]
-mod reservations;
-#[path = "hold.rs"]
-mod recovery;
+mod create;
 #[path = "divergence.rs"]
 mod divergence_reporting;
+#[path = "hold.rs"]
+mod recovery;
+#[path = "reserve.rs"]
+mod reservations;
 
+pub use accounting::{
+    LocalAccounting, ProtocolBudgetState, ReconcileError, ReconciliationState, VerifiedSpendReceipt,
+};
 pub use create::{
     create_protocol_budget, BudgetCreationError, BudgetKind, BudgetPipeline, BudgetRequest,
     CoreBudgetReceipt, LocalLimit, ProtocolBudget,
 };
-pub use accounting::{
-    LocalAccounting, ProtocolBudgetState, ReconcileError, ReconciliationState, VerifiedSpendReceipt,
-};
-pub use reservations::{
-    BudgetLimiter, BudgetReservation, LimitConfig, LimitId, LimitRefusal, LimitScope,
-    ReleaseKind, ReservationRequest,
-};
+pub use divergence_reporting::{BudgetDivergenceAlert, BudgetHealth, DivergenceAuditRecord};
 pub use recovery::{
     PersistedReceipt, RestartAccounting, RestartError, UnknownOutcome, UnknownReservation,
 };
-pub use divergence_reporting::{BudgetDivergenceAlert, BudgetHealth, DivergenceAuditRecord};
+pub use reservations::{
+    BudgetLimiter, BudgetReservation, LimitConfig, LimitId, LimitRefusal, LimitScope, ReleaseKind,
+    ReservationRequest,
+};
 
 /// Reconciles local budget cache state against verified protocol evidence.
 pub fn reconcile(

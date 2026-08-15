@@ -80,7 +80,8 @@ pub(crate) fn reconcile_state(
     let divergence = if local_before == protocol.consumed {
         None
     } else {
-        let protocol_value = i128::try_from(protocol.consumed).map_err(|_| ReconcileError::Arithmetic)?;
+        let protocol_value =
+            i128::try_from(protocol.consumed).map_err(|_| ReconcileError::Arithmetic)?;
         let local_value = i128::try_from(local_before).map_err(|_| ReconcileError::Arithmetic)?;
         Some(protocol_value - local_value)
     };

@@ -4,28 +4,24 @@ use std::collections::BTreeSet;
 
 use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
 
-mod narrowing;
 #[path = "attenuate.rs"]
 mod attenuation;
 #[path = "consume.rs"]
 mod consumption;
+mod narrowing;
 #[path = "report.rs"]
 mod reporting;
 
-pub use narrowing::{
-    Binding, Enforcement, NarrowingError, NarrowingReport, ProtocolScope,
-};
-pub use attenuation::{
-    AttenuationError, CapabilityGraph, RevocableActivity, RevocationResult,
-};
+use crate::identity::ProtocolAuthority;
+pub use attenuation::{AttenuationError, CapabilityGraph, RevocableActivity, RevocationResult};
 pub use consumption::{
     Ceiling, CeilingError, CeilingSnapshot, ReceiptOutcome, Reservation, VerifiedReceipt,
 };
+pub use narrowing::{Binding, Enforcement, NarrowingError, NarrowingReport, ProtocolScope};
 pub use reporting::{
     check_guarantee_wording, CapabilityReport, DecisionEvidence, ReportError, ReportSurfaces,
     RestrictionReport,
 };
-use crate::identity::ProtocolAuthority;
 
 /// Stable capability identifier.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -264,8 +260,20 @@ pub(crate) fn encode(capability: &Capability) -> Result<Vec<u8>, CapabilityError
         bytes.extend_from_slice(value);
     }
     bytes.extend_from_slice(&capability.dimensions.amount_ceiling.to_be_bytes());
-    bytes.extend_from_slice(&capability.dimensions.rate_ceiling.maximum_uses.to_be_bytes());
-    bytes.extend_from_slice(&capability.dimensions.rate_ceiling.window_sequences.to_be_bytes());
+    bytes.extend_from_slice(
+        &capability
+            .dimensions
+            .rate_ceiling
+            .maximum_uses
+            .to_be_bytes(),
+    );
+    bytes.extend_from_slice(
+        &capability
+            .dimensions
+            .rate_ceiling
+            .window_sequences
+            .to_be_bytes(),
+    );
     push_len(&mut bytes, capability.dimensions.purposes.len())?;
     for purpose in &capability.dimensions.purposes {
         push_string(&mut bytes, purpose)?;
@@ -343,8 +351,14 @@ struct Decoder<'a> {
 
 impl<'a> Decoder<'a> {
     fn take(&mut self, length: usize) -> Result<&'a [u8], CapabilityError> {
-        let end = self.offset.checked_add(length).ok_or(CapabilityError::Corrupt)?;
-        let value = self.bytes.get(self.offset..end).ok_or(CapabilityError::Corrupt)?;
+        let end = self
+            .offset
+            .checked_add(length)
+            .ok_or(CapabilityError::Corrupt)?;
+        let value = self
+            .bytes
+            .get(self.offset..end)
+            .ok_or(CapabilityError::Corrupt)?;
         self.offset = end;
         Ok(value)
     }
@@ -373,7 +387,8 @@ impl<'a> Decoder<'a> {
 
     fn string(&mut self) -> Result<String, CapabilityError> {
         let length = self.len()?;
-        let value = std::str::from_utf8(self.take(length)?).map_err(|_| CapabilityError::Corrupt)?;
+        let value =
+            std::str::from_utf8(self.take(length)?).map_err(|_| CapabilityError::Corrupt)?;
         Ok(value.to_owned())
     }
 }

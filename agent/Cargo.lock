@@ -371,6 +371,7 @@ dependencies = [
  "layerx-agent-api",
  "layerx-client",
  "layerx-types",
+ "layerx-wire",
  "sha2",
 ]
 

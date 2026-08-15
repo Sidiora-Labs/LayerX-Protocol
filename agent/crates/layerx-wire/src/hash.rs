@@ -1,5 +1,6 @@
 //! SHA-256 hashing over type-gated canonical bytes and exact core domain tags.
 
+use layerx_types::payload::Payload;
 use layerx_types::result::KnownResult;
 
 use crate::activity::{encode_signed, Activity};
@@ -150,6 +151,14 @@ pub fn activity_id(activity: &Activity) -> Result<[u8; 32], WireError> {
 /// Returns a hash length failure when the input cannot be represented safely.
 pub fn payload_hash(activity: &Activity) -> Result<[u8; 32], WireError> {
     domain(Domain::PayloadHash, &canonical_payload(activity))
+}
+
+/// Computes the core payload digest before an envelope is constructed.
+pub fn payload_hash_for(payload: &Payload) -> Result<[u8; 32], WireError> {
+    domain(
+        Domain::PayloadHash,
+        &CanonicalBytes::from_wire(payload.as_bytes().to_vec()),
+    )
 }
 
 /// Hashes canonical leaf bytes under the protocol Merkle-leaf domain.

@@ -235,11 +235,7 @@ impl Store {
     }
 
     /// Persists exact bytes produced by the core as a rebuildable cache.
-    pub fn put_core_cache(
-        &mut self,
-        key: TenantKey,
-        bytes: Vec<u8>,
-    ) -> Result<(), StoreError> {
+    pub fn put_core_cache(&mut self, key: TenantKey, bytes: Vec<u8>) -> Result<(), StoreError> {
         self.put(key, StorageClass::CoreProducedCache, bytes)
     }
 
@@ -256,16 +252,9 @@ impl Store {
             ObjectKind::PreparedActivity,
             idempotency_key.clone(),
         )?;
-        let outbox_key = TenantKey::new(
-            tenant.clone(),
-            ObjectKind::Outbox,
-            idempotency_key.clone(),
-        )?;
-        let idempotency_record = TenantKey::new(
-            tenant,
-            ObjectKind::Idempotency,
-            idempotency_key,
-        )?;
+        let outbox_key =
+            TenantKey::new(tenant.clone(), ObjectKind::Outbox, idempotency_key.clone())?;
+        let idempotency_record = TenantKey::new(tenant, ObjectKind::Idempotency, idempotency_key)?;
 
         let before = self.entries.clone();
         self.entries.insert(
@@ -324,7 +313,9 @@ impl Store {
         class: StorageClass,
         bytes: Vec<u8>,
     ) -> Result<(), StoreError> {
-        let previous = self.entries.insert(key.clone(), StoredValue { class, bytes });
+        let previous = self
+            .entries
+            .insert(key.clone(), StoredValue { class, bytes });
         if let Err(error) = self.persist() {
             match previous {
                 Some(value) => {
