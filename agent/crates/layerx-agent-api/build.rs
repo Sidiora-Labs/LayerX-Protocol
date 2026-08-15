@@ -67,8 +67,11 @@ fn compatibility_gate(
     baseline: &BTreeMap<String, String>,
     current: &BTreeMap<String, String>,
 ) -> Result<(), String> {
-    let old_major = integer(baseline, "schema.major")?;
-    let new_major = integer(current, "schema.major")?;
+    let major = |entries: &BTreeMap<String, String>| {
+        integer(entries, "schema.major").or_else(|_| integer(entries, "module.contract_major"))
+    };
+    let old_major = major(baseline)?;
+    let new_major = major(current)?;
     if old_major != new_major {
         return Ok(());
     }
@@ -223,6 +226,29 @@ fn main() {
     let old = section_map(&read(&baseline)).unwrap_or_else(|error| panic!("invalid baseline: {error}"));
     validate(&current).unwrap_or_else(|error| panic!("invalid schema: {error}"));
     compatibility_gate(&old, &current).unwrap_or_else(|error| panic!("incompatible schema: {error}"));
+
+    for module in ["identity.kvx", "write.kvx", "read.kvx", "stream.kvx", "errors.kvx"] {
+        let current_module = schema.parent().unwrap_or_else(|| panic!("schema has no parent")).join(module);
+        if !current_module.exists() {
+            continue;
+        }
+        let baseline_module = baseline
+            .parent()
+            .unwrap_or_else(|| panic!("baseline has no parent"))
+            .join(module);
+        println!("cargo:rerun-if-changed={}", current_module.display());
+        println!("cargo:rerun-if-changed={}", baseline_module.display());
+        let current_entries = section_map(&read(&current_module))
+            .unwrap_or_else(|error| panic!("invalid {}: {error}", current_module.display()));
+        validate(&current_entries)
+            .unwrap_or_else(|error| panic!("invalid {}: {error}", current_module.display()));
+        if baseline_module.exists() {
+            let baseline_entries = section_map(&read(&baseline_module))
+                .unwrap_or_else(|error| panic!("invalid {}: {error}", baseline_module.display()));
+            compatibility_gate(&baseline_entries, &current_entries)
+                .unwrap_or_else(|error| panic!("incompatible {}: {error}", current_module.display()));
+        }
+    }
     let fresh = generated_source(&current).unwrap_or_else(|error| panic!("generation failed: {error}"));
 
     let out = PathBuf::from(

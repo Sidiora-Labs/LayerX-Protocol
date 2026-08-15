@@ -386,7 +386,7 @@ entirely on the spine being real.
     - Represent every consensus-critical integer as an exact integer type in the schema and forbid a floating-point representation anywhere in it.
     - Generate the Rust contract types from the schema in the build and fail if the committed generated output differs from a fresh generation.
     - _Requirements: 18.1, 18.7, 18.5_
-  - [ ] 8.2 Define identity, session, capability and budget operations
+  - [x] 8.2 Define identity, session, capability and budget operations
     - Define agent registration, session open, refresh, close and list, each carrying tenant, agent DID, authority reference, permitted activity types, expiry and policy version.
     - Define capability creation, attenuation, listing and revocation with every dimension explicit and no dimension defaulting open.
     - Define budget creation, funding, listing, reconciliation status and revocation, distinguishing protocol-enforced budgets from daemon-enforced limits in the type itself.

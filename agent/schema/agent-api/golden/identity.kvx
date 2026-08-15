@@ -1,0 +1,82 @@
+[module]
+name = "identity"
+contract_major = 1
+compatibility = "additive_only"
+
+[type.SessionContext]
+required = ["tenant","agent_did","authority_ref","permitted_activity_types","expiry","client","policy_version"]
+
+[operation.agent.register]
+request = "AgentRegistration"
+required = ["tenant","agent_did","authority_ref","client","policy_version"]
+response = "AuthorityResponse<AgentRecord>"
+
+[operation.session.open]
+request = "SessionOpen"
+required = ["context"]
+response = "AuthorityResponse<SessionRecord>"
+
+[operation.session.refresh]
+request = "SessionRefresh"
+required = ["session_id","context"]
+response = "AuthorityResponse<SessionRecord>"
+
+[operation.session.close]
+request = "SessionClose"
+required = ["session_id","context"]
+response = "AuthorityResponse<SessionRecord>"
+
+[operation.session.list]
+request = "SessionList"
+required = ["context"]
+response = "AuthorityResponse<SessionRecords>"
+
+[type.CapabilityDimensions]
+required = ["activity_types","counterparties","assets","amount_ceilings","rate_ceilings","purpose_constraints","expiry"]
+set_semantics = "Every set is explicitly supplied. An explicit empty set denies that dimension; omission is invalid and never means allow all."
+
+[operation.capability.create]
+required = ["tenant","agent_did","dimensions"]
+response = "AuthorityResponse<CapabilityRecord>"
+
+[operation.capability.attenuate]
+required = ["tenant","agent_did","parent_id","dimensions"]
+response = "AuthorityResponse<CapabilityRecord>"
+
+[operation.capability.list]
+required = ["tenant","agent_did"]
+response = "AuthorityResponse<CapabilityRecords>"
+
+[operation.capability.revoke]
+required = ["tenant","agent_did","capability_id"]
+response = "AuthorityResponse<CapabilityRecord>"
+
+[type.BudgetEnforcement]
+variants = ["ProtocolBudget","DaemonLimit"]
+ProtocolBudget.guarantee = "protocol_enforced"
+DaemonLimit.guarantee = "daemon_enforced"
+DaemonLimit.notice = "Bypassing the daemon bypasses this limit. It is not equivalent to a protocol budget."
+
+[operation.budget.create]
+required = ["tenant","agent_did","asset","limit","enforcement","expiry"]
+response = "AuthorityResponse<BudgetRecord>"
+
+[operation.budget.fund]
+required = ["tenant","agent_did","budget_id","amount"]
+response = "AuthorityResponse<BudgetRecord>"
+
+[operation.budget.list]
+required = ["tenant","agent_did"]
+response = "AuthorityResponse<BudgetRecords>"
+
+[operation.budget.reconciliation]
+required = ["tenant","agent_did","budget_id"]
+response = "AuthorityResponse<BudgetReconciliation>"
+
+[operation.budget.revoke]
+required = ["tenant","agent_did","budget_id"]
+response = "AuthorityResponse<BudgetRecord>"
+
+[type.AuthorityResponse]
+required = ["authority","value"]
+authority_description = "Every response names the tenant, agent DID, authority reference and exact protocol authority actually used."

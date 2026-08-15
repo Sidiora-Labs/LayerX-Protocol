@@ -1027,7 +1027,7 @@ reqs = ["18.1","18.7","18.5"]
 
 [task.8.2]
 title = "Define identity, session, capability and budget operations"
-status = "pending"
+status = "done"
 wave = 7
 requires = ["8.1"]
 do_1 = "Define agent registration, session open, refresh, close and list, each carrying tenant, agent DID, authority reference, permitted activity types, expiry and policy version."
@@ -1036,7 +1036,7 @@ do_3 = "Define budget creation, funding, listing, reconciliation status and revo
 do_4 = "Define the authority description returned with every response so a caller can see which protocol authority was actually used."
 do_5 = "Add contract tests asserting that an operation cannot be expressed without its mandatory dimensions."
 verify_cmd = "make agent-test-contract-identity"
-symbols = ["agent_api::identity","agent_api::capability","agent_api::budget"]
+symbols = ["layerx_agent_api::identity","layerx_agent_api::capability","layerx_agent_api::budget"]
 touches = ["agent/schema/agent-api/identity.kvx","agent/crates/layerx-agent-api/src/identity.rs","agent/crates/layerx-agent-api/tests/identity.rs"]
 reqs = ["8.2","9.1","10.2","18.10"]
 
@@ -2379,4 +2379,3 @@ verify_cmd = "make agent-qualify"
 symbols = ["agent_qualification_report","agent_release_gate"]
 touches = ["agent/tools/qualify/src/main.rs","agent/QUALIFICATION.md","Makefile"]
 reqs = ["23.10","22.7","18.10"]
-
