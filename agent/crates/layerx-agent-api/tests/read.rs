@@ -10,7 +10,7 @@ use layerx_agent_api::read::{
     Freshness, HistoryValue, ModuleStateValue, ProjectionResult, RelativeTo, VerifiedRead,
 };
 use layerx_agent_api::{Amount, Sequence};
-use layerx_types::verify::VerificationLevel;
+use layerx_agent_api::verify::Level;
 
 const SCHEMA: &str = include_str!("../../../schema/agent-api/read.kvx");
 
@@ -33,7 +33,7 @@ fn freshness() -> Freshness {
 }
 
 fn assert_verified<T: layerx_agent_api::read::CoreProduced>(value: &VerifiedRead<T>) {
-    assert_eq!(value.achieved_verification_level, VerificationLevel::STATE_PROVEN);
+    assert_eq!(value.achieved_verification_level, Level::StateProven);
     assert_eq!(value.freshness.chain_head, Sequence(50));
     assert_eq!(value.freshness.latest_sealed_batch.as_str(), "batch-4");
     assert_eq!(
@@ -44,7 +44,7 @@ fn assert_verified<T: layerx_agent_api::read::CoreProduced>(value: &VerifiedRead
 
 #[test]
 fn every_authoritative_read_shape_carries_level_and_freshness() {
-    let level = VerificationLevel::STATE_PROVEN;
+    let level = Level::StateProven;
     let values = (
         VerifiedRead::new(AccountValue(bytes(1)), level, freshness()),
         VerifiedRead::new(ModuleStateValue(bytes(2)), level, freshness()),
@@ -85,7 +85,7 @@ fn balance_preserves_identity_amount_sequence_and_reference() {
             amount: Amount(9_007_199_254_740_993),
             canonical_state: bytes(8),
         },
-        VerificationLevel::STATE_PROVEN,
+        Level::StateProven,
         freshness(),
     );
     assert_eq!(balance.value.amount, Amount(9_007_199_254_740_993));
@@ -112,7 +112,7 @@ fn availability_reports_complete_provider_or_attributed_partials() {
             failure: Some("incomplete".to_owned()),
         }],
     };
-    let read = VerifiedRead::new(report, VerificationLevel::BATCH_INCLUDED, freshness());
+    let read = VerifiedRead::new(report, Level::BatchIncluded, freshness());
     assert!(matches!(read.value.completion, AvailabilityCompletion::Partial));
     assert_eq!(read.value.providers.len(), 1);
     assert!(SCHEMA.contains("bytes are never merged across providers"));
@@ -129,7 +129,7 @@ fn offline_export_is_self_contained_and_projection_is_distinct() {
     }
     .validate()
     .unwrap_or_else(|error| panic!("offline export: {error:?}"));
-    let verified = VerifiedRead::new(export, VerificationLevel::CHECKPOINT_FINALISED, freshness());
+    let verified = VerifiedRead::new(export, Level::CheckpointFinalised, freshness());
     assert_eq!(verified.value.facts.len(), 1);
 
     let projection = ProjectionResult::new(Amount(22), "fee estimate only", freshness())

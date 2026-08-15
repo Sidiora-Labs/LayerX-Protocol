@@ -9,6 +9,8 @@ mod write_contract;
 mod read_contract;
 #[path = "stream.rs"]
 mod stream_contract;
+#[path = "error.rs"]
+mod error_contract;
 
 /// Identity and session contract namespace.
 pub mod identity {
@@ -92,6 +94,23 @@ pub mod subscription {
 }
 
 pub use stream_contract::{Delivery, GapNotice};
+
+/// Stable wire error contract namespace.
+pub mod error {
+    pub use crate::error_contract::{ApiError, ErrorClass, ReasonCode, RequestId, Retriability};
+}
+
+/// Idempotent mutation contract namespace.
+pub mod idempotency {
+    pub use crate::error_contract::{
+        classify_repeat, BodyDigest, IdempotencyOutcome, IdempotentMutation, Key,
+    };
+}
+
+/// Contract-level verification lattice and success envelope.
+pub mod verify {
+    pub use crate::error_contract::{ApiSuccess, Level, VerificationStatus};
+}
 
 pub use generated::{
     agent_api_compat_gate, agent_api_schema_v1, Amount, BudgetLimit, ContractSchema,

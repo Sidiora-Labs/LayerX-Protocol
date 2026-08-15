@@ -1,0 +1,70 @@
+[module]
+name = "errors"
+contract_major = 1
+compatibility = "additive_only"
+
+[type.ApiError]
+required = ["class","protocol_result_code","retriability","request_id","reason"]
+
+[type.ErrorClass]
+variants = ["TransportFailure","Deadline","ProtocolIncompatibility","UnavailableCapability","CoreRejection","VerificationFailure","PolicyRefusal","CapabilityRefusal","BudgetRefusal","RateLimit","IdempotencyConflict","InternalFault"]
+UnavailableCapability.semantics = "A required node capability was not in the negotiated intersection. The layer does not emulate it."
+
+[type.Retriability]
+variants = ["Terminal","Retriable"]
+
+[type.Level]
+variants = ["Unverified","SequencerSigned","BatchIncluded","StateProven","CheckpointFinalised","SettlementAnchored"]
+ordering = "declaration_order"
+
+[type.VerificationStatus]
+variants = ["Achieved","Unverified"]
+Achieved.required = ["level"]
+Unverified.required = ["requested","achieved","reason"]
+
+[response.success]
+envelope = "ApiSuccess"
+required = ["request_id","value","verification_status"]
+rule = "Every successful operation uses this envelope. Verification status is never omitted and a shortfall is never silently downgraded."
+
+[mutation.agent.register]
+envelope = "IdempotentMutation"
+[mutation.session.open]
+envelope = "IdempotentMutation"
+[mutation.session.refresh]
+envelope = "IdempotentMutation"
+[mutation.session.close]
+envelope = "IdempotentMutation"
+[mutation.capability.create]
+envelope = "IdempotentMutation"
+[mutation.capability.attenuate]
+envelope = "IdempotentMutation"
+[mutation.capability.revoke]
+envelope = "IdempotentMutation"
+[mutation.budget.create]
+envelope = "IdempotentMutation"
+[mutation.budget.fund]
+envelope = "IdempotentMutation"
+[mutation.budget.revoke]
+envelope = "IdempotentMutation"
+[mutation.prepare]
+envelope = "IdempotentMutation"
+[mutation.sign]
+envelope = "IdempotentMutation"
+[mutation.submit]
+envelope = "IdempotentMutation"
+[mutation.subscription.create]
+envelope = "IdempotentMutation"
+[mutation.subscription.acknowledge]
+envelope = "IdempotentMutation"
+[mutation.subscription.pause]
+envelope = "IdempotentMutation"
+[mutation.subscription.resume]
+envelope = "IdempotentMutation"
+[mutation.subscription.delete]
+envelope = "IdempotentMutation"
+
+[type.IdempotentMutation]
+required = ["request_id","key","body_digest","operation"]
+repeat_same_body = "return_original_result"
+repeat_different_body = "IdempotencyConflict"

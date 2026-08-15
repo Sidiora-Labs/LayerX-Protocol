@@ -1087,7 +1087,7 @@ reqs = ["16.2","16.3","16.4","16.6"]
 
 [task.8.6]
 title = "Define the error, idempotency and verification-level contract"
-status = "pending"
+status = "done"
 wave = 7
 requires = ["8.2","8.3","8.4","8.5"]
 do_1 = "Define the wire error shape carrying the layer error class, the protocol result code where one exists, the retriability classification, the request identifier and a stable machine-readable reason."

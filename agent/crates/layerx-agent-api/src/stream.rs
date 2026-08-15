@@ -1,14 +1,13 @@
 //! Tenant-scoped durable subscription and delivery contract types.
 
 use layerx_types::result::ResultCode;
-use layerx_types::verify::VerificationLevel;
-
 use crate::identity::{
     ActivityType, AgentDid, Asset, CapabilityId, ContractError, Counterparty, ExplicitSet,
     TenantId,
 };
 use crate::read::{AccountRef, ModuleRef};
 use crate::track::ReceiptRef;
+use crate::verify::Level;
 use crate::{Sequence, TimestampSeconds};
 
 macro_rules! required_reference {
@@ -175,7 +174,7 @@ pub enum ReceiptReference {
     None,
     Verified {
         receipt_ref: ReceiptRef,
-        verification_level: VerificationLevel,
+        verification_level: Level,
     },
 }
 

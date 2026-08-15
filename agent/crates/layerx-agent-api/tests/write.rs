@@ -6,7 +6,7 @@ use layerx_agent_api::track::{
     ReceiptRef, SubmissionRef, SubmissionState, TrackedSubmission, WaitRequest, WaitResult,
 };
 use layerx_agent_api::{Amount, TimestampSeconds};
-use layerx_types::verify::VerificationLevel;
+use layerx_agent_api::verify::Level;
 
 const SCHEMA: &str = include_str!("../../../schema/agent-api/write.kvx");
 
@@ -94,19 +94,19 @@ fn wait_returns_actual_level_even_when_deadline_elapsed() {
     let submission_ref = required(SubmissionRef::new("submission-1"));
     let request = WaitRequest {
         submission_ref: submission_ref.clone(),
-        requested_verification_level: VerificationLevel::CHECKPOINT_FINALISED,
+        requested_verification_level: Level::CheckpointFinalised,
         deadline: TimestampSeconds(50),
     };
     let tracked = TrackedSubmission {
         submission_ref,
         state: SubmissionState::Acknowledged,
         evidence: Vec::new(),
-        verification_level: VerificationLevel::SEQUENCER_SIGNED,
+        verification_level: Level::SequencerSigned,
         transitions: Vec::new(),
     };
     let result = WaitResult {
         submission: tracked,
-        actual_verification_level: VerificationLevel::SEQUENCER_SIGNED,
+        actual_verification_level: Level::SequencerSigned,
         deadline_elapsed: true,
     };
     assert!(result.deadline_elapsed);

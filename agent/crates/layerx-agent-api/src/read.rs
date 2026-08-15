@@ -1,8 +1,7 @@
 //! Verified read, proof, availability, export, and projection contract types.
 
-use layerx_types::verify::VerificationLevel;
-
 use crate::identity::{Asset, ContractError};
+use crate::verify::Level;
 use crate::write_contract::CanonicalBytes;
 use crate::{Amount, Sequence, TimestampSeconds};
 
@@ -67,7 +66,7 @@ pub trait CoreProduced: sealed::Sealed {}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedRead<T: CoreProduced> {
     pub value: T,
-    pub achieved_verification_level: VerificationLevel,
+    pub achieved_verification_level: Level,
     pub freshness: Freshness,
 }
 
@@ -75,7 +74,7 @@ impl<T: CoreProduced> VerifiedRead<T> {
     #[must_use]
     pub const fn new(
         value: T,
-        achieved_verification_level: VerificationLevel,
+        achieved_verification_level: Level,
         freshness: Freshness,
     ) -> Self {
         Self {
@@ -89,7 +88,7 @@ impl<T: CoreProduced> VerifiedRead<T> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReadRequest<S> {
     pub selector: S,
-    pub requested_verification_level: VerificationLevel,
+    pub requested_verification_level: Level,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -223,7 +222,7 @@ impl CoreProduced for AvailabilityReport {}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AvailabilityRequest {
     pub selector: String,
-    pub requested_verification_level: VerificationLevel,
+    pub requested_verification_level: Level,
     pub maximum_bytes: u64,
     pub maximum_chunks: u32,
     pub deadline: TimestampSeconds,

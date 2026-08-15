@@ -414,7 +414,7 @@ entirely on the spine being real.
     - Define the gap notification and the truncation notification as first-class delivery events rather than out-of-band log lines.
     - Add contract tests asserting a subscription cannot be created without a scope and that a filter cannot name an object outside its tenant.
     - _Requirements: 16.2, 16.3, 16.4, 16.6_
-  - [ ] 8.6 Define the error, idempotency and verification-level contract
+  - [x] 8.6 Define the error, idempotency and verification-level contract
     - Define the wire error shape carrying the layer error class, the protocol result code where one exists, the retriability classification, the request identifier and a stable machine-readable reason.
     - Define caller-supplied idempotency keys across every mutating operation, with the original result returned for a repeat and a conflict error for a repeat whose body differs.
     - Define the verification level as a contract-level enumeration so every SDK exposes the same lattice with the same ordering.

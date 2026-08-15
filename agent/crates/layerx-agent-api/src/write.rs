@@ -1,9 +1,8 @@
 //! Prepare, sign, submit, track, and wait contract types.
 
 use layerx_types::result::ResultCode;
-use layerx_types::verify::VerificationLevel;
-
 use crate::identity::{ActivityType, AgentDid, Asset, AuthorityRef, ContractError, ExplicitSet};
+use crate::verify::Level;
 use crate::{Amount, Sequence, TimestampSeconds};
 
 macro_rules! required_bytes {
@@ -210,20 +209,20 @@ pub struct TrackedSubmission {
     pub submission_ref: SubmissionRef,
     pub state: SubmissionState,
     pub evidence: Vec<EvidenceRef>,
-    pub verification_level: VerificationLevel,
+    pub verification_level: Level,
     pub transitions: Vec<Transition>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WaitRequest {
     pub submission_ref: SubmissionRef,
-    pub requested_verification_level: VerificationLevel,
+    pub requested_verification_level: Level,
     pub deadline: TimestampSeconds,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WaitResult {
     pub submission: TrackedSubmission,
-    pub actual_verification_level: VerificationLevel,
+    pub actual_verification_level: Level,
     pub deadline_elapsed: bool,
 }
