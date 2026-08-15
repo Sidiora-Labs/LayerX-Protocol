@@ -1752,6 +1752,12 @@ agent-test-boundary: $(BUILD_DIR)/agent/layerxd-lni
 	$(AGENT_CARGO) run --manifest-path agent/tests/boundary/Cargo.toml --locked -- \
 		$(CURDIR)/$(BUILD_DIR)/agent/layerxd-lni $(CURDIR)
 
+agent-qualify-boundary: $(BUILD_DIR)/agent/layerxd-lni
+	$(AGENT_CARGO) build --manifest-path agent/tests/boundary/Cargo.toml --locked
+	$(AGENT_CARGO) run --manifest-path agent/tests/qualify/Cargo.toml --locked -- boundary \
+		$(CURDIR) $(CURDIR)/$(BUILD_DIR)/agent/layerxd-lni \
+		$(CURDIR)/agent/tests/boundary/target/debug/agent-boundary-conformance
+
 agent-test-capability-report: agent-test-boundary
 
 agent-test-client-connection:

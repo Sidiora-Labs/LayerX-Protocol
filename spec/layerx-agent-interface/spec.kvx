@@ -2292,7 +2292,7 @@ reqs = ["23.1","4.10"]
 
 [task.23.2]
 title = "Run the boundary conformance suite against a real node"
-status = "pending"
+status = "done"
 wave = 12
 requires = ["6.5","20.2"]
 do_1 = "Run the full boundary suite against a real layerxd started from this repository, with no in-process substitute anywhere in the suite."

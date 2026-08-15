@@ -986,7 +986,7 @@ entirely on the spine being real.
     - Report coverage over the structure and rejection taxonomies and fail on an unexercised class.
     - Include the result in the qualification report.
     - _Requirements: 23.1, 4.10_
-  - [ ] 23.2 Run the boundary conformance suite against a real node
+  - [x] 23.2 Run the boundary conformance suite against a real node
     - Run the full boundary suite against a real layerxd started from this repository, with no in-process substitute anywhere in the suite.
     - Cover every message, error case, streaming behaviour, pagination path, version negotiation and capability report.
     - Cover node restart, node behind, node unreachable and node degraded, asserting the specified refusal behaviour in each case.
