@@ -656,7 +656,7 @@ entirely on the spine being real.
     - _Requirements: 13.7, 22.8, 23.4_
 
 - [ ] 15. Implement verified reads, proofs and availability in the daemon
-  - [ ] 15.1 Serve balances at a requested verification level
+  - [x] 15.1 Serve balances at a requested verification level
     - Serve balances derived from core-produced state with the account, asset, global sequence and the batch or checkpoint the value is relative to.
     - Fetch and verify the proof material the requested level demands and return the level actually achieved.
     - Refuse rather than downgrade when the requested level cannot be achieved and name the missing evidence.

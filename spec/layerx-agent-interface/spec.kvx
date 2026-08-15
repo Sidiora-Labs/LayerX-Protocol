@@ -1597,7 +1597,7 @@ status = "pending"
 
 [task.15.1]
 title = "Serve balances at a requested verification level"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["7.4"]
 do_1 = "Serve balances derived from core-produced state with the account, asset, global sequence and the batch or checkpoint the value is relative to."
