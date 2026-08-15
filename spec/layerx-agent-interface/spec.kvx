@@ -1042,7 +1042,7 @@ reqs = ["8.2","9.1","10.2","18.10"]
 
 [task.8.3]
 title = "Define prepare, sign, submit and track operations"
-status = "pending"
+status = "done"
 wave = 7
 requires = ["8.1"]
 do_1 = "Define prepare to return the unsigned canonical bytes, the signing preimage, the structured disclosure and the preparation expiry."
@@ -1051,7 +1051,7 @@ do_3 = "Define the submission state enumeration exactly as prepared, signed, que
 do_4 = "Define the wait operation that takes a requested verification level and a deadline and returns the level actually reached."
 do_5 = "Add contract tests asserting that no response shape allows an executed outcome to be reported without a receipt reference."
 verify_cmd = "make agent-test-contract-write"
-symbols = ["agent_api::prepare","agent_api::submit","agent_api::track","agent_api::SubmissionState"]
+symbols = ["layerx_agent_api::prepare","layerx_agent_api::submit","layerx_agent_api::track","layerx_agent_api::SubmissionState"]
 touches = ["agent/schema/agent-api/write.kvx","agent/crates/layerx-agent-api/src/write.rs","agent/crates/layerx-agent-api/tests/write.rs"]
 reqs = ["12.1","12.2","13.2","13.9"]
 

@@ -1,0 +1,44 @@
+[module]
+name = "write"
+contract_major = 1
+compatibility = "additive_only"
+
+[operation.prepare]
+request = "PrepareRequest"
+required = ["actor","authority","account_sequence","timestamp_bound","idempotency_key","fee_limit","payload","payload_hash"]
+response = "Prepared"
+response_required = ["preparation_ref","unsigned_canonical_bytes","signing_preimage","disclosure","expiry"]
+
+[type.Disclosure]
+required = ["canonical_digest","activity_type","actor","authority","counterparties","amounts","asset","fee_limit","expiry","idempotency_key"]
+origin = "decoded_from_unsigned_canonical_bytes"
+
+[operation.sign]
+request = "SignRequest"
+required = ["preparation_ref","signature"]
+response = "Signed"
+
+[operation.submit]
+request = "SubmitRequest"
+required = ["preparation_ref","signature"]
+response = "TrackedSubmission"
+
+[operation.track]
+request = "TrackRequest"
+required = ["submission_ref"]
+response = "TrackedSubmission"
+response_required = ["state","evidence","verification_level","transitions"]
+
+[type.SubmissionState]
+variants = ["Prepared","Signed","Queued","Submitted","Acknowledged","Unknown","Executed","Failed","Expired"]
+Unknown.semantics = "first_class_terminal_pending"
+Executed.required = ["receipt_ref"]
+
+[type.Transition]
+required = ["from","to","cause","at"]
+
+[operation.wait]
+request = "WaitRequest"
+required = ["submission_ref","requested_verification_level","deadline"]
+response = "WaitResult"
+response_required = ["submission","actual_verification_level","deadline_elapsed"]

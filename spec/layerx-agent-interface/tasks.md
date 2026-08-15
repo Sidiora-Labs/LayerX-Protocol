@@ -393,7 +393,7 @@ entirely on the spine being real.
     - Define the authority description returned with every response so a caller can see which protocol authority was actually used.
     - Add contract tests asserting that an operation cannot be expressed without its mandatory dimensions.
     - _Requirements: 8.2, 9.1, 10.2, 18.10_
-  - [ ] 8.3 Define prepare, sign, submit and track operations
+  - [x] 8.3 Define prepare, sign, submit and track operations
     - Define prepare to return the unsigned canonical bytes, the signing preimage, the structured disclosure and the preparation expiry.
     - Define submit to accept the signature and the preparation reference, and define track to return the submission state, its evidence and its verification level.
     - Define the submission state enumeration exactly as prepared, signed, queued, submitted, acknowledged, unknown, executed, failed and expired, with unknown a first-class terminal-pending state rather than an error.

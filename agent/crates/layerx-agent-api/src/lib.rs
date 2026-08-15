@@ -3,6 +3,8 @@
 pub mod generated;
 #[path = "identity.rs"]
 mod identity_contract;
+#[path = "write.rs"]
+mod write_contract;
 
 /// Identity and session contract namespace.
 pub mod identity {
@@ -23,6 +25,29 @@ pub mod budget {
         BudgetCreate, BudgetEnforcement, BudgetFund, BudgetId, BudgetList, BudgetTarget,
     };
 }
+
+/// Preparation contract namespace.
+pub mod prepare {
+    pub use crate::write_contract::{
+        CanonicalBytes, Disclosure, IdempotencyRef, PayloadBytes, PrepareRequest, Prepared,
+        PreparationRef, SigningPreimage, TimestampBound,
+    };
+}
+
+/// Submission contract namespace.
+pub mod submit {
+    pub use crate::write_contract::{PreparationRef, SignRequest, SignatureBytes, SubmitRequest};
+}
+
+/// Tracking contract namespace.
+pub mod track {
+    pub use crate::write_contract::{
+        EvidenceRef, ReceiptRef, SubmissionRef, SubmissionState, TrackRequest, TrackedSubmission,
+        Transition, WaitRequest, WaitResult,
+    };
+}
+
+pub use write_contract::SubmissionState;
 
 pub use generated::{
     agent_api_compat_gate, agent_api_schema_v1, Amount, BudgetLimit, ContractSchema,
