@@ -536,7 +536,7 @@ entirely on the spine being real.
     - _Requirements: 10.9, 20.8, 1.3_
 
 - [ ] 12. Implement the policy engine
-  - [ ] 12.1 Implement deterministic deny-by-default evaluation
+  - [x] 12.1 Implement deterministic deny-by-default evaluation
     - Implement evaluation over the request, the session, the capability, the reconciled budget state and the loaded policy version alone, denying by default when no rule permits.
     - Forbid consulting wall-clock convenience, random values, load or non-deterministic ordering, and prove determinism with a repeated-evaluation test over a recorded corpus.
     - Support constraints over activity type, counterparty, asset, amount, cumulative rate, purpose, capability, session, agent, tenant, time window and required approval, with exact-integer thresholds only.

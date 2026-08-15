@@ -1344,7 +1344,7 @@ status = "pending"
 
 [task.12.1]
 title = "Implement deterministic deny-by-default evaluation"
-status = "pending"
+status = "done"
 wave = 8
 requires = ["9.3"]
 do_1 = "Implement evaluation over the request, the session, the capability, the reconciled budget state and the loaded policy version alone, denying by default when no rule permits."
