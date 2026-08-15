@@ -947,7 +947,7 @@ reqs = ["7.2","7.3","7.5","1.6"]
 
 [task.7.3]
 title = "Implement receipt retrieval, verification and unknown resolution"
-status = "pending"
+status = "done"
 wave = 6
 requires = ["7.2","5.2"]
 do_1 = "Implement receipt lookup by activity identifier, idempotency key and global sequence, returning the exact core-produced bytes."

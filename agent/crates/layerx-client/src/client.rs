@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
+use layerx_proof::receipt::AuthorizedBatch;
 use layerx_types::payload::ModuleRegistry;
 
 use crate::head::{Head, HeadError, HeadTracker};
@@ -11,6 +12,9 @@ use crate::lni::handshake::{perform, Handshake, HandshakeConfig, HandshakeError}
 use crate::lni::report::capability_report;
 use crate::lni::schema::Capability;
 use crate::lni::transport::{ConnectionGate, Limits, TransportError, Uds};
+use crate::receipt::{
+    lookup, resolve_unknown, Lookup, LookupContext, ReceiptError, ReceiptSelector, Resolution,
+};
 use crate::submit::{submit_signed, Submission, SubmissionContext, SubmitError, UnknownCause};
 
 /// Externally visible connection lifecycle state.
@@ -236,6 +240,70 @@ impl Client {
             self.state = ConnectionState::Unreachable;
         }
         Ok(submission)
+    }
+
+    /// Retrieves and verifies one receipt through the active boundary.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a capability gap, disconnected boundary, malformed response,
+    /// selector mismatch, or proof verification failure.
+    pub fn lookup_receipt(
+        &mut self,
+        selector: ReceiptSelector,
+        correlation_id: u64,
+        authorised_batch: AuthorizedBatch,
+    ) -> Result<Lookup, ReceiptError> {
+        if !self
+            .handshake
+            .capabilities()
+            .contains(Capability::ReceiptLookup)
+        {
+            return Err(ReceiptError::UnavailableCapability);
+        }
+        let transport = self.transport.as_mut().ok_or(ReceiptError::Disconnected)?;
+        lookup(
+            transport,
+            selector,
+            LookupContext {
+                interface_version: self.handshake.node().interface_version,
+                correlation_id,
+                authorised_batch,
+            },
+        )
+    }
+
+    /// Runs bounded receipt-only resolution for an unknown submission.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a capability gap, disconnected boundary, or invalid receipt
+    /// evidence. Absence and transport loss remain `Resolution::Unknown`.
+    pub fn resolve_unknown(
+        &mut self,
+        unknown: &crate::submit::Unknown,
+        correlation_id: u64,
+        authorised_batch: AuthorizedBatch,
+        policy: ReconnectPolicy,
+    ) -> Result<Resolution, ReceiptError> {
+        if !self
+            .handshake
+            .capabilities()
+            .contains(Capability::ReceiptLookup)
+        {
+            return Err(ReceiptError::UnavailableCapability);
+        }
+        let transport = self.transport.as_mut().ok_or(ReceiptError::Disconnected)?;
+        resolve_unknown(
+            transport,
+            unknown,
+            LookupContext {
+                interface_version: self.handshake.node().interface_version,
+                correlation_id,
+                authorised_batch,
+            },
+            policy,
+        )
     }
 }
 

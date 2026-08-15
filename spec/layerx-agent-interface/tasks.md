@@ -347,7 +347,7 @@ entirely on the spine being real.
     - Classify an attempt that ends without a determinate outcome as unknown, and expose that classification rather than an error that reads as failure.
     - Add tests asserting byte equality between the signed bytes and the transmitted bytes under fragmentation, retry and reconnect.
     - _Requirements: 7.2, 7.3, 7.5, 1.6_
-  - [ ] 7.3 Implement receipt retrieval, verification and unknown resolution
+  - [x] 7.3 Implement receipt retrieval, verification and unknown resolution
     - Implement receipt lookup by activity identifier, idempotency key and global sequence, returning the exact core-produced bytes.
     - Verify every retrieved receipt through layerx-proof before returning it and attach the achieved verification level.
     - Implement unknown resolution that repeatedly looks up the receipt for an idempotency key under bounded jittered backoff and never resubmits as a way of resolving.

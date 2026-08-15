@@ -3,7 +3,7 @@
 use layerx_crypto::{ed25519, SignatureMessage, VerifyError};
 use layerx_types::payload::ModuleRegistry;
 use layerx_wire::activity::{decode_signed, encode_signed, encode_unsigned};
-use layerx_wire::hash::Domain;
+use layerx_wire::hash::{activity_id, Domain};
 use layerx_wire::WireError;
 
 use crate::lni::schema::{decode_envelope, encode_envelope, Envelope, SchemaError, Version};
@@ -30,6 +30,7 @@ pub struct SubmissionContext {
 pub struct Acknowledgement {
     correlation_id: u64,
     idempotency_key: [u8; 32],
+    activity_id: [u8; 32],
     admission_bytes: Vec<u8>,
     core_evidence: Vec<u8>,
 }
@@ -43,6 +44,11 @@ impl Acknowledgement {
     #[must_use]
     pub const fn idempotency_key(&self) -> [u8; 32] {
         self.idempotency_key
+    }
+
+    #[must_use]
+    pub const fn activity_id(&self) -> [u8; 32] {
+        self.activity_id
     }
 
     #[must_use]
@@ -65,33 +71,58 @@ pub enum UnknownCause {
 
 /// A first-class indeterminate state that can only be resolved by receipt
 /// lookup under its idempotency key.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Unknown {
     idempotency_key: [u8; 32],
+    activity_id: [u8; 32],
     correlation_id: u64,
     attempt: u32,
+    resolution_attempts: u32,
     cause: UnknownCause,
+    signed_bytes: Vec<u8>,
 }
 
 impl Unknown {
     #[must_use]
-    pub const fn idempotency_key(self) -> [u8; 32] {
+    pub const fn idempotency_key(&self) -> [u8; 32] {
         self.idempotency_key
     }
 
     #[must_use]
-    pub const fn correlation_id(self) -> u64 {
+    pub const fn activity_id(&self) -> [u8; 32] {
+        self.activity_id
+    }
+
+    #[must_use]
+    pub const fn correlation_id(&self) -> u64 {
         self.correlation_id
     }
 
     #[must_use]
-    pub const fn attempt(self) -> u32 {
+    pub const fn attempt(&self) -> u32 {
         self.attempt
     }
 
     #[must_use]
-    pub const fn cause(self) -> UnknownCause {
+    pub const fn resolution_attempts(&self) -> u32 {
+        self.resolution_attempts
+    }
+
+    #[must_use]
+    pub const fn cause(&self) -> UnknownCause {
         self.cause
+    }
+
+    /// The sole byte string permitted for an explicitly authorised resend.
+    #[must_use]
+    pub fn retry_bytes(&self) -> &[u8] {
+        &self.signed_bytes
+    }
+
+    pub(crate) fn after_resolution_attempts(&self, attempts: u32) -> Self {
+        let mut updated = self.clone();
+        updated.resolution_attempts = self.resolution_attempts.saturating_add(attempts);
+        updated
     }
 }
 
@@ -180,6 +211,7 @@ pub fn submit_signed(
         .map_err(SubmitError::Signature)?;
 
     let idempotency_key = activity.idempotency_key();
+    let activity_id = activity_id(&activity)?;
     let request = encode_envelope(Envelope {
         version: context.interface_version,
         message_tag: SUBMIT_REQUEST_TAG,
@@ -191,6 +223,8 @@ pub fn submit_signed(
         return Ok(Submission::Unknown(unknown(
             context,
             idempotency_key,
+            activity_id,
+            signed_bytes,
             UnknownCause::Transport(error),
         )));
     }
@@ -200,6 +234,8 @@ pub fn submit_signed(
             return Ok(Submission::Unknown(unknown(
                 context,
                 idempotency_key,
+                activity_id,
+                signed_bytes,
                 UnknownCause::Transport(error),
             )));
         }
@@ -208,6 +244,8 @@ pub fn submit_signed(
         return Ok(Submission::Unknown(unknown(
             context,
             idempotency_key,
+            activity_id,
+            signed_bytes,
             UnknownCause::IndeterminateResponse,
         )));
     };
@@ -218,26 +256,55 @@ pub fn submit_signed(
         return Ok(Submission::Unknown(unknown(
             context,
             idempotency_key,
+            activity_id,
+            signed_bytes,
             UnknownCause::IndeterminateResponse,
         )));
     }
     Ok(Submission::Acknowledged(Acknowledgement {
         correlation_id: context.correlation_id,
         idempotency_key,
+        activity_id,
         admission_bytes: response.canonical_payload.to_vec(),
         core_evidence: response.proof_material.to_vec(),
     }))
 }
 
-const fn unknown(
+/// Performs one explicitly authorised resend using only the immutable bytes
+/// retained by an unknown submission.
+///
+/// Receipt resolution never calls this function. It exists for the separate
+/// policy decision that a resend is warranted and cannot mint a replacement
+/// idempotency key, activity, or sequence.
+///
+/// # Errors
+///
+/// Applies the same complete pre-transmission verification as the original
+/// attempt.
+pub fn resubmit_unknown(
+    transport: &mut dyn FrameTransport,
+    registry: &ModuleRegistry,
+    mut context: SubmissionContext,
+    unknown: &Unknown,
+) -> Result<Submission, SubmitError> {
+    context.attempt = unknown.attempt().saturating_add(1);
+    submit_signed(transport, registry, context, unknown.retry_bytes())
+}
+
+fn unknown(
     context: SubmissionContext,
     idempotency_key: [u8; 32],
+    activity_id: [u8; 32],
+    signed_bytes: &[u8],
     cause: UnknownCause,
 ) -> Unknown {
     Unknown {
         idempotency_key,
+        activity_id,
         correlation_id: context.correlation_id,
         attempt: context.attempt,
+        resolution_attempts: 0,
         cause,
+        signed_bytes: signed_bytes.to_vec(),
     }
 }
