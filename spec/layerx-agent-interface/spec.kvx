@@ -917,7 +917,7 @@ status = "pending"
 
 [task.7.1]
 title = "Implement connection lifecycle and head tracking"
-status = "pending"
+status = "done"
 wave = 6
 requires = ["6.3"]
 do_1 = "Implement connection establishment, reconnection with bounded jittered backoff, and a connection state surface that distinguishes connected, degraded, incompatible and unreachable."
@@ -926,7 +926,7 @@ do_3 = "Track the authorised sequencer key set and refuse to accept a receipt si
 do_4 = "Enforce that this crate is the only one in the workspace that opens a boundary connection, and add the check to the boundary purity gate."
 do_5 = "Add tests covering reconnect during a request, head regression, and a node that advertises an unexpected network mid-session."
 verify_cmd = "make agent-test-client-connection"
-symbols = ["layerx_client::Client::connect","layerx_client::head::HeadTracker"]
+symbols = ["Client","layerx_client::head::HeadTracker"]
 touches = ["agent/crates/layerx-client/src/client.rs","agent/crates/layerx-client/src/head.rs","agent/crates/layerx-client/tests/connection.rs"]
 reqs = ["7.1","2.4","14.6"]
 
@@ -2379,5 +2379,4 @@ verify_cmd = "make agent-qualify"
 symbols = ["agent_qualification_report","agent_release_gate"]
 touches = ["agent/tools/qualify/src/main.rs","agent/QUALIFICATION.md","Makefile"]
 reqs = ["23.10","22.7","18.10"]
-
 

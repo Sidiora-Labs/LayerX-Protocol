@@ -91,6 +91,12 @@ fn source_rule(body: &str, allow_c_layout: bool) -> Option<&'static str> {
     None
 }
 
+fn direct_core_connection(body: &str) -> bool {
+    body.contains("lni::transport::Uds")
+        || body.contains("lni::transport::Tls")
+        || body.contains("lni::abi::Handle")
+}
+
 fn allowlisted_paths(agent_root: &Path, name: &str) -> Result<Vec<PathBuf>, String> {
     let path = agent_root.join(name);
     let body = fs::read_to_string(&path)
@@ -152,6 +158,13 @@ fn agent_boundary_purity_check(agent_root: &Path) -> Result<(), Vec<Violation>> 
                 violations.push(Violation {
                     path: path.clone(),
                     rule,
+                });
+            }
+            let layerx_client_root = agent_root.join("crates/layerx-client");
+            if direct_core_connection(&body) && !path.starts_with(layerx_client_root) {
+                violations.push(Violation {
+                    path: path.clone(),
+                    rule: "direct-core-connection",
                 });
             }
             let uses_unsafe = body.contains("unsafe {")

@@ -333,7 +333,7 @@ entirely on the spine being real.
 ## Wave 6 - The Boundary Client
 
 - [ ] 7. Build layerx-client, the only crate that talks to the core
-  - [ ] 7.1 Implement connection lifecycle and head tracking
+  - [x] 7.1 Implement connection lifecycle and head tracking
     - Implement connection establishment, reconnection with bounded jittered backoff, and a connection state surface that distinguishes connected, degraded, incompatible and unreachable.
     - Track the chain head sequence, the latest sealed batch and the latest finalised checkpoint continuously, and expose them so every read can report what it is relative to.
     - Track the authorised sequencer key set and refuse to accept a receipt signature verified against a key the node did not advertise for that batch.

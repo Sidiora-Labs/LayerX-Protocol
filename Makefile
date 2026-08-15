@@ -1754,6 +1754,11 @@ agent-test-boundary: $(BUILD_DIR)/agent/layerxd-lni
 
 agent-test-capability-report: agent-test-boundary
 
+agent-test-client-connection:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-client --test connection
+	$(AGENT_CARGO) test --manifest-path agent/tools/boundary-check/Cargo.toml --locked
+	$(AGENT_CARGO) run --manifest-path agent/tools/boundary-check/Cargo.toml --locked --quiet -- agent
+
 $(BUILD_DIR)/agent-wire-reference: agent/tools/wire-differential/reference.c $(LIBRARY)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -lcrypto -pthread -o $@

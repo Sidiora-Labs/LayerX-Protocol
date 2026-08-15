@@ -123,3 +123,16 @@ fn unapproved_unsafe_fails() {
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("unapproved-unsafe"));
 }
+
+#[test]
+fn direct_core_connection_outside_client_fails() {
+    let fixture = Fixture::new();
+    fs::write(
+        fixture.path().join("crates/sample/src/lib.rs"),
+        "use layerx_client::lni::transport::Uds;\n",
+    )
+    .expect("write violation");
+    let output = fixture.run();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("direct-core-connection"));
+}
