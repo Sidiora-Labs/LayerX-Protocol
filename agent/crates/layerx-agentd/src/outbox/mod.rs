@@ -7,11 +7,16 @@ use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
 
 #[path = "unknown.rs"]
 mod resolution;
+#[path = "recover.rs"]
+mod restart;
 
 pub use resolution::{
     resolve_unknown, ReceiptLookup, ResendObservation, ResolutionObservation, ResolvedReceipt,
     ResolvedReceiptOutcome, UnknownAge, UnknownBoundaryError, UnknownResolution,
     UnknownResolutionError,
+};
+pub use restart::{
+    recover, RecoveredOutbox, RecoveryError, RecoveryInputs, UnknownCeilingReservation,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

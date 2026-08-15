@@ -1578,7 +1578,7 @@ reqs = ["13.8","13.9","6.4"]
 
 [task.14.6]
 title = "Recover the outbox on restart without duplication or loss"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["14.2","14.3"]
 do_1 = "Recover the outbox on start, resume resolution of every non-terminal submission, and refuse writes until recovery completes."

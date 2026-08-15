@@ -647,7 +647,7 @@ entirely on the spine being real.
     - Allow a caller to wait for a declared level with an explicit deadline and return the level actually reached when the deadline elapses.
     - Add tests covering a checkpoint that never finalises, a certificate that arrives sub-threshold and a settlement reference that does not match.
     - _Requirements: 13.8, 13.9, 6.4_
-  - [ ] 14.6 Recover the outbox on restart without duplication or loss
+  - [x] 14.6 Recover the outbox on restart without duplication or loss
     - Recover the outbox on start, resume resolution of every non-terminal submission, and refuse writes until recovery completes.
     - Neither resubmit an activity already executed nor drop an activity that was signed and queued but never transmitted.
     - Reconstruct reservations, ceilings and budget accounting from persisted receipts before accepting a write.

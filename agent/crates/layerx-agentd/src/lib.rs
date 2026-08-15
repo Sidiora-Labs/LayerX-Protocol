@@ -11,5 +11,6 @@ pub mod policy;
 pub mod prepare;
 pub mod receipt;
 pub mod session;
+pub mod shutdown;
 pub mod sign;
 pub mod store;

@@ -229,6 +229,16 @@ impl Store {
         self.entries.get(key)
     }
 
+    /// Lists tenant-scoped object identifiers in deterministic key order.
+    #[must_use]
+    pub fn list_object_ids(&self, tenant: &TenantId, kind: ObjectKind) -> Vec<Vec<u8>> {
+        self.entries
+            .keys()
+            .filter(|key| key.tenant == *tenant && key.kind == kind)
+            .map(|key| key.object_id.clone())
+            .collect()
+    }
+
     /// Persists daemon-local bytes.
     pub fn put_local(&mut self, key: TenantKey, bytes: Vec<u8>) -> Result<(), StoreError> {
         self.put(key, StorageClass::LocalOnly, bytes)
