@@ -407,7 +407,7 @@ entirely on the spine being real.
     - Define the projection operations distinctly so an estimate can never be returned in a field that carries a verified value.
     - Add contract tests asserting every read response carries a verification level and a freshness reference.
     - _Requirements: 14.1, 14.6, 14.10, 1.5_
-  - [ ] 8.5 Define subscription and streaming operations
+  - [x] 8.5 Define subscription and streaming operations
     - Define subscription creation, listing, health, cursor acknowledgement, pause, resume and deletion, each scoped to tenant, agent and capability.
     - Define the filter vocabulary over agent, account, activity type, module, asset, counterparty and result class, and define filters as restrictions that cannot widen visibility.
     - Define the delivery envelope carrying the event bytes, the deduplication identifier, the cursor and the verification level of any receipt it references.

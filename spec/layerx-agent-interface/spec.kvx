@@ -1072,7 +1072,7 @@ reqs = ["14.1","14.6","14.10","1.5"]
 
 [task.8.5]
 title = "Define subscription and streaming operations"
-status = "pending"
+status = "done"
 wave = 7
 requires = ["8.1"]
 do_1 = "Define subscription creation, listing, health, cursor acknowledgement, pause, resume and deletion, each scoped to tenant, agent and capability."
@@ -1081,7 +1081,7 @@ do_3 = "Define the delivery envelope carrying the event bytes, the deduplication
 do_4 = "Define the gap notification and the truncation notification as first-class delivery events rather than out-of-band log lines."
 do_5 = "Add contract tests asserting a subscription cannot be created without a scope and that a filter cannot name an object outside its tenant."
 verify_cmd = "make agent-test-contract-stream"
-symbols = ["agent_api::subscription","agent_api::Delivery","agent_api::GapNotice"]
+symbols = ["layerx_agent_api::subscription","layerx_agent_api::Delivery","layerx_agent_api::GapNotice"]
 touches = ["agent/schema/agent-api/stream.kvx","agent/crates/layerx-agent-api/src/stream.rs","agent/crates/layerx-agent-api/tests/stream.rs"]
 reqs = ["16.2","16.3","16.4","16.6"]
 

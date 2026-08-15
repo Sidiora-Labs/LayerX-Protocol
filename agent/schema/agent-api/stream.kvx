@@ -1,0 +1,53 @@
+[module]
+name = "stream"
+contract_major = 1
+compatibility = "additive_only"
+
+[type.SubscriptionScope]
+required = ["tenant","agent","capability"]
+
+[type.SubscriptionFilter]
+required = ["agents","accounts","activity_types","modules","assets","counterparties","result_classes"]
+evaluation_order = ["tenant_restriction","capability_scope_restriction","filter"]
+semantics = "Every filter is a restriction. It cannot name an object outside the owning tenant and cannot widen capability visibility."
+
+[operation.subscription.create]
+required = ["scope","filter","start","delivery_target"]
+durability = "Persist the definition and last acknowledged cursor; restore from that cursor after restart."
+
+[operation.subscription.list]
+required = ["scope"]
+
+[operation.subscription.health]
+required = ["scope","subscription_id"]
+
+[operation.subscription.acknowledge]
+required = ["scope","subscription_id","cursor"]
+
+[operation.subscription.pause]
+required = ["scope","subscription_id"]
+
+[operation.subscription.resume]
+required = ["scope","subscription_id"]
+
+[operation.subscription.delete]
+required = ["scope","subscription_id"]
+
+[type.EventDelivery]
+required = ["event_identity","event_bytes","deduplication_id","cursor","receipt_reference"]
+delivery = "at_least_once"
+consumer_rule = "Consumers must deduplicate on deduplication_id before applying an event."
+
+[type.ReceiptReference]
+variants = ["None","Verified"]
+Verified.required = ["receipt_ref","verification_level"]
+
+[type.Delivery]
+variants = ["Event","Gap","Truncated"]
+
+[type.GapNotice]
+required = ["missing_first","missing_last","backfill_cursor","backfill_attempted"]
+barrier = "No later event may be delivered before successful backfill or an explicit truncation notice."
+
+[type.TruncationNotice]
+required = ["requested_first","oldest_available","resume_cursor"]

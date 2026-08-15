@@ -7,6 +7,8 @@ mod identity_contract;
 mod write_contract;
 #[path = "read.rs"]
 mod read_contract;
+#[path = "stream.rs"]
+mod stream_contract;
 
 /// Identity and session contract namespace.
 pub mod identity {
@@ -78,6 +80,18 @@ pub mod availability {
 pub mod export {
     pub use crate::read_contract::{FactRef, OfflineExport};
 }
+
+/// Durable subscription and delivery contract namespace.
+pub mod subscription {
+    pub use crate::stream_contract::{
+        Cursor, CursorAcknowledgement, DeduplicationId, Delivery, DeliveryTarget, EventDelivery,
+        EventIdentity, GapNotice, ReceiptReference, SubscriptionCreate, SubscriptionFilter,
+        SubscriptionHealth, SubscriptionId, SubscriptionList, SubscriptionRecord,
+        SubscriptionScope, SubscriptionTarget, TenantObject, TruncationNotice,
+    };
+}
+
+pub use stream_contract::{Delivery, GapNotice};
 
 pub use generated::{
     agent_api_compat_gate, agent_api_schema_v1, Amount, BudgetLimit, ContractSchema,
