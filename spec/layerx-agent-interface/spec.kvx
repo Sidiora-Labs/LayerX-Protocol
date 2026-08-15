@@ -2038,7 +2038,7 @@ reqs = ["22.3","2.4","2.6"]
 
 [task.20.3]
 title = "Implement degraded read mode and honest staleness"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["20.2","15.5"]
 do_1 = "Enter a degraded read mode when the core is unreachable, serving only values that can still be verified and marking their staleness with the head and checkpoint they are relative to."

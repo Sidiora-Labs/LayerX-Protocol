@@ -102,6 +102,11 @@ impl CacheValue {
     pub const fn observed_head_sequence(&self) -> u64 {
         self.observed_head_sequence
     }
+
+    #[must_use]
+    pub const fn observed_checkpoint(&self) -> [u8; 32] {
+        self.observed_checkpoint
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

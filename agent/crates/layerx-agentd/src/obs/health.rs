@@ -11,6 +11,7 @@ pub enum BoundaryConnectivity {
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum DegradedMode {
     CoreUnavailable,
+    CoreBehind,
     CoreHalted,
     Emergency,
     DataUnavailable,

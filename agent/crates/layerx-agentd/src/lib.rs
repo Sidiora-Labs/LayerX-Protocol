@@ -7,6 +7,7 @@ pub mod budget;
 pub mod cache;
 pub mod capability;
 pub mod config;
+pub mod degraded;
 pub mod events;
 pub mod export;
 pub mod finality;

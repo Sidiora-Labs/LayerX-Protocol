@@ -31,6 +31,7 @@ fn label(kind: MetricKind) -> MetricLabel {
         MetricKind::BudgetUtilization => MetricLabel::UtilizationHigh,
         MetricKind::SubscriptionLag => MetricLabel::Lagging,
         MetricKind::RateLimitRefusal => MetricLabel::RateExceeded,
+        MetricKind::DegradedState => MetricLabel::BoundaryReady,
     }
 }
 

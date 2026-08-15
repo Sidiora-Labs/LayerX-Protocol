@@ -16,10 +16,11 @@ pub enum MetricKind {
     BudgetUtilization,
     SubscriptionLag,
     RateLimitRefusal,
+    DegradedState,
 }
 
 impl MetricKind {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::SubmissionOutcome,
         Self::UnknownPopulation,
         Self::UnknownAge,
@@ -31,6 +32,7 @@ impl MetricKind {
         Self::BudgetUtilization,
         Self::SubscriptionLag,
         Self::RateLimitRefusal,
+        Self::DegradedState,
     ];
 }
 
@@ -50,6 +52,10 @@ pub enum MetricLabel {
     BoundaryReady,
     BoundaryBackpressured,
     BoundaryUnavailable,
+    BoundaryBehind,
+    CoreHalted,
+    CoreEmergency,
+    DataUnavailable,
     AccessDenied,
     InvalidRequest,
     StorageFailure,
@@ -212,5 +218,14 @@ fn valid_label(kind: MetricKind, label: MetricLabel) -> bool {
             matches!(label, MetricLabel::LagHealthy | MetricLabel::Lagging)
         }
         MetricKind::RateLimitRefusal => label == MetricLabel::RateExceeded,
+        MetricKind::DegradedState => matches!(
+            label,
+            MetricLabel::BoundaryReady
+                | MetricLabel::BoundaryUnavailable
+                | MetricLabel::BoundaryBehind
+                | MetricLabel::CoreHalted
+                | MetricLabel::CoreEmergency
+                | MetricLabel::DataUnavailable
+        ),
     }
 }

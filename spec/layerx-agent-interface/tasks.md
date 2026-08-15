@@ -864,7 +864,7 @@ entirely on the spine being real.
     - Re-run the handshake on reconnection and re-evaluate the capability intersection.
     - Add tests covering a node upgrade mid-session, a network mismatch and a capability that disappears on reconnect.
     - _Requirements: 22.3, 2.4, 2.6_
-  - [ ] 20.3 Implement degraded read mode and honest staleness
+  - [x] 20.3 Implement degraded read mode and honest staleness
     - Enter a degraded read mode when the core is unreachable, serving only values that can still be verified and marking their staleness with the head and checkpoint they are relative to.
     - Refuse preparation that needs live core state and refuse submission acknowledgement while degraded, while continuing to resolve unknown submissions when connectivity returns.
     - Propagate a core halted, emergency or data-unavailable mode into health and read responses and stop advertising finality that can no longer be verified.
