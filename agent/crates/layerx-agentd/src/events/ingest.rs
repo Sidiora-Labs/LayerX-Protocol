@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 
 use layerx_types::verify::VerificationLevel;
 
-use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
+use crate::store::{ObjectKind, StorageClass, Store, StoreError, TenantId, TenantKey};
 
 const WATERMARK_ID: &[u8] = b"event-ingestion-watermark";
 const WATERMARK_MAGIC: &[u8; 4] = b"LXEW";
@@ -24,6 +24,20 @@ pub struct CoreEvent {
     pub canonical_bytes: Vec<u8>,
     pub receipt_reference: Option<[u8; 32]>,
     pub receipt_verification_level: VerificationLevel,
+    pub attributes: EventAttributes,
+}
+
+/// Core-produced dimensions used to narrow an event only after tenant and
+/// authority scope have already been established.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EventAttributes {
+    pub agent: String,
+    pub account: String,
+    pub activity_type: u16,
+    pub module: String,
+    pub asset: String,
+    pub counterparty: String,
+    pub result_code: i32,
 }
 
 /// Failures that prevent an event from entering the durable ordered stream.
@@ -31,12 +45,14 @@ pub struct CoreEvent {
 pub enum IngestError {
     InvalidCapacity,
     EmptyCoreEvent,
+    InvalidAttributes,
     ReceiptEvidenceMismatch,
     Repeated { sequence: u64 },
     OutOfOrder { expected: u64, received: u64 },
     Backpressure { capacity: usize },
     SequenceExhausted,
     CorruptWatermark,
+    CorruptEvent,
     Store(StoreError),
 }
 
@@ -47,6 +63,9 @@ impl Display for IngestError {
                 formatter.write_str("event ingestion capacity must be non-zero")
             }
             Self::EmptyCoreEvent => formatter.write_str("core event bytes must not be empty"),
+            Self::InvalidAttributes => {
+                formatter.write_str("core event filter attributes are invalid")
+            }
             Self::ReceiptEvidenceMismatch => {
                 formatter.write_str("receipt reference and verification level disagree")
             }
@@ -65,6 +84,7 @@ impl Display for IngestError {
             }
             Self::SequenceExhausted => formatter.write_str("event sequence space is exhausted"),
             Self::CorruptWatermark => formatter.write_str("durable event watermark is corrupt"),
+            Self::CorruptEvent => formatter.write_str("durable event record is corrupt"),
             Self::Store(error) => Display::fmt(error, formatter),
         }
     }
@@ -199,9 +219,61 @@ pub(super) fn ingest_event(
     Ok(())
 }
 
+pub(super) fn durable_sequences(store: &Store, tenant: &TenantId) -> Result<Vec<u64>, IngestError> {
+    store
+        .list_object_ids(tenant, ObjectKind::Event)
+        .into_iter()
+        .map(|object_id| {
+            let encoded: [u8; 8] = object_id
+                .try_into()
+                .map_err(|_| IngestError::CorruptEvent)?;
+            Ok(u64::from_be_bytes(encoded))
+        })
+        .collect()
+}
+
+pub(super) fn durable_event(
+    store: &Store,
+    tenant: &TenantId,
+    sequence: u64,
+) -> Result<CoreEvent, IngestError> {
+    let event_key = event_key(tenant.clone(), sequence)?;
+    let stored_event = store.get(&event_key).ok_or(IngestError::CorruptEvent)?;
+    if stored_event.class() != StorageClass::CoreProducedCache || stored_event.bytes().is_empty() {
+        return Err(IngestError::CorruptEvent);
+    }
+    let metadata = store
+        .get(&metadata_key(tenant.clone(), sequence)?)
+        .ok_or(IngestError::CorruptEvent)?;
+    if metadata.class() != StorageClass::LocalOnly {
+        return Err(IngestError::CorruptEvent);
+    }
+    let (receipt_reference, receipt_verification_level, attributes) =
+        decode_metadata(metadata.bytes())?;
+    Ok(CoreEvent {
+        global_sequence: sequence,
+        canonical_bytes: stored_event.bytes().to_vec(),
+        receipt_reference,
+        receipt_verification_level,
+        attributes,
+    })
+}
+
 fn validate_event(event: &CoreEvent) -> Result<(), IngestError> {
     if event.canonical_bytes.is_empty() {
         return Err(IngestError::EmptyCoreEvent);
+    }
+    if [
+        event.attributes.agent.as_str(),
+        event.attributes.account.as_str(),
+        event.attributes.module.as_str(),
+        event.attributes.asset.as_str(),
+        event.attributes.counterparty.as_str(),
+    ]
+    .iter()
+    .any(|value| value.is_empty() || value.len() > 1024 || value.as_bytes().contains(&0))
+    {
+        return Err(IngestError::InvalidAttributes);
     }
     let has_receipt = event.receipt_reference.is_some();
     let is_verified = event.receipt_verification_level != VerificationLevel::UNVERIFIED;
@@ -254,10 +326,117 @@ fn decode_watermark(bytes: &[u8]) -> Result<Watermark, IngestError> {
 }
 
 fn encode_metadata(event: &CoreEvent) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(38);
+    let mut bytes = Vec::new();
     bytes.extend_from_slice(METADATA_MAGIC);
     bytes.push(event.receipt_verification_level.wire_rank());
     bytes.push(u8::from(event.receipt_reference.is_some()));
     bytes.extend_from_slice(&event.receipt_reference.unwrap_or([0_u8; 32]));
+    push_metadata_string(&mut bytes, &event.attributes.agent);
+    push_metadata_string(&mut bytes, &event.attributes.account);
+    bytes.extend_from_slice(&event.attributes.activity_type.to_be_bytes());
+    push_metadata_string(&mut bytes, &event.attributes.module);
+    push_metadata_string(&mut bytes, &event.attributes.asset);
+    push_metadata_string(&mut bytes, &event.attributes.counterparty);
+    bytes.extend_from_slice(&event.attributes.result_code.to_be_bytes());
     bytes
+}
+
+fn decode_metadata(
+    bytes: &[u8],
+) -> Result<(Option<[u8; 32]>, VerificationLevel, EventAttributes), IngestError> {
+    if bytes.len() < 38 || &bytes[..4] != METADATA_MAGIC || bytes[5] > 1 {
+        return Err(IngestError::CorruptEvent);
+    }
+    let level = match bytes[4] {
+        0 => VerificationLevel::UNVERIFIED,
+        1 => VerificationLevel::SEQUENCER_SIGNED,
+        2 => VerificationLevel::BATCH_INCLUDED,
+        3 => VerificationLevel::STATE_PROVEN,
+        4 => VerificationLevel::CHECKPOINT_FINALISED,
+        5 => VerificationLevel::SETTLEMENT_ANCHORED,
+        _ => return Err(IngestError::CorruptEvent),
+    };
+    let mut reference = [0_u8; 32];
+    reference.copy_from_slice(&bytes[6..38]);
+    let receipt_reference = (bytes[5] == 1).then_some(reference);
+    let has_receipt = receipt_reference.is_some();
+    let is_verified = level != VerificationLevel::UNVERIFIED;
+    if has_receipt != is_verified {
+        return Err(IngestError::CorruptEvent);
+    }
+    let mut decoder = MetadataDecoder::new(&bytes[38..]);
+    let attributes = EventAttributes {
+        agent: decoder.string()?,
+        account: decoder.string()?,
+        activity_type: decoder.u16()?,
+        module: decoder.string()?,
+        asset: decoder.string()?,
+        counterparty: decoder.string()?,
+        result_code: decoder.i32()?,
+    };
+    if !decoder.is_empty() {
+        return Err(IngestError::CorruptEvent);
+    }
+    let event = CoreEvent {
+        global_sequence: 0,
+        canonical_bytes: vec![1],
+        receipt_reference,
+        receipt_verification_level: level,
+        attributes: attributes.clone(),
+    };
+    validate_event(&event).map_err(|_| IngestError::CorruptEvent)?;
+    Ok((receipt_reference, level, attributes))
+}
+
+fn push_metadata_string(bytes: &mut Vec<u8>, value: &str) {
+    let length = u16::try_from(value.len()).unwrap_or(u16::MAX);
+    bytes.extend_from_slice(&length.to_be_bytes());
+    bytes.extend_from_slice(value.as_bytes());
+}
+
+struct MetadataDecoder<'a> {
+    bytes: &'a [u8],
+    offset: usize,
+}
+
+impl<'a> MetadataDecoder<'a> {
+    const fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes, offset: 0 }
+    }
+
+    fn take(&mut self, length: usize) -> Result<&'a [u8], IngestError> {
+        let end = self
+            .offset
+            .checked_add(length)
+            .ok_or(IngestError::CorruptEvent)?;
+        let value = self
+            .bytes
+            .get(self.offset..end)
+            .ok_or(IngestError::CorruptEvent)?;
+        self.offset = end;
+        Ok(value)
+    }
+
+    fn u16(&mut self) -> Result<u16, IngestError> {
+        let mut value = [0_u8; 2];
+        value.copy_from_slice(self.take(2)?);
+        Ok(u16::from_be_bytes(value))
+    }
+
+    fn i32(&mut self) -> Result<i32, IngestError> {
+        let mut value = [0_u8; 4];
+        value.copy_from_slice(self.take(4)?);
+        Ok(i32::from_be_bytes(value))
+    }
+
+    fn string(&mut self) -> Result<String, IngestError> {
+        let length = usize::from(self.u16()?);
+        let value =
+            std::str::from_utf8(self.take(length)?).map_err(|_| IngestError::CorruptEvent)?;
+        Ok(value.to_owned())
+    }
+
+    const fn is_empty(&self) -> bool {
+        self.offset == self.bytes.len()
+    }
 }

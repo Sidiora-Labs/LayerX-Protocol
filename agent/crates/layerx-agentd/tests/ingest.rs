@@ -2,7 +2,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use layerx_agentd::events::{ingest, CoreEvent, EventIngestor, IngestError, Watermark};
+use layerx_agentd::events::{
+    ingest, CoreEvent, EventAttributes, EventIngestor, IngestError, Watermark,
+};
 use layerx_agentd::store::{ObjectKind, StorageClass, Store, TenantId, TenantKey};
 use layerx_types::verify::VerificationLevel;
 
@@ -29,6 +31,15 @@ fn event(sequence: u64, marker: u8) -> CoreEvent {
         canonical_bytes: vec![0x41, marker, 0x7f],
         receipt_reference: Some([marker; 32]),
         receipt_verification_level: VerificationLevel::SEQUENCER_SIGNED,
+        attributes: EventAttributes {
+            agent: "agent-a".to_owned(),
+            account: "account-a".to_owned(),
+            activity_type: 9,
+            module: "asset".to_owned(),
+            asset: "LXR".to_owned(),
+            counterparty: "counterparty-a".to_owned(),
+            result_code: 0,
+        },
     }
 }
 
@@ -104,7 +115,10 @@ fn exact_core_events_are_durable_and_buffer_backpressure_drops_nothing() {
     expected_metadata.extend_from_slice(&[1, 1]);
     expected_metadata.extend_from_slice(&[0x10; 32]);
     assert_eq!(metadata.class(), StorageClass::LocalOnly);
-    assert_eq!(metadata.bytes(), expected_metadata);
+    assert_eq!(
+        &metadata.bytes()[..expected_metadata.len()],
+        expected_metadata
+    );
     let _ = fs::remove_dir_all(root);
 }
 

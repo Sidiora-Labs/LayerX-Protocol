@@ -1721,7 +1721,7 @@ reqs = ["16.2","16.6","21.5"]
 
 [task.16.3]
 title = "Implement delivery semantics, deduplication identity and backfill seams"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["16.2"]
 do_1 = "Deliver at least once with a monotonic cursor and a deduplication identifier derived from event identity, and document the consumer obligation to deduplicate."

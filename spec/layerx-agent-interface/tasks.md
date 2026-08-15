@@ -714,7 +714,7 @@ entirely on the spine being real.
     - Implement pause, resume, delete and cursor acknowledgement with durable effect.
     - Add tests covering restart mid-delivery, a filter naming another tenant object and an acknowledgement for a cursor that was never delivered.
     - _Requirements: 16.2, 16.6, 21.5_
-  - [ ] 16.3 Implement delivery semantics, deduplication identity and backfill seams
+  - [x] 16.3 Implement delivery semantics, deduplication identity and backfill seams
     - Deliver at least once with a monotonic cursor and a deduplication identifier derived from event identity, and document the consumer obligation to deduplicate.
     - Backfill from durable history for a subscription started at a historical position and transition to live delivery with no gap and no duplicate at the seam.
     - Make the backfill-to-live transition point observable to the consumer.

@@ -1,6 +1,6 @@
 //! Durable tenant- and scope-bound subscription state.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter};
 
 use layerx_agent_api::identity::{
@@ -40,7 +40,7 @@ impl From<Cursor> for ApiCursor {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DurableRecord {
     public: SubscriptionRecord,
-    highest_delivered: Option<Cursor>,
+    delivered_unacknowledged: BTreeSet<Cursor>,
     current_delivery: Cursor,
 }
 
@@ -156,7 +156,7 @@ impl Store {
                 delivery_target: request.delivery_target,
                 paused: false,
             },
-            highest_delivered: None,
+            delivered_unacknowledged: BTreeSet::new(),
             current_delivery: Cursor::from(request.start),
         };
         self.persist(&record)?;
@@ -196,14 +196,14 @@ impl Store {
         if record.public.paused {
             return Err(SubscriptionError::Paused);
         }
-        let expected = Cursor(
-            record
-                .current_delivery
-                .0
-                .checked_add(1)
-                .ok_or(SubscriptionError::SequenceExhausted)?,
-        );
-        if cursor != expected {
+        if cursor <= record.current_delivery {
+            let expected = Cursor(
+                record
+                    .current_delivery
+                    .0
+                    .checked_add(1)
+                    .ok_or(SubscriptionError::SequenceExhausted)?,
+            );
             return Err(SubscriptionError::CursorOutOfOrder {
                 expected,
                 received: cursor,
@@ -211,11 +211,7 @@ impl Store {
         }
         let mut updated = record.clone();
         updated.current_delivery = cursor;
-        if updated
-            .highest_delivered
-            .is_none_or(|highest| cursor > highest)
-        {
-            updated.highest_delivered = Some(cursor);
+        if updated.delivered_unacknowledged.insert(cursor) {
             self.persist(&updated)?;
         }
         self.records.insert(id, updated);
@@ -242,14 +238,14 @@ impl Store {
         if received == current {
             return Ok(record.public.clone());
         }
-        if record
-            .highest_delivered
-            .is_none_or(|highest| received > highest)
-        {
+        if !record.delivered_unacknowledged.contains(&received) {
             return Err(SubscriptionError::CursorNeverDelivered { cursor: received });
         }
         let mut updated = record.clone();
         updated.public.last_acknowledged = acknowledgement.cursor;
+        updated
+            .delivered_unacknowledged
+            .retain(|delivered| *delivered > received);
         self.persist(&updated)?;
         self.records.insert(id, updated.clone());
         Ok(updated.public)
@@ -291,6 +287,12 @@ impl Store {
     #[must_use]
     pub fn into_durable(self) -> DurableStore {
         self.durable
+    }
+
+    /// Borrows the tenant-scoped durable state for event-history delivery.
+    #[must_use]
+    pub const fn durable(&self) -> &DurableStore {
+        &self.durable
     }
 
     fn set_paused(
@@ -385,14 +387,10 @@ fn encode_record(record: &DurableRecord) -> Result<Vec<u8>, SubscriptionError> {
     push_string(&mut bytes, record.public.delivery_target.as_str())?;
     bytes.extend_from_slice(&record.public.start.0 .0.to_be_bytes());
     bytes.extend_from_slice(&record.public.last_acknowledged.0 .0.to_be_bytes());
-    bytes.push(u8::from(record.highest_delivered.is_some()));
-    bytes.extend_from_slice(
-        &record
-            .highest_delivered
-            .unwrap_or(Cursor(0))
-            .0
-            .to_be_bytes(),
-    );
+    push_len(&mut bytes, record.delivered_unacknowledged.len())?;
+    for cursor in &record.delivered_unacknowledged {
+        bytes.extend_from_slice(&cursor.0.to_be_bytes());
+    }
     bytes.push(u8::from(record.public.paused));
     encode_filter(&mut bytes, &record.public.filter)?;
     Ok(bytes)
@@ -453,11 +451,13 @@ fn decode_record(bytes: &[u8]) -> Result<DurableRecord, SubscriptionError> {
         DeliveryTarget::new(decoder.string()?).map_err(|_| SubscriptionError::Corrupt)?;
     let start = ApiCursor(Sequence(decoder.u64()?));
     let last_acknowledged = ApiCursor(Sequence(decoder.u64()?));
-    let highest_present = decoder.byte()?;
-    if highest_present > 1 {
-        return Err(SubscriptionError::Corrupt);
+    let delivered_count = decoder.len()?;
+    let mut delivered_unacknowledged = BTreeSet::new();
+    for _ in 0..delivered_count {
+        if !delivered_unacknowledged.insert(Cursor(decoder.u64()?)) {
+            return Err(SubscriptionError::Corrupt);
+        }
     }
-    let highest_value = Cursor(decoder.u64()?);
     let paused = decoder.byte()?;
     if paused > 1 {
         return Err(SubscriptionError::Corrupt);
@@ -474,8 +474,10 @@ fn decode_record(bytes: &[u8]) -> Result<DurableRecord, SubscriptionError> {
     {
         return Err(SubscriptionError::Corrupt);
     }
-    let highest_delivered = (highest_present == 1).then_some(highest_value);
-    if highest_delivered.is_some_and(|highest| highest < Cursor::from(last_acknowledged)) {
+    if delivered_unacknowledged
+        .iter()
+        .any(|delivered| *delivered <= Cursor::from(last_acknowledged))
+    {
         return Err(SubscriptionError::Corrupt);
     }
     Ok(DurableRecord {
@@ -488,7 +490,7 @@ fn decode_record(bytes: &[u8]) -> Result<DurableRecord, SubscriptionError> {
             delivery_target,
             paused: paused == 1,
         },
-        highest_delivered,
+        delivered_unacknowledged,
         current_delivery: Cursor::from(last_acknowledged),
     })
 }
