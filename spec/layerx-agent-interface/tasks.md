@@ -889,7 +889,7 @@ entirely on the spine being real.
 ## Wave 11 - Model and Application Surfaces
 
 - [ ] 21. Build layerx-mcp, scoped model-facing tools
-  - [ ] 21.1 Implement the MCP server bound to one tenant and scope
+  - [x] 21.1 Implement the MCP server bound to one tenant and scope
     - Implement an MCP server that binds at startup to exactly one tenant and one scope set derived from a session and capability created through the normal daemon path.
     - Expose no tool outside the bound scope and refuse to start when the scope cannot be established.
     - Declare for every tool the scope it requires, the mutations it can cause and the evidence it returns.
