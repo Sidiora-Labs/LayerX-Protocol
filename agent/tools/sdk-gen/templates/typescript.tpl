@@ -1,5 +1,15 @@
 // Generated from the LayerX Agent API schema. Do not hand-edit.
 
+const PACKAGE_METADATA = Object.freeze({
+  name: "@sidiora/layerx-sdk",
+  version: "0.1.0",
+  contractMajor: 1,
+});
+
+export function layerx_sdk_ts_package(): typeof PACKAGE_METADATA {
+  return PACKAGE_METADATA;
+}
+
 {{SCALARS}}
 
 export enum VerificationLevel {
@@ -18,6 +28,16 @@ export interface VerifiedRead<T> {
   freshness: { chainHead: bigint; latestBatch: string; latestCheckpoint: string; valueSequence: bigint };
 }
 
+export function requireVerified<T>(requested: VerificationLevel, read: VerifiedRead<T>): VerifiedRead<T> {
+  if (read.achievedVerificationLevel === VerificationLevel.Unverified) {
+    throw new Error("unverified_read");
+  }
+  if (read.achievedVerificationLevel < requested) {
+    throw new Error(`verification_below_requested:${requested}:${read.achievedVerificationLevel}`);
+  }
+  return read;
+}
+
 export interface IdempotentMutation<T> {
   requestId: bigint;
   key: Uint8Array;
@@ -26,6 +46,13 @@ export interface IdempotentMutation<T> {
 }
 
 export type ErrorClass = {{ERRORS}};
+export interface ApiError {
+  errorClass: ErrorClass;
+  protocolResultCode: number | null;
+  retriable: boolean;
+  requestId: bigint;
+  reason: string;
+}
 export type Operation = {{OPERATIONS}};
 
 export interface Transport {

@@ -947,7 +947,7 @@ entirely on the spine being real.
     - Emit documentation from the schema that states which guarantees are protocol-enforced and which are daemon-enforced.
     - Add generator tests over the golden schema asserting stable, deterministic output.
     - _Requirements: 18.3, 18.5, 18.10_
-  - [ ] 22.3 Generate and package the TypeScript SDK
+  - [x] 22.3 Generate and package the TypeScript SDK
     - Generate the TypeScript SDK from the schema with exact integer handling for every consensus-critical value.
     - Preserve verification levels, unknown submission state, idempotency handling and the typed error taxonomy in the generated surface.
     - Package it with types, an integration test suite against a running daemon and reproducible build metadata.

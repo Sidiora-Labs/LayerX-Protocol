@@ -2212,7 +2212,7 @@ reqs = ["18.3","18.5","18.10"]
 
 [task.22.3]
 title = "Generate and package the TypeScript SDK"
-status = "pending"
+status = "done"
 wave = 11
 requires = ["22.2"]
 do_1 = "Generate the TypeScript SDK from the schema with exact integer handling for every consensus-critical value."

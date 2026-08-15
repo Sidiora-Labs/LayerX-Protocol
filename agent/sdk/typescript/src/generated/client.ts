@@ -1,5 +1,15 @@
 // Generated from the LayerX Agent API schema. Do not hand-edit.
 
+const PACKAGE_METADATA = Object.freeze({
+  name: "@sidiora/layerx-sdk",
+  version: "0.1.0",
+  contractMajor: 1,
+});
+
+export function layerx_sdk_ts_package(): typeof PACKAGE_METADATA {
+  return PACKAGE_METADATA;
+}
+
 export type Amount = bigint;
 export function parseAmount(value: string): Amount {
   if (!/^(0|[1-9][0-9]*)$/.test(value)) throw new RangeError("invalid Amount");
@@ -50,6 +60,16 @@ export interface VerifiedRead<T> {
   freshness: { chainHead: bigint; latestBatch: string; latestCheckpoint: string; valueSequence: bigint };
 }
 
+export function requireVerified<T>(requested: VerificationLevel, read: VerifiedRead<T>): VerifiedRead<T> {
+  if (read.achievedVerificationLevel === VerificationLevel.Unverified) {
+    throw new Error("unverified_read");
+  }
+  if (read.achievedVerificationLevel < requested) {
+    throw new Error(`verification_below_requested:${requested}:${read.achievedVerificationLevel}`);
+  }
+  return read;
+}
+
 export interface IdempotentMutation<T> {
   requestId: bigint;
   key: Uint8Array;
@@ -58,6 +78,13 @@ export interface IdempotentMutation<T> {
 }
 
 export type ErrorClass = "TransportFailure" | "Deadline" | "ProtocolIncompatibility" | "UnavailableCapability" | "CoreRejection" | "VerificationFailure" | "PolicyRefusal" | "CapabilityRefusal" | "BudgetRefusal" | "RateLimit" | "IdempotencyConflict" | "InternalFault";
+export interface ApiError {
+  errorClass: ErrorClass;
+  protocolResultCode: number | null;
+  retriable: boolean;
+  requestId: bigint;
+  reason: string;
+}
 export type Operation = "agent.register" | "availability.fetch" | "budget.create" | "budget.fund" | "budget.list" | "budget.reconciliation" | "budget.revoke" | "capability.attenuate" | "capability.create" | "capability.list" | "capability.revoke" | "export.offline" | "prepare" | "project" | "read.account" | "read.balance" | "read.batch" | "read.checkpoint" | "read.history" | "read.module_state" | "read.proof_bundle" | "session.close" | "session.list" | "session.open" | "session.refresh" | "sign" | "submit" | "subscription.acknowledge" | "subscription.create" | "subscription.delete" | "subscription.health" | "subscription.list" | "subscription.pause" | "subscription.resume" | "track" | "wait";
 
 export interface Transport {

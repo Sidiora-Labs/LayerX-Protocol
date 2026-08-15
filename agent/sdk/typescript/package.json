@@ -1,0 +1,25 @@
+{
+  "name": "@sidiora/layerx-sdk",
+  "version": "0.1.0",
+  "description": "Generated LayerX Agent API TypeScript SDK",
+  "type": "module",
+  "private": false,
+  "license": "SEE LICENSE IN LICENSE",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src/generated/guarantees.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node dist/test/integration.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

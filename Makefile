@@ -2019,6 +2019,10 @@ agent-test-sdk-generate:
 	cargo test --manifest-path agent/tools/sdk-gen/Cargo.toml --locked
 	cargo run --manifest-path agent/tools/sdk-gen/Cargo.toml --locked -- --check
 
+agent-test-sdk-ts:
+	$(MAKE) agent-test-sdk-generate
+	cd agent/sdk/typescript && npm test
+
 agent-test-mcp-untrusted-input:
 	$(AGENT_CARGO) test --manifest-path agent/tests/isolation/Cargo.toml --locked mcp_untrusted
 
