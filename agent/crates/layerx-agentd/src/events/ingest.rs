@@ -167,6 +167,12 @@ impl EventIngestor {
         &self.store
     }
 
+    /// Returns the tenant whose single ordered stream this ingestor owns.
+    #[must_use]
+    pub const fn tenant(&self) -> &TenantId {
+        &self.tenant
+    }
+
     /// Consumes the ingestor and returns its durable store.
     #[must_use]
     pub fn into_store(self) -> Store {
@@ -177,6 +183,21 @@ impl EventIngestor {
 pub(super) fn ingest_event(
     ingestor: &mut EventIngestor,
     event: CoreEvent,
+) -> Result<(), IngestError> {
+    ingest_with_class(ingestor, event, StorageClass::CoreProducedCache)
+}
+
+pub(super) fn ingest_local_event(
+    ingestor: &mut EventIngestor,
+    event: CoreEvent,
+) -> Result<(), IngestError> {
+    ingest_with_class(ingestor, event, StorageClass::LocalOnly)
+}
+
+fn ingest_with_class(
+    ingestor: &mut EventIngestor,
+    event: CoreEvent,
+    class: StorageClass,
 ) -> Result<(), IngestError> {
     validate_event(&event)?;
     let expected = ingestor.watermark.next_expected;
@@ -206,14 +227,24 @@ pub(super) fn ingest_event(
     let event_key = event_key(ingestor.tenant.clone(), expected)?;
     let metadata_key = metadata_key(ingestor.tenant.clone(), expected)?;
     let watermark_key = watermark_key(ingestor.tenant.clone())?;
-    ingestor.store.record_event(
-        event_key,
-        event.canonical_bytes.clone(),
-        metadata_key,
-        encode_metadata(&event),
-        watermark_key,
-        encode_watermark(next_watermark),
-    )?;
+    match class {
+        StorageClass::CoreProducedCache => ingestor.store.record_event(
+            event_key,
+            event.canonical_bytes.clone(),
+            metadata_key,
+            encode_metadata(&event),
+            watermark_key,
+            encode_watermark(next_watermark),
+        )?,
+        StorageClass::LocalOnly => ingestor.store.record_local_event(
+            event_key,
+            event.canonical_bytes.clone(),
+            metadata_key,
+            encode_metadata(&event),
+            watermark_key,
+            encode_watermark(next_watermark),
+        )?,
+    }
     ingestor.watermark = next_watermark;
     ingestor.buffered.push_back(event);
     Ok(())
@@ -239,7 +270,11 @@ pub(super) fn durable_event(
 ) -> Result<CoreEvent, IngestError> {
     let event_key = event_key(tenant.clone(), sequence)?;
     let stored_event = store.get(&event_key).ok_or(IngestError::CorruptEvent)?;
-    if stored_event.class() != StorageClass::CoreProducedCache || stored_event.bytes().is_empty() {
+    if !matches!(
+        stored_event.class(),
+        StorageClass::CoreProducedCache | StorageClass::LocalOnly
+    ) || stored_event.bytes().is_empty()
+    {
         return Err(IngestError::CorruptEvent);
     }
     let metadata = store

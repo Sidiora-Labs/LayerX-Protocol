@@ -173,6 +173,13 @@ impl Log {
         self.entries
     }
 
+    /// Returns whether this chain is cryptographically bound to `tenant`.
+    #[must_use]
+    pub fn owns_tenant(&self, tenant: &TenantId) -> bool {
+        let tenant_hash: [u8; 32] = Sha256::digest(tenant.as_str().as_bytes()).into();
+        self.tenant_hash == tenant_hash
+    }
+
     /// Durably appends an entry before invoking the supplied operation.
     ///
     /// # Errors

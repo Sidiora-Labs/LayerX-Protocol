@@ -20,6 +20,15 @@ pub fn ingest(ingestor: &mut EventIngestor, event: CoreEvent) -> Result<(), Inge
     ingestion::ingest_event(ingestor, event)
 }
 
+/// Ingests a daemon-enforced restriction event into the same ordered stream
+/// while retaining its local-only authority classification.
+pub fn ingest_local_restriction(
+    ingestor: &mut EventIngestor,
+    event: CoreEvent,
+) -> Result<(), IngestError> {
+    ingestion::ingest_local_event(ingestor, event)
+}
+
 /// Loads durable history into the engine's explicitly bounded delivery buffer.
 pub fn backfill(engine: &mut DeliveryEngine) -> Result<PumpReport, DeliveryError> {
     delivery::pump(engine)

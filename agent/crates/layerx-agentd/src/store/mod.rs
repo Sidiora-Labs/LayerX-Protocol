@@ -444,6 +444,49 @@ impl Store {
         watermark_key: TenantKey,
         watermark: Vec<u8>,
     ) -> Result<(), StoreError> {
+        self.record_event_with_class(
+            event_key,
+            event_bytes,
+            StorageClass::CoreProducedCache,
+            metadata_key,
+            metadata,
+            watermark_key,
+            watermark,
+        )
+    }
+
+    /// Atomically records a daemon-local restriction event in the same ordered
+    /// stream without misclassifying it as core-produced evidence.
+    pub fn record_local_event(
+        &mut self,
+        event_key: TenantKey,
+        event_bytes: Vec<u8>,
+        metadata_key: TenantKey,
+        metadata: Vec<u8>,
+        watermark_key: TenantKey,
+        watermark: Vec<u8>,
+    ) -> Result<(), StoreError> {
+        self.record_event_with_class(
+            event_key,
+            event_bytes,
+            StorageClass::LocalOnly,
+            metadata_key,
+            metadata,
+            watermark_key,
+            watermark,
+        )
+    }
+
+    fn record_event_with_class(
+        &mut self,
+        event_key: TenantKey,
+        event_bytes: Vec<u8>,
+        event_class: StorageClass,
+        metadata_key: TenantKey,
+        metadata: Vec<u8>,
+        watermark_key: TenantKey,
+        watermark: Vec<u8>,
+    ) -> Result<(), StoreError> {
         if event_key.kind() != ObjectKind::Event
             || metadata_key.kind() != ObjectKind::Configuration
             || watermark_key.kind() != ObjectKind::Configuration
@@ -456,7 +499,7 @@ impl Store {
         self.entries.insert(
             event_key,
             StoredValue {
-                class: StorageClass::CoreProducedCache,
+                class: event_class,
                 bytes: event_bytes,
             },
         );

@@ -117,6 +117,8 @@ impl ApprovalExpiry {
                     outcome: winner,
                     submission_ref: persisted.submission_ref,
                     winning_outcome: None,
+                    enforcement: super::ApprovalEnforcement::DaemonOnly,
+                    authority_notice: super::APPROVAL_ENFORCEMENT_NOTICE,
                 }));
             }
             return Ok(DecisionResolution::Conflict(winner));

@@ -112,7 +112,7 @@ money or claims something about money, and both depend on the spine being real.
     - Prove the semantics under crash-restart: a decision recorded before a crash survives it, and a hold expired during downtime is expired on recovery.
     - Cover all of it with concurrency and restart tests running against the real store.
     - _Requirements: 6.5, 6.6_
-  - [ ] 2.4 Emit approval lifecycle events and audit evidence
+  - [x] 2.4 Emit approval lifecycle events and audit evidence
     - Emit created, approved, rejected and expired events on the existing ordered event stream with the approval's digest, so clients track holds without polling.
     - Record every lifecycle transition in the audit trail with the digest, the deciding principal where one exists, and the outcome.
     - Label the approval surface daemon-enforced in the restriction report and in every response that describes it.

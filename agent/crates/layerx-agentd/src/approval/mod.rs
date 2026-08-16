@@ -12,9 +12,21 @@ use crate::policy::approval::{
 };
 use crate::store::TenantId;
 
+mod events;
 mod expiry;
 
+pub use events::{
+    ApprovalEmission, ApprovalEventError, ApprovalEventKind, ApprovalEvents, ApprovalLifecycle,
+};
 pub use expiry::{ApprovalExpiry, ApprovalExpiryError, DecisionKey};
+
+pub const APPROVAL_ENFORCEMENT_NOTICE: &str =
+    "daemon-enforced restriction; confers no protocol authority; bypassing layerx-agentd bypasses this restriction";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ApprovalEnforcement {
+    DaemonOnly,
+}
 
 /// Human-readable reason attached to the policy hold.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -34,6 +46,8 @@ pub struct ApprovalRecord {
     pub created_at_sequence: u64,
     pub expires_at_sequence: u64,
     pub state: ApprovalState,
+    pub enforcement: ApprovalEnforcement,
+    pub authority_notice: &'static str,
 }
 
 /// Bounded deterministic approval page.
@@ -60,6 +74,8 @@ pub struct ApprovalDecision {
     pub outcome: ApprovalOutcome,
     pub submission_ref: Option<[u8; 32]>,
     pub winning_outcome: Option<ApprovalOutcome>,
+    pub enforcement: ApprovalEnforcement,
+    pub authority_notice: &'static str,
 }
 
 /// A real pre-signing submission queue containing the exact approved preparation.
@@ -394,6 +410,8 @@ fn record(snapshot: ApprovalSnapshot) -> ApprovalRecord {
         created_at_sequence: snapshot.created_at_sequence,
         expires_at_sequence: snapshot.expires_at_sequence,
         state: snapshot.state,
+        enforcement: ApprovalEnforcement::DaemonOnly,
+        authority_notice: APPROVAL_ENFORCEMENT_NOTICE,
     }
 }
 
@@ -416,6 +434,8 @@ const fn decision(outcome: ApprovalOutcome, submission_ref: Option<[u8; 32]>) ->
         outcome,
         submission_ref,
         winning_outcome: None,
+        enforcement: ApprovalEnforcement::DaemonOnly,
+        authority_notice: APPROVAL_ENFORCEMENT_NOTICE,
     }
 }
 
@@ -424,6 +444,8 @@ const fn conflict(winner: ApprovalOutcome) -> ApprovalDecision {
         outcome: ApprovalOutcome::Conflict,
         submission_ref: None,
         winning_outcome: Some(winner),
+        enforcement: ApprovalEnforcement::DaemonOnly,
+        authority_notice: APPROVAL_ENFORCEMENT_NOTICE,
     }
 }
 

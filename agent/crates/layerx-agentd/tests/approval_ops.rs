@@ -5,8 +5,8 @@ use layerx_agent_api::prepare::{
 };
 use layerx_agent_api::{Amount, TimestampSeconds};
 use layerx_agentd::approval::{
-    ApprovalExpiry, ApprovalOperationError, ApprovalOutcome, ApprovalService,
-    ApprovalSubmissionQueue, DecisionKey,
+    ApprovalEnforcement, ApprovalExpiry, ApprovalOperationError, ApprovalOutcome, ApprovalService,
+    ApprovalSubmissionQueue, DecisionKey, APPROVAL_ENFORCEMENT_NOTICE,
 };
 use layerx_agentd::budget::{
     reserve, BudgetLimiter, LimitConfig, LimitId, LimitScope, ReservationRequest,
@@ -156,6 +156,9 @@ fn approval_service_lists_and_gets_only_the_authenticated_tenant() {
         digest(b"canonical-approved-activity-1")
     );
     assert_eq!(record.state, ApprovalState::AwaitingApproval);
+    assert_eq!(record.enforcement, ApprovalEnforcement::DaemonOnly);
+    assert_eq!(record.authority_notice, APPROVAL_ENFORCEMENT_NOTICE);
+    assert!(record.authority_notice.contains("no protocol authority"));
     assert_eq!(
         service.get(&beta, [1; 32], 11),
         Err(ApprovalOperationError::Registry(ApprovalError::NotFound))
@@ -186,6 +189,8 @@ fn approval_releases_only_the_exact_held_preparation_once() {
         )
         .unwrap_or_else(|error| panic!("approve: {error:?}"));
     assert_eq!(granted.outcome, ApprovalOutcome::Granted);
+    assert_eq!(granted.enforcement, ApprovalEnforcement::DaemonOnly);
+    assert_eq!(granted.authority_notice, APPROVAL_ENFORCEMENT_NOTICE);
     let submission_ref = granted
         .submission_ref
         .unwrap_or_else(|| panic!("submission reference missing"));
