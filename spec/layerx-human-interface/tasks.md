@@ -75,17 +75,17 @@ money or claims something about money, and both depend on the spine being real.
     - Forbid runtime string concatenation of sentence fragments by lint, so every sentence is a complete catalog entry.
     - Wire the copy lint into make human-lint and CI, and seed the catalog with the status translation table from the design as its first normative entries.
     - _Requirements: 2.3, 20.5, 2.8_
-  - [ ] 1.4 Build the design tokens, themes and UI rule gates
-    - Define the token system - the layered surface tones, the single accent, the semantic green, red and amber, the type scale, radii, spacing and motion durations - as the only source of color and type in the application.
-    - Implement light and dark themes over the tokens, following the system preference by default with an explicit user override, with no color defined outside the token files.
-    - Build the no-border stylesheet gate: a build step that fails on any border, outline or divider declaration used for separation, allowlisting only the keyboard focus ring.
-    - Build the no-emoji and no-glow gates: scans over copy, assets and styles that fail on emoji codepoints in product output, on purple gradient stops and on glow-class shadow declarations.
-    - Wire the gates into make human-check-ui and CI, with fixtures proving each violation class is caught and a clean tree passes.
+  - [x] 1.4 Integrate the LayerX component library and design system
+    - Extract the owner-supplied layerx-ui package source into the human web workspace without its showcase application, preserving the component source, public exports and exact token stylesheet.
+    - Wire @layerx/ui, Tailwind CSS and the package stylesheet into the Next.js application with reproducible pinned dependencies and no parallel local primitive system.
+    - Make the package tokens and styles authoritative, including their borders, dividers, gradients, shadows, radii, typography, semantic colors and platform-specific component treatments.
+    - Build a component-library integrity gate that validates the required source inventory, public exports, stylesheet import, token contract and application dependency wiring.
+    - Wire the integrity gate into make human-check-ui and CI, with fixtures proving missing exports, missing tokens and competing local primitives are caught and a clean integration passes.
     - _Requirements: 17.1, 17.2, 17.3_
   - [ ] 1.5 Stand up the test, end-to-end and state-matrix harness
     - Establish the test layout for the crates - unit, integration, property and fault-injection suites - and for the app - component, journey and end-to-end suites - each mapped to a make target.
     - Stand up the browser end-to-end harness able to drive both shells against a real service, with device profiles for the mobile and desktop shells and trace capture on failure.
-    - Stand up visual regression across both shells and both themes with a reviewed-baseline workflow.
+    - Stand up visual regression across both shells at the canonical @layerx/ui mobile and desktop reference viewports with a reviewed-baseline workflow.
     - Build the state-matrix registry: every screen declares its loading, empty, error, offline, degraded and still-checking states in a manifest the suite enumerates, failing on a missing declaration or an unrenderable state.
     - Add the CI workflow running build, lint, UI gates, unit and component suites on every change and the browser suites on merge, with the longer suites scheduled.
     - _Requirements: 23.4, 18.1, 16.6_
@@ -490,11 +490,11 @@ money or claims something about money, and both depend on the spine being real.
     - Implement the offline banner and queued-action honesty with no possibility of duplicate money movement from a queue.
     - Register every screen's states in the state-matrix registry as they are built, keeping the enumeration gate green.
     - _Requirements: 18.1, 18.2, 18.3_
-  - [ ] 11.4 Build the accessibility and theme foundation
-    - Apply the token-driven light and dark themes across the kit with the system-preference default and explicit override.
+  - [ ] 11.4 Build the accessibility and visual foundation
+    - Apply the authoritative @layerx/ui token stylesheet and component treatments across the complete kit without local primitive restyling.
     - Establish keyboard operability: visible focus order, focus trapping in layered surfaces, Escape and overlay dismissal on desktop, safe areas and keyboard avoidance on mobile.
     - Label every amount, status and control for assistive technology, announcing async status through live regions.
-    - Enforce contrast at least 4.5 to 1 across both themes through automated checks over the token combinations.
+    - Enforce required contrast across the package's text and semantic token combinations through automated checks.
     - Wire automated accessibility checks into the browser suites, including 1.5x text-expansion layout checks and locale-aware amount rendering with explicit currency codes.
     - _Requirements: 20.1, 20.2, 20.6, 17.3_
   - [ ] 11.5 Build the performance machinery
@@ -614,8 +614,8 @@ money or claims something about money, and both depend on the spine being real.
     - _Requirements: 23.3, 9.6_
   - [ ] 14.4 Run the UI, copy and accessibility gates
     - Enumerate every screen in both shells against the state-matrix registry and fail on any missing state.
-    - Run visual regression across both shells and both themes.
-    - Run the copy lint, the no-border, no-emoji and component-kit gates as build gates.
+    - Run visual regression across both shells at the canonical @layerx/ui reference viewports.
+    - Run the copy lint, component-library integrity and component-kit gates as build gates.
     - Run automated accessibility checks on every surface plus assistive-technology runs of the core journeys, failing on any AA violation.
     - Wire all of it into make human-qualify-ui as a release gate.
     - _Requirements: 23.4, 23.5_
@@ -672,9 +672,11 @@ reaching `done`, not per-task criteria to be negotiated.
   state-matrix manifest as the screen is built, not backfilled at
   qualification. Every error state has actionable buttons and a trace
   identifier.
-- **The UI rules are gates.** No border strokes for separation (focus ring
-  excepted), no emojis, no purple gradients, no glow. Both themes, both
-  shells, kit components only. Violations fail `make human-check-ui`.
+- **The UI contract is a gate.** The exact owner-supplied `@layerx/ui`
+  component API, token stylesheet, borders, dividers, shadows, gradients,
+  palette and platform treatments are authoritative in both shells. Missing
+  exports, missing tokens or competing local primitives fail
+  `make human-check-ui`.
 - **Vocabulary is enforced.** Deposit and withdraw are custody-boundary words;
   internal movements are fund, allocate, return, transfer. "Done" appears only
   via the status translation table.
@@ -710,7 +712,7 @@ additive HTTPS+JSON human-api with a generated TS client (`human_api`).
 |---|---|
 | `make human-build` | Workspace and web application build, TS client generation with its drift gate |
 | `make human-lint` / `make human-lint-copy` | Dependency, lint and supply-chain policy; the copy catalog lint |
-| `make human-check` / `make human-check-ui` | Boundary and payload-authority gates; the no-border, no-emoji and kit gates |
+| `make human-check` / `make human-check-ui` | Boundary and payload-authority gates; the component-library integrity and kit gates |
 | `make human-test-<area>` | Crate suites: `intents`, `service`, `paxeer`, `journeys`, `agents`, `approvals`, `notify`, `activity`, `explorer` |
 | `make human-e2e-<area>` | Browser suites in both shells: `foundation`, `journeys`, `settings`, `explorer`, `perf` |
 | `make human-qualify-*` / `make human-qualify` | Wave 8 release gates and the qualification report |

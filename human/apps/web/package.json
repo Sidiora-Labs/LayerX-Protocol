@@ -7,23 +7,29 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "build": "next build",
-    "test": "node --test e2e/scaffold.test.mjs e2e/copy.test.ts",
+    "build": "npm run build:ui && next build",
+    "build:ui": "cd packages/layerx-ui && ../../node_modules/.bin/tsup",
+    "test": "node --test e2e/scaffold.test.mjs e2e/copy.test.ts e2e/ui-library.test.ts",
     "lint": "tsc --noEmit && eslint --max-warnings=0 \"src/**/*.{ts,tsx}\" \"copy/**/*.ts\" && node policy/check.mjs && npm audit --audit-level=high",
     "typecheck": "tsc --noEmit",
-    "e2e": "node --test e2e/scaffold.test.mjs e2e/copy.test.ts"
+    "e2e": "node --test e2e/scaffold.test.mjs e2e/copy.test.ts e2e/ui-library.test.ts"
   },
   "dependencies": {
+    "@layerx/ui": "file:packages/layerx-ui",
     "next": "16.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@emnapi/wasi-threads": "1.2.3",
+    "@tailwindcss/postcss": "4.3.3",
     "@types/node": "26.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "eslint": "10.8.1",
-    "typescript-eslint": "8.67.0",
-    "typescript": "5.9.3"
+    "tailwindcss": "4.3.3",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.67.0"
   }
 }

@@ -163,15 +163,16 @@ are exercised by the qualification suite.
 
 ## 7. The design system
 
-- **Separation is background contrast, only.** Three stacked surface tones per
-  theme; no border strokes for depth or grouping anywhere; the keyboard focus
-  ring is the sole stroke exception. Enforced by a stylesheet gate.
-- **No emojis, no purple gradients, no glow.** One 1.5px-stroke line icon
-  family in flat tinted circles. Enforced by asset/copy gates.
-- **Token-driven, both themes first-class.** System preference by default,
-  explicit override honored. No color outside the tokens.
-- **Semantic color is reserved.** One accent (interactive), green (inbound,
-  success), red (outbound, destructive, failure), amber (pending, stale).
+- **The owner-supplied component library is authoritative.** Both shells use
+  the exact `@layerx/ui` component API and styling, including its borders,
+  dividers, shadows, gradients, layered surfaces, radii and control states.
+  Application code does not create a competing primitive or restyle a package
+  primitive.
+- **The package token stylesheet is canonical.** Palette, typography, radii,
+  elevation and motion come from `@layerx/ui/styles.css`; the application
+  composes those tokens without silently redefining the visual contract.
+- **Semantic color follows the package.** Accent, success, destructive and
+  warning treatments use the matching library variants.
   Money renders sign + color + word, tabular numerals, one amount format, one
   date format.
 - **Confirmation grammar.** Reversible: neutral primary with a consequence
@@ -180,8 +181,8 @@ are exercised by the qualification suite.
 - **Fee math is disclosed, numbered.** Where a charge needs explanation, the
   app walks it in numbered plain-language steps from inputs to total — the
   carried-over fee-math disclosure pattern.
-- **Motion** 150–200ms ease-out, `prefers-reduced-motion` honored, skeletons
-  over spinners.
+- **Motion** uses the package durations and easing, honors
+  `prefers-reduced-motion`, and uses the package skeleton treatment for loading.
 
 ## 8. The status translation table (normative)
 

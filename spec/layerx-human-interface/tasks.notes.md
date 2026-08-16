@@ -29,9 +29,11 @@ reaching `done`, not per-task criteria to be negotiated.
   state-matrix manifest as the screen is built, not backfilled at
   qualification. Every error state has actionable buttons and a trace
   identifier.
-- **The UI rules are gates.** No border strokes for separation (focus ring
-  excepted), no emojis, no purple gradients, no glow. Both themes, both
-  shells, kit components only. Violations fail `make human-check-ui`.
+- **The UI contract is a gate.** The exact owner-supplied `@layerx/ui`
+  component API, token stylesheet, borders, dividers, shadows, gradients,
+  palette and platform treatments are authoritative in both shells. Missing
+  exports, missing tokens or competing local primitives fail
+  `make human-check-ui`.
 - **Vocabulary is enforced.** Deposit and withdraw are custody-boundary words;
   internal movements are fund, allocate, return, transfer. "Done" appears only
   via the status translation table.
@@ -67,7 +69,7 @@ additive HTTPS+JSON human-api with a generated TS client (`human_api`).
 |---|---|
 | `make human-build` | Workspace and web application build, TS client generation with its drift gate |
 | `make human-lint` / `make human-lint-copy` | Dependency, lint and supply-chain policy; the copy catalog lint |
-| `make human-check` / `make human-check-ui` | Boundary and payload-authority gates; the no-border, no-emoji and kit gates |
+| `make human-check` / `make human-check-ui` | Boundary and payload-authority gates; the component-library integrity and kit gates |
 | `make human-test-<area>` | Crate suites: `intents`, `service`, `paxeer`, `journeys`, `agents`, `approvals`, `notify`, `activity`, `explorer` |
 | `make human-e2e-<area>` | Browser suites in both shells: `foundation`, `journeys`, `settings`, `explorer`, `perf` |
 | `make human-qualify-*` / `make human-qualify` | Wave 8 release gates and the qualification report |

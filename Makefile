@@ -1628,6 +1628,15 @@ human-lint-copy:
 	$(HUMAN_NPM) run typecheck
 	$(HUMAN_NPM) test
 
+human-check-ui:
+	$(HUMAN_CARGO) clippy --manifest-path human/tools/ui-gate/Cargo.toml --locked --all-targets -- -D warnings
+	$(HUMAN_CARGO) test --manifest-path human/tools/ui-gate/Cargo.toml --locked
+	$(HUMAN_CARGO) run --manifest-path human/tools/ui-gate/Cargo.toml --locked -- human/apps/web
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run build:ui
+	$(HUMAN_NPM) run typecheck
+	$(HUMAN_NPM) test
+
 human-check:
 	$(HUMAN_CARGO) check --manifest-path $(HUMAN_MANIFEST) --locked --workspace
 	$(HUMAN_NPM) ci

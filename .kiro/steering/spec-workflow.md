@@ -41,7 +41,6 @@ This file is a GENERATED pointer to it. Do not hand-edit it; edit `spec/workflow
 - **No Fakes**: Never write stub/mock/fake test doubles or placeholder implementations to make tests pass. Test REAL code paths with REAL types.
 - **Read Full**: When tool output is truncated and the rest is retrievable, fetch the full content before reasoning or answering.
 - **Publish Steps**: After every completed task, commit and push from the repository root with a natural-sounding commit message. Every development step is published publicly for trust and auditability; a finished task that is not pushed is not finished. Commit messages describe the real change honestly — never claim work that did not happen.
-- **Ui No Borders**: Client UI: never use border strokes for depth/separation — separation comes purely from background-color contrast between layers.
-- **Ui No Emojis**: No emojis, purple gradients, or glow effects in UI or output.
+- **Ui Component Library**: Client UI uses the exact styling and component API of the owner-supplied @layerx/ui package. Its borders, dividers, shadows, gradients, palette, radii and interaction states are authoritative; application code consumes the package instead of restyling its primitives.
 - **Gideon Validator**: Never perform a write, restart or remote execution against production validator infrastructure unless the user explicitly names the target and authorizes the action.
 - **Gideon Chainloss**: Any op risking total chain-state loss needs the user's explicit YES via a forced gate; never auto-approved.

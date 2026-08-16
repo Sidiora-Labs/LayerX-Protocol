@@ -36,14 +36,23 @@ const allowedLicenses = new Set([
   "ISC",
   "LGPL-3.0-or-later",
   "MIT",
+  "MPL-2.0",
 ]);
 
 for (const [path, metadata] of Object.entries(lockfile.packages)) {
   if (path === "") {
     continue;
   }
-  assert.equal(typeof metadata.version, "string", `${path} is not pinned to a version`);
-  assert.ok(allowedLicenses.has(metadata.license), `${path} uses non-allowlisted license ${metadata.license}`);
+  let pinned = metadata;
+  if (metadata.link === true) {
+    assert.equal(path, "node_modules/@layerx/ui", `${path} is an unapproved local package link`);
+    assert.equal(metadata.resolved, "packages/layerx-ui", "@layerx/ui must resolve to its checked-in package");
+    pinned = lockfile.packages[metadata.resolved];
+    assert.equal(pinned.name, "@layerx/ui", "the local package identity changed");
+    assert.equal(pinned.version, "0.1.0", "the local package version changed");
+  }
+  assert.equal(typeof pinned.version, "string", `${path} is not pinned to a version`);
+  assert.ok(allowedLicenses.has(pinned.license), `${path} uses non-allowlisted license ${pinned.license}`);
 }
 
 console.log("web dependency, lockfile, license, and runtime-budget policies passed");

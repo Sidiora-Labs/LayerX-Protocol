@@ -119,14 +119,12 @@ The user's direction, verbatim requirements:
 The visual language derives from a survey of all 292 screens of the user's
 previous app's Figma set (19-batch structured review; synthesis published as the
 "LayerX Human Interface" UI draft artifact, 2026-08-15, reviewed and accepted).
-Patterns carried over: neutral dark primary pill button, semantic-only color,
-confirmation sheets with consequence copy, label-over-value primitives,
-signed-and-worded amounts, honest status vocabulary, empty states with a single
-CTA, disabled-until-valid forms, numbered fee-math disclosure. Corrected as
-normative requirements: border-stroke separation (forbidden — background
-contrast only), missing loading/offline/error states (state matrix mandatory),
-undifferentiated destructive confirms, plaintext secrets, blank external
-hand-offs, emoji-style icons and glow halos, unversioned copy.
+The owner-supplied `@layerx/ui` package is the exact visual reference for the
+application: its component API, borders, dividers, shadows, gradients, palette,
+radii, typography, interaction states and responsive treatments are retained.
+The product requirements add the missing loading/offline/error state matrix,
+distinguished destructive confirms, secret handling, complete external
+hand-offs and versioned copy without replacing the package's visual language.
 
 ## 7. What upstream features already fix
 

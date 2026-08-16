@@ -1,0 +1,154 @@
+/* ==========================================================================
+   LayerX UI — design tokens
+   Extracted from the LayerX Figma design set (283 mobile screens, fintech).
+   Import AFTER tailwindcss:
+
+     @import "tailwindcss";
+     @import "@layerx/ui/styles.css";
+
+   Every token is a CSS variable, so a project can re-theme the whole library
+   by overriding the :root values (e.g. swap --accent to a brand color).
+   ========================================================================== */
+
+:root {
+  /* Surfaces */
+  --background: #f8f8f8;          /* app page background */
+  --surface: #ffffff;             /* cards, sheets, modals */
+  --surface-sunken: #f0f0f0;      /* segmented tracks, icon tiles, chips */
+
+  /* Text */
+  --foreground: #0a0a0a;          /* titles, key numbers */
+  --foreground-secondary: #585858;/* body copy */
+  --muted-foreground: #8a8a8a;    /* subtitles, timestamps */
+  --faint-foreground: #a7a7a7;    /* placeholders, disabled */
+
+  /* Lines */
+  --border: #e6e6e6;
+  --border-strong: #d4d4d4;
+
+  /* Primary action — the signature solid black pill */
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --primary-hover: #1f1f1f;
+
+  /* Accent — links, active nav, focus rings, FAB */
+  --accent: #1a72f8;
+  --accent-strong: #0060f8;       /* pressed / active text on light */
+  --accent-foreground: #ffffff;
+  --accent-soft: #e9f1fe;         /* accent tint surfaces */
+
+  /* Feedback */
+  --success: #3d9a4d;
+  --success-soft: #e8f5ea;
+  --destructive: #e13a32;
+  --destructive-soft: #f8e8e8;
+  --warning: #b7791f;
+  --warning-soft: #fdf3e3;
+
+  /* Shape */
+  --radius-sm: 0.5rem;    /* 8  */
+  --radius-md: 0.75rem;   /* 12 — inputs, small cards */
+  --radius-lg: 1rem;      /* 16 — cards */
+  --radius-xl: 1.25rem;   /* 20 — modals */
+  --radius-sheet: 1.5rem; /* 24 — bottom sheet top corners */
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.05);
+  --shadow-overlay: 0 8px 40px rgb(0 0 0 / 0.14);
+
+  /* Typography. If you load Manrope via next/font, point --font-manrope at it
+     (variable: "--font-manrope") and it takes over automatically. */
+  --font-sans: var(--font-manrope, "Manrope"), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Register tokens with Tailwind v4 so utilities like `bg-primary`,
+   `text-muted-foreground`, `rounded-sheet`, `shadow-card` exist. */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint-foreground: var(--faint-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-sheet: var(--radius-sheet);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-overlay: var(--shadow-overlay);
+
+  --font-sans: var(--font-sans);
+
+  /* Sheet / overlay motion */
+  --animate-sheet-up: sheet-up 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-sheet-down: sheet-down 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-modal-in: modal-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-modal-out: modal-out 0.16s ease-in;
+  --animate-drawer-in: drawer-in 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-drawer-out: drawer-out 0.22s ease-in;
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-fade-out: fade-out 0.16s ease-in;
+
+  @keyframes sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  @keyframes sheet-down {
+    from { transform: translateY(0); }
+    to { transform: translateY(100%); }
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  @keyframes modal-out {
+    from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    to { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+  }
+  @keyframes drawer-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  @keyframes drawer-out {
+    from { transform: translateX(0); }
+    to { transform: translateX(100%); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+}
+
+/* Thin, unobtrusive scrollbars for overlay content */
+@layer base {
+  .lx-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  .lx-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .lx-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+  .lx-scroll::-webkit-scrollbar-track { background: transparent; }
+}
