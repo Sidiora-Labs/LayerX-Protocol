@@ -445,7 +445,7 @@ reqs = ["6.1","6.9"]
 
 [task.2.2]
 title = "Implement approval operations in the daemon"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["2.1"]
 do_1 = "Implement list, get, approve and reject in layerx-agentd over the existing policy hold store, scoped to the authenticated tenant like every other operation."

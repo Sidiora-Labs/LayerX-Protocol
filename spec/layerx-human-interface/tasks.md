@@ -98,7 +98,7 @@ money or claims something about money, and both depend on the spine being real.
     - Extend the schema conformance suite so the golden vectors and the additive-only rule are enforced for the new module.
     - Update the contract documentation to state that approvals are a daemon-enforced restriction and confer no protocol authority.
     - _Requirements: 6.1, 6.9_
-  - [ ] 2.2 Implement approval operations in the daemon
+  - [x] 2.2 Implement approval operations in the daemon
     - Implement list, get, approve and reject in layerx-agentd over the existing policy hold store, scoped to the authenticated tenant like every other operation.
     - Carry the held activity's disclosure and digest on every approval record, verifying at read time that the disclosure re-encodes byte-identically to the digest's preimage and reporting a mismatch as a defective hold that cannot be approved.
     - Make approve release exactly the held prepared activity into the existing submission path, voiding the hold if the underlying activity changed in any way since the hold was created.

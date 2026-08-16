@@ -1948,6 +1948,10 @@ agent-test-agentd-policy-dryrun:
 agent-test-agentd-approval:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test approval
 
+agent-test-approvals:
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test approval --test approval_ops
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-mcp --test approval
+
 agent-test-policy-adversarial:
 	$(AGENT_CARGO) test --manifest-path agent/tools/policy-harness/Cargo.toml --locked
 	$(AGENT_CARGO) run --manifest-path agent/tools/policy-harness/Cargo.toml --locked --quiet

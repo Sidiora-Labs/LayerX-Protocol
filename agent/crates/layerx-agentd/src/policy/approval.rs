@@ -56,6 +56,7 @@ pub enum ApprovalState {
     Approved,
     Rejected,
     Expired,
+    Defective,
 }
 
 /// Approval audit entry carrying every required request dimension.
@@ -90,9 +91,21 @@ pub struct ApprovalTicket {
 struct HeldApproval {
     context: ApprovalContext,
     prepared: Prepared,
+    created_at_sequence: u64,
     expires_at_sequence: u64,
     state: ApprovalState,
     audit: Option<ApprovalAuditEntry>,
+    decision_claimed: bool,
+}
+
+/// Complete immutable snapshot used by the authenticated approval service.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ApprovalSnapshot {
+    pub context: ApprovalContext,
+    pub prepared: Prepared,
+    pub created_at_sequence: u64,
+    pub expires_at_sequence: u64,
+    pub state: ApprovalState,
 }
 
 /// Thread-safe approval registry; state transitions serialize per hold.
@@ -114,6 +127,90 @@ impl ApprovalRegistry {
         let holds = self.holds.lock().map_err(|_| ApprovalError::Unavailable)?;
         Ok(holds.get(&hold_id).and_then(|held| held.audit.clone()))
     }
+
+    pub(crate) fn list_scoped(
+        &self,
+        tenant: &TenantId,
+        current_sequence: u64,
+    ) -> Result<Vec<ApprovalSnapshot>, ApprovalError> {
+        let mut holds = self.holds.lock().map_err(|_| ApprovalError::Unavailable)?;
+        let mut records = Vec::new();
+        for held in holds.values_mut() {
+            if &held.context.tenant == tenant {
+                validate_for_read(held, current_sequence);
+                records.push(snapshot(held));
+            }
+        }
+        Ok(records)
+    }
+
+    pub(crate) fn get_scoped(
+        &self,
+        tenant: &TenantId,
+        hold_id: [u8; 32],
+        current_sequence: u64,
+    ) -> Result<ApprovalSnapshot, ApprovalError> {
+        let mut holds = self.holds.lock().map_err(|_| ApprovalError::Unavailable)?;
+        let held = holds.get_mut(&hold_id).ok_or(ApprovalError::NotFound)?;
+        if &held.context.tenant != tenant {
+            return Err(ApprovalError::NotFound);
+        }
+        validate_for_read(held, current_sequence);
+        Ok(snapshot(held))
+    }
+
+    pub(crate) fn claim_scoped(
+        &self,
+        tenant: &TenantId,
+        hold_id: [u8; 32],
+        current_sequence: u64,
+    ) -> Result<ApprovalSnapshot, ApprovalError> {
+        let mut holds = self.holds.lock().map_err(|_| ApprovalError::Unavailable)?;
+        let held = holds.get_mut(&hold_id).ok_or(ApprovalError::NotFound)?;
+        if &held.context.tenant != tenant {
+            return Err(ApprovalError::NotFound);
+        }
+        validate_for_read(held, current_sequence);
+        if held.state == ApprovalState::Defective {
+            return Err(ApprovalError::Defective);
+        }
+        if held.state != ApprovalState::AwaitingApproval {
+            return Err(ApprovalError::AlreadyDecided(held.state));
+        }
+        if held.decision_claimed {
+            return Err(ApprovalError::DecisionConflict);
+        }
+        held.decision_claimed = true;
+        Ok(snapshot(held))
+    }
+
+    pub(crate) fn complete_claim(
+        &self,
+        hold_id: [u8; 32],
+        state: ApprovalState,
+        approver: ApproverId,
+        reason: &'static str,
+        resulting_activity_id: Option<[u8; 32]>,
+    ) -> Result<ApprovalAuditEntry, ApprovalError> {
+        let mut holds = self.holds.lock().map_err(|_| ApprovalError::Unavailable)?;
+        let held = holds.get_mut(&hold_id).ok_or(ApprovalError::NotFound)?;
+        if !held.decision_claimed || held.state != ApprovalState::AwaitingApproval {
+            return Err(ApprovalError::DecisionConflict);
+        }
+        let mut audit = terminal_audit(held, state, Some(approver), reason);
+        audit.resulting_activity_id = resulting_activity_id;
+        held.state = state;
+        held.decision_claimed = false;
+        held.audit = Some(audit.clone());
+        Ok(audit)
+    }
+
+    pub(crate) fn abort_claim(&self, hold_id: [u8; 32]) -> Result<(), ApprovalError> {
+        let mut holds = self.holds.lock().map_err(|_| ApprovalError::Unavailable)?;
+        let held = holds.get_mut(&hold_id).ok_or(ApprovalError::NotFound)?;
+        held.decision_claimed = false;
+        Ok(())
+    }
 }
 
 /// Approval hold refusal taxonomy.
@@ -127,6 +224,8 @@ pub enum ApprovalError {
     NotFound,
     AlreadyDecided(ApprovalState),
     DisclosureChanged,
+    Defective,
+    DecisionConflict,
     Unavailable,
 }
 
@@ -159,9 +258,11 @@ pub fn hold(
     let held = HeldApproval {
         context,
         prepared,
+        created_at_sequence: current_sequence,
         expires_at_sequence,
         state: ApprovalState::AwaitingApproval,
         audit: None,
+        decision_claimed: false,
     };
     let ticket = ticket_from_hold(&held);
     holds.insert(hold_id, held);
@@ -207,6 +308,44 @@ pub fn decide(
     held.state = state;
     held.audit = Some(audit.clone());
     Ok(audit)
+}
+
+fn validate_for_read(held: &mut HeldApproval, current_sequence: u64) {
+    if held.state != ApprovalState::AwaitingApproval {
+        return;
+    }
+    if current_sequence >= held.expires_at_sequence {
+        let audit = terminal_audit(
+            held,
+            ApprovalState::Expired,
+            None,
+            "approval_window_expired",
+        );
+        held.state = ApprovalState::Expired;
+        held.audit = Some(audit);
+        return;
+    }
+    let observed = canonical_digest(held.prepared.unsigned_canonical_bytes.as_bytes());
+    if observed != held.prepared.disclosure.canonical_digest {
+        let audit = terminal_audit(
+            held,
+            ApprovalState::Defective,
+            None,
+            "held_disclosure_digest_mismatch",
+        );
+        held.state = ApprovalState::Defective;
+        held.audit = Some(audit);
+    }
+}
+
+fn snapshot(held: &HeldApproval) -> ApprovalSnapshot {
+    ApprovalSnapshot {
+        context: held.context.clone(),
+        prepared: held.prepared.clone(),
+        created_at_sequence: held.created_at_sequence,
+        expires_at_sequence: held.expires_at_sequence,
+        state: held.state,
+    }
 }
 
 /// Expires every elapsed hold against an explicit protocol-relative sequence.
