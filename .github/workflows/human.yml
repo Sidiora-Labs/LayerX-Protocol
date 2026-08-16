@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
 
 permissions:
   contents: read
@@ -35,3 +37,33 @@ jobs:
         run: make human-check-ui human-lint
       - name: Build and test the isolated human workspace
         run: make human-build human-test
+
+  browser-real-stack:
+    if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      HUMAN_E2E_BASE_URL: ${{ vars.HUMAN_E2E_BASE_URL }}
+      HUMAN_E2E_REAL_STACK: "1"
+      HUMAN_VISUAL_BASELINE_REVIEWED: ${{ vars.HUMAN_VISUAL_BASELINE_REVIEWED }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install pinned Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.11.0
+          cache: npm
+          cache-dependency-path: human/apps/web/package-lock.json
+      - name: Install browser harness
+        run: >-
+          npm --prefix human/apps/web ci &&
+          npm --prefix human/apps/web exec playwright install --with-deps chromium
+      - name: Run merge browser suite
+        if: github.event_name == 'push'
+        run: make human-test-e2e
+      - name: Run scheduled repeated browser suite
+        if: github.event_name == 'schedule'
+        run: make human-test-e2e-long

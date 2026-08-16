@@ -46,6 +46,14 @@ export const copyEntries = [
   { key: "status.paid_out", message: "Paid out", context: "Paxeer payout transaction reached verified finality.", surface: "default", kind: "status", moneyAdjacent: true },
   { key: "approval.count", message: "{count, plural, =0 {No approvals waiting} one {# approval waiting} other {# approvals waiting}}", context: "Approval badge and inbox count with ICU plural handling.", surface: "default", kind: "body", moneyAdjacent: false },
   { key: "movement.direction", message: "{direction, select, inbound {Money in} outbound {Money out} other {Money moved}}", context: "Accessible direction wording selected independently of color.", surface: "default", kind: "body", moneyAdjacent: true },
+  { key: "state.loading", message: "Getting ready", context: "Screen data is loading from the real service.", surface: "default", kind: "body", moneyAdjacent: false },
+  { key: "state.empty", message: "Nothing here yet", context: "Screen has loaded successfully without records.", surface: "default", kind: "body", moneyAdjacent: false },
+  { key: "state.error", message: "Something went wrong", context: "Screen could not load and offers recovery actions.", surface: "default", kind: "body", moneyAdjacent: false },
+  { key: "state.offline", message: "You're offline", context: "Screen cannot reach the service and offers retry.", surface: "default", kind: "body", moneyAdjacent: false },
+  { key: "state.degraded", message: "Some information may be delayed", context: "Screen is usable with explicitly stale information.", surface: "default", kind: "body", moneyAdjacent: false },
+  { key: "action.retry", message: "Retry", context: "Retry the current read without duplicating a money movement.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "action.reload", message: "Reload", context: "Reload a structurally broken screen.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "action.report", message: "Report", context: "Submit consented non-sensitive diagnostic context.", surface: "default", kind: "action", moneyAdjacent: false },
 ] as const satisfies readonly CopyEntry[];
 
 const catalog = new Map<string, CopyEntry>(

@@ -412,7 +412,7 @@ reqs = ["17.1","17.2","17.3"]
 
 [task.1.5]
 title = "Stand up the test, end-to-end and state-matrix harness"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["1.1"]
 do_1 = "Establish the test layout for the crates - unit, integration, property and fault-injection suites - and for the app - component, journey and end-to-end suites - each mapped to a make target."

@@ -82,7 +82,7 @@ money or claims something about money, and both depend on the spine being real.
     - Build a component-library integrity gate that validates the required source inventory, public exports, stylesheet import, token contract and application dependency wiring.
     - Wire the integrity gate into make human-check-ui and CI, with fixtures proving missing exports, missing tokens and competing local primitives are caught and a clean integration passes.
     - _Requirements: 17.1, 17.2, 17.3_
-  - [ ] 1.5 Stand up the test, end-to-end and state-matrix harness
+  - [x] 1.5 Stand up the test, end-to-end and state-matrix harness
     - Establish the test layout for the crates - unit, integration, property and fault-injection suites - and for the app - component, journey and end-to-end suites - each mapped to a make target.
     - Stand up the browser end-to-end harness able to drive both shells against a real service, with device profiles for the mobile and desktop shells and trace capture on failure.
     - Stand up visual regression across both shells at the canonical @layerx/ui mobile and desktop reference viewports with a reviewed-baseline workflow.

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "reviewRequired": true,
+  "projects": {
+    "mobile-shell": { "width": 390, "height": 844 },
+    "desktop-shell": { "width": 1440, "height": 960 }
+  }
+}

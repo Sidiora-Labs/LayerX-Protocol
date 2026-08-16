@@ -1612,6 +1612,38 @@ human-test:
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) test
 
+human-test-unit:
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked --workspace --lib
+
+human-test-integration:
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked --workspace --tests
+
+human-test-property:
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked --workspace property_
+
+human-test-fault:
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked --workspace fault_
+
+human-test-component:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run test:component
+
+human-test-journey:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run test:journey
+
+human-test-e2e:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run test:e2e
+
+human-test-visual:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run test:visual
+
+human-test-e2e-long:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run test:e2e -- --repeat-each=5
+
 human-lint: human-lint-copy
 	$(HUMAN_CARGO) clippy --manifest-path $(HUMAN_MANIFEST) --locked --workspace --all-targets -- -D warnings
 	$(HUMAN_CARGO) test --manifest-path human/tools/boundary-check/Cargo.toml --locked
@@ -1642,9 +1674,7 @@ human-check:
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) run typecheck
 
-human-e2e:
-	$(HUMAN_NPM) ci
-	$(HUMAN_NPM) run e2e
+human-e2e: human-test-e2e
 
 agent-test:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked --workspace
