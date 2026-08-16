@@ -5,7 +5,8 @@ use layerx_agent_api::prepare::{
 };
 use layerx_agent_api::{Amount, TimestampSeconds};
 use layerx_agentd::approval::{
-    ApprovalOperationError, ApprovalOutcome, ApprovalService, ApprovalSubmissionQueue,
+    ApprovalExpiry, ApprovalOperationError, ApprovalOutcome, ApprovalService,
+    ApprovalSubmissionQueue, DecisionKey,
 };
 use layerx_agentd::budget::{
     reserve, BudgetLimiter, LimitConfig, LimitId, LimitScope, ReservationRequest,
@@ -18,6 +19,33 @@ use layerx_agentd::session::SessionId;
 use layerx_agentd::store::TenantId;
 use layerx_types::ids::Did;
 use sha2::{Digest as _, Sha256};
+
+static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(1);
+
+struct DurableFixture {
+    root: PathBuf,
+    expiry: ApprovalExpiry,
+}
+
+impl DurableFixture {
+    fn new(label: &str) -> Self {
+        let sequence = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!(
+            "layerx-approval-ops-{label}-{}-{sequence}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).unwrap_or_else(|error| panic!("fixture root: {error}"));
+        let expiry =
+            ApprovalExpiry::open(&root).unwrap_or_else(|error| panic!("expiry: {error:?}"));
+        Self { root, expiry }
+    }
+}
+
+impl Drop for DurableFixture {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
 
 fn digest(bytes: &[u8]) -> [u8; 32] {
     Sha256::digest(bytes).into()
@@ -88,8 +116,13 @@ fn approver() -> ApproverId {
     ApproverId::new("human:operator").unwrap_or_else(|error| panic!("approver: {error:?}"))
 }
 
+fn decision_key(value: &str) -> DecisionKey {
+    DecisionKey::new(value).unwrap_or_else(|error| panic!("decision key: {error:?}"))
+}
+
 #[test]
 fn approval_service_lists_and_gets_only_the_authenticated_tenant() {
+    let fixture = DurableFixture::new("scope");
     let registry = ApprovalRegistry::default();
     let limiter = limiter();
     let alpha = tenant("tenant-alpha");
@@ -101,7 +134,7 @@ fn approval_service_lists_and_gets_only_the_authenticated_tenant() {
     hold(&registry, context(&beta, 4), prepared(4), 10, 100)
         .unwrap_or_else(|error| panic!("beta hold: {error:?}"));
 
-    let service = ApprovalService::new(&registry, &limiter);
+    let service = ApprovalService::new(&registry, &limiter, &fixture.expiry);
     let first = service
         .list(&alpha, None, 2, 11)
         .unwrap_or_else(|error| panic!("first page: {error:?}"));
@@ -131,19 +164,21 @@ fn approval_service_lists_and_gets_only_the_authenticated_tenant() {
 
 #[test]
 fn approval_releases_only_the_exact_held_preparation_once() {
+    let fixture = DurableFixture::new("approve");
     let registry = ApprovalRegistry::default();
     let limiter = limiter();
     let tenant = tenant("tenant-alpha");
     let expected = prepared(5);
     hold(&registry, context(&tenant, 5), expected.clone(), 10, 100)
         .unwrap_or_else(|error| panic!("hold: {error:?}"));
-    let service = ApprovalService::new(&registry, &limiter);
+    let service = ApprovalService::new(&registry, &limiter, &fixture.expiry);
     let mut submissions = ApprovalSubmissionQueue::default();
 
     let granted = service
         .approve(
             &tenant,
             [5; 32],
+            &decision_key("approve-5"),
             approver(),
             11,
             &expected,
@@ -154,25 +189,27 @@ fn approval_releases_only_the_exact_held_preparation_once() {
     let submission_ref = granted
         .submission_ref
         .unwrap_or_else(|| panic!("submission reference missing"));
-    assert_eq!(submissions.prepared(submission_ref), Some(&expected));
+    assert_eq!(submissions.prepared(submission_ref), Some(expected.clone()));
     assert_eq!(submissions.len(), 1);
 
     let repeated = service
         .approve(
             &tenant,
             [5; 32],
+            &decision_key("approve-5"),
             approver(),
             12,
             &expected,
             &mut submissions,
         )
         .unwrap_or_else(|error| panic!("repeat: {error:?}"));
-    assert_eq!(repeated.outcome, ApprovalOutcome::AlreadyDecided);
+    assert_eq!(repeated.outcome, ApprovalOutcome::Granted);
     assert_eq!(submissions.len(), 1);
 }
 
 #[test]
 fn rejection_is_final_and_releases_the_matching_reservation() {
+    let fixture = DurableFixture::new("reject");
     let registry = ApprovalRegistry::default();
     let limiter = limiter();
     let tenant = tenant("tenant-alpha");
@@ -191,31 +228,40 @@ fn rejection_is_final_and_releases_the_matching_reservation() {
         .unwrap_or_else(|error| panic!("hold: {error:?}"));
     assert_eq!(limiter.held_reservations(), Ok(1));
 
-    let service = ApprovalService::new(&registry, &limiter);
+    let service = ApprovalService::new(&registry, &limiter, &fixture.expiry);
     let rejected = service
-        .reject(&tenant, [6; 32], approver(), 11)
+        .reject(&tenant, [6; 32], &decision_key("reject-6"), approver(), 11)
         .unwrap_or_else(|error| panic!("reject: {error:?}"));
     assert_eq!(rejected.outcome, ApprovalOutcome::Rejected);
     assert_eq!(limiter.held_reservations(), Ok(0));
     let repeated = service
-        .reject(&tenant, [6; 32], approver(), 12)
+        .reject(&tenant, [6; 32], &decision_key("reject-6"), approver(), 12)
         .unwrap_or_else(|error| panic!("repeat: {error:?}"));
-    assert_eq!(repeated.outcome, ApprovalOutcome::AlreadyDecided);
+    assert_eq!(repeated.outcome, ApprovalOutcome::Rejected);
     assert_eq!(limiter.consumed(LimitId([9; 16])), Ok(0));
 }
 
 #[test]
 fn deterministic_expiry_returns_a_typed_non_success_outcome() {
+    let fixture = DurableFixture::new("expiry");
     let registry = ApprovalRegistry::default();
     let limiter = limiter();
     let tenant = tenant("tenant-alpha");
     hold(&registry, context(&tenant, 7), prepared(7), 10, 20)
         .unwrap_or_else(|error| panic!("hold: {error:?}"));
-    let service = ApprovalService::new(&registry, &limiter);
+    let service = ApprovalService::new(&registry, &limiter, &fixture.expiry);
     let mut submissions = ApprovalSubmissionQueue::default();
     let current = prepared(7);
     let expired = service
-        .approve(&tenant, [7; 32], approver(), 20, &current, &mut submissions)
+        .approve(
+            &tenant,
+            [7; 32],
+            &decision_key("late-7"),
+            approver(),
+            20,
+            &current,
+            &mut submissions,
+        )
         .unwrap_or_else(|error| panic!("expiry: {error:?}"));
     assert_eq!(expired.outcome, ApprovalOutcome::Expired);
     assert!(submissions.is_empty());
@@ -227,19 +273,21 @@ fn deterministic_expiry_returns_a_typed_non_success_outcome() {
 
 #[test]
 fn changed_underlying_activity_voids_the_hold_as_defective() {
+    let fixture = DurableFixture::new("defective");
     let registry = ApprovalRegistry::default();
     let limiter = limiter();
     let tenant = tenant("tenant-alpha");
     let held = prepared(8);
     hold(&registry, context(&tenant, 8), held, 10, 100)
         .unwrap_or_else(|error| panic!("hold: {error:?}"));
-    let service = ApprovalService::new(&registry, &limiter);
+    let service = ApprovalService::new(&registry, &limiter, &fixture.expiry);
     let mut submissions = ApprovalSubmissionQueue::default();
 
     let defective = service
         .approve(
             &tenant,
             [8; 32],
+            &decision_key("approve-8"),
             approver(),
             11,
             &prepared(9),
@@ -253,3 +301,6 @@ fn changed_underlying_activity_voids_the_hold_as_defective() {
         Ok(ApprovalState::Defective)
     );
 }
+use std::fs;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};

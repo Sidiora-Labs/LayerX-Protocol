@@ -460,7 +460,7 @@ reqs = ["6.2","6.3","6.4"]
 
 [task.2.3]
 title = "Enforce expiry, idempotency and concurrency semantics"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["2.2"]
 do_1 = "Expire unactioned holds at exactly the deterministic expiry the policy engine computed, bounded by the held activity's submission validity window, releasing reservations on expiry, with an approval attempt after expiry returning the typed expired result."

@@ -1949,7 +1949,7 @@ agent-test-agentd-approval:
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test approval
 
 agent-test-approvals:
-	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test approval --test approval_ops
+	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-agentd --test approval --test approval_ops --test approval_semantics
 	$(AGENT_CARGO) test --manifest-path $(AGENT_MANIFEST) --locked -p layerx-mcp --test approval
 
 agent-test-policy-adversarial:

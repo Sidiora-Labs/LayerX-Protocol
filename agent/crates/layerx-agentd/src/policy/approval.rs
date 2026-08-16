@@ -237,7 +237,7 @@ pub fn hold(
     current_sequence: u64,
     expires_at_sequence: u64,
 ) -> Result<ApprovalTicket, ApprovalError> {
-    if expires_at_sequence <= current_sequence {
+    if expires_at_sequence <= current_sequence || expires_at_sequence > prepared.expiry.0 {
         return Err(ApprovalError::InvalidWindow);
     }
     let digest = canonical_digest(prepared.unsigned_canonical_bytes.as_bytes());

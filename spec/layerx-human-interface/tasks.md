@@ -105,7 +105,7 @@ money or claims something about money, and both depend on the spine being real.
     - Make reject cancel the hold and release its reservations deterministically, reporting the refusal to the requesting agent with a typed result.
     - Return typed results for every outcome: granted, rejected, expired, defective, already-decided and conflict.
     - _Requirements: 6.2, 6.3, 6.4_
-  - [ ] 2.3 Enforce expiry, idempotency and concurrency semantics
+  - [x] 2.3 Enforce expiry, idempotency and concurrency semantics
     - Expire unactioned holds at exactly the deterministic expiry the policy engine computed, bounded by the held activity's submission validity window, releasing reservations on expiry, with an approval attempt after expiry returning the typed expired result.
     - Make approve and reject idempotent under their idempotency keys, with a repeated decision returning the original outcome.
     - Resolve concurrent conflicting decisions to exactly one winner, with the losing request receiving the typed conflict result naming the winning outcome.

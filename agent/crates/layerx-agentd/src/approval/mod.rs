@@ -1,6 +1,7 @@
 //! Authenticated approval operations over the policy hold registry.
 
 use std::collections::BTreeMap;
+use std::sync::Mutex;
 
 use layerx_agent_api::prepare::{Disclosure, Prepared};
 use sha2::{Digest as _, Sha256};
@@ -10,6 +11,10 @@ use crate::policy::approval::{
     ApprovalError as RegistryError, ApprovalRegistry, ApprovalSnapshot, ApprovalState, ApproverId,
 };
 use crate::store::TenantId;
+
+mod expiry;
+
+pub use expiry::{ApprovalExpiry, ApprovalExpiryError, DecisionKey};
 
 /// Human-readable reason attached to the policy hold.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -54,28 +59,34 @@ pub enum ApprovalOutcome {
 pub struct ApprovalDecision {
     pub outcome: ApprovalOutcome,
     pub submission_ref: Option<[u8; 32]>,
+    pub winning_outcome: Option<ApprovalOutcome>,
 }
 
 /// A real pre-signing submission queue containing the exact approved preparation.
 #[derive(Default)]
 pub struct ApprovalSubmissionQueue {
-    queued: BTreeMap<[u8; 32], (TenantId, [u8; 32], Prepared)>,
+    queued: Mutex<BTreeMap<[u8; 32], (TenantId, [u8; 32], Prepared)>>,
 }
 
 impl ApprovalSubmissionQueue {
-    fn release(
-        &mut self,
-        tenant: TenantId,
-        approval_id: [u8; 32],
-        prepared: Prepared,
-    ) -> Result<[u8; 32], ApprovalOutcome> {
+    fn reference(tenant: &TenantId, approval_id: [u8; 32], prepared: &Prepared) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update(b"layerx-approved-preparation-v1");
         hasher.update(tenant.as_str().as_bytes());
         hasher.update(approval_id);
         hasher.update(prepared.unsigned_canonical_bytes.as_bytes());
-        let submission_ref: [u8; 32] = hasher.finalize().into();
-        match self.queued.get(&submission_ref) {
+        hasher.finalize().into()
+    }
+
+    fn release(
+        &self,
+        tenant: TenantId,
+        approval_id: [u8; 32],
+        prepared: Prepared,
+    ) -> Result<[u8; 32], ApprovalOutcome> {
+        let submission_ref = Self::reference(&tenant, approval_id, &prepared);
+        let mut queued = self.queued.lock().map_err(|_| ApprovalOutcome::Conflict)?;
+        match queued.get(&submission_ref) {
             Some((stored_tenant, stored_approval, stored))
                 if stored_tenant == &tenant
                     && stored_approval == &approval_id
@@ -85,8 +96,7 @@ impl ApprovalSubmissionQueue {
             }
             Some(_) => Err(ApprovalOutcome::Conflict),
             None => {
-                self.queued
-                    .insert(submission_ref, (tenant, approval_id, prepared));
+                queued.insert(submission_ref, (tenant, approval_id, prepared));
                 Ok(submission_ref)
             }
         }
@@ -94,20 +104,24 @@ impl ApprovalSubmissionQueue {
 
     /// Returns the exact preparation released by approval.
     #[must_use]
-    pub fn prepared(&self, submission_ref: [u8; 32]) -> Option<&Prepared> {
-        self.queued.get(&submission_ref).map(|(_, _, value)| value)
+    pub fn prepared(&self, submission_ref: [u8; 32]) -> Option<Prepared> {
+        self.queued.lock().ok().and_then(|queued| {
+            queued
+                .get(&submission_ref)
+                .map(|(_, _, value)| value.clone())
+        })
     }
 
     /// Number of preparations waiting for the ordinary sign-and-submit path.
     #[must_use]
     pub fn len(&self) -> usize {
-        self.queued.len()
+        self.queued.lock().map_or(0, |queued| queued.len())
     }
 
     /// Whether no approved preparation is queued.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.queued.is_empty()
+        self.queued.lock().map_or(true, |queued| queued.is_empty())
     }
 }
 
@@ -115,12 +129,21 @@ impl ApprovalSubmissionQueue {
 pub struct ApprovalService<'a> {
     registry: &'a ApprovalRegistry,
     limiter: &'a BudgetLimiter,
+    expiry: &'a ApprovalExpiry,
 }
 
 impl<'a> ApprovalService<'a> {
     #[must_use]
-    pub const fn new(registry: &'a ApprovalRegistry, limiter: &'a BudgetLimiter) -> Self {
-        Self { registry, limiter }
+    pub const fn new(
+        registry: &'a ApprovalRegistry,
+        limiter: &'a BudgetLimiter,
+        expiry: &'a ApprovalExpiry,
+    ) -> Self {
+        Self {
+            registry,
+            limiter,
+            expiry,
+        }
     }
 
     /// Lists only holds belonging to the authenticated tenant.
@@ -143,11 +166,17 @@ impl<'a> ApprovalService<'a> {
             .list_scoped(tenant, current_sequence)
             .map_err(ApprovalOperationError::Registry)?;
         snapshots.sort_by_key(|snapshot| snapshot.context.request_id);
-        let mut records = snapshots
-            .into_iter()
-            .filter(|snapshot| cursor.is_none_or(|value| snapshot.context.request_id > value))
-            .map(record)
-            .collect::<Vec<_>>();
+        let mut records = Vec::new();
+        for mut snapshot in snapshots {
+            if cursor.is_some_and(|value| snapshot.context.request_id <= value) {
+                continue;
+            }
+            snapshot.state = self
+                .expiry
+                .observe(&snapshot, current_sequence, self.limiter)
+                .map_err(ApprovalOperationError::Durability)?;
+            records.push(record(snapshot));
+        }
         let next_cursor = (records.len() > page_limit).then(|| records[page_limit - 1].approval_id);
         records.truncate(page_limit);
         Ok(ApprovalPage {
@@ -167,10 +196,15 @@ impl<'a> ApprovalService<'a> {
         approval_id: [u8; 32],
         current_sequence: u64,
     ) -> Result<ApprovalRecord, ApprovalOperationError> {
-        self.registry
+        let mut snapshot = self
+            .registry
             .get_scoped(tenant, approval_id, current_sequence)
-            .map(record)
-            .map_err(ApprovalOperationError::Registry)
+            .map_err(ApprovalOperationError::Registry)?;
+        snapshot.state = self
+            .expiry
+            .observe(&snapshot, current_sequence, self.limiter)
+            .map_err(ApprovalOperationError::Durability)?;
+        Ok(record(snapshot))
     }
 
     /// Releases exactly the held prepared activity into the ordinary submission queue.
@@ -182,11 +216,47 @@ impl<'a> ApprovalService<'a> {
         &self,
         tenant: &TenantId,
         approval_id: [u8; 32],
+        idempotency_key: &DecisionKey,
         approver: ApproverId,
         current_sequence: u64,
         current_prepared: &Prepared,
-        submissions: &mut ApprovalSubmissionQueue,
+        submissions: &ApprovalSubmissionQueue,
     ) -> Result<ApprovalDecision, ApprovalOperationError> {
+        let snapshot = self
+            .registry
+            .get_scoped(tenant, approval_id, current_sequence)
+            .map_err(ApprovalOperationError::Registry)?;
+        let digest = canonical_digest(snapshot.prepared.unsigned_canonical_bytes.as_bytes());
+        let intended = if current_prepared != &snapshot.prepared
+            || digest != snapshot.prepared.disclosure.canonical_digest
+        {
+            ApprovalOutcome::Defective
+        } else {
+            ApprovalOutcome::Granted
+        };
+        let submission_ref = (intended == ApprovalOutcome::Granted)
+            .then(|| ApprovalSubmissionQueue::reference(tenant, approval_id, &snapshot.prepared));
+        match self
+            .expiry
+            .decide(
+                &snapshot,
+                current_sequence,
+                idempotency_key,
+                intended,
+                submission_ref,
+                self.limiter,
+            )
+            .map_err(ApprovalOperationError::Durability)?
+        {
+            expiry::DecisionResolution::Winner => {}
+            expiry::DecisionResolution::Repeat(decision) => return Ok(decision),
+            expiry::DecisionResolution::Conflict(winner) => {
+                return Ok(conflict(winner));
+            }
+            expiry::DecisionResolution::Expired => {
+                return Ok(decision(ApprovalOutcome::Expired, None));
+            }
+        }
         let claimed = match self
             .registry
             .claim_scoped(tenant, approval_id, current_sequence)
@@ -194,10 +264,7 @@ impl<'a> ApprovalService<'a> {
             Ok(claimed) => claimed,
             Err(error) => return outcome_or_error(error),
         };
-        let digest = canonical_digest(claimed.prepared.unsigned_canonical_bytes.as_bytes());
-        if current_prepared != &claimed.prepared
-            || digest != claimed.prepared.disclosure.canonical_digest
-        {
+        if intended == ApprovalOutcome::Defective {
             self.registry
                 .complete_claim(
                     approval_id,
@@ -209,7 +276,7 @@ impl<'a> ApprovalService<'a> {
                 .map_err(ApprovalOperationError::Registry)?;
             return Ok(decision(ApprovalOutcome::Defective, None));
         }
-        let submission_ref =
+        let queued_submission_ref =
             match submissions.release(tenant.clone(), approval_id, claimed.prepared.clone()) {
                 Ok(reference) => reference,
                 Err(outcome) => {
@@ -225,10 +292,14 @@ impl<'a> ApprovalService<'a> {
                 ApprovalState::Approved,
                 approver,
                 "approver_released_exact_preparation",
-                Some(submission_ref),
+                Some(queued_submission_ref),
             )
             .map_err(ApprovalOperationError::Registry)?;
-        Ok(decision(ApprovalOutcome::Granted, Some(submission_ref)))
+        debug_assert_eq!(submission_ref, Some(queued_submission_ref));
+        Ok(decision(
+            ApprovalOutcome::Granted,
+            Some(queued_submission_ref),
+        ))
     }
 
     /// Finalizes rejection and releases the hold's reservation deterministically.
@@ -240,9 +311,35 @@ impl<'a> ApprovalService<'a> {
         &self,
         tenant: &TenantId,
         approval_id: [u8; 32],
+        idempotency_key: &DecisionKey,
         approver: ApproverId,
         current_sequence: u64,
     ) -> Result<ApprovalDecision, ApprovalOperationError> {
+        let snapshot = self
+            .registry
+            .get_scoped(tenant, approval_id, current_sequence)
+            .map_err(ApprovalOperationError::Registry)?;
+        match self
+            .expiry
+            .decide(
+                &snapshot,
+                current_sequence,
+                idempotency_key,
+                ApprovalOutcome::Rejected,
+                None,
+                self.limiter,
+            )
+            .map_err(ApprovalOperationError::Durability)?
+        {
+            expiry::DecisionResolution::Winner => {}
+            expiry::DecisionResolution::Repeat(decision) => return Ok(decision),
+            expiry::DecisionResolution::Conflict(winner) => {
+                return Ok(conflict(winner));
+            }
+            expiry::DecisionResolution::Expired => {
+                return Ok(decision(ApprovalOutcome::Expired, None));
+            }
+        }
         match self
             .registry
             .claim_scoped(tenant, approval_id, current_sequence)
@@ -279,6 +376,7 @@ pub enum ApprovalOperationError {
     InvalidPageLimit,
     Registry(RegistryError),
     Reservation(crate::budget::LimitRefusal),
+    Durability(ApprovalExpiryError),
 }
 
 fn record(snapshot: ApprovalSnapshot) -> ApprovalRecord {
@@ -317,6 +415,15 @@ const fn decision(outcome: ApprovalOutcome, submission_ref: Option<[u8; 32]>) ->
     ApprovalDecision {
         outcome,
         submission_ref,
+        winning_outcome: None,
+    }
+}
+
+const fn conflict(winner: ApprovalOutcome) -> ApprovalDecision {
+    ApprovalDecision {
+        outcome: ApprovalOutcome::Conflict,
+        submission_ref: None,
+        winning_outcome: Some(winner),
     }
 }
 
