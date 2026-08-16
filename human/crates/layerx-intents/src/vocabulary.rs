@@ -6,9 +6,11 @@ use layerx_types::amount::Amount;
 use layerx_types::ids::{AssetId, CheckpointId, Did, IdempotencyKey};
 use layerx_types::intent::{
     ApprovalThreshold, BudgetId, ContextHash, DepositProofId, EvmAddress, GrantSchedule, NetworkId,
-    PayerGrantId, PeriodLength, PublicKey, PurposeHash, RecoveryRoot, RolloverPolicy, Sequence,
-    TimestampSeconds, WithdrawalId,
+    PayerGrantId, PeriodLength, ProtocolVersion, PublicKey, PurposeHash, RecoveryRoot,
+    RolloverPolicy, SendAuthorization, Sequence, TimestampSeconds, WithdrawalId,
 };
+#[cfg(test)]
+use layerx_types::intent::{AuthorizationSignature, SendAuthorizationKind};
 use layerx_types::payload::ModuleId;
 
 /// Version of the intent-to-canonical-payload contract.
@@ -223,8 +225,13 @@ pub struct LxpSend {
     pub(crate) to: AccountId,
     pub(crate) asset: AssetId,
     pub(crate) amount: Amount,
+    pub(crate) account_sequence: Sequence,
     pub(crate) idempotency_key: IdempotencyKey,
+    pub(crate) expires_at: TimestampSeconds,
     pub(crate) context_hash: ContextHash,
+    pub(crate) authorization: SendAuthorization,
+    pub(crate) network_id: NetworkId,
+    pub(crate) protocol_version: ProtocolVersion,
 }
 
 impl LxpSend {
@@ -233,22 +240,37 @@ impl LxpSend {
     /// # Errors
     ///
     /// Refuses zero value and self-transfer.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         from: AccountId,
         to: AccountId,
         asset: AssetId,
         amount: Amount,
+        account_sequence: Sequence,
         idempotency_key: IdempotencyKey,
+        expires_at: TimestampSeconds,
         context_hash: ContextHash,
+        authorization: SendAuthorization,
+        network_id: NetworkId,
+        protocol_version: ProtocolVersion,
     ) -> Result<Self, IntentError> {
         movement(&from, &to, amount)?;
+        if expires_at.value() == 0 {
+            return Err(IntentError::zero(IntentField::Expiration));
+        }
+        nonzero_key(authorization.public_key(), IntentField::AuthorizationKey)?;
         Ok(Self {
             from,
             to,
             asset,
             amount,
+            account_sequence,
             idempotency_key,
+            expires_at,
             context_hash,
+            authorization,
+            network_id,
+            protocol_version,
         })
     }
 }
@@ -594,6 +616,7 @@ impl BridgeWithdrawRequest {
 pub enum IntentField {
     Amount,
     Allowance,
+    AuthorizationKey,
     Budget,
     BudgetAccount,
     CarryCap,
@@ -727,8 +750,17 @@ mod tests {
             account("agent:did:layerx:bob:main"),
             AssetId::new([2; 32]),
             Amount::from_u128(1),
+            Sequence::from_u64(7),
             IdempotencyKey::new([3; 32]),
+            TimestampSeconds::from_u64(1_000),
             ContextHash::new([4; 32]),
+            SendAuthorization::new(
+                SendAuthorizationKind::Owner,
+                PublicKey::new([5; 32]),
+                AuthorizationSignature::new([6; 64]),
+            ),
+            NetworkId::new(77).unwrap_or_else(|error| panic!("network: {error:?}")),
+            ProtocolVersion::new(1).unwrap_or_else(|error| panic!("version: {error:?}")),
         )
         .unwrap_or_else(|error| panic!("send: {error:?}"));
         assert_eq!(
@@ -786,8 +818,17 @@ mod tests {
                     recipient(),
                     asset(),
                     amount(),
+                    Sequence::from_u64(7),
                     key(),
+                    TimestampSeconds::from_u64(1_000),
                     ContextHash::new([6; 32]),
+                    SendAuthorization::new(
+                        SendAuthorizationKind::Owner,
+                        PublicKey::new([7; 32]),
+                        AuthorizationSignature::new([8; 64]),
+                    ),
+                    NetworkId::new(77).unwrap_or_else(|error| panic!("network: {error:?}")),
+                    ProtocolVersion::new(1).unwrap_or_else(|error| panic!("version: {error:?}")),
                 )
                 .unwrap_or_else(|error| panic!("send: {error:?}")),
             ),
@@ -917,8 +958,17 @@ mod tests {
                 owner,
                 AssetId::new([2; 32]),
                 Amount::from_u128(1),
+                Sequence::from_u64(1),
                 IdempotencyKey::new([3; 32]),
+                TimestampSeconds::from_u64(100),
                 ContextHash::new([4; 32]),
+                SendAuthorization::new(
+                    SendAuthorizationKind::Owner,
+                    PublicKey::new([5; 32]),
+                    AuthorizationSignature::new([6; 64]),
+                ),
+                NetworkId::new(77).unwrap_or_else(|error| panic!("network: {error:?}")),
+                ProtocolVersion::new(1).unwrap_or_else(|error| panic!("version: {error:?}")),
             ),
             Err(IntentError::same(IntentField::Destination))
         );

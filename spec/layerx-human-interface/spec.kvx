@@ -525,7 +525,7 @@ reqs = ["7.1","7.6"]
 
 [task.3.2]
 title = "Compile intents to canonical payload bytes"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["3.1"]
 do_1 = "Implement compilation from each intent kind to its canonical module payload exclusively through layerx-types and layerx-wire, with no serialisation logic of its own."

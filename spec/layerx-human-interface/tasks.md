@@ -137,7 +137,7 @@ money or claims something about money, and both depend on the spine being real.
     - Enforce protocol length and range bounds at intent construction with typed errors.
     - Document each intent kind with the journey it serves and the module payload it compiles to.
     - _Requirements: 7.1, 7.6_
-  - [ ] 3.2 Compile intents to canonical payload bytes
+  - [x] 3.2 Compile intents to canonical payload bytes
     - Implement compilation from each intent kind to its canonical module payload exclusively through layerx-types and layerx-wire, with no serialisation logic of its own.
     - Return the compiled payload with its payload hash computed through the wire crate's domain-tagged hashing, ready for the agent layer's prepare operation.
     - Reject at compile time any intent whose field combination cannot produce a canonical payload, with a typed error naming the field.

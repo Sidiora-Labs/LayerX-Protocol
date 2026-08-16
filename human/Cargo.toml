@@ -20,6 +20,8 @@ layerx-crypto = { path = "../agent/crates/layerx-crypto" }
 layerx-proof = { path = "../agent/crates/layerx-proof" }
 layerx-client = { path = "../agent/crates/layerx-client" }
 layerx-sdk = { path = "../agent/crates/layerx-sdk" }
+layerx-agentd = { path = "../agent/crates/layerx-agentd" }
+proptest = "=1.7.0"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

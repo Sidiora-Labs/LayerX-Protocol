@@ -108,6 +108,30 @@ impl NetworkId {
     }
 }
 
+/// Non-zero protocol version carried by module authorization material.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ProtocolVersion(u16);
+
+impl ProtocolVersion {
+    /// Constructs a protocol version.
+    ///
+    /// # Errors
+    ///
+    /// Refuses the reserved zero version.
+    pub const fn new(value: u16) -> Result<Self, IntentDomainError> {
+        if value == 0 {
+            Err(IntentDomainError::Zero("protocol_version"))
+        } else {
+            Ok(Self(value))
+        }
+    }
+
+    #[must_use]
+    pub const fn value(self) -> u16 {
+        self.0
+    }
+}
+
 /// Non-zero recovery approval threshold.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ApprovalThreshold(u16);
@@ -168,6 +192,72 @@ pub enum GrantSchedule {
 pub enum RolloverPolicy {
     None,
     Capped,
+}
+
+/// Closed protocol authorization tags carried by a 402LXP send payload.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+pub enum SendAuthorizationKind {
+    Owner = 1,
+    SessionKey = 2,
+    DelegatedCapability = 3,
+    BudgetAllowance = 4,
+    Escrow = 5,
+    ProtocolModule = 6,
+}
+
+/// Exact fixed-width signature used inside a 402LXP send authorization.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AuthorizationSignature([u8; 64]);
+
+impl AuthorizationSignature {
+    #[must_use]
+    pub const fn new(bytes: [u8; 64]) -> Self {
+        Self(bytes)
+    }
+
+    #[must_use]
+    pub const fn bytes(self) -> [u8; 64] {
+        self.0
+    }
+}
+
+/// Domain-typed authorization embedded in the canonical send payload.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SendAuthorization {
+    kind: SendAuthorizationKind,
+    public_key: PublicKey,
+    signature: AuthorizationSignature,
+}
+
+impl SendAuthorization {
+    #[must_use]
+    pub const fn new(
+        kind: SendAuthorizationKind,
+        public_key: PublicKey,
+        signature: AuthorizationSignature,
+    ) -> Self {
+        Self {
+            kind,
+            public_key,
+            signature,
+        }
+    }
+
+    #[must_use]
+    pub const fn kind(self) -> SendAuthorizationKind {
+        self.kind
+    }
+
+    #[must_use]
+    pub const fn public_key(self) -> PublicKey {
+        self.public_key
+    }
+
+    #[must_use]
+    pub const fn signature(self) -> AuthorizationSignature {
+        self.signature
+    }
 }
 
 /// Construction failure for an intent-domain scalar.

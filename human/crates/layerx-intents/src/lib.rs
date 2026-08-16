@@ -1,6 +1,10 @@
 #![forbid(unsafe_code)]
 
+#[path = "compile.rs"]
+mod compiler;
 mod vocabulary;
+
+pub use compiler::{compile, CompileError, CompileErrorReason, CompileField, CompiledIntent};
 
 pub use vocabulary::{
     BridgeDepositCredit, BridgeWithdrawRequest, BudgetCreate, BudgetDefund, BudgetFund,

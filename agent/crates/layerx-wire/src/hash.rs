@@ -1,5 +1,7 @@
 //! SHA-256 hashing over type-gated canonical bytes and exact core domain tags.
 
+use layerx_types::account::AccountId;
+use layerx_types::ids::Did;
 use layerx_types::payload::Payload;
 use layerx_types::result::KnownResult;
 
@@ -158,6 +160,22 @@ pub fn payload_hash_for(payload: &Payload) -> Result<[u8; 32], WireError> {
     domain(
         Domain::PayloadHash,
         &CanonicalBytes::from_wire(payload.as_bytes().to_vec()),
+    )
+}
+
+/// Derives the exact core account identifier from a validated namespace.
+pub fn account_id(account: &AccountId) -> Result<[u8; 32], WireError> {
+    domain(
+        Domain::AccountId,
+        &CanonicalBytes::from_wire(account.canonical().as_bytes().to_vec()),
+    )
+}
+
+/// Derives the exact core DID identifier from a bounded DID.
+pub fn did_id(did: &Did) -> Result<[u8; 32], WireError> {
+    domain(
+        Domain::DidId,
+        &CanonicalBytes::from_wire(did.as_bytes().to_vec()),
     )
 }
 
