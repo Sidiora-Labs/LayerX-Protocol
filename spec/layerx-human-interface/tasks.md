@@ -130,7 +130,7 @@ money or claims something about money, and both depend on the spine being real.
 ## Wave 2 - Intents and the Human Contract
 
 - [ ] 3. Build layerx-intents, the typed intent compiler
-  - [ ] 3.1 Define the intent vocabulary and its versioning
+  - [x] 3.1 Define the intent vocabulary and its versioning
     - Define the versioned intent types for v1: DID registration, key rotation, recovery registration, EVM payout binding, 402LXP send, 402LXP receive under a payer grant, payer grant registration, budget create, budget fund, budget defund, bridge deposit credit and bridge withdraw request.
     - Build every intent field from layerx-types domain types only - amounts as protocol integers, identifiers through their namespaces - so an invalid intent is unconstructible.
     - Give the vocabulary an explicit version with the rule that a change to any intent's compiled bytes requires a version bump.

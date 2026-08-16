@@ -510,7 +510,7 @@ status = "pending"
 
 [task.3.1]
 title = "Define the intent vocabulary and its versioning"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["1.1"]
 do_1 = "Define the versioned intent types for v1: DID registration, key rotation, recovery registration, EVM payout binding, 402LXP send, 402LXP receive under a payer grant, payer grant registration, budget create, budget fund, budget defund, bridge deposit credit and bridge withdraw request."

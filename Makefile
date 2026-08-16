@@ -1618,6 +1618,9 @@ human-test-unit:
 human-test-integration:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked --workspace --tests
 
+human-test-intents:
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-intents
+
 human-test-property:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked --workspace property_
 

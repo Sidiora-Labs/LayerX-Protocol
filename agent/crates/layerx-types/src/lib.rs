@@ -7,6 +7,7 @@ pub mod batch;
 pub mod checkpoint;
 pub mod error;
 pub mod ids;
+pub mod intent;
 pub mod limits;
 pub mod payload;
 pub mod policy;
