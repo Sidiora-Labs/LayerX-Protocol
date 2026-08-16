@@ -4,8 +4,9 @@ use layerx_agentd::prepare::{
 };
 use layerx_intents::{
     compile, BridgeDepositCredit, BridgeWithdrawRequest, BudgetCreate, BudgetDefund, BudgetFund,
-    CompileErrorReason, CompileField, DidRegistration, EvmPayoutBinding, Intent, IntentKind,
-    KeyRotation, LxpReceive, LxpSend, PayerGrantRegistration, RecoveryRegistration,
+    CompileErrorReason, CompileField, DidRegistration, DisclosureCheck, DisclosureCheckError,
+    DisclosureField, EvmPayoutBinding, Intent, IntentKind, KeyRotation, LxpReceive, LxpSend,
+    PayerGrantRegistration, RecoveryRegistration,
 };
 use layerx_types::account::AccountId;
 use layerx_types::activity::{Authority, Signature, TimestampBound};
@@ -173,8 +174,19 @@ fn compiled_send_is_accepted_by_prepare_and_disclosed_field_for_field() {
     assert_eq!(prepared.disclosure.asset, [2; 32]);
     assert_eq!(prepared.disclosure.idempotency_key, [4; 32]);
     assert_eq!(prepared.disclosure.expiry.payload_expires_at, 1_010);
+    DisclosureCheck::verify(&intent, &compiled)
+        .unwrap_or_else(|error| panic!("intent disclosure: {error:?}"));
+    DisclosureCheck::verify_agent(&intent, &prepared.disclosure)
+        .unwrap_or_else(|error| panic!("agent disclosure: {error:?}"));
     verify_disclosure_binding(&prepared)
         .unwrap_or_else(|error| panic!("disclosure binding: {error:?}"));
+
+    let mut altered_disclosure = prepared.disclosure.clone();
+    altered_disclosure.amounts[0].value += 1;
+    assert_eq!(
+        DisclosureCheck::verify_agent(&intent, &altered_disclosure),
+        Err(DisclosureCheckError::FieldMismatch(DisclosureField::Amount))
+    );
 }
 
 #[test]

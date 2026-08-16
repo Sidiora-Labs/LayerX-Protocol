@@ -540,7 +540,7 @@ reqs = ["7.2","7.7"]
 
 [task.3.3]
 title = "Ship the golden vectors and the disclosure round-trip gate"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["3.2"]
 do_1 = "Commit golden vectors for every intent kind: the intent, its compiled payload bytes and its payload hash, asserting byte-for-byte stability across releases."

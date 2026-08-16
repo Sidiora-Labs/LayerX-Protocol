@@ -2,9 +2,12 @@
 
 #[path = "compile.rs"]
 mod compiler;
+mod disclosure;
+pub mod golden;
 mod vocabulary;
 
 pub use compiler::{compile, CompileError, CompileErrorReason, CompileField, CompiledIntent};
+pub use disclosure::{DisclosureCheck, DisclosureCheckError, DisclosureField};
 
 pub use vocabulary::{
     BridgeDepositCredit, BridgeWithdrawRequest, BudgetCreate, BudgetDefund, BudgetFund,

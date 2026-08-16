@@ -144,7 +144,7 @@ money or claims something about money, and both depend on the spine being real.
     - Property-test that compilation is deterministic: equal intents compile to identical bytes across processes and runs.
     - Add the intent-to-prepare integration test proving a compiled payload is accepted by the agent layer's prepare operation and produces a decodable disclosure.
     - _Requirements: 7.2, 7.7_
-  - [ ] 3.3 Ship the golden vectors and the disclosure round-trip gate
+  - [x] 3.3 Ship the golden vectors and the disclosure round-trip gate
     - Commit golden vectors for every intent kind: the intent, its compiled payload bytes and its payload hash, asserting byte-for-byte stability across releases.
     - Fail the build when a vector changes without an intent-version bump.
     - Build the differential gate proving compile, decode and disclosure re-encoding yield byte-identical payloads through layerx-wire for every vector and for generated intents.

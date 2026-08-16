@@ -36,7 +36,7 @@ jobs:
       - name: Enforce component-library integrity, copy, policies, and strict lints
         run: make human-check-ui human-lint
       - name: Build and test the isolated human workspace
-        run: make human-build human-test
+        run: make human-build human-test human-test-intents
 
   browser-real-stack:
     if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
