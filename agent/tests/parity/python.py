@@ -4,6 +4,8 @@ import socket
 import sys
 
 from layerx_sdk import (
+    APPROVAL_DECISION_OUTCOMES,
+    APPROVAL_EVENT_KINDS,
     ApiError,
     Client,
     SubmissionFailed,
@@ -19,7 +21,13 @@ class ParityTransport:
         self.path = path
 
     def call(self, operation: str, request: object) -> object:
-        if operation != "track" or not isinstance(request, dict):
+        if operation not in {
+            "track",
+            "approval.list",
+            "approval.get",
+            "approval.approve",
+            "approval.reject",
+        } or not isinstance(request, dict):
             raise ValueError("invalid parity request")
         scenario = request.get("scenario")
         if not isinstance(scenario, str):
@@ -61,6 +69,19 @@ def validate(scenario: str, encoded: str) -> None:
     elif scenario.startswith("idempotency_"):
         if value["receipt_count"] != "1" or value["economic_effects"] != "1":
             raise RuntimeError("idempotency duplicated an effect")
+    elif scenario.startswith("approval_event_"):
+        if value["state"] not in APPROVAL_EVENT_KINDS:
+            raise RuntimeError("approval event vocabulary diverged")
+    elif scenario.startswith("approval_outcome_"):
+        if value["state"] not in APPROVAL_DECISION_OUTCOMES:
+            raise RuntimeError("approval outcome vocabulary diverged")
+    elif scenario.startswith("approval_") and value["state"] not in {
+        "approval.list",
+        "approval.get",
+        "approval.approve",
+        "approval.reject",
+    }:
+        raise RuntimeError("approval operation vocabulary diverged")
 
 
 def main() -> None:
@@ -68,7 +89,13 @@ def main() -> None:
         raise SystemExit("usage: python.py SOCKET SCENARIOS")
     client = Client(ParityTransport(sys.argv[1]))
     for scenario in sys.argv[2].split(","):
-        encoded = client.call("track", {"scenario": scenario})
+        operation = {
+            "approval_list": "approval.list",
+            "approval_get": "approval.get",
+            "approval_approve": "approval.approve",
+            "approval_reject": "approval.reject",
+        }.get(scenario, "track")
+        encoded = client.call(operation, {"scenario": scenario})  # type: ignore[arg-type]
         if not isinstance(encoded, str):
             raise RuntimeError("invalid parity response")
         validate(scenario, encoded)

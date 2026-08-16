@@ -28,6 +28,89 @@ class VerificationLevel(IntEnum):
 ErrorClass: TypeAlias = Literal["TransportFailure", "Deadline", "ProtocolIncompatibility", "UnavailableCapability", "CoreRejection", "VerificationFailure", "PolicyRefusal", "CapabilityRefusal", "BudgetRefusal", "RateLimit", "IdempotencyConflict", "InternalFault"]
 Operation: TypeAlias = Literal["agent.register", "approval.approve", "approval.get", "approval.list", "approval.reject", "availability.fetch", "budget.create", "budget.fund", "budget.list", "budget.reconciliation", "budget.revoke", "capability.attenuate", "capability.create", "capability.list", "capability.revoke", "export.offline", "prepare", "project", "read.account", "read.balance", "read.batch", "read.checkpoint", "read.history", "read.module_state", "read.proof_bundle", "session.close", "session.list", "session.open", "session.refresh", "sign", "submit", "subscription.acknowledge", "subscription.create", "subscription.delete", "subscription.health", "subscription.list", "subscription.pause", "subscription.resume", "track", "wait"]
 
+ApprovalState: TypeAlias = Literal["Held", "Granted", "Rejected", "Expired", "Defective"]
+ApprovalDecisionOutcome: TypeAlias = Literal["Granted", "Rejected", "Expired", "Defective", "AlreadyDecided", "Conflict"]
+ApprovalEventKind: TypeAlias = Literal["Created", "Granted", "Rejected", "Expired", "Defective"]
+
+APPROVAL_CONTRACT_INTRODUCED: Literal["1.1"]
+APPROVAL_ENFORCEMENT_NOTICE: str
+APPROVAL_STATES: tuple[ApprovalState, ...]
+APPROVAL_DECISION_OUTCOMES: tuple[ApprovalDecisionOutcome, ...]
+APPROVAL_EVENT_KINDS: tuple[ApprovalEventKind, ...]
+
+class StructuredActivityDisclosure:
+    canonical_digest: str
+    activity_type: str
+    actor: str
+    authority: str
+    counterparties: tuple[str, ...]
+    amounts: tuple[Amount, ...]
+    asset: str
+    fee_limit: Amount
+    expiry: TimestampSeconds
+    idempotency_key: str
+    def __init__(self, canonical_digest: str, activity_type: str, actor: str, authority: str, counterparties: tuple[str, ...], amounts: tuple[Amount, ...], asset: str, fee_limit: Amount, expiry: TimestampSeconds, idempotency_key: str) -> None: ...
+
+class HoldReason:
+    code: str
+    message: str
+    def __init__(self, code: str, message: str) -> None: ...
+
+class ApprovalRecord:
+    approval_id: str
+    tenant: str
+    held_activity: StructuredActivityDisclosure
+    canonical_bytes_digest: str
+    hold_reason: HoldReason
+    created_at: TimestampSeconds
+    expires_at: TimestampSeconds
+    state: ApprovalState
+    enforcement: Literal["daemon_enforced"]
+    authority_notice: str
+
+class ApprovalPage:
+    approvals: tuple[ApprovalRecord, ...]
+    next_cursor: str | None
+
+class ApprovalListRequest:
+    tenant: str
+    cursor: str | None
+    page_limit: int
+    def __init__(self, tenant: str, cursor: str | None, page_limit: int) -> None: ...
+
+class ApprovalGetRequest:
+    tenant: str
+    approval_id: str
+    def __init__(self, tenant: str, approval_id: str) -> None: ...
+
+class ApprovalApproveRequest:
+    tenant: str
+    approval_id: str
+    idempotency_key: str
+    def __init__(self, tenant: str, approval_id: str, idempotency_key: str) -> None: ...
+
+class ApprovalRejectRequest:
+    tenant: str
+    approval_id: str
+    idempotency_key: str
+    reason: str
+    def __init__(self, tenant: str, approval_id: str, idempotency_key: str, reason: str) -> None: ...
+
+class ApprovalDecision:
+    outcome: ApprovalDecisionOutcome
+    submission_ref: str | None
+    winning_outcome: ApprovalDecisionOutcome | None
+    enforcement: Literal["daemon_enforced"]
+    authority_notice: str
+
+class ApprovalLifecycleEvent:
+    event_id: str
+    tenant: str
+    approval_id: str
+    kind: ApprovalEventKind
+    at: TimestampSeconds
+    record_digest: str
+
 T = TypeVar("T")
 R = TypeVar("R")
 
@@ -99,3 +182,7 @@ class Transport(Protocol):
 class Client:
     def __init__(self, transport: Transport) -> None: ...
     def call(self, operation: Operation, request: object) -> object: ...
+    def approval_list(self, request: ApprovalListRequest) -> ApprovalPage: ...
+    def approval_get(self, request: ApprovalGetRequest) -> ApprovalRecord: ...
+    def approval_approve(self, request: ApprovalApproveRequest) -> ApprovalDecision: ...
+    def approval_reject(self, request: ApprovalRejectRequest) -> ApprovalDecision: ...

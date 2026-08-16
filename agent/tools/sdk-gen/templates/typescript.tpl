@@ -55,6 +55,8 @@ export interface ApiError {
 }
 export type Operation = {{OPERATIONS}};
 
+{{APPROVAL}}
+
 export interface Transport {
   call<TRequest, TResponse>(operation: Operation, request: TRequest): Promise<TResponse>;
 }
@@ -64,5 +66,21 @@ export class Client {
 
   public call<TRequest, TResponse>(operation: Operation, request: TRequest): Promise<TResponse> {
     return this.transport.call<TRequest, TResponse>(operation, request);
+  }
+
+  public approvalList(request: ApprovalListRequest): Promise<ApprovalPage> {
+    return this.call("approval.list", request);
+  }
+
+  public approvalGet(request: ApprovalGetRequest): Promise<ApprovalRecord> {
+    return this.call("approval.get", request);
+  }
+
+  public approvalApprove(request: ApprovalApproveRequest): Promise<ApprovalDecision> {
+    return this.call("approval.approve", request);
+  }
+
+  public approvalReject(request: ApprovalRejectRequest): Promise<ApprovalDecision> {
+    return this.call("approval.reject", request);
   }
 }

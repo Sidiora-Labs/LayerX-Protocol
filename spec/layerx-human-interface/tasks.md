@@ -119,7 +119,7 @@ money or claims something about money, and both depend on the spine being real.
     - Extend the streaming conformance tests to cover approval events, including resumption across a cursor gap.
     - Extend the audit export tests so approval decisions appear with their referenced evidence.
     - _Requirements: 6.7, 6.9_
-  - [ ] 2.5 Regenerate the SDKs with the approval module
+  - [x] 2.5 Regenerate the SDKs with the approval module
     - Regenerate the TypeScript and Python SDKs and extend the authored Rust SDK surface with the approval module from the same schema in the same build.
     - Extend the cross-SDK parity suite to cover every approval operation, event and error outcome.
     - Record the introducing minor version in the compatibility matrix and the guarantee documentation.

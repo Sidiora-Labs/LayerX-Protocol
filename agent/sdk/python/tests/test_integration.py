@@ -10,7 +10,17 @@ import unittest
 import zipfile
 
 from layerx_sdk import (
+    APPROVAL_CONTRACT_INTRODUCED,
+    APPROVAL_DECISION_OUTCOMES,
+    APPROVAL_ENFORCEMENT_NOTICE,
+    APPROVAL_EVENT_KINDS,
+    APPROVAL_STATES,
     ApiError,
+    ApprovalApproveRequest,
+    ApprovalGetRequest,
+    ApprovalListRequest,
+    ApprovalRejectRequest,
+    Client,
     ErrorClass,
     IdempotentMutation,
     SubmissionFailed,
@@ -37,6 +47,40 @@ def load_build_backend():
 
 
 class PythonSdkIntegration(unittest.TestCase):
+    def test_approval_contract_operations_events_and_outcomes_are_exact(self) -> None:
+        self.assertEqual(APPROVAL_CONTRACT_INTRODUCED, "1.1")
+        self.assertIn("confers no protocol authority", APPROVAL_ENFORCEMENT_NOTICE)
+        self.assertEqual(APPROVAL_STATES, ("Held", "Granted", "Rejected", "Expired", "Defective"))
+        self.assertEqual(
+            APPROVAL_DECISION_OUTCOMES,
+            ("Granted", "Rejected", "Expired", "Defective", "AlreadyDecided", "Conflict"),
+        )
+        self.assertEqual(
+            APPROVAL_EVENT_KINDS,
+            ("Created", "Granted", "Rejected", "Expired", "Defective"),
+        )
+
+        class RecordingTransport:
+            def __init__(self) -> None:
+                self.operations: list[str] = []
+
+            def call(self, operation: str, request: object) -> object:
+                self.operations.append(operation)
+                return request
+
+        transport = RecordingTransport()
+        client = Client(transport)  # type: ignore[arg-type]
+        client.approval_list(ApprovalListRequest("tenant-a", None, 50))
+        client.approval_get(ApprovalGetRequest("tenant-a", "approval-7"))
+        client.approval_approve(ApprovalApproveRequest("tenant-a", "approval-7", "approve-7"))
+        client.approval_reject(
+            ApprovalRejectRequest("tenant-a", "approval-7", "reject-7", "not expected")
+        )
+        self.assertEqual(
+            transport.operations,
+            ["approval.list", "approval.get", "approval.approve", "approval.reject"],
+        )
+
     def test_package_metadata_is_immutable_and_contract_bound(self) -> None:
         metadata = layerx_sdk_py_package()
         self.assertIsInstance(metadata, MappingProxyType)

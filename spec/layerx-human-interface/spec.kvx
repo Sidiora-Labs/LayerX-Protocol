@@ -490,7 +490,7 @@ reqs = ["6.7","6.9"]
 
 [task.2.5]
 title = "Regenerate the SDKs with the approval module"
-status = "pending"
+status = "done"
 wave = 1
 requires = ["2.1","2.2"]
 do_1 = "Regenerate the TypeScript and Python SDKs and extend the authored Rust SDK surface with the approval module from the same schema in the same build."

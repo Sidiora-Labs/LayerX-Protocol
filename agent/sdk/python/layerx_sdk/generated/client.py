@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from types import MappingProxyType
-from typing import Generic, Literal, Mapping, Protocol, TypeAlias, TypeVar
+from typing import Generic, Literal, Mapping, Protocol, TypeAlias, TypeVar, cast
 
 _PACKAGE_METADATA: Mapping[str, str | int] = MappingProxyType({
     "name": "layerx-sdk",
@@ -64,6 +64,99 @@ class VerificationLevel(IntEnum):
 
 ErrorClass = Literal["TransportFailure", "Deadline", "ProtocolIncompatibility", "UnavailableCapability", "CoreRejection", "VerificationFailure", "PolicyRefusal", "CapabilityRefusal", "BudgetRefusal", "RateLimit", "IdempotencyConflict", "InternalFault"]
 Operation = Literal["agent.register", "approval.approve", "approval.get", "approval.list", "approval.reject", "availability.fetch", "budget.create", "budget.fund", "budget.list", "budget.reconciliation", "budget.revoke", "capability.attenuate", "capability.create", "capability.list", "capability.revoke", "export.offline", "prepare", "project", "read.account", "read.balance", "read.batch", "read.checkpoint", "read.history", "read.module_state", "read.proof_bundle", "session.close", "session.list", "session.open", "session.refresh", "sign", "submit", "subscription.acknowledge", "subscription.create", "subscription.delete", "subscription.health", "subscription.list", "subscription.pause", "subscription.resume", "track", "wait"]
+
+APPROVAL_CONTRACT_INTRODUCED = "1.1"
+APPROVAL_ENFORCEMENT_NOTICE = "An approval hold is a daemon-enforced restriction. It confers no protocol authority, and bypassing the daemon bypasses the restriction."
+APPROVAL_STATES = ("Held", "Granted", "Rejected", "Expired", "Defective",)
+APPROVAL_DECISION_OUTCOMES = ("Granted", "Rejected", "Expired", "Defective", "AlreadyDecided", "Conflict",)
+APPROVAL_EVENT_KINDS = ("Created", "Granted", "Rejected", "Expired", "Defective",)
+
+ApprovalState = Literal["Held", "Granted", "Rejected", "Expired", "Defective"]
+ApprovalDecisionOutcome = Literal["Granted", "Rejected", "Expired", "Defective", "AlreadyDecided", "Conflict"]
+ApprovalEventKind = Literal["Created", "Granted", "Rejected", "Expired", "Defective"]
+
+@dataclass(frozen=True)
+class StructuredActivityDisclosure:
+    canonical_digest: str
+    activity_type: str
+    actor: str
+    authority: str
+    counterparties: tuple[str, ...]
+    amounts: tuple[Amount, ...]
+    asset: str
+    fee_limit: Amount
+    expiry: TimestampSeconds
+    idempotency_key: str
+
+@dataclass(frozen=True)
+class HoldReason:
+    code: str
+    message: str
+
+@dataclass(frozen=True)
+class ApprovalRecord:
+    approval_id: str
+    tenant: str
+    held_activity: StructuredActivityDisclosure
+    canonical_bytes_digest: str
+    hold_reason: HoldReason
+    created_at: TimestampSeconds
+    expires_at: TimestampSeconds
+    state: ApprovalState
+    enforcement: Literal["daemon_enforced"] = "daemon_enforced"
+    authority_notice: str = APPROVAL_ENFORCEMENT_NOTICE
+
+@dataclass(frozen=True)
+class ApprovalPage:
+    approvals: tuple[ApprovalRecord, ...]
+    next_cursor: str | None
+
+@dataclass(frozen=True)
+class ApprovalListRequest:
+    tenant: str
+    cursor: str | None
+    page_limit: int
+
+@dataclass(frozen=True)
+class ApprovalGetRequest:
+    tenant: str
+    approval_id: str
+
+@dataclass(frozen=True)
+class ApprovalApproveRequest:
+    tenant: str
+    approval_id: str
+    idempotency_key: str
+
+@dataclass(frozen=True)
+class ApprovalRejectRequest:
+    tenant: str
+    approval_id: str
+    idempotency_key: str
+    reason: str
+
+@dataclass(frozen=True)
+class ApprovalDecision:
+    outcome: ApprovalDecisionOutcome
+    submission_ref: str | None
+    winning_outcome: ApprovalDecisionOutcome | None
+    enforcement: Literal["daemon_enforced"] = "daemon_enforced"
+    authority_notice: str = APPROVAL_ENFORCEMENT_NOTICE
+
+@dataclass(frozen=True)
+class ApprovalLifecycleEvent:
+    event_id: str
+    tenant: str
+    approval_id: str
+    kind: ApprovalEventKind
+    at: TimestampSeconds
+    record_digest: str
+    hold_reason: HoldReason | None = None
+    expires_at: TimestampSeconds | None = None
+    submission_ref: str | None = None
+    reason: str | None = None
+    deterministic_expiry: bool | None = None
+    defect_code: str | None = None
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -136,3 +229,15 @@ class Client:
 
     def call(self, operation: Operation, request: object) -> object:
         return self._transport.call(operation, request)
+
+    def approval_list(self, request: ApprovalListRequest) -> ApprovalPage:
+        return cast(ApprovalPage, self.call("approval.list", request))
+
+    def approval_get(self, request: ApprovalGetRequest) -> ApprovalRecord:
+        return cast(ApprovalRecord, self.call("approval.get", request))
+
+    def approval_approve(self, request: ApprovalApproveRequest) -> ApprovalDecision:
+        return cast(ApprovalDecision, self.call("approval.approve", request))
+
+    def approval_reject(self, request: ApprovalRejectRequest) -> ApprovalDecision:
+        return cast(ApprovalDecision, self.call("approval.reject", request))

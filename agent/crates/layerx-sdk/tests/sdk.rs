@@ -16,6 +16,11 @@ use layerx_client::client::{ClientConfig, ReconnectPolicy};
 use layerx_client::lni::handshake::HandshakeConfig;
 use layerx_client::lni::schema::Version;
 use layerx_client::lni::transport::Limits;
+use layerx_sdk::approval::{
+    ApprovalApproveRequest, ApprovalContractError, ApprovalDecisionOutcome, ApprovalEventKind,
+    ApprovalGetRequest, ApprovalId, ApprovalListRequest, ApprovalRejectRequest, ApprovalState,
+    DecisionKey, CONTRACT_INTRODUCED, ENFORCEMENT_NOTICE,
+};
 use layerx_sdk::{Client, Deployment, Operation, SdkError, SubmissionOutcome, GUARANTEES};
 use layerx_types::result::ResultCode;
 
@@ -83,7 +88,7 @@ fn freshness() -> Freshness {
 fn daemon_and_direct_node_shapes_publish_identical_guarantees_and_calls() {
     let daemon = Client::daemon(
         "/run/layerx/agentd.sock",
-        ContractVersion { major: 1, minor: 0 },
+        ContractVersion { major: 1, minor: 1 },
     )
     .unwrap_or_else(|error| panic!("daemon: {error:?}"));
     let direct =
@@ -105,7 +110,7 @@ fn daemon_and_direct_node_shapes_publish_identical_guarantees_and_calls() {
 
 #[test]
 fn operation_catalogue_covers_the_complete_contract_surface() {
-    assert_eq!(Operation::ALL.len(), 36);
+    assert_eq!(Operation::ALL.len(), 40);
     let names: std::collections::BTreeSet<_> = Operation::ALL
         .iter()
         .map(|operation| operation.name())
@@ -115,7 +120,7 @@ fn operation_catalogue_covers_the_complete_contract_surface() {
         "session.open",
         "capability.create",
         "budget.create",
-        "policy.dry_run",
+        "project",
         "prepare",
         "sign",
         "submit",
@@ -124,6 +129,10 @@ fn operation_catalogue_covers_the_complete_contract_surface() {
         "read.proof_bundle",
         "availability.fetch",
         "subscription.create",
+        "approval.list",
+        "approval.get",
+        "approval.approve",
+        "approval.reject",
     ] {
         assert!(names.contains(required), "missing SDK operation {required}");
     }
@@ -131,6 +140,96 @@ fn operation_catalogue_covers_the_complete_contract_surface() {
         .iter()
         .filter(|operation| operation.mutating())
         .all(|operation| !matches!(operation, Operation::Track | Operation::Wait)));
+}
+
+#[test]
+fn approval_module_matches_contract_1_1_operations_events_and_outcomes() {
+    assert_eq!(CONTRACT_INTRODUCED, (1, 1));
+    assert!(ENFORCEMENT_NOTICE.contains("confers no protocol authority"));
+    assert_eq!(
+        ApprovalState::ALL
+            .iter()
+            .map(|value| value.name())
+            .collect::<Vec<_>>(),
+        ["Held", "Granted", "Rejected", "Expired", "Defective"]
+    );
+    assert_eq!(
+        ApprovalDecisionOutcome::ALL
+            .iter()
+            .map(|value| value.name())
+            .collect::<Vec<_>>(),
+        [
+            "Granted",
+            "Rejected",
+            "Expired",
+            "Defective",
+            "AlreadyDecided",
+            "Conflict",
+        ]
+    );
+    assert_eq!(
+        ApprovalEventKind::ALL
+            .iter()
+            .map(|value| value.name())
+            .collect::<Vec<_>>(),
+        ["Created", "Granted", "Rejected", "Expired", "Defective"]
+    );
+
+    let tenant = TenantId::new("tenant-a").unwrap_or_else(|error| panic!("tenant: {error:?}"));
+    let approval_id = ApprovalId::new([7; 32]);
+    let key = DecisionKey::new("decision-7").unwrap_or_else(|error| panic!("key: {error:?}"));
+    let client = Client::daemon(
+        "/run/layerx/agentd.sock",
+        ContractVersion { major: 1, minor: 1 },
+    )
+    .unwrap_or_else(|error| panic!("daemon: {error:?}"));
+    assert_eq!(
+        client
+            .approval_list(
+                ApprovalListRequest::new(tenant.clone(), None, 50)
+                    .unwrap_or_else(|error| panic!("list: {error:?}")),
+            )
+            .operation(),
+        Operation::ApprovalList
+    );
+    assert_eq!(
+        client
+            .approval_get(ApprovalGetRequest {
+                tenant: tenant.clone(),
+                approval_id,
+            })
+            .operation(),
+        Operation::ApprovalGet
+    );
+    assert_eq!(
+        client
+            .approval_approve(ApprovalApproveRequest {
+                tenant: tenant.clone(),
+                approval_id,
+                idempotency_key: key.clone(),
+            })
+            .operation(),
+        Operation::ApprovalApprove
+    );
+    assert_eq!(
+        client
+            .approval_reject(
+                ApprovalRejectRequest::new(tenant, approval_id, key, "not expected")
+                    .unwrap_or_else(|error| panic!("reject: {error:?}")),
+            )
+            .operation(),
+        Operation::ApprovalReject
+    );
+    assert!(Operation::ApprovalApprove.mutating());
+    assert!(Operation::ApprovalReject.mutating());
+    assert_eq!(
+        ApprovalListRequest::new(
+            TenantId::new("tenant-a").unwrap_or_else(|error| panic!("tenant: {error:?}")),
+            None,
+            0,
+        ),
+        Err(ApprovalContractError::InvalidPageLimit)
+    );
 }
 
 #[test]

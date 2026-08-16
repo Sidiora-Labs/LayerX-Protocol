@@ -9,6 +9,7 @@ use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::Duration;
 
+use layerx_agent_api::identity::TenantId as SdkTenantId;
 use layerx_agent_api::read::{
     AccountRef, BalanceValue, BatchRef, CheckpointRef, Freshness, RelativeTo, VerifiedRead,
 };
@@ -23,6 +24,10 @@ use layerx_client::lni::handshake::{perform, HandshakeConfig};
 use layerx_client::lni::schema::{encode_envelope, Capability, Envelope, Version};
 use layerx_client::lni::transport::{ConnectionGate, FrameTransport, Limits, Uds};
 use layerx_proof::merkle::leaf_hash;
+use layerx_sdk::approval::{
+    ApprovalApproveRequest, ApprovalDecisionOutcome, ApprovalEventKind, ApprovalGetRequest,
+    ApprovalId, ApprovalListRequest, ApprovalRejectRequest, DecisionKey,
+};
 use layerx_sdk::{Client as RustSdkClient, Deployment, Operation};
 use layerx_types::result::ResultCode;
 
@@ -674,16 +679,64 @@ fn freshness() -> Result<Freshness, String> {
 }
 
 fn validate_rust_sdk(scenario: &str, observation: &Observation) -> Result<(), String> {
-    let client = RustSdkClient::daemon("parity.sock", ContractVersion { major: 1, minor: 0 })
+    let client = RustSdkClient::daemon("parity.sock", ContractVersion { major: 1, minor: 1 })
         .map_err(|error| format!("Rust SDK daemon client: {error:?}"))?;
     if client.deployment() != Deployment::Daemon {
         return Err("Rust SDK did not select daemon deployment".to_owned());
     }
-    let call = client.track(TrackRequest {
-        submission_ref: SubmissionRef::new(scenario)
-            .map_err(|error| format!("Rust SDK submission ref: {error:?}"))?,
-    });
-    if call.operation() != Operation::Track {
+    let sdk_tenant = || {
+        SdkTenantId::new("parity-tenant")
+            .map_err(|error| format!("Rust SDK approval tenant: {error:?}"))
+    };
+    let approval_id = ApprovalId::new([7; 32]);
+    let operation = match scenario {
+        "approval_list" => client
+            .approval_list(
+                ApprovalListRequest::new(sdk_tenant()?, None, 50)
+                    .map_err(|error| format!("Rust SDK approval list: {error:?}"))?,
+            )
+            .operation(),
+        "approval_get" => client
+            .approval_get(ApprovalGetRequest {
+                tenant: sdk_tenant()?,
+                approval_id,
+            })
+            .operation(),
+        "approval_approve" => client
+            .approval_approve(ApprovalApproveRequest {
+                tenant: sdk_tenant()?,
+                approval_id,
+                idempotency_key: DecisionKey::new("approve-7")
+                    .map_err(|error| format!("Rust SDK approval key: {error:?}"))?,
+            })
+            .operation(),
+        "approval_reject" => client
+            .approval_reject(
+                ApprovalRejectRequest::new(
+                    sdk_tenant()?,
+                    approval_id,
+                    DecisionKey::new("reject-7")
+                        .map_err(|error| format!("Rust SDK rejection key: {error:?}"))?,
+                    "not expected",
+                )
+                .map_err(|error| format!("Rust SDK approval rejection: {error:?}"))?,
+            )
+            .operation(),
+        _ => client
+            .track(TrackRequest {
+                submission_ref: SubmissionRef::new(scenario)
+                    .map_err(|error| format!("Rust SDK submission ref: {error:?}"))?,
+            })
+            .operation(),
+    };
+    let expected_operation = match scenario {
+        "approval_list" => Operation::ApprovalList,
+        "approval_get" => Operation::ApprovalGet,
+        "approval_approve" => Operation::ApprovalApprove,
+        "approval_reject" => Operation::ApprovalReject,
+        _ => Operation::Track,
+    };
+    if operation != expected_operation {
         return Err("Rust SDK changed parity operation".to_owned());
     }
     match scenario {
@@ -730,6 +783,31 @@ fn validate_rust_sdk(scenario: &str, observation: &Observation) -> Result<(), St
                 && (observation.receipt_count != 1 || observation.economic_effects != 1) =>
         {
             Err("Rust SDK observed duplicate economic effects".to_owned())
+        }
+        value if value.starts_with("approval_event_") => {
+            if ApprovalEventKind::ALL
+                .iter()
+                .any(|kind| kind.name() == observation.state)
+            {
+                Ok(())
+            } else {
+                Err("Rust SDK approval event vocabulary diverged".to_owned())
+            }
+        }
+        value if value.starts_with("approval_outcome_") => {
+            if ApprovalDecisionOutcome::ALL
+                .iter()
+                .any(|outcome| outcome.name() == observation.state)
+            {
+                Ok(())
+            } else {
+                Err("Rust SDK approval outcome vocabulary diverged".to_owned())
+            }
+        }
+        "approval_list" | "approval_get" | "approval_approve" | "approval_reject"
+            if observation.state != operation.name() =>
+        {
+            Err("Rust SDK approval operation vocabulary diverged".to_owned())
         }
         _ => Ok(()),
     }
@@ -812,9 +890,9 @@ pub fn agent_sdk_parity_suite(node_executable: &Path, repository: &Path) -> Resu
         return Err("parity suite requires the core-linked layerxd executable".to_owned());
     }
     let expected = parse_scenarios(&repository.join("agent/tests/parity/scenarios.kvx"))?;
-    if expected.len() != 8 {
+    if expected.len() != 21 {
         return Err(format!(
-            "parity suite expected 8 scenarios, got {}",
+            "parity suite expected 21 scenarios, got {}",
             expected.len()
         ));
     }

@@ -1,5 +1,7 @@
 import net from "node:net";
 import {
+  APPROVAL_DECISION_OUTCOMES,
+  APPROVAL_EVENT_KINDS,
   Client,
   VerificationLevel,
   requireVerified,
@@ -51,12 +53,24 @@ function validate(scenario, encoded) {
     throw new Error("subscription gap hidden");
   } else if (scenario.startsWith("idempotency_") && (value.receipt_count !== "1" || value.economic_effects !== "1")) {
     throw new Error("idempotency duplicated an effect");
+  } else if (scenario.startsWith("approval_event_")) {
+    if (!APPROVAL_EVENT_KINDS.includes(value.state)) throw new Error("approval event vocabulary diverged");
+  } else if (scenario.startsWith("approval_outcome_")) {
+    if (!APPROVAL_DECISION_OUTCOMES.includes(value.state)) throw new Error("approval outcome vocabulary diverged");
+  } else if (scenario.startsWith("approval_") && !["approval.list", "approval.get", "approval.approve", "approval.reject"].includes(value.state)) {
+    throw new Error(`approval operation vocabulary diverged:${scenario}:${value.state}`);
   }
 }
 
 const client = new Client(new ParityTransport());
 for (const scenario of scenarioList.split(",")) {
-  const encoded = await client.call("track", { scenario });
+  const operation = ({
+    approval_list: "approval.list",
+    approval_get: "approval.get",
+    approval_approve: "approval.approve",
+    approval_reject: "approval.reject",
+  })[scenario] ?? "track";
+  const encoded = await client.call(operation, { scenario });
   validate(scenario, encoded);
   process.stdout.write(`${scenario}\t${encoded}\n`);
 }

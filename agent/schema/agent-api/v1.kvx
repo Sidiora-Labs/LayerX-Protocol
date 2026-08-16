@@ -71,3 +71,7 @@ daemon = "0.1.x"
 classification = "additive_only"
 baseline = "golden/v1.kvx@1.0"
 change = "Adds approval.kvx without changing any contract 1.0 declaration."
+
+[compatibility.feature.approval]
+introduced_contract = "1.1"
+classification = "additive_only"

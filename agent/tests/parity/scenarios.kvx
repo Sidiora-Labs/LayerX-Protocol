@@ -73,3 +73,120 @@ idempotency = "RestoredOriginal"
 result_code = "0"
 receipt_count = 1
 economic_effects = 1
+
+[scenario.approval_list]
+state = "approval.list"
+error = "None"
+verification = "Unverified"
+idempotency = "None"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_get]
+state = "approval.get"
+error = "None"
+verification = "Unverified"
+idempotency = "None"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_approve]
+state = "approval.approve"
+error = "None"
+verification = "Unverified"
+idempotency = "Original"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_reject]
+state = "approval.reject"
+error = "None"
+verification = "Unverified"
+idempotency = "Original"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_event_created]
+state = "Created"
+error = "None"
+verification = "Unverified"
+idempotency = "None"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_event_granted]
+state = "Granted"
+error = "None"
+verification = "Unverified"
+idempotency = "None"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_event_rejected]
+state = "Rejected"
+error = "None"
+verification = "Unverified"
+idempotency = "None"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_event_expired]
+state = "Expired"
+error = "None"
+verification = "Unverified"
+idempotency = "None"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_event_defective]
+state = "Defective"
+error = "None"
+verification = "Unverified"
+idempotency = "None"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_outcome_expired]
+state = "Expired"
+error = "None"
+verification = "Unverified"
+idempotency = "Original"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_outcome_defective]
+state = "Defective"
+error = "None"
+verification = "Unverified"
+idempotency = "Original"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_outcome_already_decided]
+state = "AlreadyDecided"
+error = "None"
+verification = "Unverified"
+idempotency = "RepeatedOriginal"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0
+
+[scenario.approval_outcome_conflict]
+state = "Conflict"
+error = "IdempotencyConflict"
+verification = "Unverified"
+idempotency = "Conflict"
+result_code = "none"
+receipt_count = 0
+economic_effects = 0

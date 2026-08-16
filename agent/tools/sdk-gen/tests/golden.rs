@@ -31,6 +31,22 @@ fn write(generated: &generator::Generated, root: &Path) {
     }
 }
 
+fn copy_schema(root: &Path) {
+    fs::create_dir_all(root).unwrap_or_else(|error| panic!("create schema: {error}"));
+    for name in [
+        "v1.kvx",
+        "identity.kvx",
+        "write.kvx",
+        "read.kvx",
+        "stream.kvx",
+        "errors.kvx",
+        "approval.kvx",
+    ] {
+        fs::copy(schema().join(name), root.join(name))
+            .unwrap_or_else(|error| panic!("copy {name}: {error}"));
+    }
+}
+
 #[test]
 fn golden_schema_generation_is_byte_deterministic() {
     let first =
@@ -45,6 +61,21 @@ fn golden_schema_generation_is_byte_deterministic() {
         .unwrap_or_else(|| panic!("TypeScript output missing"));
     assert!(typescript.contains("export type Amount = bigint"));
     assert!(!typescript.contains("export type Amount = number"));
+    assert!(typescript.contains("APPROVAL_CONTRACT_INTRODUCED = \"1.1\""));
+    for operation in [
+        "approval.list",
+        "approval.get",
+        "approval.approve",
+        "approval.reject",
+    ] {
+        assert!(typescript.contains(operation));
+    }
+    for event in ["Created", "Granted", "Rejected", "Expired", "Defective"] {
+        assert!(typescript.contains(event));
+    }
+    for outcome in ["AlreadyDecided", "Conflict"] {
+        assert!(typescript.contains(outcome));
+    }
     let python = first
         .files
         .get(Path::new("python/layerx_sdk/generated/client.py"))
@@ -53,6 +84,8 @@ fn golden_schema_generation_is_byte_deterministic() {
     assert!(!python.contains("Amount = float"));
     assert!(python.contains("class SubmissionUnknown"));
     assert!(python.contains("def require_verified"));
+    assert!(python.contains("class ApprovalLifecycleEvent"));
+    assert!(python.contains("def approval_approve"));
     let python_stub = first
         .files
         .get(Path::new("python/layerx_sdk/generated/client.pyi"))
@@ -65,6 +98,7 @@ fn golden_schema_generation_is_byte_deterministic() {
     assert!(compatibility.contains("| `0.1.x` | `1.x` | `1.x` | `0.1.x` | supported |"));
     assert!(compatibility.contains("Bypassing the daemon bypasses them"));
     assert!(compatibility.contains("layerx-proof --example offline_verify"));
+    assert!(compatibility.contains("approval module was introduced additively in contract `1.1`"));
     for output in [
         "typescript/src/generated/guarantees.md",
         "python/layerx_sdk/generated/guarantees.md",
@@ -120,19 +154,7 @@ fn drift_gate_detects_a_python_hand_edit() {
 #[test]
 fn lossy_consensus_integer_mapping_is_rejected() {
     let root = directory("lossy");
-    fs::create_dir_all(&root).unwrap_or_else(|error| panic!("create schema: {error}"));
-    for name in [
-        "v1.kvx",
-        "identity.kvx",
-        "write.kvx",
-        "read.kvx",
-        "stream.kvx",
-        "errors.kvx",
-        "approval.kvx",
-    ] {
-        fs::copy(schema().join(name), root.join(name))
-            .unwrap_or_else(|error| panic!("copy {name}: {error}"));
-    }
+    copy_schema(&root);
     let schema_path = root.join("v1.kvx");
     let source = fs::read_to_string(&schema_path)
         .unwrap_or_else(|error| panic!("read copied schema: {error}"));
@@ -143,6 +165,34 @@ fn lossy_consensus_integer_mapping_is_rejected() {
     };
     assert!(error.contains("lossy language boundary"));
     let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn modified_approval_schema_fixture_trips_the_drift_gate() {
+    let output = directory("approval-baseline");
+    let fixture = directory("approval-schema");
+    let baseline =
+        agent_sdk_generator(&schema()).unwrap_or_else(|error| panic!("generation: {error}"));
+    write(&baseline, &output);
+    copy_schema(&fixture);
+    let approval_path = fixture.join("approval.kvx");
+    let source = fs::read_to_string(&approval_path)
+        .unwrap_or_else(|error| panic!("read approval fixture: {error}"));
+    let modified = source.replace(
+        "variants = [\"Created\",\"Granted\",\"Rejected\",\"Expired\",\"Defective\"]",
+        "variants = [\"Created\",\"Granted\",\"Rejected\",\"Expired\",\"Defective\",\"Escalated\"]",
+    );
+    assert_ne!(source, modified, "approval fixture was not modified");
+    fs::write(&approval_path, modified)
+        .unwrap_or_else(|error| panic!("write approval fixture: {error}"));
+    let regenerated = agent_sdk_generator(&fixture)
+        .unwrap_or_else(|error| panic!("modified generation: {error}"));
+    assert_ne!(baseline, regenerated);
+    let error = agent_sdk_drift_gate(&regenerated, &output)
+        .expect_err("modified approval schema passed committed-output drift gate");
+    assert!(error.contains("generated SDK drift"));
+    let _ = fs::remove_dir_all(output);
+    let _ = fs::remove_dir_all(fixture);
 }
 
 #[test]

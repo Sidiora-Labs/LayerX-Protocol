@@ -29,6 +29,8 @@ use layerx_proof::export::{
 };
 use layerx_types::result::ResultCode;
 
+pub mod approval;
+
 macro_rules! mutation_methods {
     ($( $method:ident: $request:ty => $operation:ident ),+ $(,)?) => {
         $(
@@ -94,6 +96,7 @@ pub enum Guarantee {
     CallerSuppliedIdempotency,
     LosslessProtocolResultCodes,
     ExternalSignerOnly,
+    ApprovalHoldsAreDaemonOnly,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -108,6 +111,7 @@ pub const GUARANTEES: Guarantees = Guarantees {
         Guarantee::CallerSuppliedIdempotency,
         Guarantee::LosslessProtocolResultCodes,
         Guarantee::ExternalSignerOnly,
+        Guarantee::ApprovalHoldsAreDaemonOnly,
     ],
 };
 
@@ -127,7 +131,7 @@ pub enum Operation {
     BudgetList,
     BudgetReconciliation,
     BudgetRevoke,
-    PolicyDryRun,
+    Project,
     Prepare,
     Sign,
     Submit,
@@ -149,6 +153,10 @@ pub enum Operation {
     SubscriptionPause,
     SubscriptionResume,
     SubscriptionDelete,
+    ApprovalList,
+    ApprovalGet,
+    ApprovalApprove,
+    ApprovalReject,
 }
 
 impl Operation {
@@ -167,7 +175,7 @@ impl Operation {
         Self::BudgetList,
         Self::BudgetReconciliation,
         Self::BudgetRevoke,
-        Self::PolicyDryRun,
+        Self::Project,
         Self::Prepare,
         Self::Sign,
         Self::Submit,
@@ -189,6 +197,10 @@ impl Operation {
         Self::SubscriptionPause,
         Self::SubscriptionResume,
         Self::SubscriptionDelete,
+        Self::ApprovalList,
+        Self::ApprovalGet,
+        Self::ApprovalApprove,
+        Self::ApprovalReject,
     ];
 
     #[must_use]
@@ -208,7 +220,7 @@ impl Operation {
             Self::BudgetList => "budget.list",
             Self::BudgetReconciliation => "budget.reconciliation",
             Self::BudgetRevoke => "budget.revoke",
-            Self::PolicyDryRun => "policy.dry_run",
+            Self::Project => "project",
             Self::Prepare => "prepare",
             Self::Sign => "sign",
             Self::Submit => "submit",
@@ -230,6 +242,10 @@ impl Operation {
             Self::SubscriptionPause => "subscription.pause",
             Self::SubscriptionResume => "subscription.resume",
             Self::SubscriptionDelete => "subscription.delete",
+            Self::ApprovalList => "approval.list",
+            Self::ApprovalGet => "approval.get",
+            Self::ApprovalApprove => "approval.approve",
+            Self::ApprovalReject => "approval.reject",
         }
     }
 
@@ -255,6 +271,8 @@ impl Operation {
                 | Self::SubscriptionPause
                 | Self::SubscriptionResume
                 | Self::SubscriptionDelete
+                | Self::ApprovalApprove
+                | Self::ApprovalReject
         )
     }
 }
@@ -533,7 +551,7 @@ impl Client {
         capability_list: CapabilityList => CapabilityList,
         budget_list: BudgetList => BudgetList,
         budget_reconciliation: BudgetTarget => BudgetReconciliation,
-        policy_dry_run: PolicyDryRun => PolicyDryRun,
+        policy_dry_run: PolicyDryRun => Project,
         track: TrackRequest => Track,
         wait: WaitRequest => Wait,
         read_balance: ReadRequest<BalanceSelector> => ReadBalance,
@@ -547,6 +565,13 @@ impl Client {
         export_offline: ReadRequest<Vec<layerx_agent_api::export::FactRef>> => ExportOffline,
         subscription_list: SubscriptionList => SubscriptionList,
         subscription_health: SubscriptionTarget => SubscriptionHealth
+    }
+
+    query_methods! {
+        approval_list: approval::ApprovalListRequest => ApprovalList,
+        approval_get: approval::ApprovalGetRequest => ApprovalGet,
+        approval_approve: approval::ApprovalApproveRequest => ApprovalApprove,
+        approval_reject: approval::ApprovalRejectRequest => ApprovalReject
     }
 }
 

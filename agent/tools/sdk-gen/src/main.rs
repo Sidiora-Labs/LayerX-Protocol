@@ -28,6 +28,7 @@ struct Model {
     errors: Vec<String>,
     guarantees: Vec<(String, String, String)>,
     compatibility: Compatibility,
+    approval: Approval,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -36,6 +37,15 @@ struct Compatibility {
     contract: String,
     node_interface: String,
     daemon: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct Approval {
+    states: Vec<String>,
+    outcomes: Vec<String>,
+    events: Vec<String>,
+    introduced_contract: String,
+    enforcement_notice: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -193,7 +203,7 @@ fn read_schema(schema_root: &Path) -> Result<Model, String> {
             (
                 "ApprovalHold".to_owned(),
                 approval_enforcement,
-                approval_notice,
+                approval_notice.clone(),
             ),
         ],
         compatibility: Compatibility {
@@ -201,6 +211,19 @@ fn read_schema(schema_root: &Path) -> Result<Model, String> {
             contract: unquote(required(&root, "compatibility.matrix.contract")?)?,
             node_interface: unquote(required(&root, "compatibility.matrix.node_interface")?)?,
             daemon: unquote(required(&root, "compatibility.matrix.daemon")?)?,
+        },
+        approval: Approval {
+            states: quoted_list(required(&combined, "type.ApprovalState.variants")?)?,
+            outcomes: quoted_list(required(
+                &combined,
+                "type.ApprovalDecisionOutcome.variants",
+            )?)?,
+            events: quoted_list(required(&combined, "type.ApprovalLifecycleEvent.variants")?)?,
+            introduced_contract: unquote(required(
+                &root,
+                "compatibility.feature.approval.introduced_contract",
+            )?)?,
+            enforcement_notice: approval_notice,
         },
     };
     validate_model(&model)?;
@@ -251,6 +274,27 @@ fn validate_model(model: &Model) -> Result<(), String> {
             .contains("bypassing the daemon bypasses the restriction")
     {
         return Err("approval restriction is overstated as protocol authority".to_owned());
+    }
+    for operation in [
+        "approval.list",
+        "approval.get",
+        "approval.approve",
+        "approval.reject",
+    ] {
+        if !model
+            .operations
+            .iter()
+            .any(|candidate| candidate == operation)
+        {
+            return Err(format!("approval SDK operation missing {operation}"));
+        }
+    }
+    if model.approval.states.is_empty()
+        || model.approval.outcomes.is_empty()
+        || model.approval.events.is_empty()
+        || !model.approval.introduced_contract.contains('.')
+    {
+        return Err("approval SDK vocabulary or introducing contract is incomplete".to_owned());
     }
     Ok(())
 }
@@ -307,11 +351,88 @@ fn typescript(model: &Model) -> Result<String, String> {
         .map(|operation| format!("\"{operation}\""))
         .collect::<Vec<_>>()
         .join(" | ");
+    let tuple = |values: &[String]| {
+        values
+            .iter()
+            .map(|value| format!("\"{value}\""))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let approval = format!(
+        r#"export const APPROVAL_CONTRACT_INTRODUCED = "{}" as const;
+export const APPROVAL_ENFORCEMENT_NOTICE = "{}" as const;
+export const APPROVAL_STATES = [{}] as const;
+export const APPROVAL_DECISION_OUTCOMES = [{}] as const;
+export const APPROVAL_EVENT_KINDS = [{}] as const;
+
+export type ApprovalState = (typeof APPROVAL_STATES)[number];
+export type ApprovalDecisionOutcome = (typeof APPROVAL_DECISION_OUTCOMES)[number];
+export type ApprovalEventKind = (typeof APPROVAL_EVENT_KINDS)[number];
+
+export interface StructuredActivityDisclosure {{
+  canonicalDigest: string;
+  activityType: string;
+  actor: string;
+  authority: string;
+  counterparties: readonly string[];
+  amounts: readonly Amount[];
+  asset: string;
+  feeLimit: Amount;
+  expiry: TimestampSeconds;
+  idempotencyKey: string;
+}}
+
+export interface HoldReason {{ code: string; message: string }}
+export interface ApprovalRecord {{
+  approvalId: string;
+  tenant: string;
+  heldActivity: StructuredActivityDisclosure;
+  canonicalBytesDigest: string;
+  holdReason: HoldReason;
+  createdAt: TimestampSeconds;
+  expiresAt: TimestampSeconds;
+  state: ApprovalState;
+  enforcement: "daemon_enforced";
+  authorityNotice: typeof APPROVAL_ENFORCEMENT_NOTICE;
+}}
+export interface ApprovalPage {{ approvals: readonly ApprovalRecord[]; nextCursor: string | null }}
+export interface ApprovalListRequest {{ tenant: string; cursor: string | null; pageLimit: number }}
+export interface ApprovalGetRequest {{ tenant: string; approvalId: string }}
+export interface ApprovalApproveRequest {{ tenant: string; approvalId: string; idempotencyKey: string }}
+export interface ApprovalRejectRequest {{ tenant: string; approvalId: string; idempotencyKey: string; reason: string }}
+export interface ApprovalDecision {{
+  outcome: ApprovalDecisionOutcome;
+  submissionRef: string | null;
+  winningOutcome: ApprovalDecisionOutcome | null;
+  enforcement: "daemon_enforced";
+  authorityNotice: typeof APPROVAL_ENFORCEMENT_NOTICE;
+}}
+export interface ApprovalLifecycleEvent {{
+  eventId: string;
+  tenant: string;
+  approvalId: string;
+  kind: ApprovalEventKind;
+  at: TimestampSeconds;
+  recordDigest: string;
+  holdReason?: HoldReason;
+  expiresAt?: TimestampSeconds;
+  submissionRef?: string;
+  reason?: string;
+  deterministicExpiry?: boolean;
+  defectCode?: string;
+}}"#,
+        model.approval.introduced_contract,
+        model.approval.enforcement_notice,
+        tuple(&model.approval.states),
+        tuple(&model.approval.outcomes),
+        tuple(&model.approval.events),
+    );
     Ok(TYPESCRIPT_TEMPLATE
         .replace("{{SCALARS}}", scalars.trim_end())
         .replace("{{LEVELS}}", &levels)
         .replace("{{ERRORS}}", &errors)
-        .replace("{{OPERATIONS}}", &operations))
+        .replace("{{OPERATIONS}}", &operations)
+        .replace("{{APPROVAL}}", &approval))
 }
 
 fn python(model: &Model) -> Result<String, String> {
@@ -345,11 +466,121 @@ fn python(model: &Model) -> Result<String, String> {
         .map(|operation| format!("\"{operation}\""))
         .collect::<Vec<_>>()
         .join(", ");
+    let literal = |values: &[String]| {
+        values
+            .iter()
+            .map(|value| format!("\"{value}\""))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let approval = format!(
+        r#"APPROVAL_CONTRACT_INTRODUCED = "{}"
+APPROVAL_ENFORCEMENT_NOTICE = "{}"
+APPROVAL_STATES = ({},)
+APPROVAL_DECISION_OUTCOMES = ({},)
+APPROVAL_EVENT_KINDS = ({},)
+
+ApprovalState = Literal[{}]
+ApprovalDecisionOutcome = Literal[{}]
+ApprovalEventKind = Literal[{}]
+
+@dataclass(frozen=True)
+class StructuredActivityDisclosure:
+    canonical_digest: str
+    activity_type: str
+    actor: str
+    authority: str
+    counterparties: tuple[str, ...]
+    amounts: tuple[Amount, ...]
+    asset: str
+    fee_limit: Amount
+    expiry: TimestampSeconds
+    idempotency_key: str
+
+@dataclass(frozen=True)
+class HoldReason:
+    code: str
+    message: str
+
+@dataclass(frozen=True)
+class ApprovalRecord:
+    approval_id: str
+    tenant: str
+    held_activity: StructuredActivityDisclosure
+    canonical_bytes_digest: str
+    hold_reason: HoldReason
+    created_at: TimestampSeconds
+    expires_at: TimestampSeconds
+    state: ApprovalState
+    enforcement: Literal["daemon_enforced"] = "daemon_enforced"
+    authority_notice: str = APPROVAL_ENFORCEMENT_NOTICE
+
+@dataclass(frozen=True)
+class ApprovalPage:
+    approvals: tuple[ApprovalRecord, ...]
+    next_cursor: str | None
+
+@dataclass(frozen=True)
+class ApprovalListRequest:
+    tenant: str
+    cursor: str | None
+    page_limit: int
+
+@dataclass(frozen=True)
+class ApprovalGetRequest:
+    tenant: str
+    approval_id: str
+
+@dataclass(frozen=True)
+class ApprovalApproveRequest:
+    tenant: str
+    approval_id: str
+    idempotency_key: str
+
+@dataclass(frozen=True)
+class ApprovalRejectRequest:
+    tenant: str
+    approval_id: str
+    idempotency_key: str
+    reason: str
+
+@dataclass(frozen=True)
+class ApprovalDecision:
+    outcome: ApprovalDecisionOutcome
+    submission_ref: str | None
+    winning_outcome: ApprovalDecisionOutcome | None
+    enforcement: Literal["daemon_enforced"] = "daemon_enforced"
+    authority_notice: str = APPROVAL_ENFORCEMENT_NOTICE
+
+@dataclass(frozen=True)
+class ApprovalLifecycleEvent:
+    event_id: str
+    tenant: str
+    approval_id: str
+    kind: ApprovalEventKind
+    at: TimestampSeconds
+    record_digest: str
+    hold_reason: HoldReason | None = None
+    expires_at: TimestampSeconds | None = None
+    submission_ref: str | None = None
+    reason: str | None = None
+    deterministic_expiry: bool | None = None
+    defect_code: str | None = None"#,
+        model.approval.introduced_contract,
+        model.approval.enforcement_notice,
+        literal(&model.approval.states),
+        literal(&model.approval.outcomes),
+        literal(&model.approval.events),
+        literal(&model.approval.states),
+        literal(&model.approval.outcomes),
+        literal(&model.approval.events),
+    );
     Ok(PYTHON_TEMPLATE
         .replace("{{SCALARS}}", scalars.trim_end())
         .replace("{{LEVELS}}", &levels)
         .replace("{{ERRORS}}", &errors)
-        .replace("{{OPERATIONS}}", &operations))
+        .replace("{{OPERATIONS}}", &operations)
+        .replace("{{APPROVAL}}", &approval))
 }
 
 fn python_stub(model: &Model) -> Result<String, String> {
@@ -382,11 +613,107 @@ fn python_stub(model: &Model) -> Result<String, String> {
         .map(|operation| format!("\"{operation}\""))
         .collect::<Vec<_>>()
         .join(", ");
+    let literal = |values: &[String]| {
+        values
+            .iter()
+            .map(|value| format!("\"{value}\""))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let approval = format!(
+        r#"ApprovalState: TypeAlias = Literal[{}]
+ApprovalDecisionOutcome: TypeAlias = Literal[{}]
+ApprovalEventKind: TypeAlias = Literal[{}]
+
+APPROVAL_CONTRACT_INTRODUCED: Literal["{}"]
+APPROVAL_ENFORCEMENT_NOTICE: str
+APPROVAL_STATES: tuple[ApprovalState, ...]
+APPROVAL_DECISION_OUTCOMES: tuple[ApprovalDecisionOutcome, ...]
+APPROVAL_EVENT_KINDS: tuple[ApprovalEventKind, ...]
+
+class StructuredActivityDisclosure:
+    canonical_digest: str
+    activity_type: str
+    actor: str
+    authority: str
+    counterparties: tuple[str, ...]
+    amounts: tuple[Amount, ...]
+    asset: str
+    fee_limit: Amount
+    expiry: TimestampSeconds
+    idempotency_key: str
+    def __init__(self, canonical_digest: str, activity_type: str, actor: str, authority: str, counterparties: tuple[str, ...], amounts: tuple[Amount, ...], asset: str, fee_limit: Amount, expiry: TimestampSeconds, idempotency_key: str) -> None: ...
+
+class HoldReason:
+    code: str
+    message: str
+    def __init__(self, code: str, message: str) -> None: ...
+
+class ApprovalRecord:
+    approval_id: str
+    tenant: str
+    held_activity: StructuredActivityDisclosure
+    canonical_bytes_digest: str
+    hold_reason: HoldReason
+    created_at: TimestampSeconds
+    expires_at: TimestampSeconds
+    state: ApprovalState
+    enforcement: Literal["daemon_enforced"]
+    authority_notice: str
+
+class ApprovalPage:
+    approvals: tuple[ApprovalRecord, ...]
+    next_cursor: str | None
+
+class ApprovalListRequest:
+    tenant: str
+    cursor: str | None
+    page_limit: int
+    def __init__(self, tenant: str, cursor: str | None, page_limit: int) -> None: ...
+
+class ApprovalGetRequest:
+    tenant: str
+    approval_id: str
+    def __init__(self, tenant: str, approval_id: str) -> None: ...
+
+class ApprovalApproveRequest:
+    tenant: str
+    approval_id: str
+    idempotency_key: str
+    def __init__(self, tenant: str, approval_id: str, idempotency_key: str) -> None: ...
+
+class ApprovalRejectRequest:
+    tenant: str
+    approval_id: str
+    idempotency_key: str
+    reason: str
+    def __init__(self, tenant: str, approval_id: str, idempotency_key: str, reason: str) -> None: ...
+
+class ApprovalDecision:
+    outcome: ApprovalDecisionOutcome
+    submission_ref: str | None
+    winning_outcome: ApprovalDecisionOutcome | None
+    enforcement: Literal["daemon_enforced"]
+    authority_notice: str
+
+class ApprovalLifecycleEvent:
+    event_id: str
+    tenant: str
+    approval_id: str
+    kind: ApprovalEventKind
+    at: TimestampSeconds
+    record_digest: str"#,
+        literal(&model.approval.states),
+        literal(&model.approval.outcomes),
+        literal(&model.approval.events),
+        model.approval.introduced_contract,
+    );
     Ok(PYTHON_STUB_TEMPLATE
         .replace("{{SCALARS}}", scalars.trim_end())
         .replace("{{LEVELS}}", &levels)
         .replace("{{ERRORS}}", &errors)
-        .replace("{{OPERATIONS}}", &operations))
+        .replace("{{OPERATIONS}}", &operations)
+        .replace("{{APPROVAL}}", &approval))
 }
 
 fn guarantees(model: &Model) -> String {
@@ -398,7 +725,12 @@ fn guarantees(model: &Model) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    GUARANTEES_TEMPLATE.replace("{{GUARANTEES}}", &rows)
+    GUARANTEES_TEMPLATE
+        .replace("{{GUARANTEES}}", &rows)
+        .replace(
+            "{{APPROVAL_INTRODUCED}}",
+            &model.approval.introduced_contract,
+        )
 }
 
 fn compatibility(model: &Model) -> String {
@@ -407,6 +739,10 @@ fn compatibility(model: &Model) -> String {
         .replace("{{CONTRACT}}", &model.compatibility.contract)
         .replace("{{NODE_INTERFACE}}", &model.compatibility.node_interface)
         .replace("{{DAEMON}}", &model.compatibility.daemon)
+        .replace(
+            "{{APPROVAL_INTRODUCED}}",
+            &model.approval.introduced_contract,
+        )
 }
 
 /// Generates both language SDKs and their guarantee documentation from one model.

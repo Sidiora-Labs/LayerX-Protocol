@@ -87,6 +87,69 @@ export interface ApiError {
 }
 export type Operation = "agent.register" | "approval.approve" | "approval.get" | "approval.list" | "approval.reject" | "availability.fetch" | "budget.create" | "budget.fund" | "budget.list" | "budget.reconciliation" | "budget.revoke" | "capability.attenuate" | "capability.create" | "capability.list" | "capability.revoke" | "export.offline" | "prepare" | "project" | "read.account" | "read.balance" | "read.batch" | "read.checkpoint" | "read.history" | "read.module_state" | "read.proof_bundle" | "session.close" | "session.list" | "session.open" | "session.refresh" | "sign" | "submit" | "subscription.acknowledge" | "subscription.create" | "subscription.delete" | "subscription.health" | "subscription.list" | "subscription.pause" | "subscription.resume" | "track" | "wait";
 
+export const APPROVAL_CONTRACT_INTRODUCED = "1.1" as const;
+export const APPROVAL_ENFORCEMENT_NOTICE = "An approval hold is a daemon-enforced restriction. It confers no protocol authority, and bypassing the daemon bypasses the restriction." as const;
+export const APPROVAL_STATES = ["Held", "Granted", "Rejected", "Expired", "Defective"] as const;
+export const APPROVAL_DECISION_OUTCOMES = ["Granted", "Rejected", "Expired", "Defective", "AlreadyDecided", "Conflict"] as const;
+export const APPROVAL_EVENT_KINDS = ["Created", "Granted", "Rejected", "Expired", "Defective"] as const;
+
+export type ApprovalState = (typeof APPROVAL_STATES)[number];
+export type ApprovalDecisionOutcome = (typeof APPROVAL_DECISION_OUTCOMES)[number];
+export type ApprovalEventKind = (typeof APPROVAL_EVENT_KINDS)[number];
+
+export interface StructuredActivityDisclosure {
+  canonicalDigest: string;
+  activityType: string;
+  actor: string;
+  authority: string;
+  counterparties: readonly string[];
+  amounts: readonly Amount[];
+  asset: string;
+  feeLimit: Amount;
+  expiry: TimestampSeconds;
+  idempotencyKey: string;
+}
+
+export interface HoldReason { code: string; message: string }
+export interface ApprovalRecord {
+  approvalId: string;
+  tenant: string;
+  heldActivity: StructuredActivityDisclosure;
+  canonicalBytesDigest: string;
+  holdReason: HoldReason;
+  createdAt: TimestampSeconds;
+  expiresAt: TimestampSeconds;
+  state: ApprovalState;
+  enforcement: "daemon_enforced";
+  authorityNotice: typeof APPROVAL_ENFORCEMENT_NOTICE;
+}
+export interface ApprovalPage { approvals: readonly ApprovalRecord[]; nextCursor: string | null }
+export interface ApprovalListRequest { tenant: string; cursor: string | null; pageLimit: number }
+export interface ApprovalGetRequest { tenant: string; approvalId: string }
+export interface ApprovalApproveRequest { tenant: string; approvalId: string; idempotencyKey: string }
+export interface ApprovalRejectRequest { tenant: string; approvalId: string; idempotencyKey: string; reason: string }
+export interface ApprovalDecision {
+  outcome: ApprovalDecisionOutcome;
+  submissionRef: string | null;
+  winningOutcome: ApprovalDecisionOutcome | null;
+  enforcement: "daemon_enforced";
+  authorityNotice: typeof APPROVAL_ENFORCEMENT_NOTICE;
+}
+export interface ApprovalLifecycleEvent {
+  eventId: string;
+  tenant: string;
+  approvalId: string;
+  kind: ApprovalEventKind;
+  at: TimestampSeconds;
+  recordDigest: string;
+  holdReason?: HoldReason;
+  expiresAt?: TimestampSeconds;
+  submissionRef?: string;
+  reason?: string;
+  deterministicExpiry?: boolean;
+  defectCode?: string;
+}
+
 export interface Transport {
   call<TRequest, TResponse>(operation: Operation, request: TRequest): Promise<TResponse>;
 }
@@ -96,5 +159,21 @@ export class Client {
 
   public call<TRequest, TResponse>(operation: Operation, request: TRequest): Promise<TResponse> {
     return this.transport.call<TRequest, TResponse>(operation, request);
+  }
+
+  public approvalList(request: ApprovalListRequest): Promise<ApprovalPage> {
+    return this.call("approval.list", request);
+  }
+
+  public approvalGet(request: ApprovalGetRequest): Promise<ApprovalRecord> {
+    return this.call("approval.get", request);
+  }
+
+  public approvalApprove(request: ApprovalApproveRequest): Promise<ApprovalDecision> {
+    return this.call("approval.approve", request);
+  }
+
+  public approvalReject(request: ApprovalRejectRequest): Promise<ApprovalDecision> {
+    return this.call("approval.reject", request);
   }
 }

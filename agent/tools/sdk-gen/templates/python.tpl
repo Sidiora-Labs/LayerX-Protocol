@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from types import MappingProxyType
-from typing import Generic, Literal, Mapping, Protocol, TypeAlias, TypeVar
+from typing import Generic, Literal, Mapping, Protocol, TypeAlias, TypeVar, cast
 
 _PACKAGE_METADATA: Mapping[str, str | int] = MappingProxyType({
     "name": "layerx-sdk",
@@ -21,6 +21,8 @@ class VerificationLevel(IntEnum):
 
 ErrorClass = Literal[{{ERRORS}}]
 Operation = Literal[{{OPERATIONS}}]
+
+{{APPROVAL}}
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -93,3 +95,15 @@ class Client:
 
     def call(self, operation: Operation, request: object) -> object:
         return self._transport.call(operation, request)
+
+    def approval_list(self, request: ApprovalListRequest) -> ApprovalPage:
+        return cast(ApprovalPage, self.call("approval.list", request))
+
+    def approval_get(self, request: ApprovalGetRequest) -> ApprovalRecord:
+        return cast(ApprovalRecord, self.call("approval.get", request))
+
+    def approval_approve(self, request: ApprovalApproveRequest) -> ApprovalDecision:
+        return cast(ApprovalDecision, self.call("approval.approve", request))
+
+    def approval_reject(self, request: ApprovalRejectRequest) -> ApprovalDecision:
+        return cast(ApprovalDecision, self.call("approval.reject", request))
