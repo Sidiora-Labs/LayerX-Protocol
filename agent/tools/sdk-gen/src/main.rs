@@ -176,6 +176,8 @@ fn read_schema(schema_root: &Path) -> Result<Model, String> {
         &combined,
         "type.BudgetEnforcement.DaemonLimit.notice",
     )?)?;
+    let approval_enforcement = unquote(required(&combined, "guarantee.ApprovalHold.enforcement")?)?;
+    let approval_notice = unquote(required(&combined, "guarantee.ApprovalHold.notice")?)?;
     let model = Model {
         scalars,
         operations,
@@ -188,6 +190,11 @@ fn read_schema(schema_root: &Path) -> Result<Model, String> {
                 "Enforced by the LayerX protocol state machine.".to_owned(),
             ),
             ("DaemonLimit".to_owned(), daemon, notice),
+            (
+                "ApprovalHold".to_owned(),
+                approval_enforcement,
+                approval_notice,
+            ),
         ],
         compatibility: Compatibility {
             sdk: unquote(required(&root, "compatibility.matrix.sdk")?)?,
@@ -231,6 +238,19 @@ fn validate_model(model: &Model) -> Result<(), String> {
         || daemon.2.contains("protocol-enforced")
     {
         return Err("daemon-only restriction is overstated".to_owned());
+    }
+    let approval = model
+        .guarantees
+        .iter()
+        .find(|(name, _, _)| name == "ApprovalHold")
+        .ok_or_else(|| "missing ApprovalHold guarantee".to_owned())?;
+    if approval.1 != "daemon_enforced"
+        || !approval.2.contains("confers no protocol authority")
+        || !approval
+            .2
+            .contains("bypassing the daemon bypasses the restriction")
+    {
+        return Err("approval restriction is overstated as protocol authority".to_owned());
     }
     Ok(())
 }

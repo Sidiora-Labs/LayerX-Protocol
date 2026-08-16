@@ -11,18 +11,27 @@ fn section_map(source: &str) -> Result<BTreeMap<String, String>, String> {
         if line.is_empty() || line.starts_with('#') || line.starts_with("//") {
             continue;
         }
-        if let Some(name) = line.strip_prefix('[').and_then(|value| value.strip_suffix(']')) {
+        if let Some(name) = line
+            .strip_prefix('[')
+            .and_then(|value| value.strip_suffix(']'))
+        {
             name.clone_into(&mut section);
             continue;
         }
         let Some((key, value)) = line.split_once('=') else {
-            return Err(format!("line {} is not a key/value declaration", number + 1));
+            return Err(format!(
+                "line {} is not a key/value declaration",
+                number + 1
+            ));
         };
         if section.is_empty() {
             return Err(format!("line {} is outside a section", number + 1));
         }
         let path = format!("{}.{}", section, key.trim());
-        if entries.insert(path.clone(), value.trim().to_owned()).is_some() {
+        if entries
+            .insert(path.clone(), value.trim().to_owned())
+            .is_some()
+        {
             return Err(format!("duplicate schema declaration {path}"));
         }
     }
@@ -46,9 +55,9 @@ fn integer(entries: &BTreeMap<String, String>, key: &str) -> Result<u16, String>
 
 fn validate(entries: &BTreeMap<String, String>) -> Result<(), String> {
     for (key, value) in entries {
-        let language_type = key.rsplit_once('.').is_some_and(|(_, suffix)| {
-            matches!(suffix, "rust" | "typescript" | "python")
-        });
+        let language_type = key
+            .rsplit_once('.')
+            .is_some_and(|(_, suffix)| matches!(suffix, "rust" | "typescript" | "python"));
         if language_type
             && ["f32", "f64", "float", "double", "number", "decimal"]
                 .iter()
@@ -81,6 +90,8 @@ fn compatibility_gate(
         }
         match current.get(key) {
             Some(new_value) if new_value == old_value => {}
+            Some(new_value)
+                if key == "schema.includes" && additive_string_list(old_value, new_value) => {}
             Some(new_value) => {
                 return Err(format!(
                     "breaking contract change without a major increment at {key}: {old_value} -> {new_value}"
@@ -94,6 +105,31 @@ fn compatibility_gate(
         }
     }
     Ok(())
+}
+
+fn additive_string_list(previous: &str, current: &str) -> bool {
+    fn values(source: &str) -> Option<Vec<&str>> {
+        source
+            .strip_prefix('[')
+            .and_then(|value| value.strip_suffix(']'))
+            .map(|value| {
+                value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .collect()
+            })
+    }
+    match (values(previous), values(current)) {
+        (Some(previous), Some(current)) => {
+            current.len() >= previous.len()
+                && previous
+                    .iter()
+                    .zip(current.iter())
+                    .all(|(old, new)| old == new)
+        }
+        _ => false,
+    }
 }
 
 fn generated_source(entries: &BTreeMap<String, String>) -> Result<String, String> {
@@ -207,7 +243,8 @@ pub fn agent_api_compat_gate(
 }
 
 fn read_file(path: &Path) -> String {
-    fs::read_to_string(path).unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()))
+    fs::read_to_string(path)
+        .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()))
 }
 
 fn main() {
@@ -222,13 +259,26 @@ fn main() {
     println!("cargo:rerun-if-changed={}", baseline.display());
     println!("cargo:rerun-if-changed={}", committed.display());
 
-    let current = section_map(&read_file(&schema)).unwrap_or_else(|error| panic!("invalid schema: {error}"));
-    let old = section_map(&read_file(&baseline)).unwrap_or_else(|error| panic!("invalid baseline: {error}"));
+    let current =
+        section_map(&read_file(&schema)).unwrap_or_else(|error| panic!("invalid schema: {error}"));
+    let old = section_map(&read_file(&baseline))
+        .unwrap_or_else(|error| panic!("invalid baseline: {error}"));
     validate(&current).unwrap_or_else(|error| panic!("invalid schema: {error}"));
-    compatibility_gate(&old, &current).unwrap_or_else(|error| panic!("incompatible schema: {error}"));
+    compatibility_gate(&old, &current)
+        .unwrap_or_else(|error| panic!("incompatible schema: {error}"));
 
-    for module in ["identity.kvx", "write.kvx", "read.kvx", "stream.kvx", "errors.kvx"] {
-        let current_module = schema.parent().unwrap_or_else(|| panic!("schema has no parent")).join(module);
+    for module in [
+        "identity.kvx",
+        "write.kvx",
+        "read.kvx",
+        "stream.kvx",
+        "errors.kvx",
+        "approval.kvx",
+    ] {
+        let current_module = schema
+            .parent()
+            .unwrap_or_else(|| panic!("schema has no parent"))
+            .join(module);
         if !current_module.exists() {
             continue;
         }
@@ -245,17 +295,22 @@ fn main() {
         if baseline_module.exists() {
             let baseline_entries = section_map(&read_file(&baseline_module))
                 .unwrap_or_else(|error| panic!("invalid {}: {error}", baseline_module.display()));
-            compatibility_gate(&baseline_entries, &current_entries)
-                .unwrap_or_else(|error| panic!("incompatible {}: {error}", current_module.display()));
+            compatibility_gate(&baseline_entries, &current_entries).unwrap_or_else(|error| {
+                panic!("incompatible {}: {error}", current_module.display())
+            });
         }
     }
-    let fresh = generated_source(&current).unwrap_or_else(|error| panic!("generation failed: {error}"));
+    let fresh =
+        generated_source(&current).unwrap_or_else(|error| panic!("generation failed: {error}"));
 
-    let out = PathBuf::from(
-        env::var_os("OUT_DIR").unwrap_or_else(|| panic!("OUT_DIR is unavailable")),
-    )
-    .join("generated.rs");
-    fs::write(&out, &fresh).unwrap_or_else(|error| panic!("failed to write {}: {error}", out.display()));
+    let out =
+        PathBuf::from(env::var_os("OUT_DIR").unwrap_or_else(|| panic!("OUT_DIR is unavailable")))
+            .join("generated.rs");
+    fs::write(&out, &fresh)
+        .unwrap_or_else(|error| panic!("failed to write {}: {error}", out.display()));
     let checked_in = read_file(&committed);
-    assert_eq!(checked_in, fresh, "generated Rust contract drift; regenerate src/generated.rs from v1.kvx");
+    assert_eq!(
+        checked_in, fresh,
+        "generated Rust contract drift; regenerate src/generated.rs from v1.kvx"
+    );
 }

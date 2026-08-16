@@ -431,7 +431,7 @@ status = "pending"
 
 [task.2.1]
 title = "Define the approval module schema"
-status = "pending"
+status = "done"
 wave = 1
 do_1 = "Define approval.kvx in the agent-api schema with the list, get, approve and reject operations, the approval record carrying the held activity's structured disclosure, its canonical-bytes digest, its hold reason, its creation time and its deterministic expiry, and the lifecycle event types."
 do_2 = "Include the module from v1.kvx as an additive minor-version change, leaving every existing declaration untouched, and record the minor bump in the schema compatibility notes."

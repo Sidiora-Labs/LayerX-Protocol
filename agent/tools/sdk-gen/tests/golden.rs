@@ -65,6 +65,17 @@ fn golden_schema_generation_is_byte_deterministic() {
     assert!(compatibility.contains("| `0.1.x` | `1.x` | `1.x` | `0.1.x` | supported |"));
     assert!(compatibility.contains("Bypassing the daemon bypasses them"));
     assert!(compatibility.contains("layerx-proof --example offline_verify"));
+    for output in [
+        "typescript/src/generated/guarantees.md",
+        "python/layerx_sdk/generated/guarantees.md",
+    ] {
+        let guarantees = first
+            .files
+            .get(&PathBuf::from(output))
+            .unwrap_or_else(|| panic!("missing generated guarantees {output}"));
+        assert!(guarantees.contains("`ApprovalHold` | `daemon_enforced`"));
+        assert!(guarantees.contains("confers no protocol authority"));
+    }
 }
 
 #[test]
@@ -117,6 +128,7 @@ fn lossy_consensus_integer_mapping_is_rejected() {
         "read.kvx",
         "stream.kvx",
         "errors.kvx",
+        "approval.kvx",
     ] {
         fs::copy(schema().join(name), root.join(name))
             .unwrap_or_else(|error| panic!("copy {name}: {error}"));
@@ -144,5 +156,8 @@ fn generated_docs_keep_daemon_guarantees_honest() {
     assert!(documentation.contains("`ProtocolBudget` | `protocol_enforced`"));
     assert!(documentation.contains("`DaemonLimit` | `daemon_enforced`"));
     assert!(documentation.contains("Bypassing the daemon bypasses this limit"));
+    assert!(documentation.contains("`ApprovalHold` | `daemon_enforced`"));
+    assert!(documentation.contains("confers no protocol authority"));
     assert!(!documentation.contains("DaemonLimit` | `protocol_enforced`"));
+    assert!(!documentation.contains("ApprovalHold` | `protocol_enforced`"));
 }

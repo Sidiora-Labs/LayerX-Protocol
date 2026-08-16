@@ -6,10 +6,8 @@ use layerx_agent_api::{
 };
 
 const BASELINE: &str = include_str!("../../../schema/agent-api/golden/v1.kvx");
-const REQUEST_VECTOR: &str =
-    include_str!("../../../schema/agent-api/golden/version-request.hex");
-const RESPONSE_VECTOR: &str =
-    include_str!("../../../schema/agent-api/golden/version-response.hex");
+const REQUEST_VECTOR: &str = include_str!("../../../schema/agent-api/golden/version-request.hex");
+const RESPONSE_VECTOR: &str = include_str!("../../../schema/agent-api/golden/version-response.hex");
 
 fn declarations(source: &str) -> BTreeMap<String, String> {
     let mut section = String::new();
@@ -19,10 +17,16 @@ fn declarations(source: &str) -> BTreeMap<String, String> {
         if line.is_empty() || line.starts_with('#') || line.starts_with("//") {
             continue;
         }
-        if let Some(name) = line.strip_prefix('[').and_then(|value| value.strip_suffix(']')) {
+        if let Some(name) = line
+            .strip_prefix('[')
+            .and_then(|value| value.strip_suffix(']'))
+        {
             name.clone_into(&mut section);
         } else if let Some((key, value)) = line.split_once('=') {
-            values.insert(format!("{}.{}", section, key.trim()), value.trim().to_owned());
+            values.insert(
+                format!("{}.{}", section, key.trim()),
+                value.trim().to_owned(),
+            );
         }
     }
     values
@@ -46,9 +50,30 @@ fn hex(value: &str) -> Vec<u8> {
 fn generated_contract_is_pinned_to_the_schema() {
     let contract = agent_api_schema_v1();
     assert_eq!(contract.name, "LayerX Agent API");
-    assert_eq!(contract.version, ContractVersion { major: 1, minor: 0 });
+    assert_eq!(contract.version, ContractVersion { major: 1, minor: 1 });
     assert_eq!(contract.node_interface_major, 1);
-    assert_eq!(AGENT_API_V1_SOURCE, BASELINE);
+    let baseline = declarations(BASELINE);
+    let current = declarations(AGENT_API_V1_SOURCE);
+    for (key, value) in baseline {
+        if key == "schema.includes" {
+            assert!(
+                current[&key].starts_with(value.trim_end_matches(']')),
+                "contract module includes were not extended additively"
+            );
+        } else if key != "schema.minor" {
+            assert_eq!(
+                current.get(&key),
+                Some(&value),
+                "contract 1.0 declaration changed at {key}"
+            );
+        }
+    }
+    assert_eq!(current.get("schema.minor").map(String::as_str), Some("1"));
+    assert!(current["schema.includes"].contains("approval.kvx"));
+    assert_eq!(
+        current["compatibility.history.1_1.classification"],
+        "\"additive_only\""
+    );
 
     let request = VersionRequest {
         request_id: Sequence(7),
@@ -73,6 +98,8 @@ fn golden_request_and_response_vectors_are_reviewable_exact_bytes() {
     assert_eq!(&response[4..12], &7_u64.to_be_bytes());
     assert!(AGENT_API_V1_SOURCE.contains(REQUEST_VECTOR.trim()));
     assert!(AGENT_API_V1_SOURCE.contains(RESPONSE_VECTOR.trim()));
+    assert!(AGENT_API_V1_SOURCE.contains("00010001000000000000000700000000010001"));
+    assert!(AGENT_API_V1_SOURCE.contains("0001000100000000000000070000000000000100010001"));
 }
 
 #[test]
@@ -84,17 +111,31 @@ fn compatibility_gate_accepts_additions_and_rejects_mutation_or_removal() {
     ];
     assert_eq!(agent_api_compat_gate(1, 1, &previous, &additive), Ok(()));
     assert!(agent_api_compat_gate(1, 1, &previous, &[]).is_err());
-    assert!(agent_api_compat_gate(1, 1, &previous, &[("record.Request.fields", "id:u128")]).is_err());
+    assert!(
+        agent_api_compat_gate(1, 1, &previous, &[("record.Request.fields", "id:u128")]).is_err()
+    );
     assert_eq!(agent_api_compat_gate(1, 2, &previous, &[]), Ok(()));
 }
 
 #[test]
 fn consensus_integers_are_exact_and_dynamic_languages_are_not_numeric() {
-    assert_eq!(Amount::parse_decimal("340282366920938463463374607431768211455"), Ok(Amount(u128::MAX)));
+    assert_eq!(
+        Amount::parse_decimal("340282366920938463463374607431768211455"),
+        Ok(Amount(u128::MAX))
+    );
     assert!(Amount::parse_decimal("340282366920938463463374607431768211456").is_err());
-    assert_eq!(BudgetLimit::parse_decimal("9007199254740993"), Ok(BudgetLimit(9_007_199_254_740_993)));
-    assert_eq!(Sequence::parse_decimal("18446744073709551615"), Ok(Sequence(u64::MAX)));
-    assert_eq!(TimestampSeconds::parse_decimal("42"), Ok(TimestampSeconds(42)));
+    assert_eq!(
+        BudgetLimit::parse_decimal("9007199254740993"),
+        Ok(BudgetLimit(9_007_199_254_740_993))
+    );
+    assert_eq!(
+        Sequence::parse_decimal("18446744073709551615"),
+        Ok(Sequence(u64::MAX))
+    );
+    assert_eq!(
+        TimestampSeconds::parse_decimal("42"),
+        Ok(TimestampSeconds(42))
+    );
 
     for (key, value) in declarations(AGENT_API_V1_SOURCE) {
         if key.ends_with(".consensus_integer") {

@@ -85,7 +85,7 @@ export interface ApiError {
   requestId: bigint;
   reason: string;
 }
-export type Operation = "agent.register" | "availability.fetch" | "budget.create" | "budget.fund" | "budget.list" | "budget.reconciliation" | "budget.revoke" | "capability.attenuate" | "capability.create" | "capability.list" | "capability.revoke" | "export.offline" | "prepare" | "project" | "read.account" | "read.balance" | "read.batch" | "read.checkpoint" | "read.history" | "read.module_state" | "read.proof_bundle" | "session.close" | "session.list" | "session.open" | "session.refresh" | "sign" | "submit" | "subscription.acknowledge" | "subscription.create" | "subscription.delete" | "subscription.health" | "subscription.list" | "subscription.pause" | "subscription.resume" | "track" | "wait";
+export type Operation = "agent.register" | "approval.approve" | "approval.get" | "approval.list" | "approval.reject" | "availability.fetch" | "budget.create" | "budget.fund" | "budget.list" | "budget.reconciliation" | "budget.revoke" | "capability.attenuate" | "capability.create" | "capability.list" | "capability.revoke" | "export.offline" | "prepare" | "project" | "read.account" | "read.balance" | "read.batch" | "read.checkpoint" | "read.history" | "read.module_state" | "read.proof_bundle" | "session.close" | "session.list" | "session.open" | "session.refresh" | "sign" | "submit" | "subscription.acknowledge" | "subscription.create" | "subscription.delete" | "subscription.health" | "subscription.list" | "subscription.pause" | "subscription.resume" | "track" | "wait";
 
 export interface Transport {
   call<TRequest, TResponse>(operation: Operation, request: TRequest): Promise<TResponse>;

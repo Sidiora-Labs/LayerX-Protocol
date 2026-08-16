@@ -91,7 +91,7 @@ money or claims something about money, and both depend on the spine being real.
     - _Requirements: 23.4, 18.1, 16.6_
 
 - [ ] 2. Extend the agent contract with approval operations
-  - [ ] 2.1 Define the approval module schema
+  - [x] 2.1 Define the approval module schema
     - Define approval.kvx in the agent-api schema with the list, get, approve and reject operations, the approval record carrying the held activity's structured disclosure, its canonical-bytes digest, its hold reason, its creation time and its deterministic expiry, and the lifecycle event types.
     - Include the module from v1.kvx as an additive minor-version change, leaving every existing declaration untouched, and record the minor bump in the schema compatibility notes.
     - Add golden request and response vectors for every approval operation and event.
