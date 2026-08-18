@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "path": "/v1/wallet-binding",
+  "headers": {
+    "Idempotency-Key": "4d1f8a6c9e2b7d0f3a5c8e1b6d9f2a4c"
+  },
+  "body": {
+    "address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+    "statement": "layerx-wallet-binding-v1\nnetwork: layerx-1\naccount: act_01j2h5k8vq3n6p9r2s5t8v1w4x\naddress: 0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed\nissued: 2026-08-18T11:50:00Z\nThis link lets money arrive from and pay out to this wallet. It gives this wallet no power over LayerX funds.",
+    "signature": "0x7f9e2a41c8b3d6f05e12a9b8c7d4e3f2a1b0c9d8e7f6a5b4c3d2e1f00987654321d4c7b0a39e8f6d5c4b3a2918070605f4e3d2c1b0a998877665544332211ff01b"
+  }
+}

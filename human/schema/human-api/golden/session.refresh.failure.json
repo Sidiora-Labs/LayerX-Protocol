@@ -1,0 +1,12 @@
+{
+  "status": 401,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "session-expired",
+      "copy_key": "error.session.expired",
+      "retry": "structural"
+    },
+    "trace": "trc_01j2h5q4ek5v6w7x8y9z0a1b2c"
+  }
+}

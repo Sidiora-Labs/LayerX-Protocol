@@ -1,0 +1,12 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "result": {
+      "statement": "layerx-wallet-binding-v1\nnetwork: layerx-1\naccount: act_01j2h5k8vq3n6p9r2s5t8v1w4x\naddress: 0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed\nissued: 2026-08-18T11:50:00Z\nThis link lets money arrive from and pay out to this wallet. It gives this wallet no power over LayerX funds.",
+      "address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+      "expires_at": "2026-08-18T12:05:00Z"
+    },
+    "trace": "trc_01j2h667xc0m1n2p3q4r5s6t7v"
+  }
+}

@@ -604,7 +604,7 @@ reqs = ["8.1","8.9"]
 
 [task.4.2]
 title = "Define identity, session and wallet-binding operations"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["4.1"]
 do_1 = "Define account creation, passkey registration and assertion, session open, refresh, list and revoke, and the step-up challenge operations."
@@ -614,12 +614,12 @@ do_4 = "Define profile operations for declared-local data, separated from protoc
 do_5 = "Add golden vectors for every operation including the failure shapes."
 verify_cmd = "make human-check"
 symbols = ["human_api_identity_module"]
-touches = ["human/schema/human-api/identity.kvx","human/schema/human-api/golden/identity.kvx"]
+touches = ["human/schema/human-api/identity.kvx","human/schema/human-api/golden"]
 reqs = ["8.2","3.1","5.1"]
 
 [task.4.3]
 title = "Define movement and custody journey operations"
-status = "pending"
+status = "in_progress"
 wave = 2
 requires = ["4.1"]
 do_1 = "Define the movement operations - quote, review, commit, journey status - in movement vocabulary: fund, allocate, return, transfer, deposit, withdraw, exit."
@@ -629,12 +629,12 @@ do_4 = "Define the refusal shapes carrying which limit refused and where it can 
 do_5 = "Add golden vectors covering multi-leg journeys, still-checking and refusals."
 verify_cmd = "make human-check"
 symbols = ["human_api_movement_module"]
-touches = ["human/schema/human-api/movement.kvx","human/schema/human-api/golden/movement.kvx"]
+touches = ["human/schema/human-api/movement.kvx","human/schema/human-api/golden"]
 reqs = ["8.2","8.4","9.1"]
 
 [task.4.4]
 title = "Define agent, approval, activity and notification operations"
-status = "pending"
+status = "in_progress"
 wave = 2
 requires = ["4.1","2.1"]
 do_1 = "Define agent lifecycle operations: create with name, purpose and limit, creation-journey status, pause, resume, limit change, reclaim, rotate, recover and archive."

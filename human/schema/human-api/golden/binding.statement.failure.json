@@ -1,0 +1,12 @@
+{
+  "status": 409,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "conflict",
+      "copy_key": "error.wallet.link-in-progress",
+      "retry": "structural"
+    },
+    "trace": "trc_01j2h678yd1n2p3q4r5s6t7v8w"
+  }
+}

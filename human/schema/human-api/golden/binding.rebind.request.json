@@ -1,0 +1,19 @@
+{
+  "method": "POST",
+  "path": "/v1/wallet-binding/rebind",
+  "headers": {
+    "Idempotency-Key": "8c3e5a7f1d9b2e4c6a8f0d2b4e6c8a1f"
+  },
+  "body": {
+    "address": "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359",
+    "statement": "layerx-wallet-binding-v1\nnetwork: layerx-1\naccount: act_01j2h5k8vq3n6p9r2s5t8v1w4x\naddress: 0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359\nissued: 2026-08-18T11:49:30Z\nThis link lets money arrive from and pay out to this wallet. It gives this wallet no power over LayerX funds.",
+    "signature": "0x21d4c7b0a39e8f6d5c4b3a2918070605f4e3d2c1b0a998877665544332211ff07f9e2a41c8b3d6f05e12a9b8c7d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0098765431c",
+    "step_up": {
+      "challenge_id": "chg_01j2h5w4eh8j0k2m4n6p8q0r2s",
+      "confirms": "opd_01j2h5x8fj9k1m3n5p7q9r1s3t",
+      "passkey_id": "pky_01j2h5m2we5f7g9h1j3k5m7n9p",
+      "completed_at": "2026-08-18T11:48:22Z",
+      "expires_at": "2026-08-18T11:53:22Z"
+    }
+  }
+}

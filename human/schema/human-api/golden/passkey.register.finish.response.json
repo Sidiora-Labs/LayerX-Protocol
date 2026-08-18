@@ -1,0 +1,12 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "result": {
+      "passkey_id": "pky_01j2h5m2we5f7g9h1j3k5m7n9p",
+      "label": "iCloud Keychain",
+      "created_at": "2026-08-18T10:02:12Z"
+    },
+    "trace": "trc_01j2h5e5va6j7k8m9n0p1q2r3s"
+  }
+}

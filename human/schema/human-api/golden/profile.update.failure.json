@@ -1,0 +1,13 @@
+{
+  "status": 400,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "invalid-request",
+      "copy_key": "error.profile.display-name-too-long",
+      "retry": "structural",
+      "field": "display_name"
+    },
+    "trace": "trc_01j2h6j9kr2a3b4c5d6e7f8g9h"
+  }
+}

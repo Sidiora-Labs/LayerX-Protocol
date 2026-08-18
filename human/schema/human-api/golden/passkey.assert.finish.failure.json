@@ -1,0 +1,13 @@
+{
+  "status": 400,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "invalid-request",
+      "copy_key": "error.passkey.not-recognised",
+      "retry": "structural",
+      "field": "credential"
+    },
+    "trace": "trc_01j2h5k0af1q2r3s4t5v6w7x8y"
+  }
+}

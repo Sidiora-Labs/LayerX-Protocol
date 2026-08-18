@@ -1,0 +1,11 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "display_name": "Mara O.",
+      "avatar_url": "https://cdn.layerx.example/avatars/act_01j2h5k8vq3n6p9r2s5t8v1w4x.png"
+    },
+    "trace": "trc_01j2h6h8jq1z2a3b4c5d6e7f8g"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "result": {
+      "assertion_id": "asr_01j2h5p0yb2c4d6e8f0g2h4j6k",
+      "ceremony": "eyJjaGFsbGVuZ2UiOiJjM1ZVYzJGMGRRIiwidGltZW91dCI6NjAwMDB9",
+      "expires_at": "2026-08-18T10:09:00Z"
+    },
+    "trace": "trc_01j2h5g7xc8m9n0p1q2r3s4t5v"
+  }
+}

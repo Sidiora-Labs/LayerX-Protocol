@@ -1,0 +1,13 @@
+{
+  "status": 429,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "rate-limited",
+      "copy_key": "error.passkey.too-many-attempts",
+      "retry": "retriable-after",
+      "retry_after_ms": 30000
+    },
+    "trace": "trc_01j2h5h8yd9n0p1q2r3s4t5v6w"
+  }
+}

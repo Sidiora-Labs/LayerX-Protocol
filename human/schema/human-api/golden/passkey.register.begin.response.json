@@ -1,0 +1,12 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "result": {
+      "registration_id": "reg_01j2h5n6xa1b3c5d7e9f1g3h5j",
+      "ceremony": "eyJycCI6eyJuYW1lIjoiTGF5ZXJYIn0sImNoYWxsZW5nZSI6IlFqTjRhVFZ3WlEifQ",
+      "expires_at": "2026-08-18T10:05:00Z"
+    },
+    "trace": "trc_01j2h5c3sy4g5h6j7k8m9n0p1q"
+  }
+}

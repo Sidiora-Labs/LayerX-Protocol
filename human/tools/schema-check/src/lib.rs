@@ -1450,6 +1450,64 @@ fn human_api_stream_module(model: &Model, root: &Path, violations: &mut Vec<Viol
     }
 }
 
+/// Enforces the identity module spine: account creation, session revocation,
+/// the operation-bound step-up challenge shape and the wallet-binding
+/// submission the authenticated plane stands on.
+fn human_api_identity_module(model: &Model, root: &Path, violations: &mut Vec<Violation>) {
+    let origin = root.join("identity.kvx");
+    for operation in ["account.create", "session.revoke", "binding.submit"] {
+        if !model.operations.iter().any(|declared| declared.name == operation) {
+            violations.push(violation(
+                &origin,
+                "missing-identity-module",
+                format!("the contract must declare operation.{operation}"),
+            ));
+        }
+    }
+    let Some(challenge) = model.records.get("StepUpChallenge") else {
+        violations.push(violation(
+            &origin,
+            "missing-identity-module",
+            "the contract must declare the StepUpChallenge record",
+        ));
+        return;
+    };
+    for (field, wanted) in [
+        ("challenge_id", "StepUpChallengeId"),
+        ("confirms", "OperationDigest"),
+        ("expires_at", "Timestamp"),
+    ] {
+        let carried = challenge
+            .required
+            .iter()
+            .any(|declared| declared.name == field && declared.type_name == wanted);
+        if !carried {
+            violations.push(violation(
+                &origin,
+                "missing-identity-module",
+                format!("StepUpChallenge must require {field}:{wanted}"),
+            ));
+        }
+    }
+    let inventoried = model.records.get("Session").is_some_and(|session| {
+        session
+            .required
+            .iter()
+            .any(|declared| declared.name == "device" && declared.type_name == "Device")
+            && session
+                .required
+                .iter()
+                .any(|declared| declared.name == "last_active_at" && declared.type_name == "Timestamp")
+    });
+    if !inventoried {
+        violations.push(violation(
+            &origin,
+            "missing-identity-module",
+            "Session must carry device:Device and last_active_at:Timestamp",
+        ));
+    }
+}
+
 fn check_golden_failure(
     model: &Model,
     operation: &Operation,
@@ -1796,6 +1854,7 @@ pub fn human_api_schema(root: &Path) -> Result<SchemaReport, Vec<Violation>> {
     check_operation_declarations(&model, &encoding, &mut violations);
     human_api_error_model(&model, root, &mut violations);
     human_api_stream_module(&model, root, &mut violations);
+    human_api_identity_module(&model, root, &mut violations);
     let mut golden_vectors = 0;
     for operation in &model.operations {
         golden_vectors += check_golden(root, &model, &encoding, operation, &mut violations);

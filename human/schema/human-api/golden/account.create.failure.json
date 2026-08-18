@@ -1,0 +1,13 @@
+{
+  "status": 409,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "conflict",
+      "copy_key": "error.account.already-exists",
+      "retry": "structural",
+      "field": "email"
+    },
+    "trace": "trc_01j2h5b2rx3f4g5h6j7k8m9n0p"
+  }
+}

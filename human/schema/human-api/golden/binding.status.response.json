@@ -1,0 +1,17 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "state": "bound",
+      "address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+      "bound_at": "2026-08-18T11:52:30Z",
+      "evidence": {
+        "evidence_id": "evd_01j2h6a1bg4r6s8t0v2w4x6y8z",
+        "class": "layerx-receipt",
+        "verification": "receipt-verified"
+      }
+    },
+    "trace": "trc_01j2h6b2ch5s6t7v8w9x0y1z2a"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "sessions": [
+        {
+          "session_id": "ses_01j2h5q4zc3d5e7f9g1h3j5k7m",
+          "device": {
+            "device_id": "dev_01j2h5t6cf6g8h0j2k4m6n8p0q",
+            "label": "Safari on iPhone",
+            "platform": "ios"
+          },
+          "opened_at": "2026-08-18T10:07:44Z",
+          "last_active_at": "2026-08-18T11:42:03Z",
+          "current": true
+        },
+        {
+          "session_id": "ses_01j2h5r8ad4e6f8g0h2j4k6m8n",
+          "device": {
+            "device_id": "dev_01j2h5v0dg7h9j1k3m5n7p9q1r",
+            "label": "Chrome on macOS",
+            "platform": "web"
+          },
+          "opened_at": "2026-08-12T08:15:26Z",
+          "last_active_at": "2026-08-17T19:03:55Z",
+          "current": false
+        }
+      ]
+    },
+    "trace": "trc_01j2h5r5fm6w7x8y9z0a1b2c3d"
+  }
+}

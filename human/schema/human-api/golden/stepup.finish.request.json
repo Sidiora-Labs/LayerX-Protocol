@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/step-up/chg_01j2h5w4eh8j0k2m4n6p8q0r2s",
+  "body": {
+    "credential": "eyJpZCI6IktFWTEiLCJyZXNwb25zZSI6eyJzaWduYXR1cmUiOiJNRVFDSUEifX0"
+  }
+}

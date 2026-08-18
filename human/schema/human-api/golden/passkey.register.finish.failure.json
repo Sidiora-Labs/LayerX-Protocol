@@ -1,0 +1,12 @@
+{
+  "status": 410,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "challenge-expired",
+      "copy_key": "error.passkey.challenge-expired",
+      "retry": "structural"
+    },
+    "trace": "trc_01j2h5f6wb7k8m9n0p1q2r3s4t"
+  }
+}

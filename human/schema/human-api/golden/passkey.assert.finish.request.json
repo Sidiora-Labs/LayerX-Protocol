@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/passkeys/assertions/asr_01j2h5p0yb2c4d6e8f0g2h4j6k",
+  "body": {
+    "credential": "eyJpZCI6IktFWTEiLCJyZXNwb25zZSI6eyJzaWduYXR1cmUiOiJNRVlDSVEifX0"
+  }
+}

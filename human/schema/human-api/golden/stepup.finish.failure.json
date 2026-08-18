@@ -1,0 +1,12 @@
+{
+  "status": 410,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "challenge-expired",
+      "copy_key": "error.step-up.challenge-expired",
+      "retry": "structural"
+    },
+    "trace": "trc_01j2h612rx5f6g7h8j9k0m1n2p"
+  }
+}

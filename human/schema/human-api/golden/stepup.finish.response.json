@@ -1,0 +1,14 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "challenge_id": "chg_01j2h5w4eh8j0k2m4n6p8q0r2s",
+      "confirms": "opd_01j2h5x8fj9k1m3n5p7q9r1s3t",
+      "passkey_id": "pky_01j2h5m2we5f7g9h1j3k5m7n9p",
+      "completed_at": "2026-08-18T11:48:22Z",
+      "expires_at": "2026-08-18T11:53:22Z"
+    },
+    "trace": "trc_01j2h601qw4e5f6g7h8j9k0m1n"
+  }
+}

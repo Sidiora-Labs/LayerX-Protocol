@@ -1,0 +1,12 @@
+{
+  "status": 401,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "unauthenticated",
+      "copy_key": "error.session.required",
+      "retry": "structural"
+    },
+    "trace": "trc_01j2h634tz7h8j9k0m1n2p3q4r"
+  }
+}

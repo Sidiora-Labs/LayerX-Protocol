@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/passkeys/assertions",
+  "body": {
+    "email": "mara@example.com"
+  }
+}

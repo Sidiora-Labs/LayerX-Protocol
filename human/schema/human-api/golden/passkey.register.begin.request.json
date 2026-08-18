@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/passkeys/registrations",
+  "body": {
+    "account_id": "act_01j2h5k8vq3n6p9r2s5t8v1w4x"
+  }
+}

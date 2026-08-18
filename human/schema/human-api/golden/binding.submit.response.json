@@ -1,0 +1,42 @@
+{
+  "status": 202,
+  "body": {
+    "ok": true,
+    "result": {
+      "journey_id": "jrn_01j2h63qhm1n3p5q7r9s1t3v5w",
+      "kind": "wallet-binding",
+      "state": "processing",
+      "state_copy_key": "status.processing",
+      "stages": [
+        {
+          "stage_id": "stg_01j2h63qhn2p4q6r8s0t2v4w6x",
+          "copy_key": "wallet-binding.stage.checking-your-signature",
+          "state": "done",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2h63qhp3q5r7s9t1v3w5x7y",
+              "class": "wallet-ack",
+              "verification": "unverified"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j2h63qhq4r6s8t0v2w4x6y8z",
+          "copy_key": "wallet-binding.stage.recording-the-link",
+          "state": "processing",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2h63qhr5s7t9v1w3x5y7z9a",
+              "class": "submission-record",
+              "verification": "unverified"
+            }
+          ]
+        }
+      ],
+      "evidence": [],
+      "started_at": "2026-08-18T11:51:08Z",
+      "updated_at": "2026-08-18T11:51:09Z"
+    },
+    "trace": "trc_01j2h689ze2p3q4r5s6t7v8w9x"
+  }
+}

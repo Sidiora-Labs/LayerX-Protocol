@@ -1,0 +1,13 @@
+{
+  "status": 503,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "upstream-degraded",
+      "copy_key": "error.onboarding.core-unreachable",
+      "retry": "retriable-after",
+      "retry_after_ms": 60000
+    },
+    "trace": "trc_01j2h656wb9k0m1n2p3q4r5s6t"
+  }
+}

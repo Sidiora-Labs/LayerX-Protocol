@@ -1,0 +1,12 @@
+{
+  "status": 404,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "not-found",
+      "copy_key": "error.account.not-found",
+      "retry": "final"
+    },
+    "trace": "trc_01j2h5d4tz5h6j7k8m9n0p1q2r"
+  }
+}

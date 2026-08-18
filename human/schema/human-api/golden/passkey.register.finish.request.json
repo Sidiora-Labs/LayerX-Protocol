@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/passkeys/registrations/reg_01j2h5n6xa1b3c5d7e9f1g3h5j",
+  "body": {
+    "credential": "eyJpZCI6IktFWTEiLCJyYXdJZCI6IktFWTEiLCJ0eXBlIjoicHVibGljLWtleSJ9"
+  }
+}

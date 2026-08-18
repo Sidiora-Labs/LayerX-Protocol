@@ -276,6 +276,30 @@ fn stream_module_without_its_spine_is_rejected() {
 }
 
 #[test]
+fn identity_module_without_its_spine_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "identity.kvx",
+        "[operation.account.create]",
+        "[operation.account.begin]",
+    );
+    let rules = violation_rules(fixture.path());
+    assert!(rules.contains(&"missing-identity-module"));
+}
+
+#[test]
+fn step_up_challenge_without_operation_binding_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "identity.kvx",
+        "confirms:OperationDigest",
+        "signals:OperationDigest",
+    );
+    let rules = violation_rules(fixture.path());
+    assert!(rules.contains(&"missing-identity-module"));
+}
+
+#[test]
 fn removed_declaration_breaks_the_baseline() {
     let fixture = Fixture::from_real_schema();
     fixture.rewrite(

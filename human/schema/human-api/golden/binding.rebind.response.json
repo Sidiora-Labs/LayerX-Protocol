@@ -1,0 +1,54 @@
+{
+  "status": 202,
+  "body": {
+    "ok": true,
+    "result": {
+      "journey_id": "jrn_01j2h64rjn2p4q6r8s0t2v4w6x",
+      "kind": "wallet-binding",
+      "state": "processing",
+      "state_copy_key": "status.processing",
+      "stages": [
+        {
+          "stage_id": "stg_01j2h64rjp3q5r7s9t1v3w5x7y",
+          "copy_key": "wallet-binding.stage.confirming-it-is-you",
+          "state": "done",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2h64rjq4r6s8t0v2w4x6y8z",
+              "class": "local-journey-state",
+              "verification": "unverified"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j2h64rjr5s7t9v1w3x5y7z9a",
+          "copy_key": "wallet-binding.stage.checking-your-signature",
+          "state": "done",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2h64rjs6t8v0w2x4y6z8a0b",
+              "class": "wallet-ack",
+              "verification": "unverified"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j2h64rjt7v9w1x3y5z7a9b1c",
+          "copy_key": "wallet-binding.stage.recording-the-link",
+          "state": "processing",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2h64rjv8w0x2y4z6a8b0c2d",
+              "class": "submission-record",
+              "verification": "unverified"
+            }
+          ]
+        }
+      ],
+      "evidence": [],
+      "started_at": "2026-08-18T11:54:41Z",
+      "updated_at": "2026-08-18T11:54:42Z"
+    },
+    "trace": "trc_01j2h6d4ek7v8w9x0y1z2a3b4c"
+  }
+}

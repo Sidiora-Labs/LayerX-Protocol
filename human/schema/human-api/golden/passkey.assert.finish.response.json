@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "assertion_id": "asr_01j2h5p0yb2c4d6e8f0g2h4j6k",
+      "passkey_id": "pky_01j2h5m2we5f7g9h1j3k5m7n9p",
+      "completed_at": "2026-08-18T10:07:41Z",
+      "expires_at": "2026-08-18T10:12:41Z"
+    },
+    "trace": "trc_01j2h5j9ze0p1q2r3s4t5v6w7x"
+  }
+}

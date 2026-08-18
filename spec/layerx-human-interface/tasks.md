@@ -174,21 +174,21 @@ money or claims something about money, and both depend on the spine being real.
     - Define the compatibility matrix artefact recording schema, service and web application versions.
     - Wire schema validation and the additive-only check into make human-check and CI.
     - _Requirements: 8.1, 8.9_
-  - [ ] 4.2 Define identity, session and wallet-binding operations
+  - [x] 4.2 Define identity, session and wallet-binding operations
     - Define account creation, passkey registration and assertion, session open, refresh, list and revoke, and the step-up challenge operations.
     - Define the onboarding journey operations: start, stage status and resume, with the account-active condition tied to receipt verification.
     - Define wallet binding: binding statement issuance, signed-binding submission, binding status and rebinding, each receipt-gated.
     - Define profile operations for declared-local data, separated from protocol identity.
     - Add golden vectors for every operation including the failure shapes.
     - _Requirements: 8.2, 3.1, 5.1_
-  - [ ] 4.3 Define movement and custody journey operations
+  - [-] 4.3 Define movement and custody journey operations
     - Define the movement operations - quote, review, commit, journey status - in movement vocabulary: fund, allocate, return, transfer, deposit, withdraw, exit.
     - Require an idempotency key on every operation that could move money, with the repeated-request rule returning the original journey.
     - Define deposit, withdrawal, claim and exit journey shapes with their stages and per-stage evidence classes.
     - Define the refusal shapes carrying which limit refused and where it can be changed.
     - Add golden vectors covering multi-leg journeys, still-checking and refusals.
     - _Requirements: 8.2, 8.4, 9.1_
-  - [ ] 4.4 Define agent, approval, activity and notification operations
+  - [-] 4.4 Define agent, approval, activity and notification operations
     - Define agent lifecycle operations: create with name, purpose and limit, creation-journey status, pause, resume, limit change, reclaim, rotate, recover and archive.
     - Define the approval inbox operations mirroring the agent layer's approval module: list, get with rendered disclosure, approve with step-up evidence, reject.
     - Define the activity feed operations: cursor-paginated feed, entry detail with evidence references, filters, statement and evidence-bundle export.

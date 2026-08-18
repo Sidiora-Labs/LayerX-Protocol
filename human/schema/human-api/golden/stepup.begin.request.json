@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/step-up",
+  "body": {
+    "confirms": "opd_01j2h5x8fj9k1m3n5p7q9r1s3t"
+  }
+}

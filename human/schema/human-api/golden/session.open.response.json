@@ -1,0 +1,18 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "result": {
+      "session_id": "ses_01j2h5q4zc3d5e7f9g1h3j5k7m",
+      "device": {
+        "device_id": "dev_01j2h5t6cf6g8h0j2k4m6n8p0q",
+        "label": "Safari on iPhone",
+        "platform": "ios"
+      },
+      "opened_at": "2026-08-18T10:07:44Z",
+      "last_active_at": "2026-08-18T10:07:44Z",
+      "current": true
+    },
+    "trace": "trc_01j2h5m1bg2r3s4t5v6w7x8y9z"
+  }
+}

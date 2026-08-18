@@ -1,0 +1,7 @@
+{
+  "method": "PATCH",
+  "path": "/v1/profile",
+  "body": {
+    "display_name": "Mara O."
+  }
+}

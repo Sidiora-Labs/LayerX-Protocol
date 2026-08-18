@@ -1,0 +1,13 @@
+{
+  "status": 400,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "invalid-request",
+      "copy_key": "error.wallet.signature-mismatch",
+      "retry": "structural",
+      "field": "signature"
+    },
+    "trace": "trc_01j2h690af3q4r5s6t7v8w9x0y"
+  }
+}

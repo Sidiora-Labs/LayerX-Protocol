@@ -1,0 +1,60 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "journey_id": "jrn_01j2h1w7ka3c5d7e9f1g3h5j7k",
+      "kind": "onboarding",
+      "state": "processing",
+      "state_copy_key": "status.processing",
+      "stages": [
+        {
+          "stage_id": "stg_01j2h1w7kb2b4c6d8e0f2g4h6j",
+          "copy_key": "onboarding.stage.creating-your-account",
+          "state": "done",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2h1w7kc1a3b5c7d9e1f3g5h",
+              "class": "local-journey-state",
+              "verification": "unverified"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j2h1w7kd0z2a4b6c8d0e2f4g",
+          "copy_key": "onboarding.stage.adding-your-passkey",
+          "state": "done",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2h62ksb6g8h0j2k4m6n8p0q",
+              "class": "local-journey-state",
+              "verification": "unverified"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j2h1w7ke9y1z3a5b7c9d1e3f",
+          "copy_key": "onboarding.stage.setting-up-your-protocol-identity",
+          "state": "processing",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2h62mtc7h9j1k3m5n7p9q1r",
+              "class": "submission-record",
+              "verification": "unverified"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j2h1w7kf8x0y2z4a6b8c0d2e",
+          "copy_key": "onboarding.stage.putting-recovery-in-place",
+          "state": "getting-ready",
+          "evidence": []
+        }
+      ],
+      "evidence": [],
+      "started_at": "2026-08-18T10:00:00Z",
+      "updated_at": "2026-08-18T10:08:15Z"
+    },
+    "trace": "trc_01j2h623sy6g7h8j9k0m1n2p3q"
+  }
+}

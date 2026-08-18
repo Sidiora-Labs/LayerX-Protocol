@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "path": "/v1/accounts",
+  "headers": {
+    "Idempotency-Key": "9f8b6d4c2e0a1b3c5d7e9f0a2b4c6d8e"
+  },
+  "body": {
+    "email": "mara@example.com",
+    "display_name": "Mara Okafor"
+  }
+}
