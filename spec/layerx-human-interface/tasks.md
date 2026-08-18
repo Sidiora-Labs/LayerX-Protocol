@@ -151,7 +151,7 @@ money or claims something about money, and both depend on the spine being real.
     - Implement the disclosure-matches-intent checker that verifies field-for-field agreement between a returned disclosure and the originating intent, as the pre-signature gate journeys will use.
     - Wire both gates into make human-test-intents and CI.
     - _Requirements: 7.3, 7.4, 7.7_
-  - [-] 3.4 Reject the unknown deterministically and fuzz the surface
+  - [x] 3.4 Reject the unknown deterministically and fuzz the surface
     - Reject unknown intent versions and unknown intent kinds with typed errors, preserving the input for diagnosis without executing it.
     - Add fuzz targets for intent deserialisation and compilation with committed corpora, treating a panic, hang or unbounded allocation as a build-breaking defect.
     - Assert no floating-point type appears anywhere in the crate through the lint set.

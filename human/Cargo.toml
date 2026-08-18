@@ -31,3 +31,5 @@ all = { level = "deny", priority = -1 }
 pedantic = { level = "deny", priority = -1 }
 unwrap_used = "deny"
 expect_used = "deny"
+float_arithmetic = "deny"
+lossy_float_literal = "deny"

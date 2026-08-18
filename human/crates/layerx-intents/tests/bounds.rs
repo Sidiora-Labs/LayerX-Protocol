@@ -30,7 +30,7 @@ proptest! {
 
     #[test]
     fn every_overlong_account_is_rejected_without_normalisation(
-        extra in prop::collection::vec('a'..='z', 1..=512),
+        extra in prop::collection::vec(prop::char::range('a', 'z'), 1..=512),
     ) {
         let mut value = "agent:".to_owned();
         value.extend(std::iter::repeat_n('a', MAX_ACCOUNT_NAME_BYTES));
