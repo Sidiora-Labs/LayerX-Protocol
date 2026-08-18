@@ -1,0 +1,41 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "journeys": [
+        {
+          "journey_id": "jrn_01j2gx4v0nb3c4d5e6f7g8h9j0",
+          "kind": "move",
+          "state": "done",
+          "state_copy_key": "status.done",
+          "stages": [
+            {
+              "stage_id": "stg_01j2gx4v0nd5e6f7g8h9j0k1m2",
+              "copy_key": "move.stage.sending",
+              "state": "done",
+              "evidence": [
+                {
+                  "evidence_id": "evd_01j2gx4v0nf7g8h9j0k1m2n3p4",
+                  "class": "layerx-receipt",
+                  "verification": "receipt-verified"
+                }
+              ]
+            }
+          ],
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2gx4v0nf7g8h9j0k1m2n3p4",
+              "class": "layerx-receipt",
+              "verification": "receipt-verified"
+            }
+          ],
+          "started_at": "2026-08-14T16:05:00Z",
+          "updated_at": "2026-08-14T16:05:09Z"
+        }
+      ],
+      "next_cursor": ""
+    },
+    "trace": "trc_01j2gx4v0ng9h0j1k2m3n4p5q6"
+  }
+}

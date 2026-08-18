@@ -34,7 +34,7 @@ jobs:
           rustup toolchain install 1.91.1 --profile minimal --component clippy &&
           cargo install cargo-deny --locked --version 0.19.0
       - name: Enforce component-library integrity, copy, policies, and strict lints
-        run: make human-check-ui human-lint
+        run: make human-check-ui human-lint human-check
       - name: Build and test the isolated human workspace
         run: make human-build human-test human-test-intents
       - name: Scan the web bundle for payload-encoding code paths

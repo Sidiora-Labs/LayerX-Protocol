@@ -1,0 +1,60 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "journey_id": "jrn_01j2gx3fam9kq4vte8n5w6y7z8",
+      "kind": "deposit",
+      "state": "processing",
+      "state_copy_key": "status.processing",
+      "stages": [
+        {
+          "stage_id": "stg_01j2gx3famd4qns7v8w9x0y1z2",
+          "copy_key": "deposit.stage.waiting-for-wallet",
+          "state": "done",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2gx3famh6r7s8t9v0w1x2y3",
+              "class": "wallet-ack",
+              "verification": "unverified"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j2gx3famj8t9v0w1x2y3z4a5",
+          "copy_key": "deposit.stage.confirming-on-paxeer",
+          "state": "done",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2gx3famk0v1w2x3y4z5a6b7",
+              "class": "paxeer-finality",
+              "verification": "paxeer-finalised"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j2gx3famm2x3y4z5a6b7c8d9",
+          "copy_key": "deposit.stage.crediting",
+          "state": "processing",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2gx3famn4z5a6b7c8d9e0f1",
+              "class": "submission-record",
+              "verification": "unverified"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "evd_01j2gx3famp6b7c8d9e0f1g2h3",
+          "class": "local-journey-state",
+          "verification": "unverified"
+        }
+      ],
+      "started_at": "2026-08-18T09:30:00Z",
+      "updated_at": "2026-08-18T09:31:42Z"
+    },
+    "trace": "trc_01j2gx3famq8d9e0f1g2h3j4k5"
+  }
+}

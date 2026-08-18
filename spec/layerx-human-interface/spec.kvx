@@ -589,7 +589,7 @@ status = "pending"
 
 [task.4.1]
 title = "Define the contract schema and its compatibility rules"
-status = "pending"
+status = "in_progress"
 wave = 2
 requires = ["1.1"]
 do_1 = "Define the human-api schema under human/schema/human-api with explicit major and minor versions, the additive-only rule within a major, and the HTTPS+JSON encoding conventions."

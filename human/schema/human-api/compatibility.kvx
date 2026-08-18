@@ -1,0 +1,7 @@
+[compatibility]
+rule = "Every released pairing of contract schema, human service and web application versions is recorded here as a row. The conformance suite validates the shape of every row, and published rows are frozen by the additive-only baseline."
+
+[compatibility.row.1]
+schema = "1.0"
+service = "0.1.x"
+web_app = "0.1.x"

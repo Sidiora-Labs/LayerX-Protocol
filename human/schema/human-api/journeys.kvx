@@ -1,0 +1,51 @@
+[module]
+name = "journeys"
+contract_major = 1
+compatibility = "additive_only"
+spine = "Every operation on this contract speaks in journeys, stages, states and evidence references. Raw protocol structures never cross this boundary."
+
+[type.JourneyKind]
+variants = ["onboarding","wallet-binding","deposit","withdraw","exit","move","agent-create","agent-fund","agent-pause","agent-retire"]
+boundary = "deposit, withdraw and exit name custody-boundary journeys exclusively. Every movement inside LayerX is move, resolved to fund, allocate, return or transfer by the route resolver."
+
+[type.JourneyState]
+variants = ["getting-ready","sending","processing","done","done-finalised","still-checking","refused","waiting-for-you"]
+table = "This vocabulary is the normative status translation table. A state outside it on a default surface is a build failure."
+done.semantics = "Rendered only when a verified LayerX receipt or a verified Paxeer finality proof in the journey's evidence backs the exact outcome."
+done-finalised.semantics = "The receipt-backed outcome is additionally covered by a finalised checkpoint proof."
+still-checking.semantics = "The outcome is unknown. It resolves only by receipt lookup under the journey's idempotency key, and every duplicate-capable control stays locked while it lasts."
+refused.semantics = "A typed refusal backs this state and always states whether any money left the account."
+waiting-for-you.semantics = "A policy hold with deterministic expiry awaits the user's approval decision."
+
+[type.EvidenceClass]
+variants = ["local-journey-state","submission-record","layerx-receipt","checkpoint-proof","paxeer-finality","typed-refusal","approval-hold","wallet-ack"]
+
+[type.VerificationLevel]
+variants = ["unverified","receipt-verified","checkpoint-finalised","paxeer-finalised"]
+ordering = "declaration_order"
+
+[type.EvidenceRef]
+required = ["evidence_id:EvidenceId","class:EvidenceClass","verification:VerificationLevel"]
+export = "Every evidence reference is sufficient to fetch the receipt or proof material for export and independent verification."
+
+[type.JourneyStage]
+required = ["stage_id:StageId","copy_key:CopyKey","state:JourneyState","evidence:EvidenceRef[]"]
+
+[type.Journey]
+required = ["journey_id:JourneyId","kind:JourneyKind","state:JourneyState","state_copy_key:CopyKey","stages:JourneyStage[]","evidence:EvidenceRef[]","started_at:Timestamp","updated_at:Timestamp"]
+rule = "A journey is the only shape in which protocol activity reaches a client."
+
+[type.JourneyPage]
+required = ["journeys:Journey[]","next_cursor:Cursor"]
+
+[operation.journey.get]
+method = "GET"
+path = "/v1/journeys/{journey_id}"
+request = "Empty"
+response = "Journey"
+
+[operation.journey.list]
+method = "GET"
+path = "/v1/journeys"
+request = "Empty"
+response = "JourneyPage"

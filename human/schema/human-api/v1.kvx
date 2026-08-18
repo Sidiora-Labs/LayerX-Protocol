@@ -1,0 +1,100 @@
+[schema]
+name = "LayerX Human API"
+major = 1
+minor = 0
+source_of_truth = "This schema and the schema files it includes define the human-api contract between layerx-human-service and the web application. Generated client output is never authoritative."
+compatibility = "Additive only within a major version: a release may only add sections, keys, list entries or optional fields. Removing or changing an existing declaration requires a new major version."
+includes = ["journeys.kvx"]
+
+[encoding]
+transport = "HTTPS"
+content_type = "application/json"
+base_path = "/v1"
+request = "A JSON object shaped by the operation's request type. Operations declaring the Empty request send no body."
+response = "A JSON envelope with ok as a boolean, result matching the operation's response type when ok is true, error as a structured object when ok is false, and trace always present."
+error = "Failure responses carry ok false and a structured error object with a stable machine code, a copy-catalog key, the trace identifier and a retriability classification. No operation returns an unstructured error."
+amounts = "Every amount is a decimal string of base units, never a JSON number, and always travels with an explicit currency code. TypeScript clients read amounts as bigint."
+idempotency_header = "Idempotency-Key"
+idempotency = "Every mutation that could move money or change protocol state requires the Idempotency-Key header, and repeating the request returns the original journey rather than a second effect."
+versioning = "The contract major version is the first segment of every operation path. Within one major version every change is additive."
+
+[golden]
+layout = "golden/<operation>.request.json and golden/<operation>.response.json for every operation"
+request_shape = "method, path, optional headers, optional body"
+response_shape = "status, body"
+rule = "Golden vectors are the executable examples of this contract. The conformance suite fails when an operation lacks vectors or a vector departs from the declared shapes."
+
+[scalar.Amount]
+json = "string"
+format = "decimal"
+rust = "u128"
+typescript = "bigint"
+consensus_integer = true
+
+[scalar.CurrencyCode]
+json = "string"
+format = "currency"
+rust = "String"
+typescript = "string"
+
+[scalar.Timestamp]
+json = "string"
+format = "rfc3339-utc"
+rust = "String"
+typescript = "string"
+
+[scalar.JourneyId]
+json = "string"
+prefix = "jrn_"
+rust = "String"
+typescript = "string"
+
+[scalar.StageId]
+json = "string"
+prefix = "stg_"
+rust = "String"
+typescript = "string"
+
+[scalar.EvidenceId]
+json = "string"
+prefix = "evd_"
+rust = "String"
+typescript = "string"
+
+[scalar.TraceId]
+json = "string"
+prefix = "trc_"
+rust = "String"
+typescript = "string"
+
+[scalar.CopyKey]
+json = "string"
+format = "copy-key"
+rust = "String"
+typescript = "string"
+
+[scalar.Cursor]
+json = "string"
+rust = "String"
+typescript = "string"
+
+[type.Empty]
+required = []
+
+[record.SchemaVersion]
+fields = ["major:integer","minor:integer"]
+
+[record.VersionInfo]
+fields = ["schema:SchemaVersion","service:string"]
+
+[record.Money]
+fields = ["amount:Amount","currency:CurrencyCode"]
+
+[record.ResponseEnvelope]
+fields = ["ok:boolean","result:object","trace:TraceId"]
+
+[operation.version]
+method = "GET"
+path = "/v1/version"
+request = "Empty"
+response = "VersionInfo"
