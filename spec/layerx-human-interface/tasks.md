@@ -167,7 +167,7 @@ money or claims something about money, and both depend on the spine being real.
     - _Requirements: 7.9, 1.1_
 
 - [ ] 4. Define human-api, the human-facing service contract
-  - [-] 4.1 Define the contract schema and its compatibility rules
+  - [x] 4.1 Define the contract schema and its compatibility rules
     - Define the human-api schema under human/schema/human-api with explicit major and minor versions, the additive-only rule within a major, and the HTTPS+JSON encoding conventions.
     - Establish the golden request and response vector convention and the conformance suite that enforces it.
     - Define the journey vocabulary as the contract's spine - journeys with identifiers, stages, states and evidence references - so no operation speaks raw protocol structures.
