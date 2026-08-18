@@ -4,7 +4,7 @@ major = 1
 minor = 0
 source_of_truth = "This schema and the schema files it includes define the human-api contract between layerx-human-service and the web application. Generated client output is never authoritative."
 compatibility = "Additive only within a major version: a release may only add sections, keys, list entries or optional fields. Removing or changing an existing declaration requires a new major version."
-includes = ["journeys.kvx"]
+includes = ["journeys.kvx","errors.kvx","stream.kvx"]
 
 [encoding]
 transport = "HTTPS"
@@ -23,6 +23,8 @@ layout = "golden/<operation>.request.json and golden/<operation>.response.json f
 request_shape = "method, path, optional headers, optional body"
 response_shape = "status, body"
 rule = "Golden vectors are the executable examples of this contract. The conformance suite fails when an operation lacks vectors or a vector departs from the declared shapes."
+failure_layout = "golden/<operation>.failure.json for every operation"
+failure_rule = "Every operation ships a failure vector proving its typed error shape: a non-2xx status and an envelope carrying ok false, the structured ApiError and the trace. An operation without a failure vector fails the conformance suite."
 
 [scalar.Amount]
 json = "string"

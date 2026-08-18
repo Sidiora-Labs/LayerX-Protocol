@@ -101,6 +101,8 @@ fn add_move_commit(fixture: &Fixture, request_vector: &str) {
     fixture.write("golden/move.commit.request.json", request_vector);
     let journey = fixture.read("golden/journey.get.response.json");
     fixture.write("golden/move.commit.response.json", &journey);
+    let refusal = fixture.read("golden/journey.get.failure.json");
+    fixture.write("golden/move.commit.failure.json", &refusal);
 }
 
 const MOVE_COMMIT_REQUEST: &str = r#"{
@@ -146,11 +148,7 @@ fn missing_schema_version_is_rejected() {
 #[test]
 fn missing_include_is_rejected() {
     let fixture = Fixture::from_real_schema();
-    fixture.rewrite(
-        "v1.kvx",
-        "includes = [\"journeys.kvx\"]",
-        "includes = [\"journeys.kvx\",\"identity.kvx\"]",
-    );
+    fixture.rewrite("v1.kvx", "includes = [", "includes = [\"ghost.kvx\",");
     assert!(violation_rules(fixture.path()).contains(&"missing-include"));
 }
 
@@ -213,6 +211,68 @@ fn orphan_golden_vector_is_rejected() {
     let fixture = Fixture::from_real_schema();
     fixture.write("golden/ghost.request.json", "{\"method\": \"GET\"}");
     assert!(violation_rules(fixture.path()).contains(&"orphan-golden-vector"));
+}
+
+#[test]
+fn missing_failure_vector_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.remove("golden/journey.get.failure.json");
+    assert!(violation_rules(fixture.path()).contains(&"missing-failure-vector"));
+}
+
+#[test]
+fn failure_envelope_claiming_success_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "golden/journey.get.failure.json",
+        "\"ok\": false",
+        "\"ok\": true",
+    );
+    assert!(violation_rules(fixture.path()).contains(&"invalid-failure-envelope"));
+}
+
+#[test]
+fn failure_vector_with_success_status_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite("golden/journey.get.failure.json", "\"status\": 404", "\"status\": 200");
+    assert!(violation_rules(fixture.path()).contains(&"invalid-failure-status"));
+}
+
+#[test]
+fn undeclared_machine_code_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "golden/journey.get.failure.json",
+        "\"code\": \"not-found\"",
+        "\"code\": \"gone-wrong\"",
+    );
+    assert!(violation_rules(fixture.path()).contains(&"undeclared-enum-value"));
+}
+
+#[test]
+fn rate_limit_failure_without_timing_shape_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "golden/version.failure.json",
+        "\"retry_after_ms\": 5000",
+        "\"retry_after_ms\": \"soon\"",
+    );
+    assert!(violation_rules(fixture.path()).contains(&"shape-mismatch"));
+}
+
+#[test]
+fn contract_without_the_error_model_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite("errors.kvx", "[type.ApiError]", "[type.ApiFailure]");
+    assert!(violation_rules(fixture.path()).contains(&"missing-error-model"));
+}
+
+#[test]
+fn stream_module_without_its_spine_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite("stream.kvx", "[operation.stream.next]", "[operation.stream.later]");
+    let rules = violation_rules(fixture.path());
+    assert!(rules.contains(&"missing-stream-module"));
 }
 
 #[test]
@@ -281,10 +341,11 @@ fn missing_baseline_instructs_a_deliberate_refresh() {
 #[test]
 fn idempotent_mutation_with_header_and_decimal_amount_passes() {
     let fixture = Fixture::from_real_schema();
+    let base = passing_report(fixture.path());
     add_move_commit(&fixture, MOVE_COMMIT_REQUEST);
     let outcome = passing_report(fixture.path());
     assert!(outcome.additions_beyond_baseline >= 1);
-    assert_eq!(outcome.operations, 4);
+    assert_eq!(outcome.operations, base.operations + 1);
 }
 
 #[test]

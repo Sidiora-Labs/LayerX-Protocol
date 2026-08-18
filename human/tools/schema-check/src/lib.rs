@@ -540,7 +540,7 @@ fn check_encoding(file: &SchemaFile, violations: &mut Vec<Violation>) -> Encodin
         )),
     }
     if let Some(golden) = file.sections.get("golden") {
-        for key in ["layout", "rule"] {
+        for key in ["layout", "rule", "failure_layout", "failure_rule"] {
             if quoted(golden, key).is_none_or(str::is_empty) {
                 violations.push(violation(
                     &file.path,
@@ -1367,6 +1367,166 @@ fn check_golden_response(
     }
 }
 
+/// Enforces the typed error model: the ApiError record every failure envelope
+/// carries, its stable machine-code enum and its retriability classification.
+fn human_api_error_model(model: &Model, root: &Path, violations: &mut Vec<Violation>) {
+    let origin = root.join("errors.kvx");
+    let Some(record) = model.records.get("ApiError") else {
+        violations.push(violation(
+            &origin,
+            "missing-error-model",
+            "the contract must declare the ApiError record its failure envelopes carry",
+        ));
+        return;
+    };
+    for (field, wanted) in [("code", "ErrorCode"), ("copy_key", "CopyKey"), ("retry", "Retriability")] {
+        let carried = record
+            .required
+            .iter()
+            .any(|declared| declared.name == field && declared.type_name == wanted);
+        if !carried {
+            violations.push(violation(
+                &origin,
+                "missing-error-model",
+                format!("ApiError must require {field}:{wanted}"),
+            ));
+        }
+    }
+    for enum_name in ["ErrorCode", "Retriability"] {
+        if !model.enums.contains_key(enum_name) {
+            violations.push(violation(
+                &origin,
+                "missing-error-model",
+                format!("the error model must declare the {enum_name} enum"),
+            ));
+        }
+    }
+}
+
+/// Enforces the resumable streaming spine: the stream operations and the
+/// cursor-ordered event shapes both shells rely on to render live state.
+fn human_api_stream_module(model: &Model, root: &Path, violations: &mut Vec<Violation>) {
+    let origin = root.join("stream.kvx");
+    for operation in ["stream.open", "stream.next"] {
+        if !model.operations.iter().any(|declared| declared.name == operation) {
+            violations.push(violation(
+                &origin,
+                "missing-stream-module",
+                format!("the contract must declare operation.{operation}"),
+            ));
+        }
+    }
+    let Some(event) = model.records.get("StreamEvent") else {
+        violations.push(violation(
+            &origin,
+            "missing-stream-module",
+            "the contract must declare the StreamEvent record",
+        ));
+        return;
+    };
+    for (field, wanted) in [("cursor", "Cursor"), ("kind", "StreamEventKind"), ("observed_at", "Timestamp")] {
+        let carried = event
+            .required
+            .iter()
+            .any(|declared| declared.name == field && declared.type_name == wanted);
+        if !carried {
+            violations.push(violation(
+                &origin,
+                "missing-stream-module",
+                format!("StreamEvent must require {field}:{wanted}"),
+            ));
+        }
+    }
+    let paged = model.records.get("StreamPage").is_some_and(|page| {
+        page.required.iter().any(|declared| declared.name == "events" && declared.array)
+            && page.required.iter().any(|declared| declared.name == "next_cursor")
+    });
+    if !paged {
+        violations.push(violation(
+            &origin,
+            "missing-stream-module",
+            "StreamPage must carry events:StreamEvent[] and next_cursor:Cursor",
+        ));
+    }
+}
+
+fn check_golden_failure(
+    model: &Model,
+    operation: &Operation,
+    path: &Path,
+    vector: &Json,
+    violations: &mut Vec<Violation>,
+) {
+    let Json::Object(pairs) = vector else {
+        violations.push(violation(path, "invalid-golden-vector", "failure vector must be a JSON object"));
+        return;
+    };
+    for (key, _) in pairs {
+        if !matches!(key.as_str(), "status" | "body") {
+            violations.push(violation(
+                path,
+                "unexpected-vector-key",
+                format!("failure vector key {key} is not part of the convention"),
+            ));
+        }
+    }
+    let status_valid = matches!(
+        vector.field("status"),
+        Some(Json::Number(text))
+            if is_integer_text(text) && text.parse::<i64>().is_ok_and(|status| (400..600).contains(&status))
+    );
+    if !status_valid {
+        violations.push(violation(
+            path,
+            "invalid-failure-status",
+            "failure vector status must be a 4xx or 5xx integer",
+        ));
+    }
+    let Some(body @ Json::Object(body_pairs)) = vector.field("body") else {
+        violations.push(violation(path, "invalid-failure-envelope", "failure vector body must be a JSON object"));
+        return;
+    };
+    for (key, _) in body_pairs {
+        if !matches!(key.as_str(), "ok" | "error" | "trace") {
+            violations.push(violation(
+                path,
+                "invalid-failure-envelope",
+                format!("envelope key {key} is not part of the convention"),
+            ));
+        }
+    }
+    if body.field("ok") != Some(&Json::Bool(false)) {
+        violations.push(violation(
+            path,
+            "invalid-failure-envelope",
+            "golden failure envelopes carry ok false",
+        ));
+    }
+    match body.field("trace") {
+        Some(trace @ Json::String(text)) if !text.is_empty() => {
+            if let Some(scalar) = model.scalars.get("TraceId") {
+                check_scalar_value(scalar, "TraceId", trace, path, "body.trace", violations);
+            }
+        }
+        _ => violations.push(violation(
+            path,
+            "invalid-failure-envelope",
+            "envelope trace must be a non-empty string",
+        )),
+    }
+    match body.field("error") {
+        Some(error) if model.records.contains_key("ApiError") => {
+            check_value(model, "ApiError", error, path, "body.error", violations);
+        }
+        Some(_) => {}
+        None => violations.push(violation(
+            path,
+            "invalid-failure-envelope",
+            format!("operation.{} failure envelope must carry the structured error", operation.name),
+        )),
+    }
+}
+
 fn check_golden(
     root: &Path,
     model: &Model,
@@ -1405,6 +1565,21 @@ fn check_golden(
             format!("operation.{} has no golden response vector", operation.name),
         )),
     }
+    let failure_path = root.join("golden").join(format!("{}.failure.json", operation.name));
+    match fs::read_to_string(&failure_path) {
+        Ok(body) => match parse_json(&body) {
+            Ok(vector) => {
+                vectors += 1;
+                check_golden_failure(model, operation, &failure_path, &vector, violations);
+            }
+            Err(detail) => violations.push(violation(&failure_path, "invalid-golden-json", detail)),
+        },
+        Err(_) => violations.push(violation(
+            &failure_path,
+            "missing-failure-vector",
+            format!("operation.{} has no golden failure vector", operation.name),
+        )),
+    }
     vectors
 }
 
@@ -1423,7 +1598,8 @@ fn check_orphan_goldens(root: &Path, model: &Model, violations: &mut Vec<Violati
         let name = entry.file_name().to_string_lossy().into_owned();
         let stem = name
             .strip_suffix(".request.json")
-            .or_else(|| name.strip_suffix(".response.json"));
+            .or_else(|| name.strip_suffix(".response.json"))
+            .or_else(|| name.strip_suffix(".failure.json"));
         let owned = stem.is_some_and(|stem| {
             model.operations.iter().any(|operation| operation.name == stem)
         });
@@ -1618,6 +1794,8 @@ pub fn human_api_schema(root: &Path) -> Result<SchemaReport, Vec<Violation>> {
     let model = collect_declarations(&files, &mut violations);
     check_type_references(&model, &mut violations);
     check_operation_declarations(&model, &encoding, &mut violations);
+    human_api_error_model(&model, root, &mut violations);
+    human_api_stream_module(&model, root, &mut violations);
     let mut golden_vectors = 0;
     for operation in &model.operations {
         golden_vectors += check_golden(root, &model, &encoding, operation, &mut violations);

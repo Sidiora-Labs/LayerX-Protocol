@@ -1,0 +1,23 @@
+[module]
+name = "errors"
+contract_major = 1
+compatibility = "additive_only"
+model = "Every failure response carries one typed shape: a stable machine code, the copy-catalog key naming the human message, the trace identifier on the envelope, and a retriability classification. No operation returns an unstructured error."
+report = "The envelope trace identifier is the key the Report action submits and the key support uses to retrieve the failure context the user saw."
+
+[type.ErrorCode]
+variants = ["unauthenticated","session-expired","step-up-required","forbidden","not-found","invalid-request","conflict","rate-limited","cursor-expired","unavailable","upstream-degraded"]
+stability = "Machine codes are stable identifiers. A code is never renamed or removed within a major version; new failure classes append new codes."
+
+[type.Retriability]
+variants = ["retriable","retriable-after","structural","final"]
+retriable.semantics = "The same request may be retried as-is. Surfaces offer Retry."
+retriable-after.semantics = "The same request may be retried once the carried retry_after_ms has elapsed. Rate-limit refusals always classify here and always carry the timing."
+structural.semantics = "Retrying the same call cannot help until surrounding state changes, such as re-authentication or a reload. Surfaces offer Reload."
+final.semantics = "The outcome is settled. The plane never retries into a different outcome and surfaces state the result honestly."
+
+[type.ApiError]
+required = ["code:ErrorCode","copy_key:CopyKey","retry:Retriability"]
+optional = ["retry_after_ms:integer","field:string"]
+rate_limit = "A rate-limited failure carries retry_after_ms so clients surface honest retry timing, as the retriable-after classification requires."
+field_errors = "A failure caused by one invalid input names it in field so forms can show the error inline at that field."

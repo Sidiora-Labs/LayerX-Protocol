@@ -195,7 +195,7 @@ money or claims something about money, and both depend on the spine being real.
     - Define notification operations: inventory, read state, preferences per channel and event class, and the non-suppressible security classes.
     - Add golden vectors for every operation.
     - _Requirements: 8.2, 13.1, 14.1_
-  - [ ] 4.5 Define the error, streaming and verification contract
+  - [x] 4.5 Define the error, streaming and verification contract
     - Define the typed error model: stable machine code, copy-catalog key, trace identifier and retriability class on every failure shape.
     - Define resumable streaming of journey progress, approval lifecycle and notifications with stable cursors and reconnection semantics.
     - Define verification-status carriage on every protocol fact and the evidence-reference shape for fetching receipt and proof material.

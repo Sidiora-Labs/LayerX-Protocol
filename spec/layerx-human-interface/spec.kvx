@@ -649,7 +649,7 @@ reqs = ["8.2","13.1","14.1"]
 
 [task.4.5]
 title = "Define the error, streaming and verification contract"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["4.1"]
 do_1 = "Define the typed error model: stable machine code, copy-catalog key, trace identifier and retriability class on every failure shape."
