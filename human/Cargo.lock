@@ -479,7 +479,6 @@ dependencies = [
  "layerx-proof",
  "layerx-sdk",
  "layerx-types",
- "layerx-wire",
 ]
 
 [[package]]
@@ -491,7 +490,6 @@ dependencies = [
  "layerx-proof",
  "layerx-sdk",
  "layerx-types",
- "layerx-wire",
 ]
 
 [[package]]
@@ -517,7 +515,6 @@ dependencies = [
  "layerx-proof",
  "layerx-sdk",
  "layerx-types",
- "layerx-wire",
 ]
 
 [[package]]

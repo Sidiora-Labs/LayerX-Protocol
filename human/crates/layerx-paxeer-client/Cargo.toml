@@ -7,7 +7,6 @@ license.workspace = true
 
 [dependencies]
 layerx-types.workspace = true
-layerx-wire.workspace = true
 layerx-crypto.workspace = true
 layerx-proof.workspace = true
 layerx-client.workspace = true

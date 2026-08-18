@@ -570,7 +570,7 @@ reqs = ["7.5","7.8","7.6"]
 
 [task.3.5]
 title = "Enforce the single payload authority"
-status = "pending"
+status = "done"
 wave = 2
 requires = ["3.2","1.2"]
 do_1 = "Extend the human workspace dependency gate so no component of human/ other than layerx-intents may depend on layerx-wire's encoding entry points."

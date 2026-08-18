@@ -37,6 +37,10 @@ jobs:
         run: make human-check-ui human-lint
       - name: Build and test the isolated human workspace
         run: make human-build human-test human-test-intents
+      - name: Scan the web bundle for payload-encoding code paths
+        run: >-
+          cargo run --manifest-path human/tools/boundary-check/Cargo.toml
+          --locked -- --web-bundle human/apps/web/.next
 
   browser-real-stack:
     if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')

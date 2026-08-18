@@ -158,7 +158,7 @@ money or claims something about money, and both depend on the spine being real.
     - Property-test bound enforcement: every over-long and out-of-range field is rejected at construction, never truncated.
     - Wire the fuzz targets into the scheduled fuzz job alongside the agent workspace targets.
     - _Requirements: 7.5, 7.8, 7.6_
-  - [ ] 3.5 Enforce the single payload authority
+  - [x] 3.5 Enforce the single payload authority
     - Extend the human workspace dependency gate so no component of human/ other than layerx-intents may depend on layerx-wire's encoding entry points.
     - Add fixtures proving the gate catches a violating dependency in a service crate and in the web application's build.
     - Verify the web application bundle contains no payload-encoding code path by scanning the build output in CI.

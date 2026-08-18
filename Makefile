@@ -1679,8 +1679,15 @@ human-check-ui:
 
 human-check:
 	$(HUMAN_CARGO) check --manifest-path $(HUMAN_MANIFEST) --locked --workspace
+	$(HUMAN_CARGO) test --manifest-path human/tools/boundary-check/Cargo.toml --locked
+	$(HUMAN_CARGO) run --manifest-path human/tools/boundary-check/Cargo.toml --locked -- human/crates
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) run typecheck
+
+human-check-bundle:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run build
+	$(HUMAN_CARGO) run --manifest-path human/tools/boundary-check/Cargo.toml --locked -- --web-bundle human/apps/web/.next
 
 human-e2e: human-test-e2e
 
