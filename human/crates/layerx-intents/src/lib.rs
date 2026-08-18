@@ -4,10 +4,17 @@
 mod compiler;
 mod disclosure;
 pub mod golden;
+mod reject;
 mod vocabulary;
 
 pub use compiler::{compile, CompileError, CompileErrorReason, CompileField, CompiledIntent};
 pub use disclosure::{DisclosureCheck, DisclosureCheckError, DisclosureField};
+pub use reject::{inspect_intent, IntentHeader, IntentKindTag, RejectReason, RejectedIntent};
+
+/// Names of the committed, scheduled fuzz surfaces shipped by this crate.
+pub mod fuzz_targets {
+    pub const INTENT_PARSING_AND_COMPILATION: &str = "intent";
+}
 
 pub use vocabulary::{
     BridgeDepositCredit, BridgeWithdrawRequest, BudgetCreate, BudgetDefund, BudgetFund,

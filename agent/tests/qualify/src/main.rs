@@ -6,6 +6,8 @@ mod exactly_once;
 mod fabrication;
 #[path = "../faults.rs"]
 mod faults;
+#[path = "../fuzz.rs"]
+mod fuzz;
 #[path = "../hostile_node.rs"]
 mod hostile_node;
 #[path = "../wire.rs"]
@@ -78,6 +80,23 @@ fn main() -> ExitCode {
             faults::agent_fault_injection_suite(&repository).and_then(|faults| {
                 exactly_once::agent_exactly_once_suite(&repository)
                     .map(|exactly_once| format!("{faults}\n{exactly_once}"))
+            })
+        }
+    } else if command == "fuzz" {
+        let Some(repository) = arguments.next().map(PathBuf::from) else {
+            eprintln!("fuzz gate is missing REPOSITORY");
+            return ExitCode::FAILURE;
+        };
+        let Some(minimized_root) = arguments.next().map(PathBuf::from) else {
+            eprintln!("fuzz gate is missing MINIMIZED_ROOT");
+            return ExitCode::FAILURE;
+        };
+        if arguments.next().is_some() {
+            Err("fuzz gate received an unexpected argument".to_owned())
+        } else {
+            fuzz::agent_qualify_fuzz_gate(&repository, &minimized_root).and_then(|fuzz| {
+                fuzz::agent_qualify_sanitizer_gate(&repository)
+                    .map(|sanitizers| format!("{fuzz}\n{sanitizers}"))
             })
         }
     } else {

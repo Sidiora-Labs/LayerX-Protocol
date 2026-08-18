@@ -1,0 +1,3 @@
+version=v3
+steps=2
+rule=permit-all,permit

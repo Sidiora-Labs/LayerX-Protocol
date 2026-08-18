@@ -67,3 +67,19 @@ jobs:
       - name: Run scheduled repeated browser suite
         if: github.event_name == 'schedule'
         run: make human-test-e2e-long
+
+  intent-fuzz:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install pinned fuzz toolchain and runner
+        run: >-
+          rustup toolchain install nightly-2025-11-10 --profile minimal &&
+          cargo install cargo-fuzz --locked
+      - name: Fuzz intent parsing and compilation from the committed corpus
+        run: make human-fuzz-intents

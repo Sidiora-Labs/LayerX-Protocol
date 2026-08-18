@@ -555,7 +555,7 @@ reqs = ["7.3","7.4","7.7"]
 
 [task.3.4]
 title = "Reject the unknown deterministically and fuzz the surface"
-status = "pending"
+status = "in_progress"
 wave = 2
 requires = ["3.2"]
 do_1 = "Reject unknown intent versions and unknown intent kinds with typed errors, preserving the input for diagnosis without executing it."

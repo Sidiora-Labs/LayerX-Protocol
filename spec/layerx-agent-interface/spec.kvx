@@ -2337,7 +2337,7 @@ reqs = ["23.4","23.5","13.7"]
 
 [task.23.5]
 title = "Run the fuzz, sanitizer and unsafe-code gates"
-status = "pending"
+status = "in_progress"
 wave = 12
 requires = ["3.6","21.5"]
 do_1 = "Fuzz the wire codec, the node interface framing, the contract request surface and the policy loader with committed corpora and minimisation."

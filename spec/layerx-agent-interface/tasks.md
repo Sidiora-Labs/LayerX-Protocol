@@ -1007,7 +1007,7 @@ entirely on the spine being real.
     - Assert no leaked reservation, no lost outbox entry and no submission left without an owner across every scenario.
     - Wire the suite into make agent-qualify-faults as a release gate.
     - _Requirements: 23.4, 23.5, 13.7_
-  - [ ] 23.5 Run the fuzz, sanitizer and unsafe-code gates
+  - [-] 23.5 Run the fuzz, sanitizer and unsafe-code gates
     - Fuzz the wire codec, the node interface framing, the contract request surface and the policy loader with committed corpora and minimisation.
     - Treat a panic, a hang or an unbounded allocation as a defect rather than a finding to triage.
     - Run the suite under the address and thread sanitizers where the toolchain supports it and fail on any report.

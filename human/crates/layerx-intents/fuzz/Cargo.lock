@@ -394,31 +394,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "layerx-agent-fuzz"
-version = "0.0.0"
-dependencies = [
- "layerx-agentd",
- "layerx-client",
- "layerx-mcp",
- "layerx-types",
- "layerx-wire",
- "libfuzzer-sys",
-]
-
-[[package]]
-name = "layerx-agentd"
-version = "0.1.0"
-dependencies = [
- "layerx-agent-api",
- "layerx-client",
- "layerx-crypto",
- "layerx-proof",
- "layerx-types",
- "layerx-wire",
- "sha2",
-]
-
-[[package]]
 name = "layerx-client"
 version = "0.1.0"
 dependencies = [
@@ -446,13 +421,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "layerx-mcp"
+name = "layerx-intents"
 version = "0.1.0"
 dependencies = [
- "layerx-agent-api",
- "layerx-agentd",
+ "layerx-client",
+ "layerx-crypto",
+ "layerx-proof",
+ "layerx-sdk",
  "layerx-types",
- "sha2",
+ "layerx-wire",
+]
+
+[[package]]
+name = "layerx-intents-fuzz"
+version = "0.0.0"
+dependencies = [
+ "layerx-intents",
+ "layerx-types",
+ "libfuzzer-sys",
 ]
 
 [[package]]
@@ -462,6 +448,16 @@ dependencies = [
  "layerx-crypto",
  "layerx-types",
  "layerx-wire",
+]
+
+[[package]]
+name = "layerx-sdk"
+version = "0.1.0"
+dependencies = [
+ "layerx-agent-api",
+ "layerx-client",
+ "layerx-proof",
+ "layerx-types",
 ]
 
 [[package]]

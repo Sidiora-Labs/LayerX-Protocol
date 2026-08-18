@@ -63,4 +63,4 @@ jobs:
       - name: Run sanitizer variants
         run: make agent-test-sanitize
       - name: Run committed fuzz corpus
-        run: make agent-fuzz-wire-long
+        run: make agent-fuzz-long

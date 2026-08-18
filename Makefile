@@ -148,7 +148,9 @@ LIBRARY := $(BUILD_DIR)/liblayerx.a
 	test-wave-12 \
 	test-wave-8 \
 	scan-consensus public-audit ci \
-	agent-build agent-test agent-lint agent-fuzz agent-check \
+	agent-build agent-test agent-lint agent-fuzz agent-fuzz-all \
+	agent-fuzz-wire agent-fuzz-interface agent-fuzz-long agent-fuzz-minimize \
+	agent-check agent-qualify-fuzz \
 	agent-test-errors agent-check-boundary agent-test-sanitize \
 	agent-test-types-ids
 
@@ -1621,6 +1623,9 @@ human-test-integration:
 human-test-intents:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-intents
 
+human-fuzz-intents:
+	cargo +nightly-2025-11-10 fuzz run intent --fuzz-dir human/crates/layerx-intents/fuzz -- -max_total_time=120 -timeout=10
+
 human-test-property:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked --workspace property_
 
@@ -1688,6 +1693,8 @@ agent-lint:
 
 AGENT_WIRE_FUZZ_TARGETS := primitive_decode envelope_decode payload_decode \
 	receipt_decode proof_decode roundtrip
+AGENT_INTERFACE_FUZZ_TARGETS := lni_frame contract_request policy_loader tenant_key
+AGENT_FUZZ_TARGETS := $(AGENT_WIRE_FUZZ_TARGETS) $(AGENT_INTERFACE_FUZZ_TARGETS)
 AGENT_FUZZ_RUNS ?= 128
 AGENT_FUZZ_LONG_SECONDS ?= 300
 AGENT_FUZZ_MAX_LEN ?= 1048576
@@ -1696,12 +1703,15 @@ AGENT_FUZZ_TIMEOUT ?= 2
 AGENT_FUZZ_VERBOSITY ?= 0
 AGENT_FUZZ_MINIMIZED_ROOT ?= $(abspath $(BUILD_DIR)/agent-fuzz-minimized)
 
-agent-fuzz: agent-fuzz-wire
+agent-fuzz: agent-fuzz-all
 
-agent-fuzz-wire:
+agent-fuzz-wire: AGENT_FUZZ_SELECTED := $(AGENT_WIRE_FUZZ_TARGETS)
+agent-fuzz-interface: AGENT_FUZZ_SELECTED := $(AGENT_INTERFACE_FUZZ_TARGETS)
+agent-fuzz-all: AGENT_FUZZ_SELECTED := $(AGENT_FUZZ_TARGETS)
+agent-fuzz-wire agent-fuzz-interface agent-fuzz-all:
 	@set -eu; agent_fuzz_tmp=$$(mktemp -d); \
 	trap 'rm -rf -- "$$agent_fuzz_tmp"' EXIT HUP INT TERM; \
-	for target in $(AGENT_WIRE_FUZZ_TARGETS); do \
+	for target in $(AGENT_FUZZ_SELECTED); do \
 		mkdir -p "$$agent_fuzz_tmp/$$target"; \
 		cd agent/fuzz; \
 		$(AGENT_CARGO) +$(AGENT_FUZZ_TOOLCHAIN) fuzz run "$$target" \
@@ -1712,10 +1722,12 @@ agent-fuzz-wire:
 		cd ../..; \
 	done
 
-agent-fuzz-wire-long:
+agent-fuzz-long: AGENT_FUZZ_SELECTED := $(AGENT_FUZZ_TARGETS)
+agent-fuzz-wire-long: AGENT_FUZZ_SELECTED := $(AGENT_WIRE_FUZZ_TARGETS)
+agent-fuzz-long agent-fuzz-wire-long:
 	@set -eu; agent_fuzz_tmp=$$(mktemp -d); \
 	trap 'rm -rf -- "$$agent_fuzz_tmp"' EXIT HUP INT TERM; \
-	for target in $(AGENT_WIRE_FUZZ_TARGETS); do \
+	for target in $(AGENT_FUZZ_SELECTED); do \
 		mkdir -p "$$agent_fuzz_tmp/$$target"; \
 		cd agent/fuzz; \
 		$(AGENT_CARGO) +$(AGENT_FUZZ_TOOLCHAIN) fuzz run "$$target" \
@@ -1726,9 +1738,11 @@ agent-fuzz-wire-long:
 		cd ../..; \
 	done
 
-agent-fuzz-wire-minimize:
+agent-fuzz-minimize: AGENT_FUZZ_SELECTED := $(AGENT_FUZZ_TARGETS)
+agent-fuzz-wire-minimize: AGENT_FUZZ_SELECTED := $(AGENT_WIRE_FUZZ_TARGETS)
+agent-fuzz-minimize agent-fuzz-wire-minimize:
 	@set -eu; mkdir -p "$(AGENT_FUZZ_MINIMIZED_ROOT)"; \
-	for target in $(AGENT_WIRE_FUZZ_TARGETS); do \
+	for target in $(AGENT_FUZZ_SELECTED); do \
 		rm -rf -- "$(AGENT_FUZZ_MINIMIZED_ROOT)/$$target"; \
 		mkdir -p "$(AGENT_FUZZ_MINIMIZED_ROOT)/$$target"; \
 		cp agent/fuzz/corpus/$$target/* "$(AGENT_FUZZ_MINIMIZED_ROOT)/$$target/"; \
@@ -1847,6 +1861,10 @@ agent-qualify-fabrication:
 agent-qualify-faults: $(BUILD_DIR)/agent/layerxd-lni
 	$(MAKE) agent-test-sdk-parity
 	$(AGENT_CARGO) run --manifest-path agent/tests/qualify/Cargo.toml --locked -- faults $(CURDIR)
+
+agent-qualify-fuzz:
+	$(AGENT_CARGO) run --manifest-path agent/tests/qualify/Cargo.toml --locked -- fuzz \
+		$(CURDIR) $(AGENT_FUZZ_MINIMIZED_ROOT)
 
 agent-test-capability-report: agent-test-boundary
 

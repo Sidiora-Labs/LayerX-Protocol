@@ -1,9 +1,13 @@
 #![no_main]
 
+mod support;
+
 use layerx_agentd::store::{key, ObjectKind, TenantId};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
+    let materialized = support::input_bytes(data);
+    let data = materialized.as_ref();
     if data.len() < 2 {
         return;
     }

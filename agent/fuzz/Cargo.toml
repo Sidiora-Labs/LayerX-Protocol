@@ -13,6 +13,7 @@ layerx-types = { path = "../crates/layerx-types" }
 layerx-wire = { path = "../crates/layerx-wire" }
 layerx-client = { path = "../crates/layerx-client" }
 layerx-agentd = { path = "../crates/layerx-agentd" }
+layerx-mcp = { path = "../crates/layerx-mcp" }
 
 [[bin]]
 name = "harness"
@@ -66,6 +67,13 @@ bench = false
 [[bin]]
 name = "lni_frame"
 path = "fuzz_targets/lni_frame.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "contract_request"
+path = "fuzz_targets/contract_request.rs"
 test = false
 doc = false
 bench = false
