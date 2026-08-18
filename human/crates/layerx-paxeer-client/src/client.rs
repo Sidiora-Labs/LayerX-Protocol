@@ -156,6 +156,7 @@ impl PaxeerClient {
 
     fn read<T>(
         &self,
+        failovers: &mut Vec<EndpointFailure>,
         method: &str,
         params: &[Json],
         decode: impl Fn(&Json) -> Result<T, String>,
@@ -164,7 +165,10 @@ impl PaxeerClient {
         for endpoint in &self.endpoints {
             match raw_call(endpoint, method, params) {
                 Ok(value) => match decode(&value) {
-                    Ok(decoded) => return Ok(decoded),
+                    Ok(decoded) => {
+                        failovers.append(&mut failures);
+                        return Ok(decoded);
+                    }
                     Err(detail) => failures.push(EndpointFailure {
                         url: endpoint.url.clone(),
                         fault: EndpointFault::UnexpectedValue { detail },
@@ -182,7 +186,14 @@ impl PaxeerClient {
     ///
     /// Returns every endpoint's typed failure when no endpoint served the read.
     pub fn head_number(&self) -> Result<u64, EndpointError> {
-        self.read("eth_blockNumber", &[], quantity)
+        self.head_number_with_failovers(&mut Vec::new())
+    }
+
+    pub(crate) fn head_number_with_failovers(
+        &self,
+        failovers: &mut Vec<EndpointFailure>,
+    ) -> Result<u64, EndpointError> {
+        self.read(failovers, "eth_blockNumber", &[], quantity)
     }
 
     /// Reads the canonical block at one height, if that height exists.
@@ -191,7 +202,16 @@ impl PaxeerClient {
     ///
     /// Returns every endpoint's typed failure when no endpoint served the read.
     pub fn block_by_number(&self, number: u64) -> Result<Option<BlockRef>, EndpointError> {
+        self.block_by_number_with_failovers(&mut Vec::new(), number)
+    }
+
+    pub(crate) fn block_by_number_with_failovers(
+        &self,
+        failovers: &mut Vec<EndpointFailure>,
+        number: u64,
+    ) -> Result<Option<BlockRef>, EndpointError> {
         self.read(
+            failovers,
             "eth_getBlockByNumber",
             &[Json::Text(format!("0x{number:x}")), Json::Bool(false)],
             block_reference,
@@ -207,7 +227,16 @@ impl PaxeerClient {
         &self,
         transaction: TransactionHash,
     ) -> Result<Option<TransactionInclusion>, EndpointError> {
+        self.transaction_receipt_with_failovers(&mut Vec::new(), transaction)
+    }
+
+    pub(crate) fn transaction_receipt_with_failovers(
+        &self,
+        failovers: &mut Vec<EndpointFailure>,
+        transaction: TransactionHash,
+    ) -> Result<Option<TransactionInclusion>, EndpointError> {
         self.read(
+            failovers,
             "eth_getTransactionReceipt",
             &[Json::Text(transaction.to_hex())],
             inclusion,
@@ -223,10 +252,19 @@ impl PaxeerClient {
         &self,
         transaction: TransactionHash,
     ) -> Result<TransactionView, EndpointError> {
-        if let Some(included) = self.transaction_receipt(transaction)? {
+        self.transaction_with_failovers(&mut Vec::new(), transaction)
+    }
+
+    pub(crate) fn transaction_with_failovers(
+        &self,
+        failovers: &mut Vec<EndpointFailure>,
+        transaction: TransactionHash,
+    ) -> Result<TransactionView, EndpointError> {
+        if let Some(included) = self.transaction_receipt_with_failovers(failovers, transaction)? {
             return Ok(TransactionView::Included(included));
         }
         let known = self.read(
+            failovers,
             "eth_getTransactionByHash",
             &[Json::Text(transaction.to_hex())],
             |value| Ok(!value.is_null()),

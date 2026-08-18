@@ -4,7 +4,7 @@ use crate::client::{
     ClientConfigError, EndpointError, PaxeerClient, TransactionHash, TransactionInclusion,
     TransactionView,
 };
-use crate::rpc::EndpointConfig;
+use crate::rpc::{EndpointConfig, EndpointFailure};
 
 /// Declared tracking configuration: endpoints, depth, cadence and stall bound.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -55,16 +55,38 @@ pub enum FinalityStage {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ChainSignal {
     Progressing,
-    Delayed { stalled_polls: u64, threshold: u64 },
+    Delayed {
+        stalled_polls: u64,
+        threshold: u64,
+        stalled_for: Duration,
+        delayed_after: Duration,
+    },
     Unreachable { error: EndpointError },
 }
 
-/// One honest poll result: the stage, the signal behind it, and the history.
+/// How the configured endpoints served this poll: fully, by failover, or not.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum EndpointSignal {
+    Serving,
+    Degraded { failovers: Vec<EndpointFailure> },
+    Unreachable { error: EndpointError },
+}
+
+/// Confirmation depth against the bridge-required target, at any stage.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ConfirmationProgress {
+    pub confirmed: u64,
+    pub required: u64,
+}
+
+/// One honest poll result: the stage, the signals behind it, and the history.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FinalityReport {
     pub transaction: TransactionHash,
     pub stage: FinalityStage,
     pub signal: ChainSignal,
+    pub endpoint: EndpointSignal,
+    pub progress: ConfirmationProgress,
     pub displacements: u64,
     pub polls: u64,
 }
@@ -123,6 +145,11 @@ impl FinalityTracker {
                 transaction,
                 stage: FinalityStage::Announced,
                 signal: ChainSignal::Progressing,
+                endpoint: EndpointSignal::Serving,
+                progress: ConfirmationProgress {
+                    confirmed: 0,
+                    required: config.required_confirmations,
+                },
                 displacements: 0,
                 polls: 0,
             },
@@ -151,7 +178,8 @@ impl FinalityTracker {
 
     pub fn poll(&mut self) -> FinalityReport {
         self.polls = self.polls.saturating_add(1);
-        match self.observe() {
+        let mut failovers = Vec::new();
+        match self.observe(&mut failovers) {
             Ok((head, stage)) => {
                 let unchanged = self
                     .last_observation
@@ -166,14 +194,23 @@ impl FinalityTracker {
                     ChainSignal::Delayed {
                         stalled_polls: self.stalled_polls,
                         threshold: self.delayed_after_polls,
+                        stalled_for: self.cadence_window(self.stalled_polls),
+                        delayed_after: self.cadence_window(self.delayed_after_polls),
                     }
                 } else {
                     ChainSignal::Progressing
+                };
+                let endpoint = if failovers.is_empty() {
+                    EndpointSignal::Serving
+                } else {
+                    EndpointSignal::Degraded { failovers }
                 };
                 self.latest = FinalityReport {
                     transaction: self.transaction,
                     stage,
                     signal,
+                    endpoint,
+                    progress: self.progress_of(stage),
                     displacements: self.displacements,
                     polls: self.polls,
                 };
@@ -185,7 +222,11 @@ impl FinalityTracker {
                 self.latest = FinalityReport {
                     transaction: self.transaction,
                     stage,
-                    signal: ChainSignal::Unreachable { error },
+                    signal: ChainSignal::Unreachable {
+                        error: error.clone(),
+                    },
+                    endpoint: EndpointSignal::Unreachable { error },
+                    progress: self.progress_of(stage),
                     displacements: self.displacements,
                     polls: self.polls,
                 };
@@ -194,11 +235,36 @@ impl FinalityTracker {
         self.latest.clone()
     }
 
-    fn observe(&mut self) -> Result<(u64, FinalityStage), EndpointError> {
-        let head = self.client.head_number()?;
-        match self.client.transaction(self.transaction)? {
+    fn progress_of(&self, stage: FinalityStage) -> ConfirmationProgress {
+        let confirmed = match stage {
+            FinalityStage::Confirming { confirmations, .. }
+            | FinalityStage::Final { confirmations, .. } => confirmations,
+            FinalityStage::Announced
+            | FinalityStage::Missing { .. }
+            | FinalityStage::Pooled { .. }
+            | FinalityStage::Displaced { .. } => 0,
+        };
+        ConfirmationProgress {
+            confirmed,
+            required: self.required_confirmations,
+        }
+    }
+
+    fn cadence_window(&self, polls: u64) -> Duration {
+        self.poll_cadence
+            .saturating_mul(u32::try_from(polls).unwrap_or(u32::MAX))
+    }
+
+    fn observe(
+        &mut self,
+        failovers: &mut Vec<EndpointFailure>,
+    ) -> Result<(u64, FinalityStage), EndpointError> {
+        let head = self.client.head_number_with_failovers(failovers)?;
+        match self.client.transaction_with_failovers(failovers, self.transaction)? {
             TransactionView::Included(included) => {
-                let canonical = self.client.block_by_number(included.block.number)?;
+                let canonical = self
+                    .client
+                    .block_by_number_with_failovers(failovers, included.block.number)?;
                 if canonical.is_some_and(|block| block.hash == included.block.hash) {
                     if let Some(prior) = self.recorded {
                         if prior.block.hash != included.block.hash {
