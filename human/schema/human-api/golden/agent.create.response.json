@@ -1,0 +1,60 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "journey_id": "jrn_01j8agc1r0a1b2c3d4e5f6g7h8",
+      "kind": "agent-create",
+      "state": "processing",
+      "state_copy_key": "status.processing",
+      "stages": [
+        {
+          "stage_id": "stg_01j8agc1r0k1m2n3p4q5r6s7t8",
+          "copy_key": "agent.create.stage.setting-up",
+          "state": "done",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j8agc1r0u1v2w3x4y5z6a7b8",
+              "class": "layerx-receipt",
+              "verification": "receipt-verified"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j8agc1r1c1d2e3f4g5h6j7k8",
+          "copy_key": "agent.create.stage.protection",
+          "state": "done",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j8agc1r1m1n2p3q4r5s6t7u8",
+              "class": "layerx-receipt",
+              "verification": "receipt-verified"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j8agc1r1w1x2y3z4a5b6c7d8",
+          "copy_key": "agent.create.stage.first-funding",
+          "state": "processing",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j8agc1r2e1f2g3h4j5k6m7n8",
+              "class": "submission-record",
+              "verification": "unverified"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "evd_01j8agc1r2p1q2r3s4t5u6v7w8",
+          "class": "local-journey-state",
+          "verification": "unverified"
+        }
+      ],
+      "started_at": "2026-08-18T10:15:00Z",
+      "updated_at": "2026-08-18T10:15:21Z"
+    },
+    "trace": "trc_01j8agc1r2x1y2z3a4b5c6d7e8"
+  }
+}

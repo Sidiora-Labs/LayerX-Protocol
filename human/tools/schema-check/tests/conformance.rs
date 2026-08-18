@@ -300,6 +300,35 @@ fn step_up_challenge_without_operation_binding_is_rejected() {
 }
 
 #[test]
+fn agent_module_without_its_operations_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "agents.kvx",
+        "[operation.approval.approve]",
+        "[operation.approval.decide]",
+    );
+    assert!(violation_rules(fixture.path()).contains(&"missing-agent-module"));
+}
+
+#[test]
+fn agent_module_without_the_facts_spine_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite("agents.kvx", "[type.ApprovalFacts]", "[type.ApprovalStory]");
+    assert!(violation_rules(fixture.path()).contains(&"missing-agent-module"));
+}
+
+#[test]
+fn activity_module_without_its_spine_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "activity.kvx",
+        "[operation.activity.query]",
+        "[operation.activity.scan]",
+    );
+    assert!(violation_rules(fixture.path()).contains(&"missing-activity-module"));
+}
+
+#[test]
 fn removed_declaration_breaks_the_baseline() {
     let fixture = Fixture::from_real_schema();
     fixture.rewrite(

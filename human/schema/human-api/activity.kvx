@@ -1,0 +1,163 @@
+[module]
+name = "activity"
+contract_major = 1
+compatibility = "additive_only"
+spine = "One feed tells the user what happened in their words: deposits, withdrawals, movements, agent actions, approvals and security events in one place, every state translated through the journey vocabulary and every claim backed by evidence one reference away."
+
+[scalar.ActivityEntryId]
+json = "string"
+prefix = "act_"
+rust = "String"
+typescript = "string"
+
+[scalar.NotificationId]
+json = "string"
+prefix = "ntf_"
+rust = "String"
+typescript = "string"
+
+[scalar.ExportId]
+json = "string"
+prefix = "exp_"
+rust = "String"
+typescript = "string"
+
+[type.ActivityEntryKind]
+variants = ["deposit","withdrawal","movement","agent-action","approval","security-event"]
+
+[type.MoneyDirection]
+variants = ["in","out"]
+rendering = "Amounts render with sign, semantic colour and direction word together; direction carries the machine half of that rule."
+
+[type.ActivityEntry]
+required = ["entry_id:ActivityEntryId","kind:ActivityEntryKind","state:JourneyState","state_copy_key:CopyKey","summary_copy_key:CopyKey","occurred_at:Timestamp"]
+optional = ["money:Money","direction:MoneyDirection","agent_id:AgentId","journey_id:JourneyId","approval_id:ApprovalId"]
+states = "Entry states translate through JourneyState: done renders only under the receipt rule, and a refusal always states whether money left the account."
+joined = "A custody-boundary journey renders as one joined entry spanning its stages, named by journey_id."
+
+[type.ActivityFilter]
+required = []
+optional = ["kinds:ActivityEntryKind[]","agent_id:AgentId","from:Timestamp","to:Timestamp"]
+deferred_apply = "Filters are deferred-apply: choices collect on the client and apply in one query."
+
+[type.ActivityQueryRequest]
+required = []
+optional = ["cursor:Cursor","filter:ActivityFilter","page_limit:integer"]
+
+[type.ActivityGroup]
+required = ["month:string","subtotal_in:Money","subtotal_out:Money","entries:ActivityEntry[]"]
+grouping = "Entries group by month with per-group subtotals for money in and money out."
+
+[type.ActivityPage]
+required = ["groups:ActivityGroup[]","next_cursor:Cursor","filter:ActivityFilter"]
+echo = "The applied filter is echoed back in every page so the active view is always self-describing; an unfiltered page echoes the empty filter."
+paging = "Cursors are stable: pages survive service restart without gaps, duplicates or reordering, and a new verified receipt appears within the declared freshness bound."
+
+[type.ActivityEntryDetail]
+required = ["entry_id:ActivityEntryId","kind:ActivityEntryKind","state:JourneyState","state_copy_key:CopyKey","summary_copy_key:CopyKey","occurred_at:Timestamp","stages:JourneyStage[]","evidence:EvidenceRef[]"]
+optional = ["money:Money","fees:Money","direction:MoneyDirection","agent_id:AgentId","journey_id:JourneyId","approval_id:ApprovalId"]
+sentence = "summary_copy_key names the one plain sentence saying what happened."
+amounts = "money and fees are receipt-backed actuals, never estimates."
+technical = "evidence carries the references the collapsed Technical details section renders, each sufficient to fetch receipt or proof material for independent verification."
+
+[type.ExportKind]
+variants = ["statement","evidence-bundle"]
+
+[type.ExportStatementRequest]
+required = []
+optional = ["filter:ActivityFilter"]
+
+[type.ExportEvidenceRequest]
+required = []
+optional = ["filter:ActivityFilter","entry_ids:ActivityEntryId[]"]
+
+[type.ExportArtefact]
+required = ["export_id:ExportId","kind:ExportKind","download_path:string","content_type:string","created_at:Timestamp","evidence:EvidenceRef[]"]
+composition = "evidence names every receipt and proof material composed into the artefact. Each reference resolves through evidence.get to the material in its exact protocol bytes, so the bundle verifies independently of this plane."
+
+[type.NotificationClass]
+variants = ["approval-waiting","money-arrived","journey-finished","claim-ready","security-new-device","security-recovery","security-wallet-rebinding","security-key-rotation","service-status"]
+non_suppressible = ["security-recovery","security-wallet-rebinding"]
+rule = "Security-critical classes are never fully suppressible: a preference change silencing security-recovery or security-wallet-rebinding on every channel is refused with not-suppressible."
+
+[type.NotificationDetailLevel]
+variants = ["full","summary","minimal"]
+bound = "The detail level bounds how much financial detail notification content carries, and lock-screen presentations degrade to non-sensitive summaries."
+
+[type.NotificationSummary]
+required = ["notification_id:NotificationId","class:NotificationClass","title_copy_key:CopyKey","body_copy_key:CopyKey","deep_link:string","read:boolean","created_at:Timestamp"]
+optional = ["money:Money","agent_id:AgentId","approval_id:ApprovalId","journey_id:JourneyId","action_copy_key:CopyKey"]
+deep_link_rule = "deep_link lands on the exact surface in whichever shell is active, resolved to its honest current state: an expired approval reads expired, a completed journey reads done."
+actions = "Security notifications carry action_copy_key naming the action button - review devices, pause agent, open approval."
+
+[type.NotificationRecency]
+variants = ["today","yesterday","this-week","earlier"]
+
+[type.NotificationGroup]
+required = ["recency:NotificationRecency","notifications:NotificationSummary[]"]
+
+[type.NotificationPage]
+required = ["groups:NotificationGroup[]","next_cursor:Cursor","unread_count:integer"]
+grouping = "Grouped by recency with read distinguished from unread, and repeated events deduplicated into their latest presentation."
+
+[type.ClassToggle]
+required = ["class:NotificationClass","enabled:boolean"]
+
+[type.ChannelPreference]
+required = ["enabled:boolean","classes:ClassToggle[]"]
+
+[type.NotificationPreferences]
+required = ["push:ChannelPreference","email:ChannelPreference","in_app:ChannelPreference","detail:NotificationDetailLevel"]
+nesting = "Per-event-class preferences nest under each channel's toggle, with one detail level for how much financial detail notification content carries."
+immediacy = "Preference changes take effect immediately."
+
+[operation.activity.query]
+method = "POST"
+path = "/v1/activity/query"
+request = "ActivityQueryRequest"
+response = "ActivityPage"
+
+[operation.activity.entry]
+method = "GET"
+path = "/v1/activity/{entry_id}"
+request = "Empty"
+response = "ActivityEntryDetail"
+
+[operation.activity.export.statement]
+method = "POST"
+path = "/v1/activity/exports/statement"
+request = "ExportStatementRequest"
+response = "ExportArtefact"
+idempotency = true
+
+[operation.activity.export.evidence]
+method = "POST"
+path = "/v1/activity/exports/evidence"
+request = "ExportEvidenceRequest"
+response = "ExportArtefact"
+idempotency = true
+
+[operation.notification.list]
+method = "GET"
+path = "/v1/notifications"
+request = "Empty"
+response = "NotificationPage"
+
+[operation.notification.read]
+method = "POST"
+path = "/v1/notifications/{notification_id}/read"
+request = "Empty"
+response = "NotificationSummary"
+
+[operation.notification.preferences.get]
+method = "GET"
+path = "/v1/notifications/preferences"
+request = "Empty"
+response = "NotificationPreferences"
+
+[operation.notification.preferences.set]
+method = "POST"
+path = "/v1/notifications/preferences"
+request = "NotificationPreferences"
+response = "NotificationPreferences"
+refusal = "A set that would fully suppress a security-critical class - recovery initiation or wallet rebinding - is refused with not-suppressible and changes nothing."

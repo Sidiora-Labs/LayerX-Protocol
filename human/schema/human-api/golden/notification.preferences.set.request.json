@@ -1,0 +1,49 @@
+{
+  "method": "POST",
+  "path": "/v1/notifications/preferences",
+  "body": {
+    "push": {
+      "enabled": true,
+      "classes": [
+        { "class": "approval-waiting", "enabled": true },
+        { "class": "money-arrived", "enabled": false },
+        { "class": "journey-finished", "enabled": true },
+        { "class": "claim-ready", "enabled": true },
+        { "class": "security-new-device", "enabled": true },
+        { "class": "security-recovery", "enabled": true },
+        { "class": "security-wallet-rebinding", "enabled": true },
+        { "class": "security-key-rotation", "enabled": true },
+        { "class": "service-status", "enabled": false }
+      ]
+    },
+    "email": {
+      "enabled": true,
+      "classes": [
+        { "class": "approval-waiting", "enabled": false },
+        { "class": "money-arrived", "enabled": false },
+        { "class": "journey-finished", "enabled": false },
+        { "class": "claim-ready", "enabled": true },
+        { "class": "security-new-device", "enabled": true },
+        { "class": "security-recovery", "enabled": true },
+        { "class": "security-wallet-rebinding", "enabled": true },
+        { "class": "security-key-rotation", "enabled": true },
+        { "class": "service-status", "enabled": true }
+      ]
+    },
+    "in_app": {
+      "enabled": true,
+      "classes": [
+        { "class": "approval-waiting", "enabled": true },
+        { "class": "money-arrived", "enabled": true },
+        { "class": "journey-finished", "enabled": true },
+        { "class": "claim-ready", "enabled": true },
+        { "class": "security-new-device", "enabled": true },
+        { "class": "security-recovery", "enabled": true },
+        { "class": "security-wallet-rebinding", "enabled": true },
+        { "class": "security-key-rotation", "enabled": true },
+        { "class": "service-status", "enabled": true }
+      ]
+    },
+    "detail": "minimal"
+  }
+}

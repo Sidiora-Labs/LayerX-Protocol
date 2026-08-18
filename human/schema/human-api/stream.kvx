@@ -10,7 +10,7 @@ variants = ["journey-progress","approval-created","approval-approved","approval-
 
 [type.StreamEvent]
 required = ["cursor:Cursor","kind:StreamEventKind","observed_at:Timestamp"]
-optional = ["journey:Journey"]
+optional = ["journey:Journey","approval:ApprovalSummary","notification:NotificationSummary"]
 payloads = "An event embeds the journey it reports where one exists. Later modules extend the optional payloads additively; the cursor, kind and observed_at spine never changes."
 
 [type.StreamPosition]

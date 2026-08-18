@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/agents/agt_01j8agd2s3a1b2c3d4e5f6g7h8/resume",
+  "headers": {
+    "Idempotency-Key": "7c1f4b9e2d8a46c5b3e0d7f2a9c4e1b6"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "path": "/v1/agents",
+  "headers": {
+    "Idempotency-Key": "9f3c1e6a0b8d4f72a5c9e1d3b7a2c4e6"
+  },
+  "body": {
+    "name": "Research Runner",
+    "purpose": "Buys datasets and pays per-use research services",
+    "monthly_limit": {
+      "amount": "250000000",
+      "currency": "LXP"
+    }
+  }
+}

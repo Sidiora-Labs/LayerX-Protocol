@@ -1,0 +1,52 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "push": {
+        "enabled": true,
+        "classes": [
+          { "class": "approval-waiting", "enabled": true },
+          { "class": "money-arrived", "enabled": false },
+          { "class": "journey-finished", "enabled": true },
+          { "class": "claim-ready", "enabled": true },
+          { "class": "security-new-device", "enabled": true },
+          { "class": "security-recovery", "enabled": true },
+          { "class": "security-wallet-rebinding", "enabled": true },
+          { "class": "security-key-rotation", "enabled": true },
+          { "class": "service-status", "enabled": false }
+        ]
+      },
+      "email": {
+        "enabled": true,
+        "classes": [
+          { "class": "approval-waiting", "enabled": false },
+          { "class": "money-arrived", "enabled": false },
+          { "class": "journey-finished", "enabled": false },
+          { "class": "claim-ready", "enabled": true },
+          { "class": "security-new-device", "enabled": true },
+          { "class": "security-recovery", "enabled": true },
+          { "class": "security-wallet-rebinding", "enabled": true },
+          { "class": "security-key-rotation", "enabled": true },
+          { "class": "service-status", "enabled": true }
+        ]
+      },
+      "in_app": {
+        "enabled": true,
+        "classes": [
+          { "class": "approval-waiting", "enabled": true },
+          { "class": "money-arrived", "enabled": true },
+          { "class": "journey-finished", "enabled": true },
+          { "class": "claim-ready", "enabled": true },
+          { "class": "security-new-device", "enabled": true },
+          { "class": "security-recovery", "enabled": true },
+          { "class": "security-wallet-rebinding", "enabled": true },
+          { "class": "security-key-rotation", "enabled": true },
+          { "class": "service-status", "enabled": true }
+        ]
+      },
+      "detail": "minimal"
+    },
+    "trace": "trc_01j8agka1la1b2c3d4e5f6g7h8"
+  }
+}

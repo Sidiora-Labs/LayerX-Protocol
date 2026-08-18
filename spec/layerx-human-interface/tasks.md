@@ -188,7 +188,7 @@ money or claims something about money, and both depend on the spine being real.
     - Define the refusal shapes carrying which limit refused and where it can be changed.
     - Add golden vectors covering multi-leg journeys, still-checking and refusals.
     - _Requirements: 8.2, 8.4, 9.1_
-  - [-] 4.4 Define agent, approval, activity and notification operations
+  - [x] 4.4 Define agent, approval, activity and notification operations
     - Define agent lifecycle operations: create with name, purpose and limit, creation-journey status, pause, resume, limit change, reclaim, rotate, recover and archive.
     - Define the approval inbox operations mirroring the agent layer's approval module: list, get with rendered disclosure, approve with step-up evidence, reject.
     - Define the activity feed operations: cursor-paginated feed, entry detail with evidence references, filters, statement and evidence-bundle export.

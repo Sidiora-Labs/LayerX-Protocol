@@ -1557,6 +1557,80 @@ fn human_api_movement_module(model: &Model, root: &Path, violations: &mut Vec<Vi
     }
 }
 
+/// Enforces the managed-agent module: the lifecycle and approval-inbox
+/// operations and the approval facts spine every rendered decision relies on.
+fn human_api_agent_module(model: &Model, root: &Path, violations: &mut Vec<Violation>) {
+    let origin = root.join("agents.kvx");
+    for operation in ["agent.create", "agent.archive", "approval.approve"] {
+        if !model.operations.iter().any(|declared| declared.name == operation) {
+            violations.push(violation(
+                &origin,
+                "missing-agent-module",
+                format!("the contract must declare operation.{operation}"),
+            ));
+        }
+    }
+    let Some(facts) = model.records.get("ApprovalFacts") else {
+        violations.push(violation(
+            &origin,
+            "missing-agent-module",
+            "the contract must declare the ApprovalFacts record",
+        ));
+        return;
+    };
+    for (field, wanted) in [
+        ("amount", "Money"),
+        ("counterparty", "string"),
+        ("asset", "CurrencyCode"),
+        ("fees", "Money"),
+        ("expires_at", "Timestamp"),
+    ] {
+        let carried = facts
+            .required
+            .iter()
+            .any(|declared| declared.name == field && declared.type_name == wanted);
+        if !carried {
+            violations.push(violation(
+                &origin,
+                "missing-agent-module",
+                format!("ApprovalFacts must require {field}:{wanted}"),
+            ));
+        }
+    }
+}
+
+/// Enforces the activity module: the unified feed, entry detail and export
+/// operations and the self-describing feed page spine.
+fn human_api_activity_module(model: &Model, root: &Path, violations: &mut Vec<Violation>) {
+    let origin = root.join("activity.kvx");
+    for operation in [
+        "activity.query",
+        "activity.entry",
+        "activity.export.statement",
+        "activity.export.evidence",
+    ] {
+        if !model.operations.iter().any(|declared| declared.name == operation) {
+            violations.push(violation(
+                &origin,
+                "missing-activity-module",
+                format!("the contract must declare operation.{operation}"),
+            ));
+        }
+    }
+    let paged = model.records.get("ActivityPage").is_some_and(|page| {
+        page.required.iter().any(|declared| declared.name == "groups" && declared.array)
+            && page.required.iter().any(|declared| declared.name == "next_cursor")
+            && page.required.iter().any(|declared| declared.name == "filter")
+    });
+    if !paged {
+        violations.push(violation(
+            &origin,
+            "missing-activity-module",
+            "ActivityPage must carry groups:ActivityGroup[], next_cursor:Cursor and the echoed filter",
+        ));
+    }
+}
+
 fn check_golden_failure(
     model: &Model,
     operation: &Operation,
@@ -1905,6 +1979,8 @@ pub fn human_api_schema(root: &Path) -> Result<SchemaReport, Vec<Violation>> {
     human_api_stream_module(&model, root, &mut violations);
     human_api_identity_module(&model, root, &mut violations);
     human_api_movement_module(&model, root, &mut violations);
+    human_api_agent_module(&model, root, &mut violations);
+    human_api_activity_module(&model, root, &mut violations);
     let mut golden_vectors = 0;
     for operation in &model.operations {
         golden_vectors += check_golden(root, &model, &encoding, operation, &mut violations);

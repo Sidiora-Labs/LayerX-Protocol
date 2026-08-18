@@ -1,0 +1,59 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "groups": [
+        {
+          "month": "2026-08",
+          "subtotal_in": {
+            "amount": "500000000",
+            "currency": "LXP"
+          },
+          "subtotal_out": {
+            "amount": "59250000",
+            "currency": "LXP"
+          },
+          "entries": [
+            {
+              "entry_id": "act_01j8agh6w7a1b2c3d4e5f6g7h8",
+              "kind": "deposit",
+              "state": "done-finalised",
+              "state_copy_key": "status.done-finalised",
+              "summary_copy_key": "activity.deposit.summary",
+              "occurred_at": "2026-08-18T09:32:10Z",
+              "money": {
+                "amount": "500000000",
+                "currency": "LXP"
+              },
+              "direction": "in",
+              "journey_id": "jrn_01j2gx3fam9kq4vte8n5w6y7z8"
+            },
+            {
+              "entry_id": "act_01j8agh6w7k1m2n3p4q5r6s7t8",
+              "kind": "movement",
+              "state": "done",
+              "state_copy_key": "status.done",
+              "summary_copy_key": "activity.move.summary",
+              "occurred_at": "2026-08-14T16:05:09Z",
+              "money": {
+                "amount": "59250000",
+                "currency": "LXP"
+              },
+              "direction": "out",
+              "agent_id": "agt_01j8agd2s3a1b2c3d4e5f6g7h8",
+              "journey_id": "jrn_01j2gx4v0nb3c4d5e6f7g8h9j0"
+            }
+          ]
+        }
+      ],
+      "next_cursor": "cur-000000000000000117",
+      "filter": {
+        "kinds": ["deposit", "movement"],
+        "from": "2026-08-01T00:00:00Z",
+        "to": "2026-09-01T00:00:00Z"
+      }
+    },
+    "trace": "trc_01j8agh6w7u1v2w3x4y5z6a7b8"
+  }
+}

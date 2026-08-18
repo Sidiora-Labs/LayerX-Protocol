@@ -634,7 +634,7 @@ reqs = ["8.2","8.4","9.1"]
 
 [task.4.4]
 title = "Define agent, approval, activity and notification operations"
-status = "in_progress"
+status = "done"
 wave = 2
 requires = ["4.1","2.1"]
 do_1 = "Define agent lifecycle operations: create with name, purpose and limit, creation-journey status, pause, resume, limit change, reclaim, rotate, recover and archive."

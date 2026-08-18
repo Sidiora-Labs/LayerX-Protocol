@@ -1,0 +1,75 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "entry_id": "act_01j8agh6w7a1b2c3d4e5f6g7h8",
+      "kind": "deposit",
+      "state": "done-finalised",
+      "state_copy_key": "status.done-finalised",
+      "summary_copy_key": "activity.deposit.summary",
+      "occurred_at": "2026-08-18T09:32:10Z",
+      "stages": [
+        {
+          "stage_id": "stg_01j2gx3famd4qns7v8w9x0y1z2",
+          "copy_key": "deposit.stage.waiting-for-wallet",
+          "state": "done",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2gx3famh6r7s8t9v0w1x2y3",
+              "class": "wallet-ack",
+              "verification": "unverified"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j2gx3famj8t9v0w1x2y3z4a5",
+          "copy_key": "deposit.stage.confirming-on-paxeer",
+          "state": "done",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2gx3famk0v1w2x3y4z5a6b7",
+              "class": "paxeer-finality",
+              "verification": "paxeer-finalised"
+            }
+          ]
+        },
+        {
+          "stage_id": "stg_01j2gx3famm2x3y4z5a6b7c8d9",
+          "copy_key": "deposit.stage.crediting",
+          "state": "done-finalised",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j8agh8y9a1b2c3d4e5f6g7h8",
+              "class": "layerx-receipt",
+              "verification": "checkpoint-finalised"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "evd_01j8agh8y9a1b2c3d4e5f6g7h8",
+          "class": "layerx-receipt",
+          "verification": "checkpoint-finalised"
+        },
+        {
+          "evidence_id": "evd_01j8agh8y9k1m2n3p4q5r6s7t8",
+          "class": "checkpoint-proof",
+          "verification": "checkpoint-finalised"
+        }
+      ],
+      "money": {
+        "amount": "500000000",
+        "currency": "LXP"
+      },
+      "fees": {
+        "amount": "25000",
+        "currency": "LXP"
+      },
+      "direction": "in",
+      "journey_id": "jrn_01j2gx3fam9kq4vte8n5w6y7z8"
+    },
+    "trace": "trc_01j8agh8y9u1v2w3x4y5z6a7b8"
+  }
+}

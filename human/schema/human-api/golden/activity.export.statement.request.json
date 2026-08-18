@@ -1,0 +1,13 @@
+{
+  "method": "POST",
+  "path": "/v1/activity/exports/statement",
+  "headers": {
+    "Idempotency-Key": "b2e6a1d4f8c3057e9b4d2f6a1c5e8b3d"
+  },
+  "body": {
+    "filter": {
+      "from": "2026-08-01T00:00:00Z",
+      "to": "2026-09-01T00:00:00Z"
+    }
+  }
+}

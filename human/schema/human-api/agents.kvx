@@ -1,0 +1,212 @@
+[module]
+name = "agents"
+contract_major = 1
+compatibility = "additive_only"
+spine = "Managed agents and the approval inbox speak the journey vocabulary. Creation, funding and retirement are staged receipt-verified journeys, every figure a surface renders travels with the verification level the agent layer attached, and a restriction this plane enforces itself is always labelled app-enforced, never a protocol guarantee."
+mirror = "The approval operations mirror the agent layer's approval module one to one. A hold surfaces here only with the held activity's own disclosure behind it, and a decision reaches the daemon as exactly one typed outcome."
+
+[scalar.AgentId]
+json = "string"
+prefix = "agt_"
+rust = "String"
+typescript = "string"
+
+[scalar.ApprovalId]
+json = "string"
+prefix = "apr_"
+rust = "String"
+typescript = "string"
+
+[type.AgentState]
+variants = ["creating","active","paused","archiving","archived"]
+active.semantics = "Rendered only when every creation step's receipt has verified. While creation is partial the agent stays creating and its journey shows honestly which steps completed."
+paused.semantics = "Operating authority is suspended. Pause is reversible and resume restores authority through the same receipt-verified paths."
+archived.semantics = "Authority revoked and operating keys retired. The agent's history and receipts remain readable forever."
+
+[type.LimitEnforcement]
+variants = ["protocol","app"]
+protocol.semantics = "The limit is a protocol budget bound, backed by the verified receipts in the carrying record's evidence."
+app.semantics = "The limit is enforced by this plane only. It is a restriction, never a protocol guarantee, and every surface labels it app-enforced."
+
+[type.SpendLimit]
+required = ["monthly:Money","enforcement:LimitEnforcement","enforcement_copy_key:CopyKey"]
+labelling = "enforcement_copy_key names the plain sentence stating who enforces this limit. An app-enforced limit is never described as a protocol guarantee."
+
+[type.AgentSpend]
+required = ["period_start:Timestamp","period_end:Timestamp","spent:Money","remaining:Money","verification:VerificationLevel"]
+optional = ["reconciliation_copy_key:CopyKey"]
+source = "Spend against the limit for the current period is computed from verified receipts and carries the verification level achieved. This plane never raises that level itself."
+reconciliation = "When local accounting and protocol state diverge the protocol figure is adopted and reconciliation_copy_key names the note surfacing the divergence honestly."
+
+[type.Agent]
+required = ["agent_id:AgentId","name:string","purpose:string","state:AgentState","state_copy_key:CopyKey","limit:SpendLimit","spend:AgentSpend","evidence:EvidenceRef[]","created_at:Timestamp","updated_at:Timestamp"]
+optional = ["creation_journey_id:JourneyId"]
+evidence = "The receipts backing the agent's current state, each reference sufficient for export and independent verification."
+resumption = "While state is creating, creation_journey_id names the journey showing per-step progress and offering resumption, never a phantom agent."
+
+[type.AgentPage]
+required = ["agents:Agent[]","next_cursor:Cursor"]
+
+[type.AgentCreateRequest]
+required = ["name:string","purpose:string","monthly_limit:Money"]
+simplicity = "Creating an agent asks exactly these three things. The service orchestrates everything else as a staged receipt-verified journey."
+
+[type.AgentLimitRequest]
+required = ["monthly_limit:Money"]
+
+[type.AgentReclaimRequest]
+required = ["money:Money"]
+
+[type.AgentArchiveRequest]
+required = ["confirm_name:string"]
+confirmation = "Archive is destructive: confirm_name must equal the agent's name exactly, and a mismatch is refused with confirmation-mismatch."
+
+[type.KeyChallengeKind]
+variants = ["rotate","recover"]
+
+[type.KeyChallenge]
+required = ["agent_id:AgentId","kind:KeyChallengeKind","delay_copy_key:CopyKey","delay_seconds:integer","ready_at:Timestamp","evidence:EvidenceRef[]"]
+plain_time = "The protocol's challenge delay is surfaced in plain time units: delay_seconds carries the exact figure and delay_copy_key names the sentence presenting it."
+continuity = "The agent's identity and history stay continuous across the change, and evidence carries the receipts backing it."
+
+[type.ApprovalState]
+variants = ["pending","approved","rejected","expired","defective"]
+pending.semantics = "The hold awaits the user's decision until its expiry."
+expired.semantics = "The hold expired unactioned. No money moved and no approve control is offered."
+defective.semantics = "The held activity's disclosure could not back its own facts, so the hold is reported, never approvable."
+
+[type.VerifiedMoney]
+required = ["money:Money","verification:VerificationLevel"]
+honesty = "A figure travels with the verification level the agent layer attached. This plane never raises it and visibly marks what it cannot verify."
+
+[type.ApprovalFacts]
+required = ["amount:Money","counterparty:string","asset:CurrencyCode","fees:Money","expires_at:Timestamp"]
+source = "Every fact is rendered from the held activity's own disclosure, never a paraphrase or a second data source. The facts state plainly what will happen if you say yes; the mechanics behind them stay behind the evidence references."
+defect = "A hold whose disclosure cannot back these facts is refused with hold-defective instead of rendered."
+
+[type.ApprovalSummary]
+required = ["approval_id:ApprovalId","agent_id:AgentId","agent_name:string","counterparty:string","amount:Money","reason_copy_key:CopyKey","expires_at:Timestamp","state:ApprovalState","budget_remaining_after:VerifiedMoney"]
+inbox = "One hold as the inbox lists it: the agent, the counterparty, the exact amount, why it was held, when it expires, and the budget remaining after with its verification level."
+
+[type.ApprovalPage]
+required = ["approvals:ApprovalSummary[]","next_cursor:Cursor"]
+
+[type.ApprovalDetail]
+required = ["approval_id:ApprovalId","agent_id:AgentId","agent_name:string","state:ApprovalState","state_copy_key:CopyKey","reason_copy_key:CopyKey","facts:ApprovalFacts","budget_remaining_after:VerifiedMoney","created_at:Timestamp","evidence:EvidenceRef[]"]
+context = "budget_remaining_after comes exclusively from verified reads labelled with their verification level. evidence names the hold material Technical details renders."
+
+[type.ApprovalApproveRequest]
+required = ["step_up_evidence:EvidenceId"]
+binding = "The step-up ceremony is bound to exactly this hold. Evidence issued for any other operation, or missing entirely, is refused with step-up-required."
+
+[type.ApprovalDecision]
+required = ["approval_id:ApprovalId","state:ApprovalState","state_copy_key:CopyKey","money_moved:boolean","moved_copy_key:CopyKey","evidence:EvidenceRef[]"]
+rejected = "A rejection is immediate and final for this hold: money_moved is false and moved_copy_key names the sentence confirming nothing moved."
+approved = "An approval releases exactly the held activity into the submission path. money_moved stays false at decision time; the released activity is tracked to its verified receipt through evidence like any movement."
+
+[operation.agent.create]
+method = "POST"
+path = "/v1/agents"
+request = "AgentCreateRequest"
+response = "Journey"
+idempotency = true
+journey = "Creation is a staged receipt-verified journey of kind agent-create. The agent renders active only when every step's receipt has verified; a partial creation shows which steps completed and resumes."
+
+[operation.agent.list]
+method = "GET"
+path = "/v1/agents"
+request = "Empty"
+response = "AgentPage"
+
+[operation.agent.get]
+method = "GET"
+path = "/v1/agents/{agent_id}"
+request = "Empty"
+response = "Agent"
+
+[operation.agent.pause]
+method = "POST"
+path = "/v1/agents/{agent_id}/pause"
+request = "Empty"
+response = "Agent"
+idempotency = true
+grammar = "reversible"
+consequence_copy_key = "agent.pause.consequence"
+effect = "Operating authority is suspended promptly. Pause is reversible, confirmed with the plain consequence sentence consequence_copy_key names, and the paused record carries the evidence backing the suspension."
+
+[operation.agent.resume]
+method = "POST"
+path = "/v1/agents/{agent_id}/resume"
+request = "Empty"
+response = "Agent"
+idempotency = true
+effect = "Resume restores the agent's operating authority through the same receipt-verified paths pause used."
+
+[operation.agent.limit]
+method = "POST"
+path = "/v1/agents/{agent_id}/limit"
+request = "AgentLimitRequest"
+response = "Agent"
+idempotency = true
+enforcement = "Where the limit is protocol-backed the change is receipt-verified through a protocol budget change. Any remainder this plane enforces itself is labelled app in enforcement and is never described as a protocol guarantee."
+
+[operation.agent.reclaim]
+method = "POST"
+path = "/v1/agents/{agent_id}/reclaim"
+request = "AgentReclaimRequest"
+response = "Journey"
+idempotency = true
+vocabulary = "Taking money back is a move journey using return vocabulary. There is no key-based sweep of an agent's account: the route resolver picks a legitimate return path and the journey shows the receipt-backed result."
+
+[operation.agent.rotate]
+method = "POST"
+path = "/v1/agents/{agent_id}/rotate"
+request = "Empty"
+response = "KeyChallenge"
+idempotency = true
+effect = "Rotation runs through the protocol's own mechanism with its challenge delay presented in plain time before anything changes hands."
+
+[operation.agent.recover]
+method = "POST"
+path = "/v1/agents/{agent_id}/recover"
+request = "Empty"
+response = "KeyChallenge"
+idempotency = true
+authority = "Recovery runs under the human's recovery authority with step-up, and the challenge delay is presented in plain time before anything changes."
+
+[operation.agent.archive]
+method = "POST"
+path = "/v1/agents/{agent_id}/archive"
+request = "AgentArchiveRequest"
+response = "Journey"
+idempotency = true
+grammar = "destructive"
+disposition_first = "Archive is refused with archive-needs-disposition while funds remain undisposed: remaining balances return through the reclaim paths first. A confirmed archive revokes authority, retires operating keys and keeps the agent's history and receipts readable forever."
+
+[operation.approval.list]
+method = "GET"
+path = "/v1/approvals"
+request = "Empty"
+response = "ApprovalPage"
+
+[operation.approval.get]
+method = "GET"
+path = "/v1/approvals/{approval_id}"
+request = "Empty"
+response = "ApprovalDetail"
+
+[operation.approval.approve]
+method = "POST"
+path = "/v1/approvals/{approval_id}/approve"
+request = "ApprovalApproveRequest"
+response = "ApprovalDecision"
+idempotency = true
+outcomes = "Exactly one decision wins. A hold already decided answers already-decided, an expired hold answers hold-expired, a defective hold answers hold-defective, and repeating the same decision returns the original outcome."
+
+[operation.approval.reject]
+method = "POST"
+path = "/v1/approvals/{approval_id}/reject"
+request = "Empty"
+response = "ApprovalDecision"
+idempotency = true
+finality = "Rejection cancels the hold immediately and is final for it. The response confirms nothing moved."
