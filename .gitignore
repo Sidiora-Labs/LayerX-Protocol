@@ -64,3 +64,4 @@ crash-*
 .DS_Store
 Thumbs.db
 tmp/*
+.claude/worktrees/
