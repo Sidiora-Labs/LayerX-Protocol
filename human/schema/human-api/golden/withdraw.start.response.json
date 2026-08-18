@@ -1,0 +1,42 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "journey_id": "jrn_01j2gxw2krb1c2d3e4f5g6h7j8",
+      "kind": "withdraw",
+      "state": "refused",
+      "state_copy_key": "status.refused",
+      "stages": [
+        {
+          "stage_id": "stg_01j2gxw2krd3e4f5g6h7j8k9m0",
+          "copy_key": "withdraw.stage.processing",
+          "state": "refused",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2gxw2krf5g6h7j8k9m0n1p2",
+              "class": "typed-refusal",
+              "verification": "unverified"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "evd_01j2gxw2krf5g6h7j8k9m0n1p2",
+          "class": "typed-refusal",
+          "verification": "unverified"
+        }
+      ],
+      "refusal": {
+        "refused_by": "limit",
+        "copy_key": "refusal.withdraw.daily-limit-reached",
+        "money_left": false,
+        "change_path": "/app/settings/limits"
+      },
+      "started_at": "2026-08-18T10:02:00Z",
+      "updated_at": "2026-08-18T10:02:01Z"
+    },
+    "trace": "trc_01j2gxw2krh7j8k9m0n1p2q3r4"
+  }
+}

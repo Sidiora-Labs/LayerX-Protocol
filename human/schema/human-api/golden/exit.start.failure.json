@@ -1,0 +1,12 @@
+{
+  "status": 409,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "exit-unavailable",
+      "copy_key": "error.exit.network-operating-normally",
+      "retry": "structural"
+    },
+    "trace": "trc_01j2gxeatwb1c2d3e4f5g6h7j8"
+  }
+}

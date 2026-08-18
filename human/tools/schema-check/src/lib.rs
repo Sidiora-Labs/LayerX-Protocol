@@ -1508,6 +1508,55 @@ fn human_api_identity_module(model: &Model, root: &Path, violations: &mut Vec<Vi
     }
 }
 
+/// Enforces the movement module: the quote-then-commit Move money path, the
+/// custody-boundary journey starts, the typed Refusal shape journeys carry and
+/// the estimate/ceiling split the quote presents before commitment.
+fn human_api_movement_module(model: &Model, root: &Path, violations: &mut Vec<Violation>) {
+    let origin = root.join("movement.kvx");
+    for operation in ["move.quote", "move.commit", "deposit.start", "withdraw.start"] {
+        if !model.operations.iter().any(|declared| declared.name == operation) {
+            violations.push(violation(
+                &origin,
+                "missing-movement-module",
+                format!("the contract must declare operation.{operation}"),
+            ));
+        }
+    }
+    match model.records.get("Refusal") {
+        Some(refusal) => {
+            for (field, wanted) in [("refused_by", "RefusedBy"), ("money_left", "boolean")] {
+                let carried = refusal
+                    .required
+                    .iter()
+                    .any(|declared| declared.name == field && declared.type_name == wanted);
+                if !carried {
+                    violations.push(violation(
+                        &origin,
+                        "missing-movement-module",
+                        format!("Refusal must require {field}:{wanted}"),
+                    ));
+                }
+            }
+        }
+        None => violations.push(violation(
+            &origin,
+            "missing-movement-module",
+            "the contract must declare the Refusal record journeys carry",
+        )),
+    }
+    let separated = model.records.get("MoveQuote").is_some_and(|quote| {
+        quote.required.iter().any(|declared| declared.name == "fee_estimate")
+            && quote.required.iter().any(|declared| declared.name == "fee_ceiling")
+    });
+    if !separated {
+        violations.push(violation(
+            &origin,
+            "missing-movement-module",
+            "MoveQuote must separate fee_estimate from fee_ceiling",
+        ));
+    }
+}
+
 fn check_golden_failure(
     model: &Model,
     operation: &Operation,
@@ -1855,6 +1904,7 @@ pub fn human_api_schema(root: &Path) -> Result<SchemaReport, Vec<Violation>> {
     human_api_error_model(&model, root, &mut violations);
     human_api_stream_module(&model, root, &mut violations);
     human_api_identity_module(&model, root, &mut violations);
+    human_api_movement_module(&model, root, &mut violations);
     let mut golden_vectors = 0;
     for operation in &model.operations {
         golden_vectors += check_golden(root, &model, &encoding, operation, &mut violations);

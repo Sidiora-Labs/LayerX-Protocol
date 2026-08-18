@@ -93,21 +93,21 @@ fn violation_rules(root: &Path) -> Vec<&'static str> {
     }
 }
 
-fn add_move_commit(fixture: &Fixture, request_vector: &str) {
+fn add_move_recommit(fixture: &Fixture, request_vector: &str) {
     fixture.append(
         "journeys.kvx",
-        "\n[type.MoveCommitRequest]\nrequired = [\"to:string\",\"money:Money\"]\n\n[operation.move.commit]\nmethod = \"POST\"\npath = \"/v1/moves\"\nrequest = \"MoveCommitRequest\"\nresponse = \"Journey\"\nidempotency = true\n",
+        "\n[type.MoveRecommitRequest]\nrequired = [\"to:string\",\"money:Money\"]\n\n[operation.move.recommit]\nmethod = \"POST\"\npath = \"/v1/moves/recommit\"\nrequest = \"MoveRecommitRequest\"\nresponse = \"Journey\"\nidempotency = true\n",
     );
-    fixture.write("golden/move.commit.request.json", request_vector);
+    fixture.write("golden/move.recommit.request.json", request_vector);
     let journey = fixture.read("golden/journey.get.response.json");
-    fixture.write("golden/move.commit.response.json", &journey);
+    fixture.write("golden/move.recommit.response.json", &journey);
     let refusal = fixture.read("golden/journey.get.failure.json");
-    fixture.write("golden/move.commit.failure.json", &refusal);
+    fixture.write("golden/move.recommit.failure.json", &refusal);
 }
 
-const MOVE_COMMIT_REQUEST: &str = r#"{
+const MOVE_RECOMMIT_REQUEST: &str = r#"{
   "method": "POST",
-  "path": "/v1/moves",
+  "path": "/v1/moves/recommit",
   "headers": {
     "Idempotency-Key": "b1946ac92492d2347c6235b4d2611184"
   },
@@ -366,7 +366,7 @@ fn missing_baseline_instructs_a_deliberate_refresh() {
 fn idempotent_mutation_with_header_and_decimal_amount_passes() {
     let fixture = Fixture::from_real_schema();
     let base = passing_report(fixture.path());
-    add_move_commit(&fixture, MOVE_COMMIT_REQUEST);
+    add_move_recommit(&fixture, MOVE_RECOMMIT_REQUEST);
     let outcome = passing_report(fixture.path());
     assert!(outcome.additions_beyond_baseline >= 1);
     assert_eq!(outcome.operations, base.operations + 1);
@@ -375,20 +375,41 @@ fn idempotent_mutation_with_header_and_decimal_amount_passes() {
 #[test]
 fn idempotent_mutation_without_the_header_is_rejected() {
     let fixture = Fixture::from_real_schema();
-    let vector = MOVE_COMMIT_REQUEST.replace(
+    let vector = MOVE_RECOMMIT_REQUEST.replace(
         "  \"headers\": {\n    \"Idempotency-Key\": \"b1946ac92492d2347c6235b4d2611184\"\n  },\n",
         "",
     );
-    add_move_commit(&fixture, &vector);
+    add_move_recommit(&fixture, &vector);
     assert!(violation_rules(fixture.path()).contains(&"missing-idempotency-header"));
 }
 
 #[test]
 fn amount_encoded_as_json_number_is_rejected() {
     let fixture = Fixture::from_real_schema();
-    let vector = MOVE_COMMIT_REQUEST.replace("\"amount\": \"250000\"", "\"amount\": 250000");
-    add_move_commit(&fixture, &vector);
+    let vector = MOVE_RECOMMIT_REQUEST.replace("\"amount\": \"250000\"", "\"amount\": 250000");
+    add_move_recommit(&fixture, &vector);
     assert!(violation_rules(fixture.path()).contains(&"invalid-scalar-value"));
+}
+
+#[test]
+fn movement_module_without_its_operations_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite("movement.kvx", "[operation.move.quote]", "[operation.move.preview]");
+    assert!(violation_rules(fixture.path()).contains(&"missing-movement-module"));
+}
+
+#[test]
+fn refusal_without_the_money_left_statement_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite("movement.kvx", "\"money_left:boolean\"", "\"money_gone:boolean\"");
+    assert!(violation_rules(fixture.path()).contains(&"missing-movement-module"));
+}
+
+#[test]
+fn quote_without_a_separate_fee_ceiling_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite("movement.kvx", "\"fee_ceiling:Money\"", "\"fee:Money\"");
+    assert!(violation_rules(fixture.path()).contains(&"missing-movement-module"));
 }
 
 #[test]

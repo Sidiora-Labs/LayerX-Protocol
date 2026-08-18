@@ -1,0 +1,12 @@
+{
+  "status": 409,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "wallet-not-bound",
+      "copy_key": "error.deposit.wallet-not-bound",
+      "retry": "structural"
+    },
+    "trace": "trc_01j2gxdcsrb1c2d3e4f5g6h7j8"
+  }
+}

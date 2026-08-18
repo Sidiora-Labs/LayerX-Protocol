@@ -1,0 +1,42 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "journey_id": "jrn_01j2gxd8pnb1c2d3e4f5g6h7j8",
+      "kind": "deposit",
+      "state": "getting-ready",
+      "state_copy_key": "status.getting-ready",
+      "stages": [
+        {
+          "stage_id": "stg_01j2gxd8pnd3e4f5g6h7j8k9m0",
+          "copy_key": "deposit.stage.waiting-for-wallet",
+          "state": "getting-ready",
+          "evidence": [
+            {
+              "evidence_id": "evd_01j2gxd8pnf5g6h7j8k9m0n1p2",
+              "class": "local-journey-state",
+              "verification": "unverified"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "evd_01j2gxd8pnf5g6h7j8k9m0n1p2",
+          "class": "local-journey-state",
+          "verification": "unverified"
+        }
+      ],
+      "wallet_request": {
+        "stage_id": "stg_01j2gxd8pnd3e4f5g6h7j8k9m0",
+        "copy_key": "deposit.sign.custody-transaction",
+        "from_address": "0x8ba1f109551bd432803012645ac136ddd64dba72",
+        "to_sign_base64": "cGF4ZWVyLWN1c3RvZHktdHJhbnNhY3Rpb24tYnl0ZXM="
+      },
+      "started_at": "2026-08-18T09:30:00Z",
+      "updated_at": "2026-08-18T09:30:00Z"
+    },
+    "trace": "trc_01j2gxd8pnh7j8k9m0n1p2q3r4"
+  }
+}

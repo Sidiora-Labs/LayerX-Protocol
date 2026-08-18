@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "path": "/v1/exit",
+  "headers": {
+    "Idempotency-Key": "6e5d4c3b2a190807f6e5d4c3b2a19080"
+  },
+  "body": {
+    "confirmation": "get my money out"
+  }
+}

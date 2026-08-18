@@ -1,0 +1,13 @@
+{
+  "status": 503,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "unavailable",
+      "copy_key": "error.exit.eligibility-unavailable",
+      "retry": "retriable-after",
+      "retry_after_ms": 5000
+    },
+    "trace": "trc_01j2gxecwyb1c2d3e4f5g6h7j8"
+  }
+}

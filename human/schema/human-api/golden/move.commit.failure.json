@@ -1,0 +1,12 @@
+{
+  "status": 409,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "quote-expired",
+      "copy_key": "error.move.quote-expired",
+      "retry": "structural"
+    },
+    "trace": "trc_01j2gxm5wjb1c2d3e4f5g6h7j8"
+  }
+}

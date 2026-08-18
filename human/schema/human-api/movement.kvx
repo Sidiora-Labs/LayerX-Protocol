@@ -1,0 +1,155 @@
+[module]
+name = "movement"
+contract_major = 1
+compatibility = "additive_only"
+vocabulary = "Movements inside LayerX are fund, allocate, return or transfer, in every API surface, log and copy string. Deposit, withdraw and exit name journeys across the Paxeer custody boundary exclusively and never name an internal movement."
+verb = "The user sees one verb: Move money. The user says who gets how much, the route resolver picks the mechanism, and the user never selects a transfer type, bridge or route."
+quote_then_commit = "Moving money is quote then commit. The quote states in plain language what will happen, the fee estimate with its ceiling, the arrival expectation and any irreversibility before the user commits, and the commit turns exactly that quote into a journey."
+repeat_rule = "Every operation that could move money requires the Idempotency-Key header, and repeating the request returns the original journey rather than a second effect."
+multi_leg = "The route resolver composes multi-leg journeys automatically. Each leg runs to its own verified receipt before the next leg starts, the journey presents per-leg progress, and the finished journey references every leg receipt in order."
+still_checking = "A leg whose fate is unknown pauses its journey in still-checking. It resolves only by receipt lookup, the service never resubmits a leg whose fate is undetermined, and every control that could duplicate the effect stays locked while it lasts."
+refusals = "A refused movement carries the typed Refusal on its journey: which limit refused it in plain language, whether any money left the account, and where the limit can be changed when it is the user's to change."
+
+[scalar.QuoteId]
+json = "string"
+prefix = "qte_"
+rust = "String"
+typescript = "string"
+
+[scalar.WalletAddress]
+json = "string"
+prefix = "0x"
+rust = "String"
+typescript = "string"
+
+[scalar.WalletTxId]
+json = "string"
+prefix = "0x"
+rust = "String"
+typescript = "string"
+
+[scalar.WalletSignature]
+json = "string"
+prefix = "0x"
+rust = "String"
+typescript = "string"
+
+[type.MoveMechanism]
+variants = ["fund","allocate","return","transfer"]
+resolved = "The route resolver derives the mechanism from source, destination and their relationship. The user never chooses it."
+boundary = "deposit, withdraw and exit are never mechanisms of an internal movement: they name custody-boundary journeys exclusively."
+
+[type.RefusedBy]
+variants = ["policy","budget","capability","protocol","limit"]
+classes = "The machine classes a movement can be refused by. The journey surface always speaks the refusal in plain language through the Refusal copy key."
+
+[type.Refusal]
+required = ["refused_by:RefusedBy","copy_key:CopyKey","money_left:boolean"]
+optional = ["change_path:string"]
+plain_language = "copy_key names in plain language which limit refused the movement."
+money_left_rule = "money_left states whether any money left the account. The plane surfaces a refusal honestly, never softens it, and never retries into a different outcome."
+change_path_rule = "change_path names the surface where the user can change the refusing limit, present only when that limit is theirs to change."
+
+[type.WalletSignRequest]
+required = ["stage_id:StageId","copy_key:CopyKey","from_address:WalletAddress","to_sign_base64:string"]
+opens_once = "The wallet opens exactly once per wallet request, at an explicit signing moment, and copy_key states in plain language what the signature does."
+opaque = "to_sign_base64 carries exactly what the wallet consumes - the custody transaction, the binding statement or a claim. The client hands it to the wallet unchanged and never assembles or inspects it."
+bound_address = "from_address is the bound address the signature must come from."
+stage_rule = "stage_id names the journey stage that waits on this signature."
+
+[type.MoveQuoteRequest]
+required = ["source:string","destination:string","money:Money"]
+endpoints = "source and destination name the user's account, one of their managed agents or the bound wallet. The resolver derives everything else."
+
+[type.MoveQuote]
+required = ["quote_id:QuoteId","description_copy_key:CopyKey","mechanism:MoveMechanism","money:Money","fee_estimate:Money","fee_ceiling:Money","arrival_estimate:Timestamp","expires_at:Timestamp"]
+optional = ["irreversibility_copy_key:CopyKey"]
+description = "description_copy_key resolves to the plain-language statement of what will happen, shown before the user commits."
+estimates = "fee_estimate and arrival_estimate are labelled estimates and never receipt-shaped, and fee_ceiling is the most the fee can be. Receipt-backed actuals replace every estimate once the journey completes."
+expiry = "A quote is honoured until expires_at. Committing an expired quote is refused with the quote-expired code and the client requests a fresh quote."
+irreversibility = "irreversibility_copy_key is present when the movement cannot be undone and states so before commitment."
+
+[type.MoveCommitRequest]
+required = ["quote_id:QuoteId"]
+
+[type.DepositStartRequest]
+required = ["money:Money"]
+
+[type.DepositConfirmRequest]
+required = ["wallet_transaction:WalletTxId"]
+
+[type.WithdrawStartRequest]
+required = ["money:Money","destination:WalletAddress"]
+review = "The review before commitment shows the amount, the full destination address and the explicit statement that a committed withdrawal cannot be cancelled, only completed."
+
+[type.WithdrawClaimRequest]
+required = ["claim_signature:WalletSignature"]
+
+[type.ExitStartRequest]
+required = ["confirmation:string"]
+typed_confirmation = "confirmation carries the exact typed phrase the irreversible-action grammar requires. Anything else is refused."
+
+[type.ExitEligibility]
+required = ["eligible:boolean","copy_key:CopyKey"]
+optional = ["withdraw_instead_path:string"]
+normal_operation = "Where the protocol has not declared exit eligibility, eligible is false and copy_key states plainly that the exit is unavailable because the network is operating normally, with withdraw_instead_path offering the ordinary withdrawal instead."
+
+[operation.move.quote]
+method = "POST"
+path = "/v1/moves/quote"
+request = "MoveQuoteRequest"
+response = "MoveQuote"
+no_route = "A route the resolver cannot serve is a typed refusal, never a partial attempt."
+
+[operation.move.commit]
+method = "POST"
+path = "/v1/moves"
+request = "MoveCommitRequest"
+response = "Journey"
+idempotency = true
+journey = "Committing a quote starts a journey of kind move. Repeating the request returns the original journey."
+
+[operation.deposit.start]
+method = "POST"
+path = "/v1/deposits"
+request = "DepositStartRequest"
+response = "Journey"
+idempotency = true
+first_stage = "The returned journey of kind deposit starts at the stage waiting on the wallet, and the journey carries the wallet request to sign for exactly that stage. Where no wallet is bound the journey starts with a linking stage instead, folding binding into the journey rather than a separate errand."
+
+[operation.deposit.confirm]
+method = "POST"
+path = "/v1/deposits/{journey_id}/confirm"
+request = "DepositConfirmRequest"
+response = "Journey"
+handoff = "The wallet's transaction reference hands the journey to the service, which runs it server-side from here with no further user action required."
+
+[operation.withdraw.start]
+method = "POST"
+path = "/v1/withdrawals"
+request = "WithdrawStartRequest"
+response = "Journey"
+idempotency = true
+commitment = "Starting a withdrawal commits it: a committed withdrawal cannot be cancelled, only completed, and the review states this explicitly before the user commits."
+
+[operation.withdraw.claim]
+method = "POST"
+path = "/v1/withdrawals/{journey_id}/claim"
+request = "WithdrawClaimRequest"
+response = "Journey"
+claim = "The wallet's claim signature reference advances the journey through its ready-to-claim stage toward paid out."
+
+[operation.exit.start]
+method = "POST"
+path = "/v1/exit"
+request = "ExitStartRequest"
+response = "Journey"
+idempotency = true
+framing = "A guided flow under Settings framed as getting my money out. It requires the typed confirmation of its irreversibility and stays operable when ordinary LayerX operation is degraded."
+
+[operation.exit.eligibility]
+method = "GET"
+path = "/v1/exit/eligibility"
+request = "Empty"
+response = "ExitEligibility"
+normal_operation = "When the network is operating normally the exit is unavailable, the read says so plainly, and the ordinary withdrawal is offered instead."

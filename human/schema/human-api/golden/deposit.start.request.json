@@ -1,0 +1,13 @@
+{
+  "method": "POST",
+  "path": "/v1/deposits",
+  "headers": {
+    "Idempotency-Key": "9f8e7d6c5b4a39281706f5e4d3c2b1a0"
+  },
+  "body": {
+    "money": {
+      "amount": "1000000",
+      "currency": "LXP"
+    }
+  }
+}

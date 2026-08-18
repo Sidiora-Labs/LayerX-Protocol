@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/v1/withdrawals",
+  "headers": {
+    "Idempotency-Key": "2b9c4d1e6f8a0b3c5d7e9f1a3b5c7d9e"
+  },
+  "body": {
+    "money": {
+      "amount": "750000",
+      "currency": "LXP"
+    },
+    "destination": "0x8ba1f109551bd432803012645ac136ddd64dba72"
+  }
+}

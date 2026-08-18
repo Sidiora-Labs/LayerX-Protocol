@@ -1,0 +1,12 @@
+{
+  "status": 422,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "refused-by-protocol",
+      "copy_key": "error.move.no-route",
+      "retry": "final"
+    },
+    "trace": "trc_01j2gxq3cnb1c2d3e4f5g6h7j8"
+  }
+}

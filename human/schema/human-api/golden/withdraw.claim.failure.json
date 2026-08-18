@@ -1,0 +1,12 @@
+{
+  "status": 409,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "conflict",
+      "copy_key": "error.withdraw.not-ready-to-claim",
+      "retry": "structural"
+    },
+    "trace": "trc_01j2gxw6nvb1c2d3e4f5g6h7j8"
+  }
+}

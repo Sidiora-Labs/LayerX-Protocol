@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/deposits/jrn_01j2gxd8pnb1c2d3e4f5g6h7j8/confirm",
+  "body": {
+    "wallet_transaction": "0x7d1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8"
+  }
+}

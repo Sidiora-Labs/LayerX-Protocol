@@ -33,6 +33,7 @@ required = ["stage_id:StageId","copy_key:CopyKey","state:JourneyState","evidence
 
 [type.Journey]
 required = ["journey_id:JourneyId","kind:JourneyKind","state:JourneyState","state_copy_key:CopyKey","stages:JourneyStage[]","evidence:EvidenceRef[]","started_at:Timestamp","updated_at:Timestamp"]
+optional = ["refusal:Refusal","wallet_request:WalletSignRequest"]
 rule = "A journey is the only shape in which protocol activity reaches a client."
 
 [type.JourneyPage]

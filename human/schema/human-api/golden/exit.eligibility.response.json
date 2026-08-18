@@ -1,0 +1,12 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "eligible": false,
+      "copy_key": "exit.unavailable.network-operating-normally",
+      "withdraw_instead_path": "/app/move/withdraw"
+    },
+    "trace": "trc_01j2gxebvxb1c2d3e4f5g6h7j8"
+  }
+}

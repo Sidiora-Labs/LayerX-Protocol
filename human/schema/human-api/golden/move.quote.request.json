@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "path": "/v1/moves/quote",
+  "body": {
+    "source": "acct_01j2gxq0aab1c2d3e4f5g6h7j8",
+    "destination": "acct_01j2gxq0aak9m0n1p2q3r4s5t6",
+    "money": {
+      "amount": "500000",
+      "currency": "LXP"
+    }
+  }
+}

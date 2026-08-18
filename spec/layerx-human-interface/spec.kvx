@@ -619,7 +619,7 @@ reqs = ["8.2","3.1","5.1"]
 
 [task.4.3]
 title = "Define movement and custody journey operations"
-status = "in_progress"
+status = "done"
 wave = 2
 requires = ["4.1"]
 do_1 = "Define the movement operations - quote, review, commit, journey status - in movement vocabulary: fund, allocate, return, transfer, deposit, withdraw, exit."
@@ -684,7 +684,7 @@ status = "pending"
 
 [task.5.1]
 title = "Implement the principal-scoped store and its migrations"
-status = "pending"
+status = "in_progress"
 wave = 3
 requires = ["4.1"]
 do_1 = "Implement the service store with every table scoped by principal identifier and an access layer that makes an unscoped query unrepresentable."
@@ -793,7 +793,7 @@ status = "pending"
 
 [task.6.1]
 title = "Implement Paxeer reads, finality tracking and reorg handling"
-status = "pending"
+status = "in_progress"
 wave = 3
 requires = ["1.1"]
 do_1 = "Implement the Paxeer read client for custody transactions, confirmations and finality status against configured endpoints."

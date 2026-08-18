@@ -1,0 +1,13 @@
+{
+  "status": 400,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "invalid-request",
+      "copy_key": "error.deposit.amount-required",
+      "retry": "structural",
+      "field": "money"
+    },
+    "trace": "trc_01j2gxd9qpb1c2d3e4f5g6h7j8"
+  }
+}

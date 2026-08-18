@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "path": "/v1/moves",
+  "headers": {
+    "Idempotency-Key": "5c3a1f0e7d2b4a9c8e6f1a2b3c4d5e6f"
+  },
+  "body": {
+    "quote_id": "qte_01j2gxq2bmb1c2d3e4f5g6h7j8"
+  }
+}

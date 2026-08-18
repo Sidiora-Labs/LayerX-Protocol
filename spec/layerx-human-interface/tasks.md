@@ -181,7 +181,7 @@ money or claims something about money, and both depend on the spine being real.
     - Define profile operations for declared-local data, separated from protocol identity.
     - Add golden vectors for every operation including the failure shapes.
     - _Requirements: 8.2, 3.1, 5.1_
-  - [-] 4.3 Define movement and custody journey operations
+  - [x] 4.3 Define movement and custody journey operations
     - Define the movement operations - quote, review, commit, journey status - in movement vocabulary: fund, allocate, return, transfer, deposit, withdraw, exit.
     - Require an idempotency key on every operation that could move money, with the repeated-request rule returning the original journey.
     - Define deposit, withdrawal, claim and exit journey shapes with their stages and per-stage evidence classes.
@@ -213,7 +213,7 @@ money or claims something about money, and both depend on the spine being real.
 ## Wave 3 - Custody and the Paxeer Boundary
 
 - [ ] 5. Implement identity and custody in layerx-human-service
-  - [ ] 5.1 Implement the principal-scoped store and its migrations
+  - [-] 5.1 Implement the principal-scoped store and its migrations
     - Implement the service store with every table scoped by principal identifier and an access layer that makes an unscoped query unrepresentable.
     - Implement versioned migrations with forward-only application and a startup refusal on a version the binary does not know.
     - Map each human principal to its agent-layer tenancy so agent-layer isolation composes, storing the mapping as authenticated configuration.
@@ -264,7 +264,7 @@ money or claims something about money, and both depend on the spine being real.
     - _Requirements: 5.1, 5.4, 5.6, 5.8_
 
 - [ ] 6. Build layerx-paxeer-client, the custody-boundary client
-  - [ ] 6.1 Implement Paxeer reads, finality tracking and reorg handling
+  - [-] 6.1 Implement Paxeer reads, finality tracking and reorg handling
     - Implement the Paxeer read client for custody transactions, confirmations and finality status against configured endpoints.
     - Track a custody transaction from broadcast through the finality the bridge requires, exposing staged status with confirmation counts.
     - Detect reorgs that displace a tracked transaction and report displacement as a distinct honest state, never as silent restart or false failure.

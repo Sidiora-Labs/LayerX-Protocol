@@ -6,7 +6,7 @@ model = "Every failure response carries one typed shape: a stable machine code, 
 report = "The envelope trace identifier is the key the Report action submits and the key support uses to retrieve the failure context the user saw."
 
 [type.ErrorCode]
-variants = ["unauthenticated","session-expired","step-up-required","forbidden","not-found","invalid-request","conflict","rate-limited","cursor-expired","unavailable","upstream-degraded","challenge-expired"]
+variants = ["unauthenticated","session-expired","step-up-required","forbidden","not-found","invalid-request","conflict","rate-limited","cursor-expired","unavailable","upstream-degraded","challenge-expired","refused-by-policy","refused-by-budget","refused-by-capability","refused-by-protocol","refused-by-limit","quote-expired","wallet-not-bound","exit-unavailable"]
 stability = "Machine codes are stable identifiers. A code is never renamed or removed within a major version; new failure classes append new codes."
 
 [type.Retriability]
