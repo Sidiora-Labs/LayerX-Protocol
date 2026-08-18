@@ -1623,6 +1623,12 @@ human-test-integration:
 human-test-intents:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-intents
 
+human-test-service:
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service
+
+human-test-paxeer:
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-paxeer-client
+
 human-fuzz-intents:
 	cargo +nightly-2025-11-10 fuzz run intent --fuzz-dir human/crates/layerx-intents/fuzz -- -max_total_time=120 -timeout=10
 
