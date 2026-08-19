@@ -1609,7 +1609,12 @@ public-audit:
 agent-build:
 	$(AGENT_CARGO) build --manifest-path $(AGENT_MANIFEST) --locked --workspace
 
+human-gen-api:
+	$(HUMAN_CARGO) run --manifest-path human/tools/api-gen/Cargo.toml --locked -- human/schema/human-api human/apps/web/src/api/generated
+
 human-build:
+	$(HUMAN_CARGO) test --manifest-path human/tools/api-gen/Cargo.toml --locked
+	$(HUMAN_CARGO) run --manifest-path human/tools/api-gen/Cargo.toml --locked -- --check human/schema/human-api human/apps/web/src/api/generated
 	$(HUMAN_CARGO) build --manifest-path $(HUMAN_MANIFEST) --locked --workspace
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) run build

@@ -9,8 +9,8 @@
   "scripts": {
     "build": "npm run build:ui && next build",
     "build:ui": "cd packages/layerx-ui && ../../node_modules/.bin/tsup",
-    "test": "node --test e2e/scaffold.test.mjs e2e/copy.test.ts e2e/ui-library.test.ts e2e/harness.test.ts e2e/state-matrix.test.ts",
-    "test:component": "node --test e2e/scaffold.test.mjs e2e/copy.test.ts e2e/ui-library.test.ts e2e/harness.test.ts e2e/state-matrix.test.ts",
+    "test": "node --test e2e/scaffold.test.mjs e2e/copy.test.ts e2e/ui-library.test.ts e2e/harness.test.ts e2e/state-matrix.test.ts e2e/api-client.test.ts",
+    "test:component": "node --test e2e/scaffold.test.mjs e2e/copy.test.ts e2e/ui-library.test.ts e2e/harness.test.ts e2e/state-matrix.test.ts e2e/api-client.test.ts",
     "test:journey": "playwright test --grep @journey",
     "test:e2e": "playwright test",
     "test:visual": "playwright test --grep @visual",
