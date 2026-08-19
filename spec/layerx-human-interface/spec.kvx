@@ -684,7 +684,7 @@ status = "pending"
 
 [task.5.1]
 title = "Implement the principal-scoped store and its migrations"
-status = "in_progress"
+status = "done"
 wave = 3
 requires = ["4.1"]
 do_1 = "Implement the service store with every table scoped by principal identifier and an access layer that makes an unscoped query unrepresentable."
@@ -699,7 +699,7 @@ reqs = ["22.1","22.8"]
 
 [task.5.2]
 title = "Implement passkey authentication, sessions and step-up"
-status = "pending"
+status = "in_progress"
 wave = 3
 requires = ["5.1"]
 do_1 = "Implement passkey registration and assertion as the primary credential with a fallback credential path that never weakens the passkey path."
@@ -714,7 +714,7 @@ reqs = ["3.1","4.3","8.8","21.9"]
 
 [task.5.3]
 title = "Implement the KMS keystore and the custody signer"
-status = "pending"
+status = "in_progress"
 wave = 3
 requires = ["5.1"]
 do_1 = "Implement the KMS-backed keystore holding human and managed-agent keys with per-principal isolation, zeroization on release and no plaintext key material at rest outside the KMS boundary."
@@ -759,7 +759,7 @@ reqs = ["4.4","4.8"]
 
 [task.5.6]
 title = "Implement the audit chain, redaction and trace propagation"
-status = "pending"
+status = "in_progress"
 wave = 3
 requires = ["5.1"]
 do_1 = "Implement the append-only hash-chained audit log covering authentication, signing decisions, approvals, journey transitions, security changes and notification dispatches, each entry referencing its evidence."
@@ -1106,7 +1106,7 @@ reqs = ["13.3","13.4","13.6","13.8"]
 
 [task.9.4]
 title = "Implement the notification service"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["5.1"]
 do_1 = "Implement dispatch for the notification classes: approval waiting, money arrived, journey completed or failed, claim ready, security events and degradation notices, each carrying a deep link."

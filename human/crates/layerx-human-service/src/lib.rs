@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+pub mod store;
+
 /// The immutable workspace boundary consumed by the human control plane.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct HumanWorkspaceManifest {

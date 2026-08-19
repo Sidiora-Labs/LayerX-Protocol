@@ -213,21 +213,21 @@ money or claims something about money, and both depend on the spine being real.
 ## Wave 3 - Custody and the Paxeer Boundary
 
 - [ ] 5. Implement identity and custody in layerx-human-service
-  - [-] 5.1 Implement the principal-scoped store and its migrations
+  - [x] 5.1 Implement the principal-scoped store and its migrations
     - Implement the service store with every table scoped by principal identifier and an access layer that makes an unscoped query unrepresentable.
     - Implement versioned migrations with forward-only application and a startup refusal on a version the binary does not know.
     - Map each human principal to its agent-layer tenancy so agent-layer isolation composes, storing the mapping as authenticated configuration.
     - Declare retention per store - journeys, notifications, audit, telemetry buffers - and enforce expiry that never deletes evidence referenced by an exportable audit entry.
     - Prove isolation adversarially with a suite attempting cross-principal reads and writes through every access path.
     - _Requirements: 22.1, 22.8_
-  - [ ] 5.2 Implement passkey authentication, sessions and step-up
+  - [-] 5.2 Implement passkey authentication, sessions and step-up
     - Implement passkey registration and assertion as the primary credential with a fallback credential path that never weakens the passkey path.
     - Implement session issuance bound to the authenticated principal with anti-forgery protections for the browser client, expiry, refresh, per-session revocation including sign-out-everywhere, and per-principal request rate limiting with typed refusals carrying retry timing.
     - Implement step-up: a fresh passkey ceremony bound to a specific operation digest, with a validity window, required by the designated operation classes.
     - Record every device and session in the inventory with last-activity, and emit the new-device security notification.
     - Test session expiry honesty: expired sessions land on re-authentication with destination preserved, and no money operation succeeds on an expired session.
     - _Requirements: 3.1, 4.3, 8.8, 21.9_
-  - [ ] 5.3 Implement the KMS keystore and the custody signer
+  - [-] 5.3 Implement the KMS keystore and the custody signer
     - Implement the KMS-backed keystore holding human and managed-agent keys with per-principal isolation, zeroization on release and no plaintext key material at rest outside the KMS boundary.
     - Implement the custody signer as a layerx-crypto remote signer: it signs only given the exact canonical bytes plus a disclosure that re-encodes byte-identically, refusing on any mismatch.
     - Gate designated operations on step-up evidence bound to the disclosure digest, refusing a signature without it.
@@ -248,7 +248,7 @@ money or claims something about money, and both depend on the spine being real.
     - Renew expiring session keys for active agents without human interruption, within the authority the human granted.
     - Test revocation latency and rotation continuity against a real agent layer.
     - _Requirements: 4.4, 4.8_
-  - [ ] 5.6 Implement the audit chain, redaction and trace propagation
+  - [-] 5.6 Implement the audit chain, redaction and trace propagation
     - Implement the append-only hash-chained audit log covering authentication, signing decisions, approvals, journey transitions, security changes and notification dispatches, each entry referencing its evidence.
     - Detect and refuse silent truncation or reordering of the chain on read and on startup.
     - Implement the redaction layer so logs, metrics and traces cannot carry secrets, key material, personal data or financial values, with a CI gate over emitted schemas.
@@ -412,7 +412,7 @@ money or claims something about money, and both depend on the spine being real.
     - Converge concurrent decisions from multiple devices on one outcome with the honest already-decided presentation for the second.
     - Audit every decision with digest, step-up evidence and outcome, exportable with receipts.
     - _Requirements: 13.3, 13.4, 13.6, 13.8_
-  - [ ] 9.4 Implement the notification service
+  - [-] 9.4 Implement the notification service
     - Implement dispatch for the notification classes: approval waiting, money arrived, journey completed or failed, claim ready, security events and degradation notices, each carrying a deep link.
     - Implement push, email and in-app channels with per-event-class preferences nested under channel toggles, applied immediately.
     - Make security-critical classes - recovery initiation, wallet rebinding - non-suppressible.
