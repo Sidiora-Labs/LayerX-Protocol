@@ -271,28 +271,28 @@ money or claims something about money, and both depend on the spine being real.
     - Distinguish endpoint unavailability from chain-side delay in every reported state.
     - Test against a Paxeer test network with induced reorg and stall scenarios.
     - _Requirements: 10.2, 10.5_
-  - [ ] 6.2 Construct deposit proofs and the credit path
+  - [-] 6.2 Construct deposit proofs and the credit path
     - Construct the finalised custody proof for a deposit in the form the bridge module requires.
     - Feed the proof into the bridge deposit-credit intent for compilation and agent-layer submission.
     - Guarantee one custody transaction can never produce more than one credit submission, across retries and restarts.
     - Surface each failure class - custody transaction failed, proof unavailable, credit refused - as a typed state for the journey engine.
     - Test the full path against a Paxeer test network and a real core: custody transaction to verified LayerX credit receipt.
     - _Requirements: 10.2, 10.6_
-  - [ ] 6.3 Construct withdrawal claims and verify payouts
+  - [-] 6.3 Construct withdrawal claims and verify payouts
     - Construct the withdrawal claim from the committed LayerX debit and its checkpoint proof, in the form the Paxeer contracts require.
     - Track a submitted claim to Paxeer finality and verify the payout transaction before it is ever reported paid out.
     - Detect and report a challenge-window hold on the claimed checkpoint as its own honest state with the window's timing.
     - Surface payout cancellation after a successful challenge with the funds' actual disposition.
     - Test claim construction, payout verification and the hold path against the test network.
     - _Requirements: 11.3, 11.4_
-  - [ ] 6.4 Construct the emergency exit path
+  - [-] 6.4 Construct the emergency exit path
     - Construct the emergency exit claim against the last finalised checkpoint from evidence retrievable without LayerX ordinary operation.
     - Keep the exit path operable when the core is degraded, depending only on published checkpoint data and Paxeer availability.
     - Track the exit to Paxeer finality with the same verification rigor as withdrawals.
     - Read emergency-exit eligibility from Paxeer contract state, and surface ineligible, failure and hold states typed for the journey engine.
     - Test the exit against the test network including a scenario with LayerX reads unavailable.
     - _Requirements: 11.6, 11.7_
-  - [ ] 6.5 Report degradation honestly across the boundary
+  - [-] 6.5 Report degradation honestly across the boundary
     - Expose a status surface distinguishing Paxeer endpoint failure, chain congestion, finality delay and contract-level refusal.
     - Attach expected-timing context from declared configuration to every delay state so journeys can present honest expectations.
     - Never collapse a delay into a failure or a failure into a delay; classify each observable case explicitly.
@@ -430,7 +430,7 @@ money or claims something about money, and both depend on the spine being real.
 ## Wave 5 - Evidence and Read Surfaces
 
 - [ ] 10. Build the explorer index and the activity surface
-  - [ ] 10.1 Build the rebuildable explorer index
+  - [-] 10.1 Build the rebuildable explorer index
     - Implement layerx-explorer-index ingesting checkpoints, batches, receipts and events exclusively through the node boundary and availability retrieval.
     - Make the index rebuildable from those sources alone, proven by a delete-and-rebuild test that converges to identical query results.
     - Track and expose index freshness: the head and latest finalised checkpoint indexed.
