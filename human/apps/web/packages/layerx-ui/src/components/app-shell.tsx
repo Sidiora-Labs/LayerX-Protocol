@@ -227,6 +227,7 @@ export interface AppShellProps {
   onSearch?: () => void;
   onNotifications?: () => void;
   notificationCount?: number;
+  notificationControl?: React.ReactNode;
   /** Desktop sidebar extras */
   onExplorer?: () => void;
   onSettings?: () => void;
@@ -257,6 +258,7 @@ export function AppShell({
   onSearch,
   onNotifications,
   notificationCount,
+  notificationControl,
   onExplorer,
   onSettings,
   logo,
@@ -281,16 +283,18 @@ export function AppShell({
             <Search className="size-4" aria-hidden />
             Search
           </button>
-          <div className="relative">
-            <IconButton variant="outline" size="sm" onClick={onNotifications} aria-label="Notifications">
-              <Bell />
-            </IconButton>
-            {!!notificationCount && (
-              <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                {notificationCount}
-              </span>
-            )}
-          </div>
+          {notificationControl ?? (
+            <div className="relative">
+              <IconButton variant="outline" size="sm" onClick={onNotifications} aria-label="Notifications">
+                <Bell />
+              </IconButton>
+              {!!notificationCount && (
+                <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                  {notificationCount}
+                </span>
+              )}
+            </div>
+          )}
         </header>
 
         <main className="lx-scroll flex-1 overflow-y-auto">{children}</main>
@@ -336,16 +340,18 @@ export function AppShell({
               ⌘K
             </kbd>
           </button>
-          <div className="relative">
-            <IconButton variant="outline" size="sm" onClick={onNotifications} aria-label="Notifications">
-              <Bell />
-            </IconButton>
-            {!!notificationCount && (
-              <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                {notificationCount}
-              </span>
-            )}
-          </div>
+          {notificationControl ?? (
+            <div className="relative">
+              <IconButton variant="outline" size="sm" onClick={onNotifications} aria-label="Notifications">
+                <Bell />
+              </IconButton>
+              {!!notificationCount && (
+                <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                  {notificationCount}
+                </span>
+              )}
+            </div>
+          )}
           {headerActions}
         </header>
         <main className="lx-scroll flex-1 overflow-y-auto">{children}</main>

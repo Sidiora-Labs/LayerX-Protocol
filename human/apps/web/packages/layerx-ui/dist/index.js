@@ -1545,6 +1545,7 @@ function AppShell({
   onSearch,
   onNotifications,
   notificationCount,
+  notificationControl,
   onExplorer,
   onSettings,
   logo,
@@ -1571,7 +1572,7 @@ function AppShell({
             ]
           }
         ),
-        /* @__PURE__ */ jsxs17("div", { className: "relative", children: [
+        notificationControl ?? /* @__PURE__ */ jsxs17("div", { className: "relative", children: [
           /* @__PURE__ */ jsx25(IconButton, { variant: "outline", size: "sm", onClick: onNotifications, "aria-label": "Notifications", children: /* @__PURE__ */ jsx25(Bell, {}) }),
           !!notificationCount && /* @__PURE__ */ jsx25("span", { className: "absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground", children: notificationCount })
         ] })
@@ -1619,7 +1620,7 @@ function AppShell({
             ]
           }
         ),
-        /* @__PURE__ */ jsxs17("div", { className: "relative", children: [
+        notificationControl ?? /* @__PURE__ */ jsxs17("div", { className: "relative", children: [
           /* @__PURE__ */ jsx25(IconButton, { variant: "outline", size: "sm", onClick: onNotifications, "aria-label": "Notifications", children: /* @__PURE__ */ jsx25(Bell, {}) }),
           !!notificationCount && /* @__PURE__ */ jsx25("span", { className: "absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground", children: notificationCount })
         ] }),

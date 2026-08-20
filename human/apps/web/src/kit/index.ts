@@ -65,6 +65,7 @@ export {
   type CodeEntryProps,
   type MobileNotificationsProps,
   type DesktopNotificationsProps,
+  type KitNotificationItem,
 } from "./patterns";
 export {
   MobileConfirmation,
@@ -134,6 +135,16 @@ export {
 } from "./display";
 export {
   Badge,
-  StatPair,
+  Divider,
+  IconTile,
+  List,
+  ListItem,
+  SectionHeader,
+  SegmentedControl,
+  Switch,
   type BadgeProps,
-} from "@layerx/ui";
+  type ListItemProps,
+  type SegmentedControlOption,
+  type SegmentedControlProps,
+} from "./collection";
+export { StatPair } from "@layerx/ui";

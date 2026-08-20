@@ -1657,6 +1657,7 @@ function AppShell({
   onSearch,
   onNotifications,
   notificationCount,
+  notificationControl,
   onExplorer,
   onSettings,
   logo,
@@ -1683,7 +1684,7 @@ function AppShell({
             ]
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("div", { className: "relative", children: [
+        notificationControl ?? /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("div", { className: "relative", children: [
           /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(IconButton, { variant: "outline", size: "sm", onClick: onNotifications, "aria-label": "Notifications", children: /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(import_lucide_react10.Bell, {}) }),
           !!notificationCount && /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: "absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground", children: notificationCount })
         ] })
@@ -1731,7 +1732,7 @@ function AppShell({
             ]
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("div", { className: "relative", children: [
+        notificationControl ?? /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("div", { className: "relative", children: [
           /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(IconButton, { variant: "outline", size: "sm", onClick: onNotifications, "aria-label": "Notifications", children: /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(import_lucide_react10.Bell, {}) }),
           !!notificationCount && /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: "absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground", children: notificationCount })
         ] }),

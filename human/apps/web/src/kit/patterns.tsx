@@ -132,6 +132,7 @@ type MobileNotificationsPrimitiveProps = ComponentProps<typeof NotificationsScre
 type DesktopArchivePrimitiveProps = ComponentProps<typeof NotificationsArchive>;
 type DesktopPopoverPrimitiveProps = ComponentProps<typeof BellPopover>;
 
+export type KitNotificationItem = MobileNotificationsPrimitiveProps["items"][number];
 export type MobileNotificationsProps = MobileNotificationsPrimitiveProps;
 export type DesktopNotificationsProps =
   | (DesktopArchivePrimitiveProps & Readonly<{ view: "archive" }>)

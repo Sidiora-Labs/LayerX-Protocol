@@ -83,7 +83,7 @@ interface MoneyGroup {
 interface NotificationItem {
     id: string;
     title: string;
-    body: string;
+    body: React.ReactNode;
     /** When it happened — drives recency segments + labels. */
     date: Date;
     icon?: React.ReactNode;
@@ -556,6 +556,7 @@ interface AppShellProps {
     onSearch?: () => void;
     onNotifications?: () => void;
     notificationCount?: number;
+    notificationControl?: React.ReactNode;
     /** Desktop sidebar extras */
     onExplorer?: () => void;
     onSettings?: () => void;
@@ -574,7 +575,7 @@ interface AppShellProps {
  * Desktop → left sidebar (approval badge, Explorer, settings footer) +
  * top header (title, search field, bell, avatar) + content.
  */
-declare function AppShell({ nav, activeNav, onNavigate, onPrimaryAction, primaryActionLabel, primaryActionIcon, user, onSearch, onNotifications, notificationCount, onExplorer, onSettings, logo, title, headerActions, platform, className, children, }: AppShellProps): React.JSX.Element;
+declare function AppShell({ nav, activeNav, onNavigate, onPrimaryAction, primaryActionLabel, primaryActionIcon, user, onSearch, onNotifications, notificationCount, notificationControl, onExplorer, onSettings, logo, title, headerActions, platform, className, children, }: AppShellProps): React.JSX.Element;
 
 /**
  * The screen's one primary CTA, placed per platform contract:

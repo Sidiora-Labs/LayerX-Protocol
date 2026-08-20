@@ -1,14 +1,27 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { copyEntry } from "../../copy/catalog";
 import {
   DesktopNavigation,
+  DesktopNotifications,
   MobileNavigation,
   type NavigationProps,
 } from "../kit";
+import {
+  notificationItems,
+  useNotificationCenter,
+} from "../journeys/notifications";
 import {
   SHELL_HINT_COOKIE,
   ShellSelector,
@@ -23,6 +36,8 @@ const NAVIGATION = [
   { id: "more", label: copyEntry("navigation.more").message },
 ] as const satisfies readonly NavigationProps["nav"][number][];
 
+const AuthenticatedShellContext = createContext<ShellSelection | undefined>(undefined);
+
 const DESTINATIONS: Readonly<Record<(typeof NAVIGATION)[number]["id"], string>> = {
   home: "/app",
   agents: "/app/agents",
@@ -30,10 +45,8 @@ const DESTINATIONS: Readonly<Record<(typeof NAVIGATION)[number]["id"], string>> 
   more: "/app/settings",
 };
 
-const ShellSelectionContext = createContext<ShellSelection | undefined>(undefined);
-
 export function useShellSelection(): ShellSelection {
-  const selection = useContext(ShellSelectionContext);
+  const selection = useContext(AuthenticatedShellContext);
   if (selection === undefined) {
     throw new Error("useShellSelection requires the authenticated shell");
   }
@@ -65,7 +78,11 @@ function activeNavigation(pathname: string): (typeof NAVIGATION)[number]["id"] {
   if (pathname.startsWith("/app/agents")) {
     return "agents";
   }
-  if (pathname.startsWith("/app/activity")) {
+  if (
+    pathname.startsWith("/app/activity")
+    || pathname.startsWith("/app/approvals")
+    || pathname.startsWith("/app/notifications")
+  ) {
     return "activity";
   }
   if (pathname.startsWith("/app/settings") || pathname.startsWith("/app/security")) {
@@ -83,7 +100,15 @@ export function AuthenticatedShell({
   const frame = useRef<number | undefined>(undefined);
   const pathname = usePathname();
   const router = useRouter();
+  const notificationCenter = useNotificationCenter();
   const Navigation = selection.shell === "mobile" ? MobileNavigation : DesktopNavigation;
+  const approvalCount = notificationCenter.state.approvalCount;
+  const nav = useMemo(() => NAVIGATION.map((item) => item.id === "activity" && approvalCount > 0
+    ? { ...item, badge: approvalCount }
+    : item), [approvalCount]);
+  const notifications = notificationCenter.state.status === "ready"
+    ? notificationItems(notificationCenter.state.notifications)
+    : [];
 
   useLayoutEffect(() => {
     const applyClientSelection = () => {
@@ -133,30 +158,73 @@ export function AuthenticatedShell({
     router.push(ShellSelector.resolveDeepLink(destination, selection.shell).href);
   };
 
+  const openNotification = async (id: string) => {
+    if (notificationCenter.state.status !== "ready") {
+      router.push("/app/notifications");
+      return;
+    }
+    const notification = notificationCenter.state.notifications.find(
+      (candidate) => candidate.source.notification_id === id,
+    );
+    if (notification === undefined) {
+      router.push("/app/notifications");
+      return;
+    }
+    try {
+      const landing = await notificationCenter.open(notification);
+      router.push(landing.href);
+    } catch {
+      router.push("/app/notifications");
+    }
+  };
+
   return (
-    <div
-      data-shell={selection.shell}
-      data-server-shell={initialSelection.shell}
-      data-shell-corrected={corrected ? "true" : "false"}
-      data-touch-targets={selection.touchTargets ? "true" : "false"}
-    >
-      <Navigation
-        nav={[...NAVIGATION]}
-        activeNav={activeNavigation(pathname)}
-        onNavigate={navigate}
-        onPrimaryAction={() => {
-          router.push("/app");
-        }}
-        onExplorer={() => {
-          router.push("/explorer");
-        }}
-        onSettings={() => {
-          router.push("/app/settings");
-        }}
-        title={copyEntry(`navigation.${activeNavigation(pathname)}`).message}
+    <AuthenticatedShellContext.Provider value={selection}>
+      <div
+        data-shell={selection.shell}
+        data-server-shell={initialSelection.shell}
+        data-shell-corrected={corrected ? "true" : "false"}
+        data-touch-targets={selection.touchTargets ? "true" : "false"}
       >
-        <ShellSelectionContext.Provider value={selection}>{children}</ShellSelectionContext.Provider>
-      </Navigation>
-    </div>
+        <Navigation
+          nav={nav}
+          activeNav={activeNavigation(pathname)}
+          onNavigate={navigate}
+          onPrimaryAction={() => {
+            router.push("/app");
+          }}
+          onNotifications={() => router.push("/app/notifications")}
+          notificationCount={notificationCenter.state.unreadCount}
+          {...(selection.shell === "desktop" ? {
+            notificationControl: (
+              <DesktopNotifications
+                view="popover"
+                items={notifications}
+                unreadCount={notificationCenter.state.unreadCount}
+                onItemClick={(item) => { void openNotification(item.id); }}
+                onViewAll={() => router.push("/app/notifications")}
+              />
+            ),
+          } : {})}
+          onExplorer={() => {
+            router.push("/explorer");
+          }}
+          onSettings={() => {
+            router.push("/app/settings");
+          }}
+          title={copyEntry(`navigation.${activeNavigation(pathname)}`).message}
+        >
+          {children}
+        </Navigation>
+      </div>
+    </AuthenticatedShellContext.Provider>
   );
+}
+
+export function useAuthenticatedShell(): ShellSelection {
+  const selection = useContext(AuthenticatedShellContext);
+  if (selection === undefined) {
+    throw new Error("AuthenticatedShell is required on authenticated surfaces");
+  }
+  return selection;
 }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AuthenticatedShell } from "../../shell/app-shell";
+import { NotificationCenterProvider } from "../../journeys/notifications";
 import { selectServerShell } from "../../shell/server";
 import { PrivacyModeProvider } from "../../settings/privacy";
 import { privacyPrincipalScope } from "../../settings/server";
@@ -17,9 +18,11 @@ export default async function AppPlaneLayout({ children }: Readonly<{ children: 
 
   return (
     <PrivacyModeProvider principalScope={privacyPrincipalScope(requestHeaders, requestCookies)}>
-      <AuthenticatedShell initialSelection={selectServerShell(requestHeaders, requestCookies)}>
-        {children}
-      </AuthenticatedShell>
+      <NotificationCenterProvider>
+        <AuthenticatedShell initialSelection={selectServerShell(requestHeaders, requestCookies)}>
+          {children}
+        </AuthenticatedShell>
+      </NotificationCenterProvider>
     </PrivacyModeProvider>
   );
 }

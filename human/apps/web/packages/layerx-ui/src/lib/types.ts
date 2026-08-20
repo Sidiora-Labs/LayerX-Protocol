@@ -27,7 +27,7 @@ export interface MoneyGroup {
 export interface NotificationItem {
   id: string;
   title: string;
-  body: string;
+  body: React.ReactNode;
   /** When it happened — drives recency segments + labels. */
   date: Date;
   icon?: React.ReactNode;
