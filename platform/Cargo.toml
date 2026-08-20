@@ -5,6 +5,7 @@ members = [
     "cli",
     "emulator",
     "hosted/faucet",
+    "hosted/gateway",
     "hosted/testnet",
     "sdk/generators",
     "release",

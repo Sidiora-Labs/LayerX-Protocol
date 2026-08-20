@@ -1257,6 +1257,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "layerx-platform-gateway"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.3.4",
+ "serde",
+ "serde_json",
+ "sha2",
+ "zeroize",
+]
+
+[[package]]
 name = "layerx-platform-kvx"
 version = "0.1.0"
 
