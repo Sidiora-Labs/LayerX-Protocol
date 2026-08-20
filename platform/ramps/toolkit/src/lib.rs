@@ -90,6 +90,94 @@ pub enum RampProgress {
     },
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RampStatusKey {
+    Pending,
+    Unknown,
+    Done,
+}
+
+impl RampStatusKey {
+    #[must_use]
+    pub const fn copy_key(self) -> &'static str {
+        match self {
+            Self::Pending => "ramp.status.pending",
+            Self::Unknown => "ramp.status.unknown",
+            Self::Done => "ramp.status.done",
+        }
+    }
+}
+
+/// The only UI/API projection a ramp integration may expose. The external
+/// custody label cannot be omitted, and `Done` cannot be constructed without
+/// the receipt digest retained in [`RampProgress::LayerXLegVerified`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RampPresentation {
+    external_custody_label_key: &'static str,
+    status_key: RampStatusKey,
+    layerx_receipt_digest: Option<[u8; 32]>,
+    external_payout: ExternalPayoutState,
+}
+
+impl RampPresentation {
+    #[must_use]
+    pub const fn external_custody_label_key(&self) -> &'static str {
+        self.external_custody_label_key
+    }
+
+    #[must_use]
+    pub const fn status_key(&self) -> RampStatusKey {
+        self.status_key
+    }
+
+    #[must_use]
+    pub const fn layerx_receipt_digest(&self) -> Option<[u8; 32]> {
+        self.layerx_receipt_digest
+    }
+
+    #[must_use]
+    pub const fn external_payout(&self) -> ExternalPayoutState {
+        self.external_payout
+    }
+}
+
+impl From<RampProgress> for RampPresentation {
+    fn from(progress: RampProgress) -> Self {
+        match progress {
+            RampProgress::AwaitingExternalSettlement | RampProgress::AwaitingLayerXTransfer => {
+                Self {
+                    external_custody_label_key: "ramp.external_custody.label",
+                    status_key: RampStatusKey::Pending,
+                    layerx_receipt_digest: None,
+                    external_payout: ExternalPayoutState::NotSubmitted,
+                }
+            }
+            RampProgress::LayerXLegVerified {
+                receipt_digest,
+                external_payout,
+            } => Self {
+                external_custody_label_key: "ramp.external_custody.label",
+                status_key: RampStatusKey::Done,
+                layerx_receipt_digest: Some(receipt_digest),
+                external_payout,
+            },
+        }
+    }
+}
+
+#[must_use]
+pub fn ramp_labelling_gate(presentation: &RampPresentation) -> bool {
+    if presentation.external_custody_label_key != "ramp.external_custody.label" {
+        return false;
+    }
+    match presentation.status_key {
+        RampStatusKey::Done => presentation.layerx_receipt_digest.is_some(),
+        RampStatusKey::Pending | RampStatusKey::Unknown => {
+            presentation.layerx_receipt_digest.is_none()
+        }
+    }
+}
+
 pub trait OrdinaryPrincipalPlane {
     type Error;
     /// Submits the ordinary 402LXP leg and returns only real receipt evidence.
@@ -221,4 +309,54 @@ fn verify_leg(
 #[must_use]
 pub const fn platform_ramp_toolkit() -> &'static str {
     "ordinary-principal-receipt-gated-market-maker-ramp"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        ramp_labelling_gate, ExternalPayoutState, RampPresentation, RampProgress, RampStatusKey,
+    };
+
+    #[test]
+    fn pending_outcome_is_labelled_and_never_done() {
+        let presentation = RampPresentation::from(RampProgress::AwaitingLayerXTransfer);
+        assert_eq!(presentation.status_key, RampStatusKey::Pending);
+        assert!(presentation.layerx_receipt_digest.is_none());
+        assert!(ramp_labelling_gate(&presentation));
+    }
+
+    #[test]
+    fn verified_layerx_leg_is_the_only_done_constructor() {
+        let digest = [7; 32];
+        let presentation = RampPresentation::from(RampProgress::LayerXLegVerified {
+            receipt_digest: digest,
+            external_payout: ExternalPayoutState::Unknown,
+        });
+        assert_eq!(presentation.status_key, RampStatusKey::Done);
+        assert_eq!(presentation.layerx_receipt_digest, Some(digest));
+        assert_eq!(presentation.external_payout, ExternalPayoutState::Unknown);
+        assert!(ramp_labelling_gate(&presentation));
+    }
+
+    #[test]
+    fn malformed_api_outcomes_fail_the_gate() {
+        let missing_label = RampPresentation {
+            external_custody_label_key: "status.done",
+            status_key: RampStatusKey::Done,
+            layerx_receipt_digest: Some([1; 32]),
+            external_payout: ExternalPayoutState::Settled {
+                provider_evidence_digest: [2; 32],
+            },
+        };
+        assert!(!ramp_labelling_gate(&missing_label));
+        let invented_done = RampPresentation {
+            external_custody_label_key: "ramp.external_custody.label",
+            status_key: RampStatusKey::Done,
+            layerx_receipt_digest: None,
+            external_payout: ExternalPayoutState::Settled {
+                provider_evidence_digest: [2; 32],
+            },
+        };
+        assert!(!ramp_labelling_gate(&invented_done));
+    }
 }

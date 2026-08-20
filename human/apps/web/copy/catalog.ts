@@ -1,4 +1,4 @@
-export const COPY_CATALOG_VERSION = "1.4.0" as const;
+export const COPY_CATALOG_VERSION = "1.5.0" as const;
 
 export const BANNED_VOCABULARY = [
   "DID",
@@ -16,7 +16,7 @@ export const BANNED_VOCABULARY = [
 export const DATE_FORMAT = "dd MMM yyyy, HH:mm z" as const;
 export const AMOUNT_FORMAT = "{sign}{amount} {currencyCode}" as const;
 
-export type CopySurface = "default" | "technical" | "explorer";
+export type CopySurface = "default" | "technical" | "explorer" | "ramp";
 export type CopyKind = "action" | "body" | "format" | "status";
 
 export interface CopyEntry {
@@ -787,6 +787,10 @@ export const copyEntries = [
   { key: "error.support.unavailable", message: "Support is temporarily unavailable. Your message was not sent.", context: "Typed retryable support-service refusal.", surface: "default", kind: "body", moneyAdjacent: false },
   { key: "error.support.conversation-unknown", message: "That support conversation is no longer available.", context: "Typed missing-conversation refusal.", surface: "default", kind: "body", moneyAdjacent: false },
   { key: "error.support.message-unknown", message: "That support message is no longer available.", context: "Typed missing-message refusal.", surface: "default", kind: "body", moneyAdjacent: false },
+  { key: "ramp.external_custody.label", message: "External custody: this independent market maker controls the off-platform funds and payout.", context: "Mandatory label on every third-party ramp surface. Never shown on a default Human surface.", surface: "ramp", kind: "body", moneyAdjacent: true },
+  { key: "ramp.status.pending", message: "Waiting on the independent market maker", context: "External provider or payout state remains pending and is not a LayerX balance fact.", surface: "ramp", kind: "body", moneyAdjacent: true },
+  { key: "ramp.status.unknown", message: "The independent market maker's result is not known yet", context: "Unknown external-custody outcome. Never infer a LayerX balance change.", surface: "ramp", kind: "body", moneyAdjacent: true },
+  { key: "ramp.status.done", message: "Done", context: "Shown only against the verified LayerX receipt for the LayerX-side leg; external payout state remains separate.", surface: "ramp", kind: "status", moneyAdjacent: true },
 ] as const satisfies readonly CopyEntry[];
 
 const catalog = new Map<string, CopyEntry>(

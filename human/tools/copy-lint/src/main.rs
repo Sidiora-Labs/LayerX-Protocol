@@ -34,7 +34,9 @@ const STATUS_MESSAGES: &[&str] = &[
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Entry {
+    key: String,
     message: String,
+    context: String,
     surface: String,
     kind: String,
     money_adjacent: bool,
@@ -63,7 +65,9 @@ fn entries(source: &str) -> Vec<Entry> {
         .filter(|line| line.trim_start().starts_with("{ key:"))
         .filter_map(|line| {
             Some(Entry {
+                key: quoted_field(line, "key")?,
                 message: quoted_field(line, "message")?,
+                context: quoted_field(line, "context")?,
                 surface: quoted_field(line, "surface")?,
                 kind: quoted_field(line, "kind")?,
                 money_adjacent: line.contains("moneyAdjacent: true"),
@@ -104,7 +108,7 @@ fn contains_term(message: &str, term: &str) -> bool {
 
 fn catalog_violations(source: &str) -> Vec<String> {
     let mut violations = Vec::new();
-    if !source.contains("COPY_CATALOG_VERSION = \"1.0.0\"") {
+    if !source.contains("COPY_CATALOG_VERSION = \"1.5.0\"") {
         violations.push("catalog-version".to_owned());
     }
     for term in REQUIRED_BANNED {
@@ -120,7 +124,30 @@ fn catalog_violations(source: &str) -> Vec<String> {
     }
 
     let parsed = entries(source);
+    let required_label = parsed.iter().any(|entry| {
+        entry.key == "ramp.external_custody.label"
+            && entry.surface == "ramp"
+            && entry.message == "External custody: this independent market maker controls the off-platform funds and payout."
+    });
+    if !required_label {
+        violations.push("missing-ramp-external-custody-label".to_owned());
+    }
     for entry in &parsed {
+        if entry.key.starts_with("ramp.") && entry.surface != "ramp" {
+            violations.push(format!("ramp-on-default-surface:{}", entry.key));
+        }
+        if entry.surface == "ramp" && !entry.key.starts_with("ramp.") {
+            violations.push(format!("non-ramp-copy-on-ramp-surface:{}", entry.key));
+        }
+        if entry.key.starts_with("ramp.")
+            && entry.message == "Done"
+            && !entry.context.contains("verified LayerX receipt")
+        {
+            violations.push(format!("ramp-done-without-receipt-rule:{}", entry.key));
+        }
+        if entry.key.starts_with("ramp.") && contains_term(&entry.message, "LayerX balance") {
+            violations.push(format!("ambiguous-ramp-balance-claim:{}", entry.key));
+        }
         if entry.surface == "default" {
             for term in REQUIRED_BANNED {
                 if contains_term(&entry.message, term) {
@@ -285,5 +312,37 @@ mod tests {
             "{count, plural, one {One item} other {Many items}}"
         ));
         assert!(!sentence_case("getting ready"));
+    }
+
+    fn ramp_catalog(entries: &str) -> String {
+        format!(
+            "export const COPY_CATALOG_VERSION = \"1.5.0\";\nexport const DATE_FORMAT = \"dd MMM yyyy, HH:mm z\";\nexport const AMOUNT_FORMAT = \"{{sign}}{{amount}} {{currencyCode}}\";\n{}\n  {{ key: \"ramp.external_custody.label\", message: \"External custody: this independent market maker controls the off-platform funds and payout.\", context: \"Required.\", surface: \"ramp\", kind: \"body\", moneyAdjacent: true }},\n{}",
+            "\"DID\";\"session key\";\"capability\";\"nullifier\";\"checkpoint\";\"payload\";\"canonical\";\"idempotency\";\"attestation\";\"proof\";",
+            entries,
+        )
+    }
+
+    #[test]
+    fn ramp_copy_on_default_surface_is_rejected() {
+        let source = ramp_catalog("  { key: \"ramp.offer\", message: \"Market maker offer\", context: \"Offer.\", surface: \"default\", kind: \"body\", moneyAdjacent: true },");
+        assert!(catalog_violations(&source)
+            .iter()
+            .any(|value| value == "ramp-on-default-surface:ramp.offer"));
+    }
+
+    #[test]
+    fn ramp_done_without_verified_receipt_rule_is_rejected() {
+        let source = ramp_catalog("  { key: \"ramp.status.done\", message: \"Done\", context: \"Provider said so.\", surface: \"ramp\", kind: \"status\", moneyAdjacent: true },");
+        assert!(catalog_violations(&source)
+            .iter()
+            .any(|value| value == "ramp-done-without-receipt-rule:ramp.status.done"));
+    }
+
+    #[test]
+    fn ambiguous_layerx_balance_claim_is_rejected() {
+        let source = ramp_catalog("  { key: \"ramp.balance\", message: \"Your LayerX balance is held by the market maker\", context: \"Bad.\", surface: \"ramp\", kind: \"body\", moneyAdjacent: true },");
+        assert!(catalog_violations(&source)
+            .iter()
+            .any(|value| value == "ambiguous-ramp-balance-claim:ramp.balance"));
     }
 }
