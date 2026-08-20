@@ -168,6 +168,7 @@ pub enum ApprovalOutcome {
     Approved,
     Rejected,
     Expired,
+    Defective,
 }
 
 impl ApprovalOutcome {
@@ -176,6 +177,7 @@ impl ApprovalOutcome {
             Self::Approved => 1,
             Self::Rejected => 2,
             Self::Expired => 3,
+            Self::Defective => 4,
         }
     }
 
@@ -184,6 +186,7 @@ impl ApprovalOutcome {
             1 => Ok(Self::Approved),
             2 => Ok(Self::Rejected),
             3 => Ok(Self::Expired),
+            4 => Ok(Self::Defective),
             _ => Err(AuditError::Corrupt("unknown approval outcome")),
         }
     }

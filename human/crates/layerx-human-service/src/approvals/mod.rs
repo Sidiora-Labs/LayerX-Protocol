@@ -1,7 +1,12 @@
 //! Event-driven projection of the agent approval module into the Human inbox.
 
+mod decide;
 mod render;
 
+pub use decide::{
+    AgentDecision, AgentDecisionBoundary, AgentDecisionResolution, AgentDecisionStatus,
+    DecisionAction, DecisionError, DecisionResult, Decisions,
+};
 pub use render::{
     ApprovalActivityClass, ApprovalPresentation, DisclosureRenderError, DisclosureRenderer,
     RenderedApproval, RenderedApprovalFacts, RenderedCounterparty, UnrenderableApproval,

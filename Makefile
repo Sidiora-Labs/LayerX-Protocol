@@ -1681,6 +1681,9 @@ human-test-approvals:
 	@if [ -f human/crates/layerx-human-service/tests/render.rs ]; then \
 		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test render; \
 	fi
+	@if [ -f human/crates/layerx-human-service/tests/decide.rs ]; then \
+		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test decide; \
+	fi
 
 human-test-activity:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test activity
