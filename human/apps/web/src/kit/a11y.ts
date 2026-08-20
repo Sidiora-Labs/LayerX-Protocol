@@ -30,12 +30,16 @@ export const SEMANTIC_CONTRAST_PAIRS = [
   ["--warning-foreground", "--warning"],
 ] as const;
 
-export const a11y = Object.freeze({
+const ACCESSIBILITY_CONTRACT = Object.freeze({
   minimumTextContrast: MINIMUM_TEXT_CONTRAST,
   semanticContrastPairs: SEMANTIC_CONTRAST_PAIRS,
   minimumTouchTargetCssPixels: 44,
   supportedTextExpansion: 1.5,
 });
+
+export function a11y() {
+  return ACCESSIBILITY_CONTRACT;
+}
 
 export interface ExplicitCurrencyAmountOptions {
   readonly currency: string;

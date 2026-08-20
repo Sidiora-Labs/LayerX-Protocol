@@ -508,7 +508,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Implement the offline banner and queued-action honesty with no possibility of duplicate money movement from a queue.
     - Register every screen's states in the state-matrix registry as they are built, keeping the enumeration gate green.
     - _Requirements: 18.1, 18.2, 18.3_
-  - [ ] 11.4 Build the accessibility and visual foundation
+  - [x] 11.4 Build the accessibility and visual foundation
     - Apply the authoritative @layerx/ui token stylesheet and component treatments across the complete kit without local primitive restyling.
     - Establish keyboard operability: visible focus order, focus trapping in layered surfaces, Escape and overlay dismissal on desktop, safe areas and keyboard avoidance on mobile.
     - Label every amount, status and control for assistive technology, announcing async status through live regions.

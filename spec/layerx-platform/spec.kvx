@@ -1410,7 +1410,7 @@ reqs = ["18.1","18.2","18.3"]
 
 [task.11.4]
 title = "Build the accessibility and visual foundation"
-status = "pending"
+status = "done"
 wave = 6
 requires = ["11.2","1.4"]
 do_1 = "Apply the authoritative @layerx/ui token stylesheet and component treatments across the complete kit without local primitive restyling."

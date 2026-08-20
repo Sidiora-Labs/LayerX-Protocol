@@ -50,8 +50,8 @@ test("amount formatting is locale-aware and always names an explicit currency co
 });
 
 test("the accessibility contract fixes touch targets and text expansion", () => {
-  assert.equal(a11y.minimumTouchTargetCssPixels, 44);
-  assert.equal(a11y.supportedTextExpansion, 1.5);
+  assert.equal(a11y().minimumTouchTargetCssPixels, 44);
+  assert.equal(a11y().supportedTextExpansion, 1.5);
 });
 
 test("the browser CI suite selects accessibility specs and a coarse-pointer tablet", async () => {
