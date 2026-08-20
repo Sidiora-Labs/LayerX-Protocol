@@ -252,7 +252,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Append every signing grant and refusal to the audit log with digest, operation, principal and step-up evidence, never key material or payload secrets.
     - Enforce per-principal signing throughput limits as declared configuration with typed refusals, and refuse honestly with no fallback when the KMS is unavailable.
     - _Requirements: 4.1, 4.2, 4.10_
-  - [-] 5.4 Implement onboarding: DID, recovery and activation
+  - [x] 5.4 Implement onboarding: DID, recovery and activation
     - Orchestrate onboarding as a durable journey: application identity, key generation in custody, DID registration through a typed intent, recovery registration, each stage receipt-verified before the next.
     - Treat the account as active only when the DID registration receipt verifies, exposing honest per-stage status until then.
     - Make every stage idempotent and resumable so crashes and duplicates converge on one identity, one DID, one recovery registration and one receipt set.
@@ -321,14 +321,14 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 4 - Journeys
 
 - [ ] 7. Implement the money journeys
-  - [ ] 7.1 Implement the route resolver and the movement vocabulary
+  - [-] 7.1 Implement the route resolver and the movement vocabulary
     - Implement the route resolver as a deterministic function from source, destination and relationship to the protocol mechanism: budget funding, send, budget defunding, receive under a payer grant, deposit, withdrawal.
     - Compose multi-leg journeys automatically where a movement requires them, with each leg's intent derived by the resolver.
     - Enforce the movement vocabulary in every API surface, log and copy string: deposit and withdrawal for the custody boundary only, fund, allocate, return and transfer inside LayerX.
     - Property-test resolver determinism and totality: equivalent requests choose identical routes, and an unservable route returns a typed unavailable refusal with no partial attempt.
     - Surface policy, budget, capability and protocol refusals with which limit refused and where it can be changed.
     - _Requirements: 9.1, 9.2, 9.9_
-  - [ ] 7.2 Implement the durable journey engine
+  - [-] 7.2 Implement the durable journey engine
     - Implement the journey engine: durable state machines whose legs run intent compilation, disclosure verification, custody signing and agent-layer submission, verifying each leg's receipt before the next leg starts.
     - Persist every transition so a service restart resumes every in-flight journey without duplicating any leg, under the idempotency keys the contract requires.
     - Implement still-checking: an unknown leg pauses the journey, resolves only by receipt lookup, and never re-submits an undetermined leg.

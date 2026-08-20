@@ -8,6 +8,8 @@ license.workspace = true
 [dependencies]
 base64.workspace = true
 getrandom.workspace = true
+layerx-agent-api.workspace = true
+layerx-intents = { path = "../layerx-intents" }
 layerx-types.workspace = true
 layerx-crypto.workspace = true
 layerx-proof.workspace = true
@@ -25,7 +27,6 @@ zeroize.workspace = true
 ciborium = "=0.2.2"
 ed25519-dalek = "=2.2.0"
 layerx-agentd.workspace = true
-layerx-intents = { path = "../layerx-intents" }
 
 [lints]
 workspace = true

@@ -873,7 +873,7 @@ reqs = ["4.1","4.2","4.10"]
 
 [task.5.4]
 title = "Implement onboarding: DID, recovery and activation"
-status = "in_progress"
+status = "done"
 wave = 3
 requires = ["5.3","3.3"]
 do_1 = "Orchestrate onboarding as a durable journey: application identity, key generation in custody, DID registration through a typed intent, recovery registration, each stage receipt-verified before the next."
@@ -1017,7 +1017,7 @@ status = "pending"
 
 [task.7.1]
 title = "Implement the route resolver and the movement vocabulary"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["5.4","3.2"]
 do_1 = "Implement the route resolver as a deterministic function from source, destination and relationship to the protocol mechanism: budget funding, send, budget defunding, receive under a payer grant, deposit, withdrawal."
@@ -1032,7 +1032,7 @@ reqs = ["9.1","9.2","9.9"]
 
 [task.7.2]
 title = "Implement the durable journey engine"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["5.1","5.3"]
 do_1 = "Implement the journey engine: durable state machines whose legs run intent compilation, disclosure verification, custody signing and agent-layer submission, verifying each leg's receipt before the next leg starts."

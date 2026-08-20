@@ -5,6 +5,7 @@ pub mod audit;
 pub mod custody;
 pub mod health;
 pub mod notify;
+pub mod onboarding;
 pub mod redaction;
 pub mod store;
 pub mod trace;
