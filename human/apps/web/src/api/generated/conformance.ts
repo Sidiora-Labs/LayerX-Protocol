@@ -56,6 +56,7 @@ import {
   encodeAuthenticatorSetupResult,
   encodeAuthenticatorStatus,
   encodeBackupCodeSet,
+  encodeBindingRebindAction,
   encodeBindingStatement,
   encodeEvidenceMaterial,
   encodeExitEligibility,
@@ -172,6 +173,8 @@ export const conformance: { readonly [name in OperationName]: (run: ConformanceR
     encodeAuthenticatorStatus(await run.client.authenticatorStatus()),
   "binding.rebind": async (run) =>
     encodeJourney(await run.client.bindingRebind(decodeRebindingSubmission(runBody(run), "golden request body"), runKey(run))),
+  "binding.rebind.action": async (run) =>
+    encodeBindingRebindAction(await run.client.bindingRebindAction(decodeBindingStatementRequest(runBody(run), "golden request body"))),
   "binding.statement": async (run) =>
     encodeBindingStatement(await run.client.bindingStatement(decodeBindingStatementRequest(runBody(run), "golden request body"))),
   "binding.status": async (run) =>

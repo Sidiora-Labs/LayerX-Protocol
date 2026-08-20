@@ -113,6 +113,7 @@ export {
 } from "./explorer";
 export { TextField, type TextFieldProps } from "./field";
 export { DeviceSessionList, type DeviceListItem } from "./device-list";
+export { AddressQrCode } from "./qr-code";
 export {
   ActivityEvidenceBadge,
   DesktopActivityFeed,

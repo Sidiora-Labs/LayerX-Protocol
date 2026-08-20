@@ -44,6 +44,27 @@ pub struct BindingStatement {
     signing_digest: [u8; 32],
 }
 
+/// Server-issued replacement statement and its operation-bound step-up digest.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RebindAction {
+    statement: BindingStatement,
+    confirms: OperationDigest,
+}
+
+impl RebindAction {
+    /// Exact statement the replacement wallet must sign.
+    #[must_use]
+    pub const fn statement(&self) -> &BindingStatement {
+        &self.statement
+    }
+
+    /// Exact operation digest a fresh passkey ceremony must confirm.
+    #[must_use]
+    pub const fn confirms(&self) -> OperationDigest {
+        self.confirms
+    }
+}
+
 impl BindingStatement {
     /// DID named by the statement.
     #[must_use]
@@ -413,6 +434,33 @@ impl BindingJourney {
         hasher.update(statement.address);
         hasher.update(statement.network_id.to_be_bytes());
         OperationDigest::new(hasher.finalize().into())
+    }
+
+    /// Issues one replacement statement together with its server-derived step-up digest.
+    ///
+    /// # Errors
+    ///
+    /// Refuses absent active state, pending binding work, and invalid statement inputs.
+    #[allow(clippy::too_many_arguments)]
+    pub fn issue_rebind_action(
+        &self,
+        scope: &PrincipalScope<'_>,
+        did: &Did,
+        network: NetworkId,
+        address: EvmAddress,
+        issued_at: u64,
+        ttl: u64,
+    ) -> Result<RebindAction, BindingError> {
+        let current = active(scope)?.ok_or(BindingError::RebindRequiresActiveBinding)?;
+        if pending(scope)?.is_some() {
+            return Err(BindingError::PendingBindingExists);
+        }
+        let statement = Self::issue_statement(did, network, address, issued_at, ttl)?;
+        let confirms = Self::rebind_operation_digest(&current, &statement);
+        Ok(RebindAction {
+            statement,
+            confirms,
+        })
     }
 
     /// Submits an initial binding only after local EVM ownership verification.

@@ -1485,6 +1485,28 @@ export function encodeBackupCodeSet(value: BackupCodeSet): JsonValue {
   return result;
 }
 
+export interface BindingRebindAction {
+  binding: BindingStatement;
+  confirms: OperationDigest;
+}
+
+export function decodeBindingRebindAction(value: JsonValue | undefined, at: string): BindingRebindAction {
+  const object = expectObject(value, at);
+  const result: BindingRebindAction = {
+    binding: decodeBindingStatement(object["binding"], at + ".binding"),
+    confirms: expectString(object["confirms"], at + ".confirms"),
+  };
+  return result;
+}
+
+export function encodeBindingRebindAction(value: BindingRebindAction): JsonValue {
+  const result: JsonObject = {
+    binding: encodeBindingStatement(value.binding),
+    confirms: value.confirms,
+  };
+  return result;
+}
+
 export interface BindingStatement {
   statement: string;
   address: EvmAddress;
@@ -3617,6 +3639,7 @@ export const operationNames = [
   "authenticator.setup.finish",
   "authenticator.status",
   "binding.rebind",
+  "binding.rebind.action",
   "binding.statement",
   "binding.status",
   "binding.submit",
@@ -3697,6 +3720,7 @@ export const operations: { readonly [name in OperationName]: OperationShape } = 
   "authenticator.setup.finish": { method: "POST", path: "/v1/security/authenticators/setups/{setup_id}", pathParams: ["setup_id"], request: "AuthenticatorSetupFinish", response: "AuthenticatorSetupResult", idempotency: false, bodyless: false },
   "authenticator.status": { method: "GET", path: "/v1/security/authenticators", pathParams: [], request: "Empty", response: "AuthenticatorStatus", idempotency: false, bodyless: true },
   "binding.rebind": { method: "POST", path: "/v1/wallet-binding/rebind", pathParams: [], request: "RebindingSubmission", response: "Journey", idempotency: true, bodyless: false },
+  "binding.rebind.action": { method: "POST", path: "/v1/wallet-binding/rebind/action", pathParams: [], request: "BindingStatementRequest", response: "BindingRebindAction", idempotency: false, bodyless: false },
   "binding.statement": { method: "POST", path: "/v1/wallet-binding/statement", pathParams: [], request: "BindingStatementRequest", response: "BindingStatement", idempotency: false, bodyless: false },
   "binding.status": { method: "GET", path: "/v1/wallet-binding", pathParams: [], request: "Empty", response: "WalletBinding", idempotency: false, bodyless: true },
   "binding.submit": { method: "POST", path: "/v1/wallet-binding", pathParams: [], request: "BindingSubmission", response: "Journey", idempotency: true, bodyless: false },
@@ -3783,6 +3807,7 @@ export interface HumanApiClient {
   authenticatorSetupFinish(setup_id: string, request: AuthenticatorSetupFinish): Promise<AuthenticatorSetupResult>;
   authenticatorStatus(): Promise<AuthenticatorStatus>;
   bindingRebind(request: RebindingSubmission, idempotencyKey: string): Promise<Journey>;
+  bindingRebindAction(request: BindingStatementRequest): Promise<BindingRebindAction>;
   bindingStatement(request: BindingStatementRequest): Promise<BindingStatement>;
   bindingStatus(): Promise<WalletBinding>;
   bindingSubmit(request: BindingSubmission, idempotencyKey: string): Promise<Journey>;
@@ -3922,6 +3947,8 @@ export function createHumanApiClient(options: HumanApiClientOptions = {}): Human
       decodeAuthenticatorStatus(await execute("GET", "/v1/security/authenticators", undefined, undefined), "authenticator.status result"),
     bindingRebind: async (request, idempotencyKey) =>
       decodeJourney(await execute("POST", "/v1/wallet-binding/rebind", encodeRebindingSubmission(request), idempotencyKey), "binding.rebind result"),
+    bindingRebindAction: async (request) =>
+      decodeBindingRebindAction(await execute("POST", "/v1/wallet-binding/rebind/action", encodeBindingStatementRequest(request), undefined), "binding.rebind.action result"),
     bindingStatement: async (request) =>
       decodeBindingStatement(await execute("POST", "/v1/wallet-binding/statement", encodeBindingStatementRequest(request), undefined), "binding.statement result"),
     bindingStatus: async () =>

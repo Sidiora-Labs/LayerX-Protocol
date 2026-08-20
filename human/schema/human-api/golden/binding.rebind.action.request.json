@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/wallet-binding/rebind/action",
+  "body": {
+    "address": "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359"
+  }
+}

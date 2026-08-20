@@ -15,6 +15,12 @@ export {
 export { SettingsScreen } from "./settings-screen";
 export { human_web_security, security, SecurityScreen } from "./security";
 export {
+  human_web_wallet_binding,
+  wallet_binding,
+  WalletBindingController,
+  WalletBindingScreen,
+} from "./wallet";
+export {
   PrivateFigure,
   PrivacyModeProvider,
   usePrivacyMode,

@@ -1569,7 +1569,7 @@ reqs = ["21.1","21.2","21.3"]
 
 [task.13.3]
 title = "Build wallet binding management"
-status = "pending"
+status = "done"
 wave = 7
 requires = ["11.2","5.7"]
 do_1 = "Build the binding surface: bound address with full checksum rendering, copy and QR, the one-sentence no-authority statement."
@@ -1758,7 +1758,7 @@ reqs = ["24.3","24.4","24.5","24.8","24.9"]
 
 [task.15.3]
 title = "Build the Go SDK"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["15.1"]
 do_1 = "Generate the Go SDK from the same schemas in the same build, covering every operation, journey, error and event with idiomatic Go naming, contexts and error wrapping."
@@ -1788,7 +1788,7 @@ reqs = ["24.1","24.3","24.4"]
 
 [task.15.5]
 title = "Build the Swift and C# SDKs"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["15.1"]
 do_1 = "Generate the Swift SDK from the same schemas with async/await APIs suitable for iOS and server-side Swift."

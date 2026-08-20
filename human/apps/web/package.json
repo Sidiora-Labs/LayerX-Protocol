@@ -25,7 +25,9 @@
   },
   "dependencies": {
     "@layerx/ui": "file:packages/layerx-ui",
+    "@types/qrcode": "^1.5.6",
     "next": "16.3.1",
+    "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

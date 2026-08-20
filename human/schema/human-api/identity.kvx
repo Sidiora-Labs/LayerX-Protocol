@@ -435,6 +435,17 @@ path = "/v1/wallet-binding"
 request = "Empty"
 response = "WalletBinding"
 
+[type.BindingRebindAction]
+required = ["binding:BindingStatement","confirms:OperationDigest"]
+binding = "The service issues the exact replacement statement and derives confirms from the current receipt-backed binding and that statement. The browser signs the returned statement and never constructs the operation digest."
+
+[operation.binding.rebind.action]
+method = "POST"
+path = "/v1/wallet-binding/rebind/action"
+request = "BindingStatementRequest"
+response = "BindingRebindAction"
+step_up = "This is the only source of the operation digest used to request fresh passkey evidence for a wallet replacement."
+
 [operation.binding.rebind]
 method = "POST"
 path = "/v1/wallet-binding/rebind"
