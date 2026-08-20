@@ -266,7 +266,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Renew expiring session keys for active agents without human interruption, within the authority the human granted.
     - Test revocation latency and rotation continuity against a real agent layer.
     - _Requirements: 4.4, 4.8_
-  - [-] 5.6 Implement the audit chain, redaction and trace propagation
+  - [x] 5.6 Implement the audit chain, redaction and trace propagation
     - Implement the append-only hash-chained audit log covering authentication, signing decisions, approvals, journey transitions, security changes and notification dispatches, each entry referencing its evidence.
     - Detect and refuse silent truncation or reordering of the chain on read and on startup.
     - Implement the redaction layer so logs, metrics and traces cannot carry secrets, key material, personal data or financial values, with a CI gate over emitted schemas.

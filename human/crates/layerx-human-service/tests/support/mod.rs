@@ -57,6 +57,7 @@ pub fn install_and_open(
     (store, digest)
 }
 
+#[allow(dead_code)]
 pub fn version_file_bytes(version: u32) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(8);
     bytes.extend_from_slice(b"LXHV");

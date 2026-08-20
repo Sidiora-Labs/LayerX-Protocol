@@ -903,7 +903,7 @@ reqs = ["4.4","4.8"]
 
 [task.5.6]
 title = "Implement the audit chain, redaction and trace propagation"
-status = "in_progress"
+status = "done"
 wave = 3
 requires = ["5.1"]
 do_1 = "Implement the append-only hash-chained audit log covering authentication, signing decisions, approvals, journey transitions, security changes and notification dispatches, each entry referencing its evidence."
