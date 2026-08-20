@@ -25,6 +25,9 @@ no_false_success= "Never mark a task done or attest completion that did not happ
 read_full       = "When a tool output is flagged truncated/paginated with a way to get the rest, retrieve the full content before reasoning. An information gap is a stop condition."
 deliver_complete= "Deliver complete, runnable artifacts, not diffs. Follow existing repo style; add no comments/docs unless asked."
 
+[limits]
+max_in_progress = 6
+
 [loop]
 step_1 = "Read spec/<active_feature>/spec.kvx — the [meta] status, [req.*] (acceptance criteria), and the [task.*] list with status + wave + requires."
 step_2 = "Select the next eligible task: lowest wave whose every 'requires' task is done and whose status is pending. Set its status to in_progress in spec.kvx."
