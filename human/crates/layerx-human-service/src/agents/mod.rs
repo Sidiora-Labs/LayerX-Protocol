@@ -4,6 +4,7 @@ mod archive;
 mod controls;
 mod create;
 mod reclaim;
+mod recovery;
 mod spend;
 
 pub use archive::{
@@ -29,6 +30,13 @@ pub use create::{
 pub use reclaim::{
     Reclaim, ReclaimAgentBoundary, ReclaimAgentContext, ReclaimError, ReclaimMechanism,
     ReclaimRequest, ReclaimResult, ReclaimStage, ReclaimStatus,
+};
+pub use recovery::{
+    AgentKeyChallenge, AgentKeyChangeKind, AgentKeyChangeRequest, AgentKeyChangeStage,
+    AgentRecovery, AgentRecoveryBoundary, AgentRecoveryBoundaryError, AgentRecoveryError,
+    ChallengeDelay, CompetingRotation, ProtocolKeyChangeEvidence, ProtocolKeyChangeObservation,
+    ProtocolKeyChangeState, RECOVERY_DELAY_COPY_KEY, ROTATION_COMPETITION_COPY_KEY,
+    ROTATION_DELAY_COPY_KEY,
 };
 pub use spend::{
     AgentShell, AgentSpendSurfaces, AgentSpendView, ProtocolBudgetEvidence,

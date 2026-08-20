@@ -1636,7 +1636,7 @@ human-test-intents:
 human-test-service:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service
 
-human-test-agents:
+human-test-agents: test-rotation
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test agent_create
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test agent_controls
 	@if [ -f human/crates/layerx-human-service/tests/spend.rs ]; then \
@@ -1647,6 +1647,9 @@ human-test-agents:
 	fi
 	@if [ -f human/crates/layerx-human-service/tests/archive.rs ]; then \
 		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test archive; \
+	fi
+	@if [ -f human/crates/layerx-human-service/tests/agent_recovery.rs ]; then \
+		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test agent_recovery; \
 	fi
 
 human-test-journeys:

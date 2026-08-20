@@ -62,7 +62,10 @@ impl NotificationClass {
     /// Returns whether the class may never be fully suppressed.
     #[must_use]
     pub const fn security_critical(self) -> bool {
-        matches!(self, Self::SecurityRecovery | Self::SecurityWalletRebinding)
+        matches!(
+            self,
+            Self::SecurityRecovery | Self::SecurityWalletRebinding | Self::SecurityKeyRotation
+        )
     }
 
     pub(crate) const fn index(self) -> usize {

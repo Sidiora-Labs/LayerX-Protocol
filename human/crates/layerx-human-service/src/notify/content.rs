@@ -151,9 +151,9 @@ fn email_subject(event: &Event, detail: DetailLevel) -> String {
         Event::JourneyFinished { .. } => "Journey finished",
         Event::ClaimReady { .. } => "Claim ready",
         Event::SecurityNewDevice { .. } => "New device signed in",
-        Event::SecurityRecovery { .. } => "Account recovery started",
+        Event::SecurityRecovery { .. } => "Account recovery activity",
         Event::SecurityWalletRebinding { .. } => "Payout wallet change requested",
-        Event::SecurityKeyRotation { .. } => "Account keys rotated",
+        Event::SecurityKeyRotation { .. } => "Account key rotation activity",
         Event::ServiceStatus { .. } => "Service status",
     }
     .to_owned()
@@ -169,9 +169,9 @@ fn email_sentence(event: &Event) -> &'static str {
         },
         Event::ClaimReady { .. } => "A withdrawal is ready to claim.",
         Event::SecurityNewDevice { .. } => "A new device signed in to your account.",
-        Event::SecurityRecovery { .. } => "Account recovery was initiated.",
+        Event::SecurityRecovery { .. } => "An account recovery event occurred.",
         Event::SecurityWalletRebinding { .. } => "A payout wallet change was requested.",
-        Event::SecurityKeyRotation { .. } => "Your account keys were rotated.",
+        Event::SecurityKeyRotation { .. } => "An account key rotation event occurred.",
         Event::ServiceStatus { .. } => "Part of the service is degraded.",
     }
 }

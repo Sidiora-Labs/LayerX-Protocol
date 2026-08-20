@@ -82,6 +82,7 @@ int main(void)
 {
     lxp_identity identity;
     lxp_identity lapsed;
+    lxp_identity competing;
     uint8_t old_key[32] = { 1U };
     uint8_t new_key[32] = { 2U };
     uint8_t recovered_key[32] = { 3U };
@@ -118,6 +119,27 @@ int main(void)
         lxp_identity_recover_commit(&identity, 209U) != LXP_ERR_NOT_YET_VALID ||
         lxp_identity_recover_commit(&identity, 210U) != LXP_OK ||
         memcmp(identity.primary_key, recovered_key, 32U) != 0) return 1;
+    (void)memset(&competing, 0, sizeof(competing));
+    competing.status = LXP_IDENTITY_ACTIVE;
+    competing.recovery_root[0] = 1U;
+    competing.recovery_threshold = 2U;
+    (void)memcpy(competing.primary_key, old_key, 32U);
+    if (lxp_identity_rotate_announce(&competing, new_key, 400U, 10U, 60U) !=
+            LXP_OK ||
+        lxp_identity_recover_begin(&competing, recovered_key, 2U, 400U, 10U) !=
+            LXP_OK ||
+        !competing.has_pending_key ||
+        competing.status != LXP_IDENTITY_RECOVERING ||
+        lxp_identity_rotate_announce(&competing, old_key, 401U, 10U, 61U) !=
+            LXP_ERR_AUTH_SCOPE ||
+        lxp_identity_recover_commit(&competing, 409U) !=
+            LXP_ERR_NOT_YET_VALID ||
+        lxp_identity_recover_commit(&competing, 410U) != LXP_OK ||
+        memcmp(competing.primary_key, recovered_key, 32U) != 0 ||
+        !competing.has_pending_key ||
+        lxp_identity_rotate_commit(&competing, 410U) != LXP_OK ||
+        memcmp(competing.primary_key, new_key, 32U) != 0 ||
+        memcmp(competing.superseded_key, recovered_key, 32U) != 0) return 1;
     if (lxp_identity_evm_binding_digest(&identity, 42U, digest) != LXP_OK ||
         !sign_binding(digest, signature, &recovery_id) ||
         lxp_identity_bind_evm_payout(&identity, 42U, signature, recovery_id) !=

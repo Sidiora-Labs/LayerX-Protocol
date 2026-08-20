@@ -208,6 +208,7 @@ fn preference_changes_apply_immediately_and_critical_security_cannot_be_suppress
         NotificationClass::SecurityWalletRebinding,
         false,
     );
+    preferences.set_class(Channel::Push, NotificationClass::SecurityKeyRotation, false);
     Dispatcher::update_preferences(&mut scope, 12, &preferences)
         .unwrap_or_else(|error| panic!("replace preferences: {error}"));
     assert_eq!(
@@ -236,6 +237,9 @@ fn preference_changes_apply_immediately_and_critical_security_cannot_be_suppress
         },
         Event::SecurityWalletRebinding {
             event_id: occurrence("evt_criticalrebinding"),
+        },
+        Event::SecurityKeyRotation {
+            event_id: occurrence("evt_criticalrotation"),
         },
     ] {
         let report = Dispatcher::dispatch(&mut scope, &mut audit, 14, &trace, &event)
