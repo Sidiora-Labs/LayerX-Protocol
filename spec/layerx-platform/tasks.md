@@ -400,7 +400,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Emit the security notification and audit entries with evidence.
     - Test archive end to end including refusal while funds remain undisposed.
     - _Requirements: 12.6, 21.1_
-  - [-] 8.6 Reconcile spend against limits from receipts
+  - [x] 8.6 Reconcile spend against limits from receipts
     - Compute per-agent spend for the current period from verified receipts alone.
     - Reconcile local accounting against protocol budget state, adopting the protocol figure and surfacing divergence honestly.
     - Expose spend-versus-limit through the contract for both shells' agent surfaces.

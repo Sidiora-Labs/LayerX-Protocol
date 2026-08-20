@@ -4,6 +4,7 @@ mod archive;
 mod controls;
 mod create;
 mod reclaim;
+mod spend;
 
 pub use archive::{
     AgentBalance, ArchiveAgentContract, ArchiveBoundary, ArchiveError, ArchiveJourney,
@@ -28,4 +29,10 @@ pub use create::{
 pub use reclaim::{
     Reclaim, ReclaimAgentBoundary, ReclaimAgentContext, ReclaimError, ReclaimMechanism,
     ReclaimRequest, ReclaimResult, ReclaimStage, ReclaimStatus,
+};
+pub use spend::{
+    AgentShell, AgentSpendSurfaces, AgentSpendView, ProtocolBudgetEvidence,
+    ReconciliationDirection, ShellAgentSpend, SpendAgentContract, SpendBoundaryError, SpendError,
+    SpendProfile, SpendReceiptEvidence, SpendReconciliation, SpendReconciliationStatus,
+    SpendSnapshot, RECONCILIATION_COPY_KEY, RECONCILIATION_EXPLANATION,
 };

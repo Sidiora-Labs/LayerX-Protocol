@@ -1634,6 +1634,9 @@ human-test-service:
 human-test-agents:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test agent_create
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test agent_controls
+	@if [ -f human/crates/layerx-human-service/tests/spend.rs ]; then \
+		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test spend; \
+	fi
 	@if [ -f human/crates/layerx-human-service/tests/reclaim.rs ]; then \
 		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test reclaim; \
 	fi
