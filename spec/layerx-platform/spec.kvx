@@ -1017,7 +1017,7 @@ status = "pending"
 
 [task.7.1]
 title = "Implement the route resolver and the movement vocabulary"
-status = "in_progress"
+status = "done"
 wave = 4
 requires = ["5.4","3.2"]
 do_1 = "Implement the route resolver as a deterministic function from source, destination and relationship to the protocol mechanism: budget funding, send, budget defunding, receive under a payer grant, deposit, withdrawal."

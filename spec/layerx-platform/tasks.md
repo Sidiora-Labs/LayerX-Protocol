@@ -321,7 +321,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 4 - Journeys
 
 - [ ] 7. Implement the money journeys
-  - [-] 7.1 Implement the route resolver and the movement vocabulary
+  - [x] 7.1 Implement the route resolver and the movement vocabulary
     - Implement the route resolver as a deterministic function from source, destination and relationship to the protocol mechanism: budget funding, send, budget defunding, receive under a payer grant, deposit, withdrawal.
     - Compose multi-leg journeys automatically where a movement requires them, with each leg's intent derived by the resolver.
     - Enforce the movement vocabulary in every API surface, log and copy string: deposit and withdrawal for the custody boundary only, fund, allocate, return and transfer inside LayerX.

@@ -5,6 +5,7 @@ pub mod audit;
 pub mod binding;
 pub mod custody;
 pub mod health;
+pub mod journeys;
 pub mod notify;
 pub mod onboarding;
 pub mod redaction;

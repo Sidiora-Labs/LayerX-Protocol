@@ -710,6 +710,7 @@ dependencies = [
  "layerx-sdk",
  "layerx-types",
  "passkey-auth",
+ "proptest",
  "serde",
  "serde_json",
  "sha2",

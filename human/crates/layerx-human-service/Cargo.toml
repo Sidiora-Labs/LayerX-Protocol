@@ -29,6 +29,7 @@ zeroize.workspace = true
 ciborium = "=0.2.2"
 ed25519-dalek = "=2.2.0"
 layerx-agentd.workspace = true
+proptest.workspace = true
 
 [lints]
 workspace = true
