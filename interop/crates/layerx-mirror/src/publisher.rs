@@ -1121,15 +1121,15 @@ impl<C: EthereumArchiveClient> EthereumPublisher<C> {
                     freshness: MirrorFreshness::new(self.cursor, archive.node_head),
                 }
             }
-            Ok(EthereumObservation::Canonical {
-                block_number,
-                block_hash,
-                confirmations,
-            }) if confirmations < self.config.required_confirmations => MirrorState::Pending {
-                commitment,
-                publication,
-                freshness: MirrorFreshness::new(self.cursor, archive.node_head),
-            },
+            Ok(EthereumObservation::Canonical { confirmations, .. })
+                if confirmations < self.config.required_confirmations =>
+            {
+                MirrorState::Pending {
+                    commitment,
+                    publication,
+                    freshness: MirrorFreshness::new(self.cursor, archive.node_head),
+                }
+            }
             Ok(EthereumObservation::Canonical {
                 block_number,
                 block_hash,
@@ -1291,15 +1291,15 @@ impl<C: SolanaArchiveClient> SolanaPublisher<C> {
                     freshness: MirrorFreshness::new(self.cursor, archive.node_head),
                 }
             }
-            Ok(SolanaObservation::Canonical {
-                slot,
-                blockhash,
-                rooted_slots,
-            }) if rooted_slots < self.config.required_rooted_slots => MirrorState::Pending {
-                commitment,
-                publication,
-                freshness: MirrorFreshness::new(self.cursor, archive.node_head),
-            },
+            Ok(SolanaObservation::Canonical { rooted_slots, .. })
+                if rooted_slots < self.config.required_rooted_slots =>
+            {
+                MirrorState::Pending {
+                    commitment,
+                    publication,
+                    freshness: MirrorFreshness::new(self.cursor, archive.node_head),
+                }
+            }
             Ok(SolanaObservation::Canonical {
                 slot,
                 blockhash,

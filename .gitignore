@@ -69,3 +69,6 @@ tmp/*
 agent/target/
 platform/docs/samples/*/first-payment-go
 spec/specgen/specgen
+
+__pycache__/
+*.pyc

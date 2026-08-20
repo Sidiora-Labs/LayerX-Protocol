@@ -259,7 +259,7 @@ impl AvailabilityRecords {
 /// Complete single-provider result or all provider-attributed partials.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FetchOutcome {
-    Complete(AvailabilityResult),
+    Complete(Box<AvailabilityResult>),
     Partial(Vec<ProviderReport>),
 }
 
@@ -312,7 +312,7 @@ where
             },
             &mut on_chunk,
         ) {
-            Ok(result) => return Ok(FetchOutcome::Complete(result)),
+            Ok(result) => return Ok(FetchOutcome::Complete(Box::new(result))),
             Err(report) => partials.push(*report),
         }
     }

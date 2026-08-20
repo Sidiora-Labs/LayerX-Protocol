@@ -25,7 +25,7 @@ const STATE_ROOT_OFFSET: usize = 84;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Receipt {
     /// Digest naming the verified receipt.
-    pub receipt_digest: [u8; 32],
+    pub digest: [u8; 32],
     /// Result code the receipt records.
     pub result_code: i32,
     /// Asset the receipt settles.
@@ -47,7 +47,7 @@ impl Receipt {
             return Err(ProgramError::value(Field::Receipt, Reason::Malformed));
         }
         Ok(Self {
-            receipt_digest: fixed::<32>(bytes, DIGEST_OFFSET)?,
+            digest: fixed::<32>(bytes, DIGEST_OFFSET)?,
             result_code: i32::from_be_bytes(fixed::<4>(bytes, RESULT_CODE_OFFSET)?),
             asset: fixed::<32>(bytes, ASSET_OFFSET)?,
             amount: Amount::from_be_bytes(fixed::<16>(bytes, AMOUNT_OFFSET)?),
@@ -85,7 +85,7 @@ pub fn read(receipt_digest: ReceiptDigest) -> Result<Receipt, ProgramError> {
         return Err(ProgramError::value(Field::Receipt, Reason::Malformed));
     }
     let receipt = Receipt::decode(&output)?;
-    if receipt.receipt_digest != digest {
+    if receipt.digest != digest {
         return Err(ProgramError::Host(HostRefusal::Evidence));
     }
     Ok(receipt)

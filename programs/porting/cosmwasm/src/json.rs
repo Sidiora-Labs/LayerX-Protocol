@@ -295,7 +295,7 @@ impl RecordSchema {
                 }
                 *slot = Some(value);
                 match scanner.take_after_space()? {
-                    b',' => continue,
+                    b',' => {}
                     b'}' => break,
                     _ => return Err(PortRefusal::InvalidJson),
                 }

@@ -65,6 +65,7 @@ pub enum ConversationState {
 }
 
 /// One persisted message whose author is never inferred by the browser.
+#[allow(clippy::struct_field_names)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Message {
     message_id: String,
@@ -142,6 +143,7 @@ impl Feedback {
 }
 
 /// One durable conversation in an authenticated principal's scope.
+#[allow(clippy::struct_field_names)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Conversation {
     conversation_id: String,
@@ -230,7 +232,7 @@ impl CreateConversation {
     /// Refuses empty, oversize or control-character message bodies.
     pub fn new(body: impl Into<String>, shell: Shell) -> Result<Self, SupportError> {
         Ok(Self {
-            body: normalized_body(body.into())?,
+            body: normalized_body(&body.into())?,
             shell,
             topic: None,
             trace_id: None,
@@ -413,7 +415,7 @@ impl SupportService {
             conversation_id,
             idempotency_key,
             Author::You,
-            body.into(),
+            &body.into(),
         )
     }
 
@@ -436,7 +438,7 @@ impl SupportService {
             conversation_id,
             idempotency_key,
             Author::Support,
-            body.into(),
+            &body.into(),
         )
     }
 
@@ -555,7 +557,7 @@ fn append(
     conversation_id: &str,
     idempotency_key: &str,
     author: Author,
-    body: String,
+    body: &str,
 ) -> Result<Conversation, SupportError> {
     validate_idempotency_key(idempotency_key)?;
     let body = normalized_body(body)?;
@@ -596,7 +598,7 @@ fn append(
     Ok(conversation)
 }
 
-fn normalized_body(body: String) -> Result<String, SupportError> {
+fn normalized_body(body: &str) -> Result<String, SupportError> {
     let normalized = body.trim();
     if normalized.is_empty()
         || normalized.chars().count() > MAX_BODY_CHARS

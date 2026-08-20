@@ -435,6 +435,7 @@ fn private(path: &Path) -> Result<bool, String> {
 }
 
 #[cfg(unix)]
+#[allow(clippy::verbose_bit_mask)]
 fn owner_only(metadata: &Metadata) -> bool {
     use std::os::unix::fs::MetadataExt as _;
     metadata.mode() & 0o077 == 0

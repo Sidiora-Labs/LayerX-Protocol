@@ -384,31 +384,33 @@ fn format_go(source: &str) -> Result<String, String> {
         .map_err(|error| format!("gofmt returned non-UTF-8 output: {error}"))
 }
 
-fn generate_go(repo_root: &Path) -> Result<String, String> {
-    let agent = schema_sections(&repo_root.join(SOURCES[0].1))?;
-    let human = schema_sections(&repo_root.join(SOURCES[1].1))?;
-    let agent_operations = agent
+fn go_agent_operations(agent: &Sections) -> (Vec<String>, BTreeSet<String>) {
+    let operations = agent
         .keys()
         .filter_map(|section| section.strip_prefix("operation.").map(str::to_owned))
         .collect::<Vec<_>>();
-    let mut agent_mutations = agent
+    let mut mutations = agent
         .keys()
         .filter_map(|section| section.strip_prefix("mutation.").map(str::to_owned))
         .collect::<BTreeSet<_>>();
-    for operation in &agent_operations {
+    for operation in &operations {
         let has_idempotency_field = agent
             .get(&format!("operation.{operation}"))
             .and_then(|entries| entries.get("required"))
             .is_some_and(|value| value.contains("idempotency_key"));
         if has_idempotency_field {
-            agent_mutations.insert(operation.clone());
+            mutations.insert(operation.clone());
         }
     }
-    let human_operations = human
+    (operations, mutations)
+}
+
+fn go_human_operations(human: &Sections) -> (Vec<String>, BTreeSet<String>) {
+    let operations = human
         .keys()
         .filter_map(|section| section.strip_prefix("operation.").map(str::to_owned))
         .collect::<Vec<_>>();
-    let human_mutations = human_operations
+    let mutations = operations
         .iter()
         .filter(|operation| {
             human
@@ -418,14 +420,11 @@ fn generate_go(repo_root: &Path) -> Result<String, String> {
         })
         .cloned()
         .collect::<BTreeSet<_>>();
-    if agent_operations.is_empty() || human_operations.is_empty() {
-        return Err("Go SDK generation found an empty operation catalogue".to_owned());
-    }
+    (operations, mutations)
+}
 
-    let mut output = String::from(
-        "// Code generated from the LayerX Agent API and Human API schemas. DO NOT EDIT.\n\npackage layerx\n\n",
-    );
-    for (section, entries) in &agent {
+fn render_go_scalars(output: &mut String, agent: &Sections) -> Result<(), String> {
+    for (section, entries) in agent {
         let Some(name) = section.strip_prefix("scalar.") else {
             continue;
         };
@@ -447,21 +446,14 @@ fn generate_go(repo_root: &Path) -> Result<String, String> {
         };
         writeln!(output, "type {name} = {go_type}").map_err(|error| error.to_string())?;
     }
-    writeln!(output).map_err(|error| error.to_string())?;
-    render_operation_type(
-        &mut output,
-        "AgentOperation",
-        "AgentOperation",
-        &agent_operations,
-        &agent_mutations,
-    )?;
-    render_operation_type(
-        &mut output,
-        "HumanOperation",
-        "HumanOperation",
-        &human_operations,
-        &human_mutations,
-    )?;
+    writeln!(output).map_err(|error| error.to_string())
+}
+
+fn render_go_human_metadata(
+    output: &mut String,
+    human: &Sections,
+    operations: &[String],
+) -> Result<(), String> {
     writeln!(
         output,
         "type HumanOperationMetadata struct {{\n\tMethod string\n\tPath string\n\tRequest string\n\tResponse string\n}}\n"
@@ -472,7 +464,7 @@ fn generate_go(repo_root: &Path) -> Result<String, String> {
         "func (operation HumanOperation) Metadata() (HumanOperationMetadata, bool) {{\n\tswitch operation {{"
     )
     .map_err(|error| error.to_string())?;
-    for operation in &human_operations {
+    for operation in operations {
         let entries = human
             .get(&format!("operation.{operation}"))
             .ok_or_else(|| format!("missing operation.{operation}"))?;
@@ -497,85 +489,120 @@ fn generate_go(repo_root: &Path) -> Result<String, String> {
         output,
         "\tdefault:\n\t\treturn HumanOperationMetadata{{}}, false\n\t}}\n}}\n"
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(|error| error.to_string())
+}
+
+fn render_go_enums(output: &mut String, agent: &Sections, human: &Sections) -> Result<(), String> {
     render_string_enum(
-        &mut output,
+        output,
         "AgentErrorClass",
         "AgentError",
-        &variants(&agent, "type.ErrorClass")?,
+        &variants(agent, "type.ErrorClass")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "HumanErrorCode",
         "HumanError",
-        &variants(&human, "type.ErrorCode")?,
+        &variants(human, "type.ErrorCode")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "JourneyKind",
         "Journey",
-        &variants(&human, "type.JourneyKind")?,
+        &variants(human, "type.JourneyKind")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "JourneyState",
         "JourneyState",
-        &variants(&human, "type.JourneyState")?,
+        &variants(human, "type.JourneyState")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "HumanVerificationLevel",
         "HumanVerification",
-        &variants(&human, "type.VerificationLevel")?,
+        &variants(human, "type.VerificationLevel")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "HumanRetriability",
         "HumanRetry",
-        &variants(&human, "type.Retriability")?,
+        &variants(human, "type.Retriability")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "HumanApprovalState",
         "HumanApproval",
-        &variants(&human, "type.ApprovalState")?,
+        &variants(human, "type.ApprovalState")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "HumanStreamEventKind",
         "HumanStreamEvent",
-        &variants(&human, "type.StreamEventKind")?,
+        &variants(human, "type.StreamEventKind")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "AgentApprovalEventKind",
         "AgentApprovalEvent",
-        &variants(&agent, "type.ApprovalLifecycleEvent")?,
+        &variants(agent, "type.ApprovalLifecycleEvent")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "AgentApprovalState",
         "AgentApprovalState",
-        &variants(&agent, "type.ApprovalState")?,
+        &variants(agent, "type.ApprovalState")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "AgentApprovalDecisionOutcome",
         "AgentApprovalOutcome",
-        &variants(&agent, "type.ApprovalDecisionOutcome")?,
+        &variants(agent, "type.ApprovalDecisionOutcome")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "AgentRetriability",
         "AgentRetry",
-        &variants(&agent, "type.Retriability")?,
+        &variants(agent, "type.Retriability")?,
     )?;
     render_string_enum(
-        &mut output,
+        output,
         "AgentDeliveryKind",
         "AgentDelivery",
-        &variants(&agent, "type.Delivery")?,
+        &variants(agent, "type.Delivery")?,
     )?;
+    Ok(())
+}
+
+fn generate_go(repo_root: &Path) -> Result<String, String> {
+    let agent = schema_sections(&repo_root.join(SOURCES[0].1))?;
+    let human = schema_sections(&repo_root.join(SOURCES[1].1))?;
+    let (agent_operations, agent_mutations) = go_agent_operations(&agent);
+    let (human_operations, human_mutations) = go_human_operations(&human);
+    if agent_operations.is_empty() || human_operations.is_empty() {
+        return Err("Go SDK generation found an empty operation catalogue".to_owned());
+    }
+
+    let mut output = String::from(
+        "// Code generated from the LayerX Agent API and Human API schemas. DO NOT EDIT.\n\npackage layerx\n\n",
+    );
+    render_go_scalars(&mut output, &agent)?;
+    render_operation_type(
+        &mut output,
+        "AgentOperation",
+        "AgentOperation",
+        &agent_operations,
+        &agent_mutations,
+    )?;
+    render_operation_type(
+        &mut output,
+        "HumanOperation",
+        "HumanOperation",
+        &human_operations,
+        &human_mutations,
+    )?;
+    render_go_human_metadata(&mut output, &human, &human_operations)?;
+    render_go_enums(&mut output, &agent, &human)?;
     format_go(&output)
 }
 

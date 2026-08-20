@@ -16,8 +16,14 @@ pub struct MirrorReceiptReport {
     pub freshness: MirrorVerificationFreshness,
 }
 
-/// Verifies a receipt with the LayerX service and explorer index absent.
+/// Verifies a receipt with the `LayerX` service and explorer index absent.
 /// `trust` is deployment configuration, not archive-provided data.
+///
+/// # Errors
+///
+/// Returns a mirror verification error when the archive fails signed-header
+/// trust or freshness, and `ReceiptDecode` when the verified evidence carries
+/// no receipt digest.
 pub fn verify_mirrored_receipt(
     archive_bytes: &[u8],
     canonical_receipt: &[u8],

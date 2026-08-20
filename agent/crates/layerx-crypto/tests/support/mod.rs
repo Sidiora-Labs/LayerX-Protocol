@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use ed25519_dalek::{Signer as _, SigningKey};
 use layerx_types::payload::{ActivityType, ModuleId, ModuleRegistration, ModuleRegistry};
 use layerx_wire::encode::Encoder;

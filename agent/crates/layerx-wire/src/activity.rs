@@ -309,6 +309,11 @@ pub fn encode_unsigned(activity: &Activity) -> Result<Vec<u8>, WireError> {
 }
 
 /// Encodes a newly constructed typed unsigned envelope through the sole wire path.
+///
+/// # Errors
+///
+/// Returns a typed limit error when the envelope cannot fit the protocol
+/// envelope budget.
 pub fn encode_unsigned_envelope(envelope: &UnsignedEnvelope) -> Result<Vec<u8>, WireError> {
     encode_internal(&activity_from_unsigned(envelope), false)
 }
@@ -323,6 +328,10 @@ pub fn encode_signed(activity: &Activity) -> Result<Vec<u8>, WireError> {
 }
 
 /// Encodes a newly signed typed envelope through the sole wire path.
+///
+/// # Errors
+///
+/// Returns typed bound failures when the signed envelope violates a limit.
 pub fn encode_signed_envelope(envelope: &Envelope) -> Result<Vec<u8>, WireError> {
     encode_internal(&activity_from_signed(envelope), true)
 }

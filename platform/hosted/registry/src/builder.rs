@@ -205,6 +205,7 @@ fn tail(path: &Path) -> String {
         .to_owned()
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn unavailable(error: io::Error) -> BuildRefusal {
     BuildRefusal::SandboxUnavailable {
         reason: error.to_string(),

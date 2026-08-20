@@ -156,6 +156,10 @@ pub fn payload_hash(activity: &Activity) -> Result<[u8; 32], WireError> {
 }
 
 /// Computes the core payload digest before an envelope is constructed.
+///
+/// # Errors
+///
+/// Returns a hash length failure when the payload cannot be represented safely.
 pub fn payload_hash_for(payload: &Payload) -> Result<[u8; 32], WireError> {
     domain(
         Domain::PayloadHash,
@@ -164,6 +168,11 @@ pub fn payload_hash_for(payload: &Payload) -> Result<[u8; 32], WireError> {
 }
 
 /// Derives the exact core account identifier from a validated namespace.
+///
+/// # Errors
+///
+/// Returns a hash length failure when the canonical account bytes cannot be
+/// represented safely.
 pub fn account_id(account: &AccountId) -> Result<[u8; 32], WireError> {
     domain(
         Domain::AccountId,
@@ -172,6 +181,11 @@ pub fn account_id(account: &AccountId) -> Result<[u8; 32], WireError> {
 }
 
 /// Derives the exact core DID identifier from a bounded DID.
+///
+/// # Errors
+///
+/// Returns a hash length failure when the DID bytes cannot be represented
+/// safely.
 pub fn did_id(did: &Did) -> Result<[u8; 32], WireError> {
     domain(
         Domain::DidId,

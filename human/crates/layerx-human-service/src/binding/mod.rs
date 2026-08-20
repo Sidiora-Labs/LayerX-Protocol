@@ -441,7 +441,7 @@ impl BindingJourney {
     /// # Errors
     ///
     /// Refuses absent active state, pending binding work, and invalid statement inputs.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::unused_self)]
     pub fn issue_rebind_action(
         &self,
         scope: &PrincipalScope<'_>,

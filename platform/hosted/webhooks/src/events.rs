@@ -61,7 +61,7 @@ impl Verification {
     #[must_use]
     pub const fn from_wire_rank(rank: u8) -> Self {
         match rank {
-            1 | 2 | 3 => Self::ReceiptVerified,
+            1..=3 => Self::ReceiptVerified,
             4 => Self::CheckpointFinalised,
             5 => Self::PaxeerFinalised,
             _ => Self::Unverified,

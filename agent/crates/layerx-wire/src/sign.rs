@@ -35,6 +35,10 @@ pub fn preimage(activity: &Activity) -> Result<SigningPreimage, WireError> {
 }
 
 /// Computes the signature preimage from a newly constructed typed envelope.
+///
+/// # Errors
+///
+/// Returns a typed canonical encoding or hash length error.
 pub fn preimage_unsigned(envelope: &UnsignedEnvelope) -> Result<SigningPreimage, WireError> {
     let unsigned = CanonicalBytes::from_wire(encode_unsigned_envelope(envelope)?);
     domain(Domain::SignaturePreimage, &unsigned).map(SigningPreimage)

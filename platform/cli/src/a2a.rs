@@ -86,12 +86,11 @@ fn route(
 ) -> Response {
     match request.method.as_str() {
         "GET" if CARD_ROUTES.contains(&request.path.as_str()) => encode(200, card),
-        "GET" => encode(404, &json!({"error": "unknown agent-to-agent route"})),
         "POST" if request.path == "/" => encode(
             200,
             &dispatch(configuration, subject, tools, tasks, &request.body),
         ),
-        "POST" => encode(404, &json!({"error": "unknown agent-to-agent route"})),
+        "GET" | "POST" => encode(404, &json!({"error": "unknown agent-to-agent route"})),
         _ => encode(405, &json!({"error": "unsupported method"})),
     }
 }
