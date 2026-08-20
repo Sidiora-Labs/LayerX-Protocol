@@ -1703,7 +1703,8 @@ human-test-property:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked --workspace property_
 
 human-test-fault:
-	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked --workspace fault_
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test journey_faults
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test move_money
 
 human-test-component:
 	$(HUMAN_NPM) ci
