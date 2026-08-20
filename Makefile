@@ -1674,6 +1674,7 @@ human-test-explorer: $(BUILD_DIR)/tests/explorer_fixture
 
 human-test-notify:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test notify
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test links
 
 human-test-approvals:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test approvals

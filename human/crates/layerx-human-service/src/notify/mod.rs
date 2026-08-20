@@ -5,6 +5,7 @@ mod class;
 mod content;
 mod delivery;
 mod event;
+mod links;
 mod preferences;
 
 use std::collections::BTreeSet;
@@ -25,6 +26,10 @@ pub use event::{
     ActivityEntryId, AgentId, ApprovalId, DegradedComponent, DeviceId, Event, EventId, JourneyId,
     JourneyOutcome, Money, NotificationId, Subject,
 };
+pub use links::{
+    ActiveShell, BadgeCounts, DeepLinks, InAppInventory, Landing, LandingState, NotificationGroup,
+    NotificationSummary, Recency, SubjectState, Surface,
+};
 pub use preferences::{Channel, ChannelPreferences, Preferences};
 
 const PREFERENCES_KEY: &str = "notify_preferences";
@@ -41,6 +46,10 @@ pub enum NotifyError {
     Audit(AuditError),
     InvalidIdentifier { kind: &'static str },
     InvalidCurrency,
+    NotificationNotFound,
+    InvalidDeepLink,
+    LinkSubjectMismatch,
+    LinkStateMismatch,
     Corrupt(&'static str),
     SizeOverflow,
 }
@@ -52,6 +61,14 @@ impl Display for NotifyError {
             Self::Audit(error) => write!(formatter, "notification audit failure: {error}"),
             Self::InvalidIdentifier { kind } => write!(formatter, "invalid {kind} identifier"),
             Self::InvalidCurrency => formatter.write_str("invalid notification currency"),
+            Self::NotificationNotFound => formatter.write_str("notification not found"),
+            Self::InvalidDeepLink => formatter.write_str("notification deep link is invalid"),
+            Self::LinkSubjectMismatch => {
+                formatter.write_str("notification deep link subject does not match")
+            }
+            Self::LinkStateMismatch => {
+                formatter.write_str("notification state does not match its subject")
+            }
             Self::Corrupt(reason) => write!(formatter, "corrupt notification record: {reason}"),
             Self::SizeOverflow => formatter.write_str("notification record exceeds size bounds"),
         }
