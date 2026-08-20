@@ -6,6 +6,7 @@ use layerx_interop_gateway::gateway::{TranslationKind, TranslationRequest, Trans
 use layerx_interop_gateway::principal::PrincipalId;
 use layerx_interop_gateway::trace::{TraceId, Traced};
 use layerx_interop_gateway::GatewayCore;
+use layerx_portable::PortableReceipt;
 use layerx_proof::receipt::{verify, AuthorizedBatch};
 use layerx_types::payload::ModuleId;
 use p256::ecdsa::VerifyingKey;
@@ -179,49 +180,9 @@ pub trait ReceiptSigner {
     fn sign_es256(&mut self, signing_input: &[u8]) -> Result<[u8; 64], Ap2Error>;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PortableLayerXEvidence {
-    format: &'static str,
-    verification_level: &'static str,
-    canonical_receipt: String,
-    receipt_digest: String,
-    batch_id: String,
-    asset: String,
-    previous_state_root: String,
-    resulting_state_root: String,
-    sequencer_public_key: String,
-}
-
-impl PortableLayerXEvidence {
-    fn new(
-        canonical_receipt: &[u8],
-        receipt_digest: [u8; 32],
-        authorised: &AuthorizedBatch,
-    ) -> Self {
-        Self {
-            format: "layerx-receipt-proof-v1",
-            verification_level: "sequencer-signed",
-            canonical_receipt: URL_SAFE_NO_PAD.encode(canonical_receipt),
-            receipt_digest: URL_SAFE_NO_PAD.encode(receipt_digest),
-            batch_id: URL_SAFE_NO_PAD.encode(authorised.batch_id()),
-            asset: URL_SAFE_NO_PAD.encode(authorised.asset()),
-            previous_state_root: URL_SAFE_NO_PAD.encode(authorised.previous_state_root()),
-            resulting_state_root: URL_SAFE_NO_PAD.encode(authorised.resulting_state_root()),
-            sequencer_public_key: URL_SAFE_NO_PAD.encode(authorised.sequencer_public_key()),
-        }
-    }
-
-    #[must_use]
-    pub fn canonical_receipt(&self) -> &str {
-        &self.canonical_receipt
-    }
-
-    #[must_use]
-    pub fn receipt_digest(&self) -> &str {
-        &self.receipt_digest
-    }
-}
+/// Shared portable receipt format. Construction and external verification are
+/// owned by `layerx-portable`, so AP2 cannot drift into a private proof shape.
+pub type PortableLayerXEvidence = PortableReceipt;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SignedAp2Evidence {
@@ -393,11 +354,12 @@ impl<'a, R: KeyResolver> Ap2Adapter<'a, R> {
         let TranslationStatus::ReceiptVerified { receipt_digest } = status else {
             return Err(fail(Ap2Error::EvidenceMissing));
         };
-        let layerx = PortableLayerXEvidence::new(
-            &executed.canonical_receipt,
-            receipt_digest,
-            &executed.authorised_batch,
-        );
+        let layerx =
+            PortableReceipt::export(&executed.canonical_receipt, &executed.authorised_batch)
+                .map_err(|_| fail(Ap2Error::EvidenceMismatch))?;
+        if layerx.receipt_digest() != URL_SAFE_NO_PAD.encode(receipt_digest) {
+            return Err(fail(Ap2Error::EvidenceMismatch));
+        }
         let signed = sign_evidence(
             mandates,
             &executed.order_id,

@@ -383,6 +383,7 @@ dependencies = [
  "base64",
  "layerx-intents",
  "layerx-interop-gateway",
+ "layerx-portable",
  "layerx-proof",
  "layerx-types",
  "p256",
@@ -456,6 +457,18 @@ version = "0.1.0"
 dependencies = [
  "layerx-interop-gateway",
  "layerx-proof",
+ "sha2",
+]
+
+[[package]]
+name = "layerx-portable"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "layerx-interop-gateway",
+ "layerx-proof",
+ "serde",
+ "serde_json",
  "sha2",
 ]
 

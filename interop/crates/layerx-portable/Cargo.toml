@@ -1,5 +1,5 @@
 [package]
-name = "layerx-ap2"
+name = "layerx-portable"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,13 +8,9 @@ license.workspace = true
 [dependencies]
 base64.workspace = true
 layerx-interop-gateway.workspace = true
-layerx-intents.workspace = true
 layerx-proof.workspace = true
-layerx-portable.workspace = true
-layerx-types.workspace = true
-p256.workspace = true
 serde.workspace = true
-serde_json = { workspace = true, features = ["arbitrary_precision"] }
+serde_json.workspace = true
 sha2.workspace = true
 
 [lints]

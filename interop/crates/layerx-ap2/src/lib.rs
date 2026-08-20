@@ -4,6 +4,7 @@ mod adapter;
 mod error;
 mod jose;
 mod model;
+mod portable;
 mod verify;
 
 pub use adapter::{
@@ -13,6 +14,7 @@ pub use adapter::{
 pub use error::Ap2Error;
 pub use jose::{KeyResolver, KeyUse, ProtectedHeader};
 pub use model::{Merchant, PaymentAmount, PaymentInstrument};
+pub use portable::{Ap2ExternalMandateVerifier, Ap2MandatePair, AP2_MANDATE_PAIR_MEDIA_TYPE};
 pub use verify::{
     MandateMode, MandateUsage, MandateVerifier, VerificationContext, VerifiedMandates,
 };
