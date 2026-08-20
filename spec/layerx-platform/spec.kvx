@@ -808,7 +808,7 @@ reqs = ["8.5","8.6","8.7"]
 
 [task.4.6]
 title = "Generate the TypeScript client and its drift gate"
-status = "in_progress"
+status = "done"
 wave = 2
 requires = ["4.2","4.3","4.4","4.5"]
 do_1 = "Build the generator emitting the TypeScript client from the schema, with types for every operation, journey, error and event."

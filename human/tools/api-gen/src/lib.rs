@@ -166,7 +166,10 @@ fn load_kvx(root: &Path, name: &str, violations: &mut Vec<Violation>) -> Option<
     }
 }
 
-fn quoted<'entries>(entries: &'entries BTreeMap<String, String>, key: &str) -> Option<&'entries str> {
+fn quoted<'entries>(
+    entries: &'entries BTreeMap<String, String>,
+    key: &str,
+) -> Option<&'entries str> {
     entries.get(key).map(String::as_str).and_then(unquote)
 }
 
@@ -184,7 +187,10 @@ fn read_header(file: &SchemaFile, violations: &mut Vec<Violation>) -> Header {
         ));
         return header;
     };
-    match schema.get("major").and_then(|value| value.parse::<u32>().ok()) {
+    match schema
+        .get("major")
+        .and_then(|value| value.parse::<u32>().ok())
+    {
         Some(major) if major >= 1 => header.major = major,
         _ => violations.push(violation(
             &file.path,
@@ -192,7 +198,10 @@ fn read_header(file: &SchemaFile, violations: &mut Vec<Violation>) -> Header {
             "schema.major must be an explicit integer of at least 1",
         )),
     }
-    match schema.get("minor").and_then(|value| value.parse::<u32>().ok()) {
+    match schema
+        .get("minor")
+        .and_then(|value| value.parse::<u32>().ok())
+    {
         Some(minor) => header.minor = minor,
         None => violations.push(violation(
             &file.path,
@@ -200,7 +209,11 @@ fn read_header(file: &SchemaFile, violations: &mut Vec<Violation>) -> Header {
             "schema.minor must be an explicit integer",
         )),
     }
-    match schema.get("includes").map(String::as_str).and_then(parse_list) {
+    match schema
+        .get("includes")
+        .map(String::as_str)
+        .and_then(parse_list)
+    {
         Some(includes) => header.includes = includes,
         None => violations.push(violation(
             &file.path,
@@ -411,7 +424,11 @@ fn collect_operation(
             false
         }
     };
-    if model.operations.iter().any(|existing| existing.name == name) {
+    if model
+        .operations
+        .iter()
+        .any(|existing| existing.name == name)
+    {
         violations.push(violation(
             &file.path,
             "duplicate-declaration",
@@ -448,7 +465,9 @@ fn collect_declarations(files: &[SchemaFile], violations: &mut Vec<Violation>) -
                         collect_enum(file, name, variants, &mut model, violations);
                     }
                 } else if entries.contains_key("required") {
-                    collect_record(file, section, name, entries, "required", &mut model, violations);
+                    collect_record(
+                        file, section, name, entries, "required", &mut model, violations,
+                    );
                 } else {
                     violations.push(violation(
                         &file.path,
@@ -457,13 +476,17 @@ fn collect_declarations(files: &[SchemaFile], violations: &mut Vec<Violation>) -
                     ));
                 }
             } else if let Some(name) = section.strip_prefix("record.") {
-                collect_record(file, section, name, entries, "fields", &mut model, violations);
+                collect_record(
+                    file, section, name, entries, "fields", &mut model, violations,
+                );
             } else if let Some(name) = section.strip_prefix("operation.") {
                 collect_operation(file, name, entries, &mut model, violations);
             }
         }
     }
-    model.operations.sort_by(|left, right| left.name.cmp(&right.name));
+    model
+        .operations
+        .sort_by(|left, right| left.name.cmp(&right.name));
     model
 }
 
@@ -481,7 +504,10 @@ fn check_type_references(model: &Model, violations: &mut Vec<Violation>) {
                 violations.push(violation(
                     &record.origin,
                     "unresolved-type",
-                    format!("{name}.{} references undeclared type {}", field.name, field.type_name),
+                    format!(
+                        "{name}.{} references undeclared type {}",
+                        field.name, field.type_name
+                    ),
                 ));
             }
         }
@@ -604,7 +630,10 @@ fn plan_operations<'model>(
             violations.push(violation(
                 &operation.origin,
                 "invalid-operation-path",
-                format!("operation.{} path {} has a malformed segment", operation.name, operation.path),
+                format!(
+                    "operation.{} path {} has a malformed segment",
+                    operation.name, operation.path
+                ),
             ));
             continue;
         };
@@ -613,7 +642,10 @@ fn plan_operations<'model>(
             violations.push(violation(
                 &operation.origin,
                 "colliding-method-name",
-                format!("operation.{} and operation.{taken} both generate {method_name}", operation.name),
+                format!(
+                    "operation.{} and operation.{taken} both generate {method_name}",
+                    operation.name
+                ),
             ));
             continue;
         }
@@ -893,7 +925,10 @@ fn emit_record_decode(out: &mut String, model: &Model, name: &str, record: &Reco
 }
 
 fn emit_record_encode(out: &mut String, model: &Model, name: &str, record: &Record) {
-    let _ = writeln!(out, "\nexport function encode{name}(value: {name}): JsonValue {{");
+    let _ = writeln!(
+        out,
+        "\nexport function encode{name}(value: {name}): JsonValue {{"
+    );
     if record.required.is_empty() && record.optional.is_empty() {
         out.push_str("  return { ...value };\n}\n");
         return;
@@ -926,7 +961,9 @@ fn emit_record_encode(out: &mut String, model: &Model, name: &str, record: &Reco
 }
 
 fn emit_manifest(out: &mut String, planned: &[PlannedOperation]) {
-    out.push_str("\nexport type HttpMethod = \"DELETE\" | \"GET\" | \"PATCH\" | \"POST\" | \"PUT\";\n");
+    out.push_str(
+        "\nexport type HttpMethod = \"DELETE\" | \"GET\" | \"PATCH\" | \"POST\" | \"PUT\";\n",
+    );
     out.push_str("\nexport interface OperationShape {\n  readonly method: HttpMethod;\n  readonly path: string;\n  readonly pathParams: readonly string[];\n  readonly request: string;\n  readonly response: string;\n  readonly idempotency: boolean;\n  readonly bodyless: boolean;\n}\n");
     out.push_str("\nexport const operationNames = [\n");
     for plan in planned {
@@ -934,7 +971,9 @@ fn emit_manifest(out: &mut String, planned: &[PlannedOperation]) {
     }
     out.push_str("] as const;\n");
     out.push_str("\nexport type OperationName = (typeof operationNames)[number];\n");
-    out.push_str("\nexport const operations: { readonly [name in OperationName]: OperationShape } = {\n");
+    out.push_str(
+        "\nexport const operations: { readonly [name in OperationName]: OperationShape } = {\n",
+    );
     for plan in planned {
         let params = plan
             .path_params
@@ -977,7 +1016,9 @@ fn method_signature(plan: &PlannedOperation) -> String {
 }
 
 fn emit_client(out: &mut String, planned: &[PlannedOperation]) {
-    out.push_str("\nexport type FetchLike = (input: string, init: RequestInit) => Promise<Response>;\n");
+    out.push_str(
+        "\nexport type FetchLike = (input: string, init: RequestInit) => Promise<Response>;\n",
+    );
     out.push_str("\nexport interface HumanApiClientOptions {\n  readonly baseUrl?: string;\n  readonly fetch?: FetchLike;\n  readonly headers?: { readonly [name: string]: string };\n}\n");
     out.push_str("\nexport interface HumanApiClient {\n");
     for plan in planned {
@@ -1182,13 +1223,17 @@ pub fn generate_client(root: &Path) -> Result<GeneratedClient, Vec<Violation>> {
     })
 }
 
+pub fn human_api_ts_client(root: &Path) -> Result<GeneratedClient, Vec<Violation>> {
+    generate_client(root)
+}
+
 /// Writes the generated client into `out_dir`, replacing what is there.
 ///
 /// # Errors
 ///
 /// Returns generation violations, or the write failure as a violation.
 pub fn write_client(root: &Path, out_dir: &Path) -> Result<GeneratedClient, Vec<Violation>> {
-    let generated = generate_client(root)?;
+    let generated = human_api_ts_client(root)?;
     if let Err(error) = fs::create_dir_all(out_dir) {
         return Err(vec![violation(
             out_dir,
@@ -1258,4 +1303,11 @@ pub fn check_client(root: &Path, out_dir: &Path) -> Result<GeneratedClient, Vec<
     } else {
         Err(violations)
     }
+}
+
+pub fn human_api_drift_gate(
+    root: &Path,
+    out_dir: &Path,
+) -> Result<GeneratedClient, Vec<Violation>> {
+    check_client(root, out_dir)
 }

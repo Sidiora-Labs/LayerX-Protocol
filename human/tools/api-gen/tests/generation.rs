@@ -3,7 +3,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use layerx_human_api_gen::{check_client, generate_client, write_client, GeneratedClient, GENERATED_FILES};
+use layerx_human_api_gen::{
+    check_client, generate_client, write_client, GeneratedClient, GENERATED_FILES,
+};
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 
@@ -37,8 +39,8 @@ struct Fixture(PathBuf);
 impl Fixture {
     fn from_real_schema() -> Self {
         let id = NEXT.fetch_add(1, Ordering::Relaxed);
-        let path = std::env::temp_dir()
-            .join(format!("layerx-human-api-gen-{}-{id}", std::process::id()));
+        let path =
+            std::env::temp_dir().join(format!("layerx-human-api-gen-{}-{id}", std::process::id()));
         let _ = fs::remove_dir_all(&path);
         copy_tree(&real_schema_root(), &path.join("schema"));
         Self(path)
@@ -54,25 +56,28 @@ impl Fixture {
 
     fn rewrite(&self, relative: &str, from: &str, to: &str) {
         let path = self.schema().join(relative);
-        let body = fs::read_to_string(&path)
-            .unwrap_or_else(|error| panic!("read {relative}: {error}"));
-        assert!(body.contains(from), "rewrite target missing in {relative}: {from}");
+        let body =
+            fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {relative}: {error}"));
+        assert!(
+            body.contains(from),
+            "rewrite target missing in {relative}: {from}"
+        );
         fs::write(&path, body.replace(from, to))
             .unwrap_or_else(|error| panic!("write {relative}: {error}"));
     }
 
     fn append(&self, relative: &str, extra: &str) {
         let path = self.schema().join(relative);
-        let mut body = fs::read_to_string(&path)
-            .unwrap_or_else(|error| panic!("read {relative}: {error}"));
+        let mut body =
+            fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {relative}: {error}"));
         body.push_str(extra);
         fs::write(&path, body).unwrap_or_else(|error| panic!("write {relative}: {error}"));
     }
 
     fn append_out(&self, name: &str, extra: &str) {
         let path = self.out().join(name);
-        let mut body = fs::read_to_string(&path)
-            .unwrap_or_else(|error| panic!("read {name}: {error}"));
+        let mut body =
+            fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {name}: {error}"));
         body.push_str(extra);
         fs::write(&path, body).unwrap_or_else(|error| panic!("write {name}: {error}"));
     }
@@ -90,12 +95,16 @@ impl Drop for Fixture {
 }
 
 fn generated(root: &Path) -> GeneratedClient {
-    generate_client(root).unwrap_or_else(|violations| panic!("expected generation: {violations:#?}"))
+    generate_client(root)
+        .unwrap_or_else(|violations| panic!("expected generation: {violations:#?}"))
 }
 
 fn check_rules(root: &Path, out_dir: &Path) -> Vec<&'static str> {
     match check_client(root, out_dir) {
-        Ok(generated) => panic!("expected drift, got {} fresh file(s)", generated.files.len()),
+        Ok(generated) => panic!(
+            "expected drift, got {} fresh file(s)",
+            generated.files.len()
+        ),
         Err(violations) => violations.into_iter().map(|entry| entry.rule).collect(),
     }
 }
@@ -214,7 +223,14 @@ fn generated_client_covers_every_schema_declaration() {
             "index.ts must alias the {name} scalar"
         );
     }
-    for name in ["ApiError", "ErrorCode", "Retriability", "StreamEvent", "StreamEventKind", "Journey"] {
+    for name in [
+        "ApiError",
+        "ErrorCode",
+        "Retriability",
+        "StreamEvent",
+        "StreamEventKind",
+        "Journey",
+    ] {
         assert!(
             index.contains(&format!("export function decode{name}(")),
             "index.ts must decode {name}"
@@ -251,7 +267,10 @@ fn hand_edited_output_fails_the_gate() {
 fn stale_output_after_schema_change_fails_the_gate() {
     let fixture = Fixture::from_real_schema();
     fixture.write_fresh_output();
-    fixture.append("journeys.kvx", "\n[type.JourneyNote]\nrequired = [\"note:string\"]\n");
+    fixture.append(
+        "journeys.kvx",
+        "\n[type.JourneyNote]\nrequired = [\"note:string\"]\n",
+    );
     assert!(check_rules(&fixture.schema(), &fixture.out()).contains(&"stale-or-hand-edited-output"));
 }
 
@@ -268,14 +287,20 @@ fn missing_output_fails_the_gate() {
 fn unexpected_output_fails_the_gate() {
     let fixture = Fixture::from_real_schema();
     fixture.write_fresh_output();
-    fs::write(fixture.out().join("extra.ts"), "export const extra = true;\n")
-        .unwrap_or_else(|error| panic!("write extra.ts: {error}"));
+    fs::write(
+        fixture.out().join("extra.ts"),
+        "export const extra = true;\n",
+    )
+    .unwrap_or_else(|error| panic!("write extra.ts: {error}"));
     assert!(check_rules(&fixture.schema(), &fixture.out()).contains(&"unexpected-generated-output"));
 }
 
 fn refusal_rules(root: &Path) -> Vec<&'static str> {
     match generate_client(root) {
-        Ok(client) => panic!("expected refusal, generated {} operations", client.operations),
+        Ok(client) => panic!(
+            "expected refusal, generated {} operations",
+            client.operations
+        ),
         Err(violations) => violations.into_iter().map(|entry| entry.rule).collect(),
     }
 }
@@ -290,7 +315,11 @@ fn unresolved_reference_refuses_generation() {
 #[test]
 fn defective_scalar_mapping_refuses_generation() {
     let fixture = Fixture::from_real_schema();
-    fixture.rewrite("v1.kvx", "typescript = \"bigint\"", "typescript = \"number\"");
+    fixture.rewrite(
+        "v1.kvx",
+        "typescript = \"bigint\"",
+        "typescript = \"number\"",
+    );
     assert!(refusal_rules(&fixture.schema()).contains(&"invalid-scalar-declaration"));
 }
 

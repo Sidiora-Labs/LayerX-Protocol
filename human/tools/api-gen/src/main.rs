@@ -2,19 +2,22 @@ use std::env;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use layerx_human_api_gen::{check_client, write_client, Violation};
+use layerx_human_api_gen::{human_api_drift_gate, write_client, Violation};
 
 fn print_violations(violations: &[Violation]) {
     for entry in violations {
-        eprintln!("{}: {} ({})", entry.rule, entry.path.display(), entry.detail);
+        eprintln!(
+            "{}: {} ({})",
+            entry.rule,
+            entry.path.display(),
+            entry.detail
+        );
     }
 }
 
 fn main() -> ExitCode {
     let mut arguments = env::args_os().skip(1).peekable();
-    let checking = arguments
-        .peek()
-        .is_some_and(|value| value == "--check");
+    let checking = arguments.peek().is_some_and(|value| value == "--check");
     if checking {
         arguments.next();
     }
@@ -26,7 +29,7 @@ fn main() -> ExitCode {
         PathBuf::from,
     );
     if checking {
-        match check_client(&root, &out_dir) {
+        match human_api_drift_gate(&root, &out_dir) {
             Ok(generated) => {
                 println!(
                     "human-api client is fresh: {} file(s), {} operations, {} types",

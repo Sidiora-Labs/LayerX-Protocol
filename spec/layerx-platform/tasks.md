@@ -220,7 +220,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Define rate-limit refusals with retry timing.
     - Add golden vectors for the error, stream and evidence shapes.
     - _Requirements: 8.5, 8.6, 8.7_
-  - [-] 4.6 Generate the TypeScript client and its drift gate
+  - [x] 4.6 Generate the TypeScript client and its drift gate
     - Build the generator emitting the TypeScript client from the schema, with types for every operation, journey, error and event.
     - Make the web application consume the generated client as its only service access path.
     - Build the drift gate failing the build when generated output is stale or hand-edited.
