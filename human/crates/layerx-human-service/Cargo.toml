@@ -9,7 +9,7 @@ license.workspace = true
 base64.workspace = true
 getrandom.workspace = true
 layerx-agent-api.workspace = true
-layerx-intents = { path = "../layerx-intents" }
+layerx-intents.workspace = true
 layerx-types.workspace = true
 layerx-crypto.workspace = true
 layerx-proof.workspace = true

@@ -259,7 +259,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Queue protocol stages honestly when the agent layer or core is unavailable, never fabricating an active account.
     - Record the activation evidence - each stage's receipt - retrievably for Technical details and audit export.
     - _Requirements: 3.2, 3.3, 3.5_
-  - [-] 5.5 Provision agent session keys and propagate revocation
+  - [x] 5.5 Provision agent session keys and propagate revocation
     - Provision protocol session keys to layerx-agentd for managed agents with explicit expiry, permitted activity sets and revocation paths, never transferring a primary key.
     - Propagate pause and archive into prompt session-key revocation and daemon permission suspension.
     - Implement human and agent key rotation through the protocol mechanism, surfacing the challenge delay in plain time units.

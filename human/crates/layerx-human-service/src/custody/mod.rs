@@ -1,6 +1,16 @@
 //! KMS-backed custody for human and managed-agent signing keys.
 
+mod sessions;
 mod signer;
+
+pub use sessions::{
+    AgentContractError, AgentSessionContract, AgentSessionProvision, AgentSessionSecret,
+    ManagedAgentState, PlainTime, ProtocolIdentitySnapshot, ProvisionEvidence, RenewalOutcome,
+    RevocationEvidence, RevocationOutcome, RevocationReason, RotationEvidence, RotationJourney,
+    RotationJourneyState, RotationObservation, RotationSubject, RotationSubmission,
+    SessionEntropySource, SessionKeyEntropy, SessionKeyError, SessionKeyProvisioner, SessionLease,
+    SessionLeaseState, SessionPolicy, SessionTarget, SuspensionEvidence,
+};
 
 pub use signer::{
     CustodySigner, Operation, SignAuthorization, SignRequest, SignatureGrant, SigningLimits,

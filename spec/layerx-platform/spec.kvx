@@ -888,7 +888,7 @@ reqs = ["3.2","3.3","3.5"]
 
 [task.5.5]
 title = "Provision agent session keys and propagate revocation"
-status = "in_progress"
+status = "done"
 wave = 3
 requires = ["5.3"]
 do_1 = "Provision protocol session keys to layerx-agentd for managed agents with explicit expiry, permitted activity sets and revocation paths, never transferring a primary key."

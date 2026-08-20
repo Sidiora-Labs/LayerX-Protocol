@@ -25,6 +25,7 @@ layerx-client = { path = "../agent/crates/layerx-client" }
 layerx-sdk = { path = "../agent/crates/layerx-sdk" }
 layerx-agentd = { path = "../agent/crates/layerx-agentd" }
 layerx-paxeer-client = { path = "crates/layerx-paxeer-client" }
+layerx-intents = { path = "crates/layerx-intents" }
 passkey-auth = "=0.1.3"
 proptest = "=1.7.0"
 serde = { version = "=1.0.229", features = ["derive"] }
