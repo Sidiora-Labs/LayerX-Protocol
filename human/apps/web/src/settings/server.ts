@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { APP_SESSION_COOKIE } from "../proxy";
+import { APP_SESSION_COOKIE } from "../auth/session";
 
 interface RequestCookies {
   get(name: string): { readonly value: string } | undefined;

@@ -1,8 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server.js";
 
+import { APP_SESSION_COOKIE } from "./auth/session.ts";
 import { appContentSecurityPolicy } from "./security/csp.ts";
-
-export const APP_SESSION_COOKIE = "__Host-layerx-session";
 
 function nonce(): string {
   const bytes = new Uint8Array(18);

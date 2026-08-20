@@ -1,16 +1,32 @@
-import { copyEntry } from "../../copy/catalog";
-import { PlaneRouteAction, ScreenCard } from "../kit";
-import { human_web_app_scaffold } from "./scaffold";
+import { cookies, headers } from "next/headers";
 
-export default function RootPage() {
-  const scaffold = human_web_app_scaffold();
+import { copyEntry } from "../../copy/catalog";
+import { APP_SESSION_COOKIE } from "../auth/session";
+import { Onboarding } from "../journeys/onboarding/onboarding";
+import { PlaneRouteAction } from "../kit";
+import { selectServerShell } from "../shell/server";
+
+export default async function RootPage({
+  searchParams,
+}: Readonly<{
+  searchParams: Promise<Readonly<{ return_to?: string | string[] | undefined }>>;
+}>) {
+  const [parameters, requestHeaders, requestCookies] = await Promise.all([
+    searchParams,
+    headers(),
+    cookies(),
+  ]);
+  const returnTo = typeof parameters.return_to === "string" ? parameters.return_to : undefined;
   return (
-    <ScreenCard title={scaffold.application} dataApplication={scaffold.application}>
-      <div className="mt-4">
-        <PlaneRouteAction destination="/explorer">
-          {copyEntry("action.open_explorer").message}
-        </PlaneRouteAction>
-      </div>
-    </ScreenCard>
+    <div className="flex flex-col gap-4">
+      <Onboarding
+        initialSelection={selectServerShell(requestHeaders, requestCookies)}
+        initiallyAuthenticated={requestCookies.get(APP_SESSION_COOKIE) !== undefined}
+        {...(returnTo === undefined ? {} : { returnTo })}
+      />
+      <PlaneRouteAction destination="/explorer">
+        {copyEntry("action.open_explorer").message}
+      </PlaneRouteAction>
+    </div>
   );
 }

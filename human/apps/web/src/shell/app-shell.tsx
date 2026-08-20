@@ -58,7 +58,7 @@ function activeNavigation(pathname: string): (typeof NAVIGATION)[number]["id"] {
   if (pathname.startsWith("/app/activity")) {
     return "activity";
   }
-  if (pathname.startsWith("/app/settings")) {
+  if (pathname.startsWith("/app/settings") || pathname.startsWith("/app/security")) {
     return "more";
   }
   return "home";
