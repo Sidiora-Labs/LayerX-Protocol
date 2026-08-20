@@ -1126,7 +1126,7 @@ reqs = ["12.1","12.2"]
 
 [task.8.2]
 title = "Implement pause, resume and limit changes"
-status = "in_progress"
+status = "done"
 wave = 4
 requires = ["8.1"]
 do_1 = "Implement pause as prompt revocation or suspension of the agent's operating authority, and resume as its receipt-verified restoration."
@@ -1220,7 +1220,7 @@ reqs = ["13.1","13.5","13.7"]
 
 [task.9.2]
 title = "Render disclosures bound to their digests"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["9.1","3.3"]
 do_1 = "Render the held activity's structured disclosure into plain-language approval content, with every rendered fact sourced only from the disclosure."
@@ -1300,7 +1300,7 @@ reqs = ["15.3","15.5"]
 
 [task.10.2]
 title = "Assemble the unified activity feed"
-status = "pending"
+status = "in_progress"
 wave = 5
 requires = ["7.2"]
 do_1 = "Assemble one principal-scoped feed spanning deposits, withdrawals, movements, agent actions, approvals and security events, with custody journeys as single joined entries."

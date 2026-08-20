@@ -372,7 +372,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Map purpose presets to declared capability templates as configuration, not code.
     - Test creation end to end against a real agent layer, including partial-failure resume at every step.
     - _Requirements: 12.1, 12.2_
-  - [-] 8.2 Implement pause, resume and limit changes
+  - [x] 8.2 Implement pause, resume and limit changes
     - Implement pause as prompt revocation or suspension of the agent's operating authority, and resume as its receipt-verified restoration.
     - Implement limit changes through budget intents where protocol-backed, labelling any daemon-enforced remainder app-enforced.
     - Never describe a daemon restriction as a protocol guarantee in any response or copy string.
@@ -416,7 +416,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Keep inbox counts consistent with the inbox within the declared freshness bound.
     - Test the inbox against a real agent layer generating holds.
     - _Requirements: 13.1, 13.5, 13.7_
-  - [ ] 9.2 Render disclosures bound to their digests
+  - [-] 9.2 Render disclosures bound to their digests
     - Render the held activity's structured disclosure into plain-language approval content, with every rendered fact sourced only from the disclosure.
     - Verify before rendering that the disclosure re-encodes to the held digest, refusing to render an approvable presentation of a defective hold.
     - Cover every v1 activity class a hold can carry with a rendering template from the copy catalog.
@@ -455,7 +455,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Respect every agent-layer boundary prohibition, enforced by the workspace dependency gate.
     - Serve protocol-public data only, with no principal data in the index at all.
     - _Requirements: 15.3, 15.5_
-  - [ ] 10.2 Assemble the unified activity feed
+  - [-] 10.2 Assemble the unified activity feed
     - Assemble one principal-scoped feed spanning deposits, withdrawals, movements, agent actions, approvals and security events, with custody journeys as single joined entries.
     - Translate every state through the status translation table with Done gated on the receipt rule.
     - Serve stable cursor pagination that survives restart without gaps, duplicates or reordering.

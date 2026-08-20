@@ -399,6 +399,12 @@ pub struct BudgetCreate {
 }
 
 impl BudgetCreate {
+    /// Returns the exact protocol-enforced limit carried by this intent.
+    #[must_use]
+    pub const fn per_period_limit(&self) -> Amount {
+        self.per_period_limit
+    }
+
     /// Builds a protocol budget for an explicit budget namespace.
     ///
     /// # Errors
