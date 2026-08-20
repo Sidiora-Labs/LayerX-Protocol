@@ -461,6 +461,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "layerx-mirror"
+version = "0.1.0"
+dependencies = [
+ "layerx-agent-api",
+ "layerx-client",
+ "layerx-proof",
+ "layerx-wire",
+ "sha2",
+]
+
+[[package]]
 name = "layerx-portable"
 version = "0.1.0"
 dependencies = [

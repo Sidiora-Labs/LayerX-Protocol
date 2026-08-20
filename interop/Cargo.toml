@@ -4,6 +4,7 @@ members = [
     "crates/layerx-interop-gateway",
     "crates/layerx-fiat",
     "crates/layerx-migrate",
+    "crates/layerx-mirror",
     "crates/layerx-portable",
     "crates/layerx-ucp",
     "crates/layerx-visa-tap",
@@ -27,6 +28,8 @@ layerx-proof = { path = "../agent/crates/layerx-proof" }
 layerx-interop-gateway = { path = "crates/layerx-interop-gateway" }
 layerx-portable = { path = "crates/layerx-portable" }
 layerx-intents = { path = "../human/crates/layerx-intents" }
+layerx-agent-api = { path = "../agent/crates/layerx-agent-api" }
+layerx-client = { path = "../agent/crates/layerx-client" }
 openssl = "=0.10.73"
 p256 = { version = "=0.13.2", default-features = false, features = ["ecdsa", "std"] }
 serde = { version = "=1.0.229", features = ["derive"] }
