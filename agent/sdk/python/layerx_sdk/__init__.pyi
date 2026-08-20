@@ -61,3 +61,19 @@ from .stream import (
     StreamEvent as StreamEvent,
     StreamPage as StreamPage,
 )
+from .verifier import (
+    BatchHeader as BatchHeader,
+    CheckpointAttestation as CheckpointAttestation,
+    CheckpointCertificate as CheckpointCertificate,
+    CheckpointVerification as CheckpointVerification,
+    CheckpointVerificationInput as CheckpointVerificationInput,
+    GuarantorKey as GuarantorKey,
+    InclusionVerification as InclusionVerification,
+    LocalSignatureVerifier as LocalSignatureVerifier,
+    MerkleProof as MerkleProof,
+    SequencerAuthorization as SequencerAuthorization,
+    decode_batch_header as decode_batch_header,
+    verify_batch_inclusion as verify_batch_inclusion,
+    verify_checkpoint as verify_checkpoint,
+    verify_merkle_inclusion as verify_merkle_inclusion,
+)

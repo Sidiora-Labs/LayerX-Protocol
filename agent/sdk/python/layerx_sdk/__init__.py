@@ -56,6 +56,22 @@ from .production import (
     platform_sdk_python,
 )
 from .stream import ResumableStream, StreamCursor, StreamEvent, StreamPage
+from .verifier import (
+    BatchHeader,
+    CheckpointAttestation,
+    CheckpointCertificate,
+    CheckpointVerification,
+    CheckpointVerificationInput,
+    GuarantorKey,
+    InclusionVerification,
+    LocalSignatureVerifier,
+    MerkleProof,
+    SequencerAuthorization,
+    decode_batch_header,
+    verify_batch_inclusion,
+    verify_checkpoint,
+    verify_merkle_inclusion,
+)
 
 __all__ = [
     "APPROVAL_CONTRACT_INTRODUCED",
@@ -115,4 +131,18 @@ __all__ = [
     "StreamEvent",
     "StreamPage",
     "platform_sdk_python",
+    "BatchHeader",
+    "CheckpointAttestation",
+    "CheckpointCertificate",
+    "CheckpointVerification",
+    "CheckpointVerificationInput",
+    "GuarantorKey",
+    "InclusionVerification",
+    "LocalSignatureVerifier",
+    "MerkleProof",
+    "SequencerAuthorization",
+    "decode_batch_header",
+    "verify_batch_inclusion",
+    "verify_checkpoint",
+    "verify_merkle_inclusion",
 ]
