@@ -501,7 +501,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Express every control state through fill and text-color shifts with disabled reasons nearby, honoring reduced motion.
     - Enforce kit-only composition through the UI gate, with fixtures proving a raw-element screen fails.
     - _Requirements: 16.3, 17.8, 17.9_
-  - [ ] 11.3 Build the state-matrix machinery and error surfaces
+  - [x] 11.3 Build the state-matrix machinery and error surfaces
     - Implement the per-screen state machinery: layout-reserving skeletons, empty states with a single CTA, the error anatomy with Retry, Reload and Report actions and the collapsed technical section, offline states with retry, degraded staleness presentation and the still-checking lock.
     - Wrap every route in error boundaries rendering the same anatomy, so no blank screen or raw stack trace can reach a user.
     - Implement Report: consented submission of trace identifier, machine code and non-sensitive context, with confirmation.

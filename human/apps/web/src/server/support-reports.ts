@@ -7,7 +7,7 @@ import {
   supportReportTrace,
   type StoredSupportReport,
   type SupportReportRequest,
-} from "../states/report-schema";
+} from "../states/report-schema.ts";
 
 const REPORT_FILE = /^[a-f0-9]{64}\.json$/u;
 const DEFAULT_RETENTION = 1_000;
@@ -65,16 +65,18 @@ function sameStoredReport(stored: StoredSupportReport, report: SupportReportRequ
 }
 
 export class SupportReportRepository {
-  constructor(
-    readonly directory: string,
-    readonly retention: number,
-  ) {
+  readonly directory: string;
+  readonly retention: number;
+
+  constructor(directory: string, retention: number) {
     if (!isAbsolute(directory) || resolve(directory) === "/") {
       throw new SupportReportConfigurationError("Support report storage directory is invalid");
     }
     if (!Number.isSafeInteger(retention) || retention < 1 || retention > MAX_RETENTION) {
       throw new SupportReportConfigurationError("Support report retention is invalid");
     }
+    this.directory = directory;
+    this.retention = retention;
   }
 
   async save(report: SupportReportRequest): Promise<Readonly<{ record: StoredSupportReport; created: boolean }>> {

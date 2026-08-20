@@ -1395,7 +1395,7 @@ reqs = ["16.3","17.8","17.9"]
 
 [task.11.3]
 title = "Build the state-matrix machinery and error surfaces"
-status = "pending"
+status = "done"
 wave = 6
 requires = ["11.2","1.5"]
 do_1 = "Implement the per-screen state machinery: layout-reserving skeletons, empty states with a single CTA, the error anatomy with Retry, Reload and Report actions and the collapsed technical section, offline states with retry, degraded staleness presentation and the still-checking lock."

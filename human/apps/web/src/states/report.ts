@@ -4,7 +4,7 @@ import {
   type ReportShell,
   type SavedReportReceipt,
   type SupportReportRequest,
-} from "./report-schema";
+} from "./report-schema.ts";
 
 export interface ErrorReportDraft {
   readonly consented: boolean;
@@ -27,8 +27,11 @@ const PENDING_REPORTS_KEY = "layerx.human.pending-support-reports.v1";
 const MAX_PENDING_REPORTS = 50;
 
 class ReportServerError extends Error {
-  constructor(readonly status: number) {
+  readonly status: number;
+
+  constructor(status: number) {
     super("Support report server rejected the request");
+    this.status = status;
   }
 }
 
