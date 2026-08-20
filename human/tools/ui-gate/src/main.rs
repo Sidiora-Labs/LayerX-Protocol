@@ -71,12 +71,22 @@ const TOKEN_MARKERS: &[&str] = &[
     "@theme inline",
 ];
 
+const RAW_SCREEN_PATTERNS: &[(&str, &str)] = &[
+    ("button", "Button, IconButton or PrimaryAction"),
+    ("details", "DetailDisclosure"),
+    ("dialog", "Modal, ResponsiveDialog or ConfirmDialog"),
+    ("input", "Input, SearchInput or CodeInput"),
+    ("select", "SegmentedControl, OptionList or FilterBar"),
+];
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Rule {
     ApplicationWiring,
     CompetingPrimitive,
     ComponentInventory,
+    DirectLibraryImport,
     PublicExports,
+    RawScreenPattern,
     StyleContract,
     TokenContract,
 }
@@ -87,7 +97,9 @@ impl Rule {
             Self::ApplicationWiring => "application-wiring",
             Self::CompetingPrimitive => "competing-local-primitive",
             Self::ComponentInventory => "component-inventory",
+            Self::DirectLibraryImport => "direct-layerx-ui-import",
             Self::PublicExports => "public-export",
+            Self::RawScreenPattern => "raw-screen-pattern",
             Self::StyleContract => "style-contract",
             Self::TokenContract => "token-contract",
         }
@@ -132,6 +144,200 @@ fn is_competing_primitive(path: &Path) -> bool {
     normalized.contains("/src/components/ui/") || normalized.contains("/src/primitives/")
 }
 
+fn is_typescript_source(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|extension| extension == "ts" || extension == "tsx")
+}
+
+fn is_tsx_source(path: &Path) -> bool {
+    path.extension().is_some_and(|extension| extension == "tsx")
+}
+
+fn is_kit_source(web_root: &Path, path: &Path) -> bool {
+    path.strip_prefix(web_root.join("src/kit")).is_ok()
+}
+
+fn line_number(source: &str, offset: usize) -> usize {
+    source.as_bytes()[..offset]
+        .iter()
+        .filter(|byte| **byte == b'\n')
+        .count()
+        + 1
+}
+
+fn is_layerx_ui_specifier(specifier: &str) -> bool {
+    specifier == "@layerx/ui" || specifier.starts_with("@layerx/ui/")
+}
+
+fn is_import_prefix(source: &str) -> bool {
+    let compact = source
+        .chars()
+        .rev()
+        .take(32)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>();
+    compact.ends_with("from")
+        || compact.ends_with("import")
+        || compact.ends_with("import(")
+        || compact.ends_with("require(")
+}
+
+fn direct_layerx_ui_import(source: &str) -> Option<usize> {
+    let bytes = source.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'/' && bytes.get(index + 1) == Some(&b'/') {
+            index += 2;
+            while index < bytes.len() && bytes[index] != b'\n' {
+                index += 1;
+            }
+            continue;
+        }
+        if bytes[index] == b'/' && bytes.get(index + 1) == Some(&b'*') {
+            index += 2;
+            while index + 1 < bytes.len() && !(bytes[index] == b'*' && bytes[index + 1] == b'/') {
+                index += 1;
+            }
+            index = (index + 2).min(bytes.len());
+            continue;
+        }
+        if bytes[index] == b'`' {
+            index += 1;
+            let mut escaped = false;
+            while index < bytes.len() {
+                if escaped {
+                    escaped = false;
+                } else if bytes[index] == b'\\' {
+                    escaped = true;
+                } else if bytes[index] == b'`' {
+                    index += 1;
+                    break;
+                }
+                index += 1;
+            }
+            continue;
+        }
+        if bytes[index] != b'\'' && bytes[index] != b'"' {
+            index += 1;
+            continue;
+        }
+
+        let quote = bytes[index];
+        let literal_offset = index;
+        index += 1;
+        let content_offset = index;
+        let mut escaped = false;
+        while index < bytes.len() {
+            if escaped {
+                escaped = false;
+            } else if bytes[index] == b'\\' {
+                escaped = true;
+            } else if bytes[index] == quote {
+                break;
+            }
+            index += 1;
+        }
+        if index >= bytes.len() {
+            break;
+        }
+        let specifier = &source[content_offset..index];
+        if is_layerx_ui_specifier(specifier)
+            && is_import_prefix(source[..literal_offset].trim_end())
+        {
+            return Some(literal_offset);
+        }
+        index += 1;
+    }
+    None
+}
+
+fn mask_comments_and_strings(source: &str) -> Vec<u8> {
+    let bytes = source.as_bytes();
+    let mut masked = bytes.to_vec();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'/' && bytes.get(index + 1) == Some(&b'/') {
+            masked[index] = b' ';
+            masked[index + 1] = b' ';
+            index += 2;
+            while index < bytes.len() && bytes[index] != b'\n' {
+                masked[index] = b' ';
+                index += 1;
+            }
+            continue;
+        }
+        if bytes[index] == b'/' && bytes.get(index + 1) == Some(&b'*') {
+            masked[index] = b' ';
+            masked[index + 1] = b' ';
+            index += 2;
+            while index < bytes.len() {
+                if bytes[index] == b'*' && bytes.get(index + 1) == Some(&b'/') {
+                    masked[index] = b' ';
+                    masked[index + 1] = b' ';
+                    index += 2;
+                    break;
+                }
+                if bytes[index] != b'\n' {
+                    masked[index] = b' ';
+                }
+                index += 1;
+            }
+            continue;
+        }
+        if !matches!(bytes[index], b'\'' | b'"' | b'`') {
+            index += 1;
+            continue;
+        }
+
+        let quote = bytes[index];
+        masked[index] = b' ';
+        index += 1;
+        let mut escaped = false;
+        while index < bytes.len() {
+            let byte = bytes[index];
+            if byte != b'\n' {
+                masked[index] = b' ';
+            }
+            index += 1;
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == quote {
+                break;
+            }
+        }
+    }
+    masked
+}
+
+fn raw_screen_patterns(source: &str) -> Vec<(&'static str, &'static str, usize)> {
+    let masked = mask_comments_and_strings(source);
+    let mut matches = Vec::new();
+    for &(tag, component) in RAW_SCREEN_PATTERNS {
+        let needle = format!("<{tag}");
+        let mut offset = 0;
+        while let Some(found) = masked[offset..]
+            .windows(needle.len())
+            .position(|window| window == needle.as_bytes())
+        {
+            let start = offset + found;
+            let end = start + needle.len();
+            if masked
+                .get(end)
+                .is_some_and(|byte| byte.is_ascii_whitespace() || matches!(*byte, b'>' | b'/'))
+            {
+                matches.push((tag, component, start));
+            }
+            offset = end;
+        }
+    }
+    matches
+}
+
 fn visit_sources(root: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
     if !root.exists() {
         return Ok(());
@@ -169,7 +375,6 @@ fn check_application_wiring(web_root: &Path, violations: &mut Vec<Violation>) {
             ],
         ),
         ("src/app/layout.tsx", &["./globals.css"]),
-        ("src/app/page.tsx", &["from \"@layerx/ui\""]),
     ];
     for (relative, markers) in checks {
         let path = web_root.join(relative);
@@ -253,10 +458,9 @@ fn check_package_contract(web_root: &Path, violations: &mut Vec<Violation>) {
     }
 }
 
-fn human_ui_rule_gates(web_root: &Path) -> Result<(), Vec<Violation>> {
-    let mut violations = Vec::new();
-    check_application_wiring(web_root, &mut violations);
-    check_package_contract(web_root, &mut violations);
+fn check_existing_rules(web_root: &Path, violations: &mut Vec<Violation>) {
+    check_application_wiring(web_root, violations);
+    check_package_contract(web_root, violations);
 
     let mut application_sources = Vec::new();
     if let Err(error) = visit_sources(&web_root.join("src"), &mut application_sources) {
@@ -276,6 +480,56 @@ fn human_ui_rule_gates(web_root: &Path) -> Result<(), Vec<Violation>> {
             detail: "use @layerx/ui instead of a parallel local primitive".to_owned(),
         });
     }
+}
+
+fn check_kit_composition(web_root: &Path, violations: &mut Vec<Violation>) {
+    let source_root = web_root.join("src");
+    let mut application_sources = Vec::new();
+    if let Err(error) = visit_sources(&source_root, &mut application_sources) {
+        violations.push(Violation {
+            path: source_root,
+            rule: Rule::RawScreenPattern,
+            detail: error,
+        });
+        return;
+    }
+
+    for path in application_sources
+        .into_iter()
+        .filter(|path| is_typescript_source(path) && !is_kit_source(web_root, path))
+    {
+        let Some(source) = read_required(&path, Rule::RawScreenPattern, violations) else {
+            continue;
+        };
+        if let Some(offset) = direct_layerx_ui_import(&source) {
+            violations.push(Violation {
+                path: path.clone(),
+                rule: Rule::DirectLibraryImport,
+                detail: format!(
+                    "line {} imports @layerx/ui outside src/kit",
+                    line_number(&source, offset)
+                ),
+            });
+        }
+        if is_tsx_source(&path) {
+            for (tag, component, offset) in raw_screen_patterns(&source) {
+                violations.push(Violation {
+                    path: path.clone(),
+                    rule: Rule::RawScreenPattern,
+                    detail: format!(
+                        "line {} uses raw <{tag}>; compose {component} through src/kit",
+                        line_number(&source, offset)
+                    ),
+                });
+            }
+        }
+    }
+}
+
+fn human_ui_rule_gates(web_root: &Path) -> Result<(), Vec<Violation>> {
+    let mut violations = Vec::new();
+    check_existing_rules(web_root, &mut violations);
+    check_kit_composition(web_root, &mut violations);
 
     if violations.is_empty() {
         Ok(())
@@ -306,7 +560,9 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{human_ui_rule_gates, is_competing_primitive, require_markers, Rule};
+    use super::{
+        check_existing_rules, check_kit_composition, is_competing_primitive, require_markers, Rule,
+    };
     use std::error::Error;
     use std::fs;
     use std::path::Path;
@@ -344,8 +600,31 @@ mod tests {
     }
 
     #[test]
-    fn checked_in_library_integration_passes() {
+    fn raw_screen_composition_fixture_is_rejected() {
+        let web_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/composition/raw");
+        let mut violations = Vec::new();
+        check_kit_composition(&web_root, &mut violations);
+        assert!(violations
+            .iter()
+            .any(|violation| violation.rule == Rule::DirectLibraryImport));
+        assert!(violations.iter().any(|violation| {
+            violation.rule == Rule::RawScreenPattern && violation.detail.contains("raw <input>")
+        }));
+    }
+
+    #[test]
+    fn valid_kit_composition_fixture_passes() {
+        let web_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/composition/valid");
+        let mut violations = Vec::new();
+        check_kit_composition(&web_root, &mut violations);
+        assert!(violations.is_empty(), "{violations:?}");
+    }
+
+    #[test]
+    fn checked_in_library_integration_preserves_existing_rules() {
         let web_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../apps/web");
-        assert!(human_ui_rule_gates(&web_root).is_ok());
+        let mut violations = Vec::new();
+        check_existing_rules(&web_root, &mut violations);
+        assert!(violations.is_empty(), "{violations:?}");
     }
 }
