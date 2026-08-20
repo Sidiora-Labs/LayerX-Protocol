@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use layerx_agent_api::subscription::{ReceiptReference, SubscriptionTarget};
 use sha2::{Digest, Sha256};
@@ -453,15 +453,9 @@ pub fn deliver(
     if stream.set_nonblocking(true).is_err() {
         return schedule_retry(engine, now_ms, EndpointFailure::Protocol);
     }
-    let deadline = Instant::now() + endpoint.deadline;
+    let mut budget = WaitBudget::new(endpoint.deadline, endpoint.cancellation_poll);
     let framed = frame_bytes(&frame.bytes)?;
-    if let Err(failure) = write_all_bounded(
-        &mut stream,
-        &framed,
-        deadline,
-        endpoint.cancellation_poll,
-        stop,
-    ) {
+    if let Err(failure) = write_all_bounded(&mut stream, &framed, &mut budget, stop) {
         if let EndpointIo::Stopped(reason) = failure {
             apply_stop(engine, reason)?;
             return Err(OutboundError::Stopped(reason));
@@ -471,8 +465,7 @@ pub fn deliver(
     let acknowledgement = match read_frame_bounded(
         &mut stream,
         endpoint.maximum_frame_bytes,
-        deadline,
-        endpoint.cancellation_poll,
+        &mut budget,
         stop,
     ) {
         Ok(value) => value,
@@ -559,11 +552,36 @@ impl EndpointIo {
     }
 }
 
+/// Cancellation polls an endpoint exchange may still wait out before it is
+/// abandoned, so a stalled peer is bounded without reading an ambient clock.
+struct WaitBudget {
+    remaining: u64,
+    poll: Duration,
+}
+
+impl WaitBudget {
+    fn new(deadline: Duration, poll: Duration) -> Self {
+        let polls = deadline.as_nanos() / poll.as_nanos().max(1);
+        Self {
+            remaining: u64::try_from(polls).unwrap_or(u64::MAX).max(1),
+            poll,
+        }
+    }
+
+    fn wait(&mut self) -> Result<(), EndpointIo> {
+        let Some(remaining) = self.remaining.checked_sub(1) else {
+            return Err(EndpointIo::Timeout);
+        };
+        self.remaining = remaining;
+        thread::sleep(self.poll);
+        Ok(())
+    }
+}
+
 fn write_all_bounded(
     stream: &mut UnixStream,
     bytes: &[u8],
-    deadline: Instant,
-    poll: Duration,
+    budget: &mut WaitBudget,
     stop: &StopSignal,
 ) -> Result<(), EndpointIo> {
     let mut written = 0;
@@ -571,13 +589,10 @@ fn write_all_bounded(
         if let Some(reason) = stop.reason() {
             return Err(EndpointIo::Stopped(reason));
         }
-        if Instant::now() >= deadline {
-            return Err(EndpointIo::Timeout);
-        }
         match stream.write(&bytes[written..]) {
             Ok(0) => return Err(EndpointIo::Protocol),
             Ok(count) => written += count,
-            Err(error) if error.kind() == ErrorKind::WouldBlock => thread::sleep(poll),
+            Err(error) if error.kind() == ErrorKind::WouldBlock => budget.wait()?,
             Err(_) => return Err(EndpointIo::Protocol),
         }
     }
@@ -587,26 +602,24 @@ fn write_all_bounded(
 fn read_frame_bounded(
     stream: &mut UnixStream,
     maximum: usize,
-    deadline: Instant,
-    poll: Duration,
+    budget: &mut WaitBudget,
     stop: &StopSignal,
 ) -> Result<Vec<u8>, EndpointIo> {
     let mut length = [0_u8; 4];
-    read_exact_bounded(stream, &mut length, deadline, poll, stop)?;
+    read_exact_bounded(stream, &mut length, budget, stop)?;
     let length = usize::try_from(u32::from_be_bytes(length)).map_err(|_| EndpointIo::Frame)?;
     if length == 0 || length > maximum {
         return Err(EndpointIo::Frame);
     }
     let mut body = vec![0_u8; length];
-    read_exact_bounded(stream, &mut body, deadline, poll, stop)?;
+    read_exact_bounded(stream, &mut body, budget, stop)?;
     Ok(body)
 }
 
 fn read_exact_bounded(
     stream: &mut UnixStream,
     bytes: &mut [u8],
-    deadline: Instant,
-    poll: Duration,
+    budget: &mut WaitBudget,
     stop: &StopSignal,
 ) -> Result<(), EndpointIo> {
     let mut read = 0;
@@ -614,13 +627,10 @@ fn read_exact_bounded(
         if let Some(reason) = stop.reason() {
             return Err(EndpointIo::Stopped(reason));
         }
-        if Instant::now() >= deadline {
-            return Err(EndpointIo::Timeout);
-        }
         match stream.read(&mut bytes[read..]) {
             Ok(0) => return Err(EndpointIo::Protocol),
             Ok(count) => read += count,
-            Err(error) if error.kind() == ErrorKind::WouldBlock => thread::sleep(poll),
+            Err(error) if error.kind() == ErrorKind::WouldBlock => budget.wait()?,
             Err(_) => return Err(EndpointIo::Protocol),
         }
     }
