@@ -9,12 +9,15 @@ export interface FormatMoneyOptions {
   decimals?: number;
   /** Symbol prepended to the number. Default "$". Pass "" for none. */
   symbol?: string;
+  /** BCP 47 locale used for separators and digit grouping. */
+  locale?: string;
 }
 
 export function formatMoney(value: number, opts: FormatMoneyOptions = {}): string {
-  const { currency, signed = true, decimals = 2, symbol = "$" } = opts;
+  const { currency, signed = true, decimals = 2, locale = "en-US" } = opts;
+  const symbol = opts.symbol ?? (currency === undefined ? "$" : "");
   const abs = Math.abs(value);
-  const num = abs.toLocaleString("en-US", {
+  const num = abs.toLocaleString(locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });

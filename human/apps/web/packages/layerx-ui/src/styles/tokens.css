@@ -19,8 +19,8 @@
   /* Text */
   --foreground: #0a0a0a;          /* titles, key numbers */
   --foreground-secondary: #585858;/* body copy */
-  --muted-foreground: #8a8a8a;    /* subtitles, timestamps */
-  --faint-foreground: #a7a7a7;    /* placeholders, disabled */
+  --muted-foreground: #6b6b6b;    /* subtitles, timestamps */
+  --faint-foreground: #707070;    /* placeholders, disabled */
 
   /* Lines */
   --border: #e6e6e6;
@@ -32,17 +32,20 @@
   --primary-hover: #1f1f1f;
 
   /* Accent — links, active nav, focus rings, FAB */
-  --accent: #1a72f8;
+  --accent: #0965e8;
   --accent-strong: #0060f8;       /* pressed / active text on light */
   --accent-foreground: #ffffff;
   --accent-soft: #e9f1fe;         /* accent tint surfaces */
 
   /* Feedback */
-  --success: #3d9a4d;
+  --success: #256b34;
+  --success-foreground: #ffffff;
   --success-soft: #e8f5ea;
-  --destructive: #e13a32;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
   --destructive-soft: #f8e8e8;
-  --warning: #b7791f;
+  --warning: #774700;
+  --warning-foreground: #ffffff;
   --warning-soft: #fdf3e3;
 
   /* Shape */
@@ -81,10 +84,13 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-soft: var(--accent-soft);
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-success-soft: var(--success-soft);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive-soft: var(--destructive-soft);
   --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-warning-soft: var(--warning-soft);
 
   --radius-sm: var(--radius-sm);
@@ -144,6 +150,30 @@
 
 /* Thin, unobtrusive scrollbars for overlay content */
 @layer base {
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--accent-strong);
+    outline-offset: 2px;
+  }
+
+  @media (pointer: coarse) {
+    :where(
+      a[href],
+      button,
+      input:not([type="hidden"]),
+      select,
+      textarea,
+      [role="button"],
+      [role="link"],
+      [role="menuitem"],
+      [role="option"],
+      [role="switch"],
+      [role="tab"]
+    ) {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+
   .lx-scroll {
     scrollbar-width: thin;
     scrollbar-color: var(--border-strong) transparent;

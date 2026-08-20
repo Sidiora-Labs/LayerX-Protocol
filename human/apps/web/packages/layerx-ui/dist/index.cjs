@@ -121,9 +121,10 @@ function cn(...inputs) {
 
 // src/lib/format.ts
 function formatMoney(value, opts = {}) {
-  const { currency, signed = true, decimals = 2, symbol = "$" } = opts;
+  const { currency, signed = true, decimals = 2, locale = "en-US" } = opts;
+  const symbol = opts.symbol ?? (currency === void 0 ? "$" : "");
   const abs = Math.abs(value);
-  const num = abs.toLocaleString("en-US", {
+  const num = abs.toLocaleString(locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
   });
@@ -231,7 +232,7 @@ var buttonVariants = (0, import_class_variance_authority.cva)(
         /** Blue pill — for accent CTAs. */
         accent: "bg-accent text-accent-foreground hover:bg-accent-strong",
         /** Solid red pill for irreversible actions. */
-        destructive: "bg-destructive text-white hover:opacity-90",
+        destructive: "bg-destructive text-destructive-foreground hover:opacity-90",
         /** Borderless. */
         ghost: "text-foreground hover:bg-surface-sunken",
         /** Text-only accent link. */
@@ -663,6 +664,7 @@ var import_jsx_runtime10 = require("react/jsx-runtime");
 function AmountText({
   value,
   currency,
+  locale,
   decimals,
   symbol,
   colorMode = "signed",
@@ -679,7 +681,7 @@ function AmountText({
         className
       ),
       ...props,
-      children: formatMoney(value, { currency, decimals, symbol })
+      children: formatMoney(value, { currency, decimals, locale, symbol })
     }
   );
 }
@@ -980,16 +982,40 @@ function CardCarousel({
 }
 
 // src/components/sheet.tsx
+var React9 = __toESM(require("react"), 1);
 var Dialog = __toESM(require("@radix-ui/react-dialog"), 1);
 var import_jsx_runtime18 = require("react/jsx-runtime");
 function Sheet({ open, onOpenChange, children, portalContainer }) {
+  const dragStartY = React9.useRef(null);
+  const startDrag = (event) => {
+    if (!(event.target instanceof Element) || event.target.closest("[data-sheet-drag-handle]") === null) {
+      return;
+    }
+    dragStartY.current = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const finishDrag = (event) => {
+    const startY = dragStartY.current;
+    dragStartY.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (startY !== null && event.clientY - startY >= 72) {
+      onOpenChange(false);
+    }
+  };
   return /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(Dialog.Root, { open, onOpenChange, children: /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(Dialog.Portal, { container: portalContainer ?? void 0, children: [
     /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(Dialog.Overlay, { className: "fixed inset-0 z-40 bg-black/40 data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out" }),
     /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
       Dialog.Content,
       {
+        onPointerDown: startDrag,
+        onPointerUp: finishDrag,
+        onPointerCancel: () => {
+          dragStartY.current = null;
+        },
         className: cn(
-          "fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[92dvh] w-full max-w-lg flex-col",
+          "fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-lg flex-col overscroll-contain",
           "rounded-t-sheet bg-surface shadow-overlay outline-none",
           "data-[state=open]:animate-sheet-up data-[state=closed]:animate-sheet-down"
         ),
@@ -1004,7 +1030,13 @@ function SheetHeader({
   children
 }) {
   return /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)("div", { className: cn("flex flex-col items-stretch", className), children: [
-    /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("div", { className: "flex justify-center pt-2.5 pb-1", "aria-hidden": true, children: /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("span", { className: "h-1 w-10 rounded-full bg-border-strong" }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("div", { className: "flex justify-center pt-2.5 pb-1", "aria-hidden": true, children: /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
+      "span",
+      {
+        "data-sheet-drag-handle": true,
+        className: "h-5 w-12 touch-none rounded-full before:mx-auto before:mt-2 before:block before:h-1 before:w-10 before:rounded-full before:bg-border-strong"
+      }
+    ) }),
     (title || children) && /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)("div", { className: "border-b border-border px-5 pt-2 pb-4", children: [
       title && /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(Dialog.Title, { className: "text-lg font-bold text-foreground", children: title }),
       children
@@ -1024,14 +1056,23 @@ function SheetDescription({
   ) });
 }
 function SheetBody({ className, ...props }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("div", { className: cn("lx-scroll flex-1 overflow-y-auto px-5 py-4", className), ...props });
+  return /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
+    "div",
+    {
+      className: cn(
+        "lx-scroll flex-1 overflow-y-auto px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]",
+        className
+      ),
+      ...props
+    }
+  );
 }
 function SheetFooter({ className, ...props }) {
   return /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
     "div",
     {
       className: cn(
-        "grid auto-cols-fr grid-flow-col gap-3 border-t border-border/0 px-5 pt-2 pb-6",
+        "grid auto-cols-fr grid-flow-col gap-3 border-t border-border/0 px-5 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
         className
       ),
       ...props
@@ -1050,7 +1091,7 @@ function Modal({ open, onOpenChange, children, portalContainer, className }) {
       Dialog2.Content,
       {
         className: cn(
-          "fixed top-1/2 left-1/2 z-50 flex max-h-[85dvh] w-[calc(100vw-2rem)] max-w-[440px] -translate-x-1/2 -translate-y-1/2 flex-col",
+          "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] w-[calc(100vw-2rem)] max-w-[440px] -translate-x-1/2 -translate-y-1/2 flex-col overscroll-contain",
           "rounded-xl bg-surface p-6 shadow-overlay outline-none",
           "data-[state=open]:animate-modal-in data-[state=closed]:animate-modal-out",
           className
@@ -1077,7 +1118,7 @@ function ModalHeader({
         type: "button",
         onClick: onClose,
         "aria-label": "Close",
-        className: "-mt-1 -mr-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-sunken",
+        className: "-mt-1 -mr-1 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-sunken",
         children: /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(import_lucide_react6.X, { className: "size-4" })
       }
     )
@@ -1102,7 +1143,7 @@ function Drawer({ open, onOpenChange, children, portalContainer, width = 420 }) 
       {
         style: { width: `min(${typeof width === "number" ? `${width}px` : width}, 100vw)` },
         className: cn(
-          "fixed top-0 right-0 z-50 flex h-dvh flex-col bg-surface shadow-overlay outline-none",
+          "fixed top-0 right-0 z-50 flex h-dvh flex-col overscroll-contain bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-overlay outline-none",
           "data-[state=open]:animate-drawer-in data-[state=closed]:animate-drawer-out"
         ),
         children
@@ -1127,7 +1168,7 @@ function DrawerHeader({
         type: "button",
         onClick: onClose,
         "aria-label": "Close",
-        className: "inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-sunken",
+        className: "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-sunken",
         children: /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(import_lucide_react7.X, { className: "size-4" })
       }
     )
@@ -1233,12 +1274,12 @@ function ConfirmDialog({
 }
 
 // src/components/popover.tsx
-var React9 = __toESM(require("react"), 1);
+var React10 = __toESM(require("react"), 1);
 var PopoverPrimitive = __toESM(require("@radix-ui/react-popover"), 1);
 var import_jsx_runtime22 = require("react/jsx-runtime");
 var Popover = PopoverPrimitive.Root;
 var PopoverTrigger = PopoverPrimitive.Trigger;
-var PopoverContent = React9.forwardRef(({ className, align = "start", sideOffset = 8, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(PopoverPrimitive.Portal, { children: /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(
+var PopoverContent = React10.forwardRef(({ className, align = "start", sideOffset = 8, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(PopoverPrimitive.Portal, { children: /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(
   PopoverPrimitive.Content,
   {
     ref,
@@ -1277,7 +1318,7 @@ var dayPickerClassNames = {
 };
 var dayPickerModifiersClassNames = {
   today: "font-bold text-accent-strong",
-  selected: "bg-accent text-white hover:bg-accent",
+  selected: "bg-accent text-accent-foreground hover:bg-accent",
   range_start: "rounded-full",
   range_end: "rounded-full",
   range_middle: "bg-accent-soft! text-foreground! rounded-none!"
@@ -1324,7 +1365,7 @@ function CalendarRangePicker({
 }
 
 // src/components/code-input.tsx
-var React10 = __toESM(require("react"), 1);
+var React11 = __toESM(require("react"), 1);
 var import_lucide_react9 = require("lucide-react");
 var import_jsx_runtime24 = require("react/jsx-runtime");
 function CodeInput({
@@ -1339,9 +1380,9 @@ function CodeInput({
   className,
   ...aria
 }) {
-  const inputRef = React10.useRef(null);
-  const [focused, setFocused] = React10.useState(false);
-  React10.useEffect(() => {
+  const inputRef = React11.useRef(null);
+  const [focused, setFocused] = React11.useState(false);
+  React11.useEffect(() => {
     if (autoFocus && !readOnly && !disabled) {
       inputRef.current?.focus({ preventScroll: true });
     }
@@ -1489,7 +1530,7 @@ function BottomTabBar({
               children: item.label
             }
           ),
-          !!item.badge && /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: "absolute -top-1 right-1/2 translate-x-4 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white", children: item.badge })
+          !!item.badge && /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: "absolute -top-1 right-1/2 translate-x-4 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground", children: item.badge })
         ]
       }
     );
@@ -1511,7 +1552,7 @@ function BottomTabBar({
             type: "button",
             onClick: onFab,
             "aria-label": "New action",
-            className: "-mt-7 inline-flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_6px_20px_rgb(26_114_248/0.4)] transition-transform active:scale-95",
+            className: "-mt-7 inline-flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-overlay transition-transform active:scale-95",
             children: fabIcon ?? /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(import_lucide_react10.Plus, { className: "size-6" })
           }
         ) }),
@@ -1561,7 +1602,7 @@ function Sidebar({
                 children: [
                   /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: cn("[&_svg]:size-5", active ? "text-accent" : "text-faint-foreground"), children: item.icon ?? DEFAULT_ICONS[item.id] ?? /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(import_lucide_react10.Grid2x2, { className: "size-5" }) }),
                   /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: "flex-1 text-left", children: item.label }),
-                  !!item.badge && /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-white", children: item.badge })
+                  !!item.badge && /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-destructive-foreground", children: item.badge })
                 ]
               },
               item.id
@@ -1628,7 +1669,7 @@ function AppShell({
   const resolved = usePlatform(platform);
   if (resolved === "mobile") {
     return /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("div", { className: cn("flex h-dvh flex-col bg-background", className), children: [
-      /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("header", { className: "flex items-center gap-3 border-b border-border bg-surface px-4 py-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("header", { className: "flex items-center gap-3 border-b border-border bg-surface px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3", children: [
         /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(Avatar, { alt: user?.name ?? "Account", src: user?.avatarSrc, initials: user?.initials, size: "sm", tone: "primary" }),
         /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)(
           "button",
@@ -1644,7 +1685,7 @@ function AppShell({
         ),
         /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("div", { className: "relative", children: [
           /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(IconButton, { variant: "outline", size: "sm", onClick: onNotifications, "aria-label": "Notifications", children: /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(import_lucide_react10.Bell, {}) }),
-          !!notificationCount && /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: "absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white", children: notificationCount })
+          !!notificationCount && /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: "absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground", children: notificationCount })
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("main", { className: "lx-scroll flex-1 overflow-y-auto", children }),
@@ -1692,7 +1733,7 @@ function AppShell({
         ),
         /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("div", { className: "relative", children: [
           /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(IconButton, { variant: "outline", size: "sm", onClick: onNotifications, "aria-label": "Notifications", children: /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(import_lucide_react10.Bell, {}) }),
-          !!notificationCount && /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: "absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white", children: notificationCount })
+          !!notificationCount && /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: "absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground", children: notificationCount })
         ] }),
         headerActions
       ] }),
@@ -1716,7 +1757,7 @@ function PrimaryAction({
       "div",
       {
         className: cn(
-          "sticky bottom-0 z-20 -mx-4 mt-auto bg-[linear-gradient(to_top,var(--background)_60%,transparent)] px-4 pt-6 pb-4"
+          "sticky bottom-0 z-20 -mx-4 mt-auto bg-[linear-gradient(to_top,var(--background)_60%,transparent)] px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))]"
         ),
         children: /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(Button, { size: "lg", fullWidth: true, className, ...props, children })
       }
@@ -1734,6 +1775,7 @@ function PrimaryAction({
 }
 
 // src/components/detail.tsx
+var React12 = __toESM(require("react"), 1);
 var import_lucide_react11 = require("lucide-react");
 var import_jsx_runtime27 = require("react/jsx-runtime");
 function DetailDisclosure({
@@ -1748,6 +1790,7 @@ function DetailDisclosure({
   summary
 }) {
   const resolved = usePlatform(platform);
+  const disclosureId = React12.useId();
   if (resolved === "desktop" && desktopVariant === "inline") {
     return /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: "overflow-hidden rounded-lg border border-border bg-surface", children: [
       /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)(
@@ -1755,6 +1798,7 @@ function DetailDisclosure({
         {
           type: "button",
           "aria-expanded": open,
+          "aria-controls": disclosureId,
           onClick: () => onOpenChange(!open),
           className: "flex w-full items-center justify-between gap-3 px-5 py-4 text-left font-semibold text-foreground transition-colors hover:bg-surface-sunken/40",
           children: [
@@ -1771,6 +1815,8 @@ function DetailDisclosure({
       /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
         "div",
         {
+          id: disclosureId,
+          role: "region",
           className: cn(
             "grid transition-[grid-template-rows] duration-300",
             open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
@@ -1782,7 +1828,7 @@ function DetailDisclosure({
   }
   if (resolved === "mobile" && mobileVariant === "pushed") {
     if (!open) return null;
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: "fixed inset-0 z-50 flex flex-col bg-background animate-fade-in", children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: "fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] animate-fade-in", children: [
       /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("header", { className: "flex items-center gap-3 border-b border-border bg-surface px-4 py-3", children: [
         /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(IconButton, { variant: "outline", size: "sm", onClick: () => onOpenChange(false), "aria-label": "Back", children: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(import_lucide_react11.ArrowLeft, {}) }),
         /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("h2", { className: "text-[17px] font-bold text-foreground", children: title })
@@ -1803,7 +1849,7 @@ function DetailDisclosure({
 }
 
 // src/components/filters.tsx
-var React11 = __toESM(require("react"), 1);
+var React13 = __toESM(require("react"), 1);
 var import_lucide_react12 = require("lucide-react");
 var import_react_day_picker2 = require("react-day-picker");
 var import_jsx_runtime28 = require("react/jsx-runtime");
@@ -1828,8 +1874,8 @@ function FilterBar({
   className
 }) {
   const resolved = usePlatform(platform);
-  const [sheetOpen, setSheetOpen] = React11.useState(false);
-  const [draft, setDraft] = React11.useState(values);
+  const [sheetOpen, setSheetOpen] = React13.useState(false);
+  const [draft, setDraft] = React13.useState(values);
   const appliedCount = filters.filter((f) => isFilterActive(values[f.id])).length;
   const openSheet = () => {
     setDraft(values);
@@ -1849,7 +1895,7 @@ function FilterBar({
           children: [
             /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(import_lucide_react12.ListFilter, { className: "size-4", "aria-hidden": true }),
             "Filter",
-            appliedCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("span", { className: "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white", children: appliedCount })
+            appliedCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("span", { className: "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-accent-foreground", children: appliedCount })
           ]
         }
       ),
@@ -1952,7 +1998,7 @@ function FilterBar({
 }
 
 // src/components/money-list.tsx
-var React12 = __toESM(require("react"), 1);
+var React14 = __toESM(require("react"), 1);
 var import_lucide_react13 = require("lucide-react");
 var import_lucide_react14 = require("lucide-react");
 var import_jsx_runtime29 = require("react/jsx-runtime");
@@ -2011,8 +2057,8 @@ function MoneyTable({
   exportName = "transactions.csv",
   maxHeight = 560
 }) {
-  const [sortKey, setSortKey] = React12.useState("date");
-  const [sortDir, setSortDir] = React12.useState("desc");
+  const [sortKey, setSortKey] = React14.useState("date");
+  const [sortDir, setSortDir] = React14.useState("desc");
   const toggleSort = (key) => {
     if (key === sortKey) setSortDir((d) => d === "asc" ? "desc" : "asc");
     else {
@@ -2020,7 +2066,7 @@ function MoneyTable({
       setSortDir("desc");
     }
   };
-  const sortedGroups = React12.useMemo(() => {
+  const sortedGroups = React14.useMemo(() => {
     const cmp = (a, b) => {
       let v = 0;
       if (sortKey === "date") v = a.date.getTime() - b.date.getTime();
@@ -2132,7 +2178,7 @@ function MoneyList({
 }
 
 // src/components/wizard.tsx
-var React13 = __toESM(require("react"), 1);
+var React15 = __toESM(require("react"), 1);
 var import_lucide_react15 = require("lucide-react");
 var import_jsx_runtime30 = require("react/jsx-runtime");
 function Wizard({
@@ -2146,7 +2192,7 @@ function Wizard({
   className
 }) {
   const resolved = usePlatform(platform);
-  const [index, setIndex] = React13.useState(0);
+  const [index, setIndex] = React15.useState(0);
   const step = steps[index];
   const isLast = index === steps.length - 1;
   const canContinue = step.canContinue ? step.canContinue() : true;
@@ -2197,7 +2243,7 @@ function Wizard({
           {
             className: cn(
               "inline-flex size-6 items-center justify-center rounded-full text-xs font-bold",
-              i < index ? "bg-success text-white" : i === index ? "bg-primary text-primary-foreground" : "bg-surface-sunken text-faint-foreground"
+              i < index ? "bg-success text-success-foreground" : i === index ? "bg-primary text-primary-foreground" : "bg-surface-sunken text-faint-foreground"
             ),
             children: i < index ? /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(import_lucide_react15.Check, { className: "size-3.5" }) : i + 1
           }
@@ -2234,7 +2280,7 @@ function Wizard({
 }
 
 // src/components/search.tsx
-var React14 = __toESM(require("react"), 1);
+var React16 = __toESM(require("react"), 1);
 var Dialog5 = __toESM(require("@radix-ui/react-dialog"), 1);
 var import_cmdk = require("cmdk");
 var import_lucide_react16 = require("lucide-react");
@@ -2316,8 +2362,8 @@ function SearchScreen({
   recents,
   placeholder = "Search"
 }) {
-  const [query, setQuery] = React14.useState("");
-  React14.useEffect(() => {
+  const [query, setQuery] = React16.useState("");
+  React16.useEffect(() => {
     if (open) setQuery("");
   }, [open]);
   if (!open) return null;
@@ -2406,7 +2452,7 @@ function GlobalSearch({
   portalContainer
 }) {
   const resolved = usePlatform(platform);
-  React14.useEffect(() => {
+  React16.useEffect(() => {
     if (!enableHotkey || resolved !== "desktop") return;
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -2505,7 +2551,7 @@ function CodeEntry({
 }
 
 // src/components/notifications.tsx
-var React15 = __toESM(require("react"), 1);
+var React17 = __toESM(require("react"), 1);
 var import_lucide_react17 = require("lucide-react");
 var import_jsx_runtime33 = require("react/jsx-runtime");
 var SEGMENTS = [
@@ -2543,12 +2589,12 @@ function NotificationsScreen({
   onSegmentChange,
   className
 }) {
-  const [internal, setInternal] = React15.useState("today");
+  const [internal, setInternal] = React17.useState("today");
   const segment = segmentProp ?? internal;
   const setSegment = onSegmentChange ?? setInternal;
   const shown = filterBySegment(items, segment);
   return /* @__PURE__ */ (0, import_jsx_runtime33.jsxs)("div", { className: cn("flex h-full flex-col bg-background", className), children: [
-    /* @__PURE__ */ (0, import_jsx_runtime33.jsxs)("header", { className: "flex items-center justify-center relative border-b border-border bg-surface px-4 py-3.5", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime33.jsxs)("header", { className: "relative flex items-center justify-center border-b border-border bg-surface px-4 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3.5", children: [
       /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(
         IconButton,
         {
@@ -2571,7 +2617,7 @@ function NotificationsScreen({
         onValueChange: (v) => setSegment(v)
       }
     ) }),
-    /* @__PURE__ */ (0, import_jsx_runtime33.jsx)("div", { className: "lx-scroll flex-1 overflow-y-auto px-4 pb-6", children: shown.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(List, { children: shown.map((n) => /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(NotificationRow, { item: n, onClick: onItemClick }, n.id)) }) : /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime33.jsx)("div", { className: "lx-scroll flex-1 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]", children: shown.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(List, { children: shown.map((n) => /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(NotificationRow, { item: n, onClick: onItemClick }, n.id)) }) : /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(
       EmptyState,
       {
         className: "mt-6",
@@ -2593,7 +2639,7 @@ function BellPopover({
   return /* @__PURE__ */ (0, import_jsx_runtime33.jsxs)(Popover, { children: [
     /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(PopoverTrigger, { asChild: true, children: /* @__PURE__ */ (0, import_jsx_runtime33.jsxs)("span", { className: "relative inline-flex", children: [
       /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(IconButton, { variant: "outline", size: "sm", "aria-label": "Notifications", children: /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(import_lucide_react17.Bell, {}) }),
-      unread > 0 && /* @__PURE__ */ (0, import_jsx_runtime33.jsx)("span", { className: "pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white", children: unread })
+      unread > 0 && /* @__PURE__ */ (0, import_jsx_runtime33.jsx)("span", { className: "pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground", children: unread })
     ] }) }),
     /* @__PURE__ */ (0, import_jsx_runtime33.jsxs)(PopoverContent, { align: "end", className: "w-[380px] p-0", children: [
       /* @__PURE__ */ (0, import_jsx_runtime33.jsxs)("div", { className: "flex items-center justify-between border-b border-border px-4 py-3", children: [
@@ -2623,7 +2669,7 @@ function NotificationsArchive({
   onSegmentChange,
   className
 }) {
-  const [internal, setInternal] = React15.useState("today");
+  const [internal, setInternal] = React17.useState("today");
   const segment = segmentProp ?? internal;
   const setSegment = onSegmentChange ?? setInternal;
   const shown = filterBySegment(items, segment);

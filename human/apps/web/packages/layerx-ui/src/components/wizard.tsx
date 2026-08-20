@@ -122,7 +122,7 @@ export function Wizard({
                 className={cn(
                   "inline-flex size-6 items-center justify-center rounded-full text-xs font-bold",
                   i < index
-                    ? "bg-success text-white"
+                    ? "bg-success text-success-foreground"
                     : i === index
                       ? "bg-primary text-primary-foreground"
                       : "bg-surface-sunken text-faint-foreground",

@@ -67,7 +67,7 @@ export function BottomTabBar({
           {item.label}
         </span>
         {!!item.badge && (
-          <span className="absolute -top-1 right-1/2 translate-x-4 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
+          <span className="absolute -top-1 right-1/2 translate-x-4 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
             {item.badge}
           </span>
         )}
@@ -90,7 +90,7 @@ export function BottomTabBar({
           type="button"
           onClick={onFab}
           aria-label="New action"
-          className="-mt-7 inline-flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_6px_20px_rgb(26_114_248/0.4)] transition-transform active:scale-95"
+          className="-mt-7 inline-flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-overlay transition-transform active:scale-95"
         >
           {fabIcon ?? <Plus className="size-6" />}
         </button>
@@ -169,7 +169,7 @@ export function Sidebar({
               </span>
               <span className="flex-1 text-left">{item.label}</span>
               {!!item.badge && (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-white">
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-destructive-foreground">
                   {item.badge}
                 </span>
               )}
@@ -271,7 +271,7 @@ export function AppShell({
   if (resolved === "mobile") {
     return (
       <div className={cn("flex h-dvh flex-col bg-background", className)}>
-        <header className="flex items-center gap-3 border-b border-border bg-surface px-4 py-3">
+        <header className="flex items-center gap-3 border-b border-border bg-surface px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
           <Avatar alt={user?.name ?? "Account"} src={user?.avatarSrc} initials={user?.initials} size="sm" tone="primary" />
           <button
             type="button"
@@ -286,7 +286,7 @@ export function AppShell({
               <Bell />
             </IconButton>
             {!!notificationCount && (
-              <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
+              <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
                 {notificationCount}
               </span>
             )}
@@ -341,7 +341,7 @@ export function AppShell({
               <Bell />
             </IconButton>
             {!!notificationCount && (
-              <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
+              <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
                 {notificationCount}
               </span>
             )}

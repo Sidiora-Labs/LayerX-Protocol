@@ -6,6 +6,7 @@ const harness = human_test_harness(process.env);
 
 export default defineConfig({
   testDir: "./e2e/browser",
+  testMatch: ["**/*.spec.ts"],
   outputDir: harness.traceDirectory,
   fullyParallel: false,
   forbidOnly: true,
@@ -18,12 +19,23 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  projects: Object.values(SHELL_PROFILES).map((profile) => ({
-    name: profile.projectName,
-    use: {
-      viewport: profile.viewport,
-      hasTouch: profile.hasTouch,
-      isMobile: profile.isMobile,
+  projects: [
+    ...Object.values(SHELL_PROFILES).map((profile) => ({
+      name: profile.projectName,
+      use: {
+        viewport: profile.viewport,
+        hasTouch: profile.hasTouch,
+        isMobile: profile.isMobile,
+      },
+    })),
+    {
+      name: "touch-tablet-shell",
+      testMatch: "**/a11y.spec.ts",
+      use: {
+        viewport: { width: 1024, height: 1366 },
+        hasTouch: true,
+        isMobile: true,
+      },
     },
-  })),
+  ],
 });

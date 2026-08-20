@@ -5,6 +5,7 @@ import { formatMoney } from "../lib/format";
 export interface AmountTextProps extends React.HTMLAttributes<HTMLSpanElement> {
   value: number;
   currency?: string;
+  locale?: string;
   decimals?: number;
   /** "$" by default; pass "" to hide. */
   symbol?: string;
@@ -19,6 +20,7 @@ export interface AmountTextProps extends React.HTMLAttributes<HTMLSpanElement> {
 export function AmountText({
   value,
   currency,
+  locale,
   decimals,
   symbol,
   colorMode = "signed",
@@ -36,7 +38,7 @@ export function AmountText({
       )}
       {...props}
     >
-      {formatMoney(value, { currency, decimals, symbol })}
+      {formatMoney(value, { currency, decimals, locale, symbol })}
     </span>
   );
 }

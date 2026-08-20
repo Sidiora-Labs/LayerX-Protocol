@@ -68,6 +68,7 @@ export const copyEntries = [
   { key: "action.cancel", message: "Cancel", context: "Dismiss a confirmation without applying its action.", surface: "default", kind: "action", moneyAdjacent: false },
   { key: "action.copy", message: "Copy", context: "Copy an explicitly copyable identifier.", surface: "default", kind: "action", moneyAdjacent: false },
   { key: "action.copied", message: "Copied", context: "Confirm that an identifier was copied.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "action.copy_failed", message: "Couldn’t copy", context: "Announce that an identifier could not be copied.", surface: "default", kind: "status", moneyAdjacent: false },
   { key: "confirmation.incomplete", message: "Confirmation is incomplete.", context: "Explain why an irreversible confirmation remains disabled.", surface: "default", kind: "body", moneyAdjacent: false },
   { key: "confirmation.type_exact", message: "Type {expectedValue} exactly to continue.", context: "Disabled reason for an irreversible typed confirmation.", surface: "default", kind: "body", moneyAdjacent: false },
   { key: "confirmation.type_to_confirm", message: "Type {expectedValue} to confirm", context: "Label for an irreversible typed-confirmation field.", surface: "default", kind: "body", moneyAdjacent: false },

@@ -29,7 +29,7 @@ export function PrimaryAction({
     return (
       <div
         className={cn(
-          "sticky bottom-0 z-20 -mx-4 mt-auto bg-[linear-gradient(to_top,var(--background)_60%,transparent)] px-4 pt-6 pb-4",
+          "sticky bottom-0 z-20 -mx-4 mt-auto bg-[linear-gradient(to_top,var(--background)_60%,transparent)] px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))]",
         )}
       >
         <Button size="lg" fullWidth className={className} {...props}>

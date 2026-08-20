@@ -1,5 +1,19 @@
 export { kit, PATTERN_PAIRS } from "./model";
 export {
+  a11y,
+  assertSemanticTokenContrast,
+  contrastRatio,
+  formatExplicitCurrencyAmount,
+  LiveRegion,
+  MINIMUM_TEXT_CONTRAST,
+  SEMANTIC_CONTRAST_PAIRS,
+  semanticContrastResults,
+  semanticTokenValues,
+  type ExplicitCurrencyAmountOptions,
+  type LiveRegionProps,
+  type SemanticContrastResult,
+} from "./a11y";
+export {
   statusPresentation,
   directionWord,
   confirmationVariant,

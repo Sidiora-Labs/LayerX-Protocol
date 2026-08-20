@@ -26,7 +26,7 @@ export function Drawer({ open, onOpenChange, children, portalContainer, width = 
         <Dialog.Content
           style={{ width: `min(${typeof width === "number" ? `${width}px` : width}, 100vw)` }}
           className={cn(
-            "fixed top-0 right-0 z-50 flex h-dvh flex-col bg-surface shadow-overlay outline-none",
+            "fixed top-0 right-0 z-50 flex h-dvh flex-col overscroll-contain bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-overlay outline-none",
             "data-[state=open]:animate-drawer-in data-[state=closed]:animate-drawer-out",
           )}
         >
@@ -63,7 +63,7 @@ export function DrawerHeader({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-sunken"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-sunken"
         >
           <X className="size-4" />
         </button>

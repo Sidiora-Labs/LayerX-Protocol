@@ -32,7 +32,7 @@ export const dayPickerClassNames = {
 
 export const dayPickerModifiersClassNames = {
   today: "font-bold text-accent-strong",
-  selected: "bg-accent text-white hover:bg-accent",
+  selected: "bg-accent text-accent-foreground hover:bg-accent",
   range_start: "rounded-full",
   range_end: "rounded-full",
   range_middle: "bg-accent-soft! text-foreground! rounded-none!",

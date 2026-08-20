@@ -74,7 +74,7 @@ export function NotificationsScreen({
 
   return (
     <div className={cn("flex h-full flex-col bg-background", className)}>
-      <header className="flex items-center justify-center relative border-b border-border bg-surface px-4 py-3.5">
+      <header className="relative flex items-center justify-center border-b border-border bg-surface px-4 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3.5">
         <IconButton
           variant="outline"
           size="sm"
@@ -94,7 +94,7 @@ export function NotificationsScreen({
           onValueChange={(v) => setSegment(v as RecencySegment)}
         />
       </div>
-      <div className="lx-scroll flex-1 overflow-y-auto px-4 pb-6">
+      <div className="lx-scroll flex-1 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         {shown.length > 0 ? (
           <List>
             {shown.map((n) => (
@@ -138,7 +138,7 @@ export function BellPopover({
             <Bell />
           </IconButton>
           {unread > 0 && (
-            <span className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
+            <span className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
               {unread}
             </span>
           )}

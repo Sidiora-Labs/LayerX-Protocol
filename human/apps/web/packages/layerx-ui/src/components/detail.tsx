@@ -38,6 +38,7 @@ export function DetailDisclosure({
   summary?: React.ReactNode;
 }) {
   const resolved = usePlatform(platform);
+  const disclosureId = React.useId();
 
   // Inline expanding section (desktop docs-style)
   if (resolved === "desktop" && desktopVariant === "inline") {
@@ -46,6 +47,7 @@ export function DetailDisclosure({
         <button
           type="button"
           aria-expanded={open}
+          aria-controls={disclosureId}
           onClick={() => onOpenChange(!open)}
           className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left font-semibold text-foreground transition-colors hover:bg-surface-sunken/40"
         >
@@ -55,6 +57,8 @@ export function DetailDisclosure({
           />
         </button>
         <div
+          id={disclosureId}
+          role="region"
           className={cn(
             "grid transition-[grid-template-rows] duration-300",
             open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
@@ -72,7 +76,7 @@ export function DetailDisclosure({
     // Pushed full screen with back header (rendered above the shell)
     if (!open) return null;
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-background animate-fade-in">
+      <div className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] animate-fade-in">
         <header className="flex items-center gap-3 border-b border-border bg-surface px-4 py-3">
           <IconButton variant="outline" size="sm" onClick={() => onOpenChange(false)} aria-label="Back">
             <ArrowLeft />

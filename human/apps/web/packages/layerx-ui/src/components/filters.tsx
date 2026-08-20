@@ -86,7 +86,7 @@ export function FilterBar({
           <ListFilter className="size-4" aria-hidden />
           Filter
           {appliedCount > 0 && (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white">
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-accent-foreground">
               {appliedCount}
             </span>
           )}

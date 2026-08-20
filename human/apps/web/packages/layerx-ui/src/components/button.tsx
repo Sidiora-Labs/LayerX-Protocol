@@ -20,7 +20,7 @@ const buttonVariants = cva(
         /** Blue pill — for accent CTAs. */
         accent: "bg-accent text-accent-foreground hover:bg-accent-strong",
         /** Solid red pill for irreversible actions. */
-        destructive: "bg-destructive text-white hover:opacity-90",
+        destructive: "bg-destructive text-destructive-foreground hover:opacity-90",
         /** Borderless. */
         ghost: "text-foreground hover:bg-surface-sunken",
         /** Text-only accent link. */

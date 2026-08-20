@@ -19,6 +19,8 @@ interface FormatMoneyOptions {
     decimals?: number;
     /** Symbol prepended to the number. Default "$". Pass "" for none. */
     symbol?: string;
+    /** BCP 47 locale used for separators and digit grouping. */
+    locale?: string;
 }
 declare function formatMoney(value: number, opts?: FormatMoneyOptions): string;
 /** "$23,043.00" — unsigned, for balances. */
@@ -210,6 +212,7 @@ declare function Divider({ className }: {
 interface AmountTextProps extends React.HTMLAttributes<HTMLSpanElement> {
     value: number;
     currency?: string;
+    locale?: string;
     decimals?: number;
     /** "$" by default; pass "" to hide. */
     symbol?: string;
@@ -220,7 +223,7 @@ interface AmountTextProps extends React.HTMLAttributes<HTMLSpanElement> {
     colorMode?: "signed" | "neutral";
 }
 /** Signed money text with tabular figures, colored by sign. */
-declare function AmountText({ value, currency, decimals, symbol, colorMode, className, ...props }: AmountTextProps): React.JSX.Element;
+declare function AmountText({ value, currency, locale, decimals, symbol, colorMode, className, ...props }: AmountTextProps): React.JSX.Element;
 
 /** Big number over a muted label — "18 / Total referrals". */
 declare function Stat({ value, label, className, align, }: {
