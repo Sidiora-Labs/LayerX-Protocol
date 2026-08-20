@@ -2,6 +2,7 @@
 
 mod client;
 mod deposit;
+mod exit;
 mod finality;
 mod json;
 mod rpc;
@@ -15,6 +16,11 @@ pub use client::{
 pub use deposit::{
     account_address, AgentCreditContext, CreditFault, CreditPath, CreditReceipt, CustodyDeposit,
     CustodyFault, DepositFailure, DepositProof, FinalizedCheckpoint, ProofFault,
+};
+pub use exit::{
+    balance_leaf, emergency_withdrawal_id, exit_nullifier, merkle_node, EmergencyExit, ExitClaim,
+    ExitConfig, ExitConfigError, ExitEligibility, ExitError, ExitEvidence, ExitProgress,
+    ExitRefusal, GuarantorAttestation,
 };
 pub use finality::{
     ChainSignal, ConfirmationProgress, EndpointSignal, FinalityReport, FinalityStage,

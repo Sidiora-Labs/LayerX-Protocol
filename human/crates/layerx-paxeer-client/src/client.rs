@@ -325,6 +325,39 @@ impl PaxeerClient {
             TransactionView::Unknown
         })
     }
+
+    /// Executes a read-only contract call against the latest state.
+    ///
+    /// # Errors
+    ///
+    /// Returns every endpoint's typed failure when no endpoint served the call.
+    pub fn call_contract(
+        &self,
+        contract: EvmAddress,
+        data: &[u8],
+    ) -> Result<Vec<u8>, EndpointError> {
+        self.call_contract_with_failovers(&mut Vec::new(), contract, data)
+    }
+
+    pub(crate) fn call_contract_with_failovers(
+        &self,
+        failovers: &mut Vec<EndpointFailure>,
+        contract: EvmAddress,
+        data: &[u8],
+    ) -> Result<Vec<u8>, EndpointError> {
+        self.read(
+            failovers,
+            "eth_call",
+            &[
+                Json::Object(vec![
+                    ("to".to_owned(), Json::Text(bytes_hex(&contract.bytes()))),
+                    ("data".to_owned(), Json::Text(bytes_hex(data))),
+                ]),
+                Json::Text("latest".to_owned()),
+            ],
+            variable_bytes,
+        )
+    }
 }
 
 fn required<'a>(value: &'a Json, name: &str) -> Result<&'a Json, String> {
@@ -368,6 +401,15 @@ fn fixed<const N: usize>(value: &Json) -> Result<[u8; N], String> {
         }
     }
     Ok(bytes)
+}
+
+fn bytes_hex(bytes: &[u8]) -> String {
+    let mut text = String::from("0x");
+    for byte in bytes {
+        text.push(hex_char(byte >> 4));
+        text.push(hex_char(byte & 0x0f));
+    }
+    text
 }
 
 fn block_reference(value: &Json) -> Result<Option<BlockRef>, String> {
