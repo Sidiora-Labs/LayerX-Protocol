@@ -487,7 +487,11 @@ fn prove_core_endpoint_is_unavailable() {
         Err(failure) => failure,
         Ok(value) => panic!("ordinary LayerX core unexpectedly answered: {value:?}"),
     };
-    assert!(matches!(failure.fault, EndpointFault::Connect { .. }));
+    assert!(
+        matches!(failure.fault, EndpointFault::Connect { .. }),
+        "unavailable core endpoint must fail to connect, got {:?}",
+        failure.fault
+    );
 }
 
 fn exit_client(anvil: &Anvil, contract: EvmAddress) -> EmergencyExit {
