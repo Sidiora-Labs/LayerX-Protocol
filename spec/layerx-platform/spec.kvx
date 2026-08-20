@@ -2187,7 +2187,7 @@ reqs = ["30.2","30.5","30.6"]
 
 [task.21.2]
 title = "Implement program-to-program composition rules"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["21.1"]
 do_1 = "Implement program-to-program calls carrying at most the caller's granted capabilities, with downward-only narrowing and typed escalation refusals."

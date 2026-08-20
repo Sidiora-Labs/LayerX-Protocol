@@ -11,7 +11,10 @@ pub const DEFAULT_MAX_FUNCTIONS: u32 = 4_096;
 /// The declared upper bound on the value stack height during execution.
 pub const DEFAULT_MAX_VALUE_STACK_HEIGHT: u32 = 65_536;
 
-/// The declared upper bound on the depth of nested calls during execution.
+/// The declared upper bound on the depth of nested `wasm` calls inside one
+/// program's own execution. Program-to-program composition depth is a separate
+/// declared rule held by [`crate::calls::CompositionRules`]; this bound is only
+/// the interpreter's stack limit and grants no composition authority.
 pub const DEFAULT_MAX_CALL_DEPTH: u32 = 512;
 
 /// Names one declared limit inside a typed refusal.
@@ -25,6 +28,14 @@ pub enum DeclaredLimit {
     ValueStackHeight,
     /// The call depth limit.
     CallDepth,
+    /// The program-to-program composition depth rule.
+    CompositionDepth,
+    /// The call graph edge-count rule.
+    CallGraphEdges,
+    /// The per-frame outgoing call rule.
+    CallFanout,
+    /// The per-program entry-count rule.
+    ProgramVisits,
 }
 
 impl Display for DeclaredLimit {
@@ -34,6 +45,10 @@ impl Display for DeclaredLimit {
             Self::Functions => write!(f, "function count"),
             Self::ValueStackHeight => write!(f, "value stack height"),
             Self::CallDepth => write!(f, "call depth"),
+            Self::CompositionDepth => write!(f, "composition depth"),
+            Self::CallGraphEdges => write!(f, "call graph edges"),
+            Self::CallFanout => write!(f, "call fan-out"),
+            Self::ProgramVisits => write!(f, "program visits"),
         }
     }
 }

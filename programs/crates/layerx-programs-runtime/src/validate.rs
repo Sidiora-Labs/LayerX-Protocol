@@ -5,6 +5,7 @@ use core::fmt::{self, Display};
 use wasmparser_nostd::{BlockType, FunctionBody, Import, Operator, Parser, Payload, Type, ValType};
 
 use crate::abi::Abi;
+use crate::calls::Composition;
 use crate::engine::WasmEngine;
 use crate::execute::{fault_from_error, ExecutionFault, ProgramInstance};
 use crate::host::{self, RuntimeState};
@@ -152,19 +153,20 @@ impl ValidatedModule {
         self.instantiate_state(RuntimeState::isolated(meter))
     }
 
-    pub(crate) fn instantiate_authorized(
+    pub(crate) fn instantiate_composed(
         &self,
         meter: Meter,
         abi: Abi,
+        composition: Composition,
     ) -> Result<ProgramInstance, (ExecutionFault, Option<crate::meter::MeterRefusal>)> {
-        self.instantiate_state(RuntimeState::authorized(meter, abi))
+        self.instantiate_state(RuntimeState::composed(meter, abi, composition))
     }
 
     fn instantiate_state(
         &self,
         state: RuntimeState,
     ) -> Result<ProgramInstance, (ExecutionFault, Option<crate::meter::MeterRefusal>)> {
-        let fuel = state.meter().cpu_budget();
+        let fuel = state.meter().cpu_remaining();
         let mut store = wasmi::Store::new(self.module.engine(), state);
         store.limiter(|state| state.meter_mut() as &mut dyn wasmi::ResourceLimiter);
         store.add_fuel(fuel).map_err(|error| {

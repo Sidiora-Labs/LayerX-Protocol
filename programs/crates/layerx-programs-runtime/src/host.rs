@@ -1,8 +1,10 @@
 //! Concrete `wasmi` bindings for the version-one capability ABI.
 
+use wasmi::core::{Trap, TrapCode};
 use wasmi::{Caller, Engine, Linker, Memory};
 
 use crate::abi::{Abi, AbiError, CapabilitySet, ReceiptView, ABI_MODULE};
+use crate::calls::{self, call_admission_fuel, Composition, CompositionRefusal};
 use crate::execute::ExecutionFault;
 use crate::meter::Meter;
 use crate::storage::ProgramId;
@@ -12,22 +14,33 @@ const STATUS_INVALID: i32 = -2;
 const STATUS_BOUNDS: i32 = -3;
 const STATUS_METER: i32 = -4;
 const STATUS_EVIDENCE: i32 = -5;
+const FUEL_METERING_DISABLED: &str = "programs runtime fuel metering is disabled";
+const COMPOSITION_REFUSED: &str = "program composition refused the call graph";
 
 #[derive(Debug)]
 pub(crate) struct RuntimeState {
     meter: Meter,
     abi: Option<Abi>,
+    composition: Option<Composition>,
+    refusal: Option<CompositionRefusal>,
 }
 
 impl RuntimeState {
     pub(crate) const fn isolated(meter: Meter) -> Self {
-        Self { meter, abi: None }
+        Self {
+            meter,
+            abi: None,
+            composition: None,
+            refusal: None,
+        }
     }
 
-    pub(crate) const fn authorized(meter: Meter, abi: Abi) -> Self {
+    pub(crate) fn composed(meter: Meter, abi: Abi, composition: Composition) -> Self {
         Self {
             meter,
             abi: Some(abi),
+            composition: Some(composition),
+            refusal: None,
         }
     }
 
@@ -39,8 +52,38 @@ impl RuntimeState {
         &mut self.meter
     }
 
-    pub(crate) fn into_parts(self) -> (Meter, Option<Abi>) {
-        (self.meter, self.abi)
+    pub(crate) fn set_meter(&mut self, meter: Meter) {
+        self.meter = meter;
+    }
+
+    pub(crate) fn abi(&self) -> Option<&Abi> {
+        self.abi.as_ref()
+    }
+
+    pub(crate) fn abi_mut(&mut self) -> Option<&mut Abi> {
+        self.abi.as_mut()
+    }
+
+    pub(crate) fn composition(&self) -> Option<&Composition> {
+        self.composition.as_ref()
+    }
+
+    pub(crate) fn composition_mut(&mut self) -> Option<&mut Composition> {
+        self.composition.as_mut()
+    }
+
+    pub(crate) fn record_refusal(&mut self, refusal: CompositionRefusal) {
+        if self.refusal.is_none() {
+            self.refusal = Some(refusal);
+        }
+    }
+
+    pub(crate) fn refusal(&self) -> Option<&CompositionRefusal> {
+        self.refusal.as_ref()
+    }
+
+    pub(crate) fn into_parts(self) -> (Meter, Option<Abi>, Option<Composition>) {
+        (self.meter, self.abi, self.composition)
     }
 
     fn with_abi<T>(
@@ -182,33 +225,59 @@ pub(crate) fn linker(engine: &Engine) -> Result<Linker<RuntimeState>, ExecutionF
              input_length: i32,
              capabilities_pointer: i32,
              capabilities_length: i32|
-             -> i32 {
+             -> Result<i32, Trap> {
                 let program = match read_fixed::<32>(&caller, program_pointer, program_length) {
                     Ok(program) => program,
-                    Err(status) => return status,
+                    Err(status) => return Ok(status),
                 };
                 let Ok(program) = ProgramId::new(program) else {
-                    return STATUS_INVALID;
+                    return Ok(STATUS_INVALID);
                 };
                 let input = match read_guest(&caller, input_pointer, input_length, 1_048_576) {
                     Ok(input) => input,
-                    Err(status) => return status,
+                    Err(status) => return Ok(status),
                 };
                 let encoded =
                     match read_guest(&caller, capabilities_pointer, capabilities_length, 16_384) {
                         Ok(encoded) => encoded,
-                        Err(status) => return status,
+                        Err(status) => return Ok(status),
                     };
                 let capabilities = match CapabilitySet::decode_canonical(&encoded) {
                     Ok(capabilities) => capabilities,
-                    Err(error) => return error_status(error),
+                    Err(error) => return Ok(error_status(error)),
                 };
-                match caller
-                    .data_mut()
-                    .with_abi(|abi, _| abi.call_program(program, &input, capabilities))
+                if caller.data().abi().is_none() || caller.data().composition().is_none() {
+                    return Ok(STATUS_DENIED);
+                }
+                if caller
+                    .consume_fuel(call_admission_fuel(input.len()))
+                    .is_err()
                 {
-                    Ok(()) => 0,
-                    Err(error) => error_status(error),
+                    caller.data_mut().meter_mut().mark_cpu_exhausted();
+                    return Err(Trap::from(TrapCode::OutOfFuel));
+                }
+                let Some(consumed) = caller.fuel_consumed() else {
+                    return Err(Trap::new(FUEL_METERING_DISABLED));
+                };
+                let outcome = calls::execute_nested_call(
+                    caller.data_mut(),
+                    consumed,
+                    program,
+                    &input,
+                    capabilities,
+                );
+                match outcome {
+                    Ok(outcome) => {
+                        if caller.consume_fuel(outcome.subtree_fuel).is_err() {
+                            caller.data_mut().meter_mut().mark_cpu_exhausted();
+                            return Err(Trap::from(TrapCode::OutOfFuel));
+                        }
+                        Ok(outcome.code)
+                    }
+                    Err(refusal) => {
+                        caller.data_mut().record_refusal(refusal);
+                        Err(Trap::new(COMPOSITION_REFUSED))
+                    }
                 }
             },
         )

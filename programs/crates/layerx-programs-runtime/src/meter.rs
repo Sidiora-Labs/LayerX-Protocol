@@ -214,6 +214,7 @@ pub struct Meter {
     budget: ResourceBudget,
     prices: FeeSchedule,
     cpu_fuel: u64,
+    cpu_carried: u64,
     memory_bytes: u64,
     storage_read_bytes: u64,
     storage_write_bytes: u64,
@@ -229,6 +230,7 @@ impl Meter {
             budget,
             prices,
             cpu_fuel: 0,
+            cpu_carried: 0,
             memory_bytes: 0,
             storage_read_bytes: 0,
             storage_write_bytes: 0,
@@ -243,10 +245,42 @@ impl Meter {
         Self::new(ResourceBudget::declared(), FeeSchedule::declared())
     }
 
-    /// Returns the fuel to install into the interpreter store.
+    /// Returns the declared instruction-fuel budget of the whole call graph.
     #[must_use]
     pub const fn cpu_budget(&self) -> u64 {
         self.budget.cpu_fuel
+    }
+
+    /// Returns the fuel already consumed by frames outside the store this
+    /// meter is about to drive.
+    #[must_use]
+    pub const fn cpu_carried(&self) -> u64 {
+        self.cpu_carried
+    }
+
+    /// Returns the fuel to install into the interpreter store of the next
+    /// frame, so a whole call graph never exceeds one declared budget.
+    #[must_use]
+    pub const fn cpu_remaining(&self) -> u64 {
+        self.budget.cpu_fuel.saturating_sub(self.cpu_carried)
+    }
+
+    /// Returns the fuel attributed to this meter by the last recorded frame.
+    #[must_use]
+    pub const fn cpu_total(&self) -> u64 {
+        self.cpu_fuel
+    }
+
+    pub(crate) fn carry_cpu(&mut self, consumed: u64) -> Result<(), MeterRefusal> {
+        let attempted = self.cpu_carried.saturating_add(consumed);
+        self.admit(ResourceKind::Cpu, self.budget.cpu_fuel, attempted)?;
+        self.cpu_carried = attempted;
+        Ok(())
+    }
+
+    pub(crate) fn restore_cpu_carry(&mut self, carried: u64) {
+        self.cpu_carried = carried;
+        self.cpu_fuel = 0;
     }
 
     /// Charges bytes read through the future versioned storage ABI.
@@ -282,7 +316,7 @@ impl Meter {
     }
 
     pub(crate) fn record_cpu(&mut self, consumed: u64) {
-        self.cpu_fuel = consumed;
+        self.cpu_fuel = self.cpu_carried.saturating_add(consumed);
     }
 
     pub(crate) fn mark_cpu_exhausted(&mut self) {
@@ -294,17 +328,19 @@ impl Meter {
     }
 
     pub(crate) fn charge_output(&mut self, values: usize) -> Result<(), MeterRefusal> {
-        let attempted = u64::try_from(values).unwrap_or(u64::MAX);
+        let requested = u64::try_from(values).unwrap_or(u64::MAX);
+        let attempted = u64::from(self.output_values).saturating_add(requested);
         self.admit(
             ResourceKind::Output,
             u64::from(self.budget.output_values),
             attempted,
         )?;
-        self.output_values = u32::try_from(values).map_err(|_| MeterRefusal::BudgetExceeded {
-            resource: ResourceKind::Output,
-            limit: u64::from(self.budget.output_values),
-            attempted,
-        })?;
+        self.output_values =
+            u32::try_from(attempted).map_err(|_| MeterRefusal::BudgetExceeded {
+                resource: ResourceKind::Output,
+                limit: u64::from(self.budget.output_values),
+                attempted,
+            })?;
         Ok(())
     }
 

@@ -879,7 +879,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Yield the standard receipt shape for every program activity so every consumer renders program outcomes receipt-backed.
     - Test the law with programs attempting every conceivable balance manipulation, all defeated by construction.
     - _Requirements: 30.2, 30.5, 30.6_
-  - [ ] 21.2 Implement program-to-program composition rules
+  - [x] 21.2 Implement program-to-program composition rules
     - Implement program-to-program calls carrying at most the caller's granted capabilities, with downward-only narrowing and typed escalation refusals.
     - Enforce declared call-depth limits and deterministic reentrancy rules making reentrancy-based double-spending structurally impossible.
     - Propagate atomicity across the call graph: any failure rolls back every write and every transfer of the activity.

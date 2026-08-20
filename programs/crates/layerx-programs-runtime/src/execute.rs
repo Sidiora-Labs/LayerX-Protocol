@@ -3,9 +3,10 @@
 use core::fmt::{self, Display};
 
 use wasmi::core::TrapCode;
-use wasmi::{Instance, Store, Value};
+use wasmi::{Extern, Instance, Memory, Store, Value};
 
 use crate::abi::{Abi, AbiEffects, AbiError, AuthorizationContext, ReceiptOracle};
+use crate::calls::{CallGraph, Composition, CompositionContext, CompositionRefusal};
 use crate::host::RuntimeState;
 use crate::meter::{FeeSchedule, Meter, MeterRefusal, MeteredUsage, ResourceBudget, ResourceKind};
 use crate::storage::{ProgramId, Storage};
@@ -209,6 +210,27 @@ impl ProgramInstance {
         self.store.data().meter()
     }
 
+    pub(crate) fn state(&self) -> &RuntimeState {
+        self.store.data()
+    }
+
+    pub(crate) fn linear_memory(&self) -> Option<Memory> {
+        self.instance
+            .get_export(&self.store, "memory")
+            .and_then(Extern::into_memory)
+    }
+
+    pub(crate) fn write_linear_memory(
+        &mut self,
+        memory: Memory,
+        offset: usize,
+        bytes: &[u8],
+    ) -> Result<(), ExecutionFault> {
+        memory
+            .write(&mut self.store, offset, bytes)
+            .map_err(|_| ExecutionFault::MemoryOutOfBounds)
+    }
+
     pub(crate) fn into_state(self) -> RuntimeState {
         self.store.into_data()
     }
@@ -228,11 +250,14 @@ pub struct ExecutionRecord {
 }
 
 /// Successful authorized execution plus effects awaiting the kernel's atomic
-/// application boundary.
+/// application boundary. The effects and the call graph belong to the whole
+/// composition: every program the activity entered contributed to them, and a
+/// refusal anywhere in the graph returns none of them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthorizedExecutionRecord {
     pub execution: ExecutionRecord,
     pub effects: AbiEffects,
+    pub call_graph: CallGraph,
 }
 
 /// Complete immutable input to one authorized guest execution.
@@ -243,6 +268,7 @@ pub struct AuthorizedExecutionRequest<'a> {
     pub receipts: &'a dyn ReceiptOracle,
     pub export: &'a str,
     pub args: &'a [WasmValue],
+    pub composition: CompositionContext,
 }
 
 impl ExecutionRecord {
@@ -293,6 +319,9 @@ pub enum ExecutionError {
     Resource(MeterRefusal),
     /// Capability ABI refusal before or during execution.
     Abi(AbiError),
+    /// Program-to-program composition refusal; no leg of the call graph was
+    /// committed.
+    Composition(CompositionRefusal),
 }
 
 impl Display for ExecutionError {
@@ -301,6 +330,7 @@ impl Display for ExecutionError {
             Self::Fault(fault) => write!(formatter, "execution fault: {fault}"),
             Self::Resource(refusal) => write!(formatter, "resource refusal: {refusal}"),
             Self::Abi(error) => write!(formatter, "ABI refusal: {error}"),
+            Self::Composition(refusal) => write!(formatter, "composition refusal: {refusal}"),
         }
     }
 }
@@ -384,6 +414,7 @@ impl Executor {
         request: AuthorizedExecutionRequest<'_>,
     ) -> Result<AuthorizedExecutionRecord, ExecutionError> {
         let meter = Meter::new(self.budget, self.prices);
+        let principal = request.authorization.principal();
         let abi = Abi::new(
             self.abi_version,
             request.program,
@@ -392,13 +423,20 @@ impl Executor {
             request.receipts,
         )
         .map_err(ExecutionError::Abi)?;
+        let composition = Composition::new(
+            request.composition.resolver(),
+            CallGraph::root(request.composition.rules(), request.program, principal),
+        );
         let mut instance = request
             .module
-            .instantiate_authorized(meter, abi)
+            .instantiate_composed(meter, abi, composition)
             .map_err(|(fault, exhausted)| self.classify_fault(fault, exhausted))?;
         let outputs = match instance.call(request.export, request.args) {
             Ok(outputs) => outputs,
             Err(fault) => {
+                if let Some(refusal) = instance.state().refusal() {
+                    return Err(ExecutionError::Composition(refusal.clone()));
+                }
                 return Err(self.classify_fault(fault, instance.meter().exhaustion()));
             }
         };
@@ -406,10 +444,15 @@ impl Executor {
             .meter()
             .finish()
             .map_err(ExecutionError::Resource)?;
-        let (_, abi) = instance.into_state().into_parts();
+        let (_, abi, composition) = instance.into_state().into_parts();
         let committed = abi
             .ok_or(ExecutionError::Abi(AbiError::CapabilityDenied))?
             .commit();
+        let call_graph = composition
+            .ok_or(ExecutionError::Composition(
+                CompositionRefusal::NotComposable,
+            ))?
+            .into_graph();
         *storage = committed.storage;
         Ok(AuthorizedExecutionRecord {
             execution: ExecutionRecord {
@@ -419,6 +462,7 @@ impl Executor {
                 usage,
             },
             effects: committed.effects,
+            call_graph,
         })
     }
 

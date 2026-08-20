@@ -3,6 +3,8 @@
 #[deny(unsafe_code)]
 pub mod abi;
 #[deny(unsafe_code)]
+pub mod calls;
+#[deny(unsafe_code)]
 pub mod engine;
 #[deny(unsafe_code)]
 pub mod execute;
@@ -27,6 +29,12 @@ pub mod transfer;
 #[deny(unsafe_code)]
 pub mod validate;
 
+pub use calls::{
+    call_admission_fuel, CallEdge, CallFrame, CallGraph, CompositionContext, CompositionRefusal,
+    CompositionRules, ProgramCatalog, ProgramResolver, CALL_ADMISSION_FUEL, CALL_ENTRY_EXPORT,
+    CALL_INPUT_FUEL_PER_BYTE, CALL_RESERVE_EXPORT, DEFAULT_MAX_CALL_FANOUT,
+    DEFAULT_MAX_CALL_GRAPH_EDGES, DEFAULT_MAX_COMPOSITION_DEPTH, DEFAULT_MAX_PROGRAM_VISITS,
+};
 pub use engine::{EngineRefusal, WasmEngine};
 pub use execute::{
     AuthorizedExecutionRecord, AuthorizedExecutionRequest, ExecutionError, ExecutionFault,

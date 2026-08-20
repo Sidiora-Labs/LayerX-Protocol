@@ -457,9 +457,58 @@ impl Abi {
         })
     }
 
+    pub(crate) fn nested(
+        version: u16,
+        program: ProgramId,
+        authorization: AuthorizationContext,
+        storage: Storage,
+        receipts: BTreeMap<[u8; 32], ReceiptView>,
+    ) -> Result<Self, AbiError> {
+        if version != ABI_VERSION {
+            return Err(AbiError::WrongVersion);
+        }
+        let namespace = StorageNamespace::new(program, authorization.principal());
+        for digest in authorization.capabilities().receipt_digests() {
+            if receipts.get(&digest).map(|view| view.receipt_digest) != Some(digest) {
+                return Err(AbiError::ReceiptMismatch);
+            }
+        }
+        Ok(Self {
+            version,
+            program,
+            authorization,
+            namespace,
+            storage,
+            receipts,
+            effects: AbiEffects::default(),
+        })
+    }
+
     #[must_use]
     pub const fn version(&self) -> u16 {
         self.version
+    }
+
+    pub(crate) const fn principal(&self) -> PrincipalId {
+        self.authorization.principal()
+    }
+
+    pub(crate) fn storage_snapshot(&self) -> Storage {
+        self.storage.clone()
+    }
+
+    pub(crate) fn adopt_storage(&mut self, storage: Storage) {
+        self.storage = storage;
+    }
+
+    pub(crate) fn verified_receipts(&self) -> BTreeMap<[u8; 32], ReceiptView> {
+        self.receipts.clone()
+    }
+
+    pub(crate) fn absorb(&mut self, effects: AbiEffects) {
+        self.effects.events.extend(effects.events);
+        self.effects.calls.extend(effects.calls);
+        self.effects.transfers.extend(effects.transfers);
     }
 
     #[must_use]
@@ -559,6 +608,16 @@ impl Abi {
         input: &[u8],
         requested: impl IntoIterator<Item = Capability>,
     ) -> Result<(), AbiError> {
+        self.stage_call(callee, input, requested.into_iter().collect())?;
+        Ok(())
+    }
+
+    pub(crate) fn stage_call(
+        &mut self,
+        callee: ProgramId,
+        input: &[u8],
+        requested: Vec<Capability>,
+    ) -> Result<CapabilitySet, AbiError> {
         self.authorization
             .capabilities()
             .grant(&CapabilityKey::Call(callee))?;
@@ -571,9 +630,9 @@ impl Abi {
             callee,
             principal: self.authorization.principal(),
             input: input.to_vec(),
-            capabilities,
+            capabilities: capabilities.clone(),
         });
-        Ok(())
+        Ok(capabilities)
     }
 
     /// Requests an authenticated 402LXP transfer for the kernel to apply.
