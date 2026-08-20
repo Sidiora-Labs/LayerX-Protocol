@@ -349,7 +349,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Remind on unexercised claims and preserve claimable state across restarts indefinitely.
     - Prove no double claim and no lost claimable state under the fault-injection suite.
     - _Requirements: 11.1, 11.2, 11.8_
-  - [ ] 7.5 Implement the emergency exit journey
+  - [-] 7.5 Implement the emergency exit journey
     - Implement the guided exit journey over the exit path: typed confirmation of irreversibility, claim construction against the last finalised checkpoint, staged progress to verified Paxeer finality.
     - Keep the journey operable when LayerX ordinary operation is degraded, sourcing evidence as the exit path requires.
     - Present completion only on verified finality of the exit.
@@ -455,7 +455,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Respect every agent-layer boundary prohibition, enforced by the workspace dependency gate.
     - Serve protocol-public data only, with no principal data in the index at all.
     - _Requirements: 15.3, 15.5_
-  - [-] 10.2 Assemble the unified activity feed
+  - [x] 10.2 Assemble the unified activity feed
     - Assemble one principal-scoped feed spanning deposits, withdrawals, movements, agent actions, approvals and security events, with custody journeys as single joined entries.
     - Translate every state through the status translation table with Done gated on the receipt rule.
     - Serve stable cursor pagination that survives restart without gaps, duplicates or reordering.

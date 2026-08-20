@@ -1077,7 +1077,7 @@ reqs = ["11.1","11.2","11.8"]
 
 [task.7.5]
 title = "Implement the emergency exit journey"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["7.2","6.4"]
 do_1 = "Implement the guided exit journey over the exit path: typed confirmation of irreversibility, claim construction against the last finalised checkpoint, staged progress to verified Paxeer finality."
@@ -1300,7 +1300,7 @@ reqs = ["15.3","15.5"]
 
 [task.10.2]
 title = "Assemble the unified activity feed"
-status = "in_progress"
+status = "done"
 wave = 5
 requires = ["7.2"]
 do_1 = "Assemble one principal-scoped feed spanning deposits, withdrawals, movements, agent actions, approvals and security events, with custody journeys as single joined entries."
