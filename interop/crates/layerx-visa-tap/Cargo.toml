@@ -9,8 +9,12 @@ license.workspace = true
 base64.workspace = true
 ed25519-dalek.workspace = true
 layerx-interop-gateway.workspace = true
+layerx-proof.workspace = true
 openssl.workspace = true
 sha2.workspace = true
+
+[dev-dependencies]
+ed25519-dalek = { workspace = true, features = ["rand_core"] }
 
 [lints]
 workspace = true

@@ -10,6 +10,7 @@ use layerx_interop_gateway::adapter::{AdapterDescriptor, AdapterId, ConformanceS
 use layerx_interop_gateway::error::GatewayError;
 use layerx_interop_gateway::principal::PrincipalId;
 use layerx_interop_gateway::trace::TraceId;
+use layerx_proof::receipt::{verify as verify_receipt, AuthorizedBatch};
 use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
 use openssl::rsa::Padding;
@@ -55,7 +56,7 @@ impl TapAlgorithm {
     fn parse(value: &str) -> Result<Self, TapError> {
         match value {
             "Ed25519" | "ed25519" => Ok(Self::Ed25519),
-            "rsa-pss-sha256" | "RSA-PSS-SHA256" => Ok(Self::RsaPssSha256),
+            "PS256" | "rsa-pss-sha256" | "RSA-PSS-SHA256" => Ok(Self::RsaPssSha256),
             _ => Err(TapError::UnsupportedAlgorithm),
         }
     }
@@ -140,7 +141,10 @@ impl SignatureInput {
                     set_once(&mut tag, AgentIntent::parse(value)?)?;
                     let _ = write!(canonical, ";tag=\"{value}\"");
                 }
-                _ => return Err(TapError::UnknownSignatureParameter),
+                _ => {
+                    validate_extension_parameter(name, value)?;
+                    let _ = write!(canonical, ";{name}={}", value.trim());
+                }
             }
         }
         let key_id = key_id.ok_or(TapError::MissingSignatureParameter)?;
@@ -357,6 +361,69 @@ pub struct VerifiedTrustedAgent {
     pub signature_digest: [u8; 32],
 }
 
+/// Non-authoritative commerce meaning handed from TAP middleware to the sole
+/// `LayerX` typed-intent authority. A trusted-agent credential authenticates the
+/// caller and its declared browse/pay purpose; it does not authorize an
+/// economic effect.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TrustedCommerceIntent {
+    pub principal: PrincipalId,
+    pub layerx_agent: [u8; 32],
+    pub trusted_agent_id: String,
+    pub intent: AgentIntent,
+    pub credential_evidence: [u8; 32],
+}
+
+/// The only boundary allowed to turn authenticated TAP meaning into a `LayerX`
+/// intent. Implementations must invoke the existing canonical intent compiler;
+/// the TAP adapter never constructs protocol payload bytes or signing power.
+pub trait LayerXIntentAuthority {
+    type Intent;
+
+    /// Compiles authenticated commerce meaning through the canonical intent
+    /// authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed construction or policy refusal.
+    fn compile(
+        &mut self,
+        intent: &TrustedCommerceIntent,
+        trace: &TraceId,
+    ) -> Result<Self::Intent, TapError>;
+}
+
+/// Honest merchant-visible state after a TAP-originated `LayerX` operation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MerchantOperationResult {
+    Pending,
+    Refused,
+    ReceiptVerified { receipt_digest: [u8; 32] },
+}
+
+impl MerchantOperationResult {
+    /// Constructs a success result only after the canonical `LayerX` verifier
+    /// accepts the receipt against an authorised batch.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TapError::ReceiptMismatch`] for malformed, unauthorised, or
+    /// cryptographically invalid receipt bytes.
+    pub fn from_receipt(
+        canonical_receipt: &[u8],
+        authorised_batch: &AuthorizedBatch,
+    ) -> Result<Self, TapError> {
+        let verified = verify_receipt(canonical_receipt, authorised_batch)
+            .map_err(|_| TapError::ReceiptMismatch)?;
+        Ok(Self::ReceiptVerified {
+            receipt_digest: verified
+                .evidence()
+                .receipt_digest()
+                .ok_or(TapError::ReceiptMismatch)?,
+        })
+    }
+}
+
 /// Strict TAP message verifier.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TapVerifier;
@@ -515,6 +582,29 @@ pub fn bind_verified_agent(
     Ok(binding)
 }
 
+/// Builds the typed, non-authoritative intent handoff after persisting the
+/// merchant-visible credential binding.
+///
+/// # Errors
+///
+/// Returns a typed binding or storage refusal.
+pub fn prepare_trusted_intent(
+    principal: &PrincipalId,
+    layerx_agent: [u8; 32],
+    verified: &VerifiedTrustedAgent,
+    store: &mut impl CredentialBindingStore,
+    trace: &TraceId,
+) -> Result<TrustedCommerceIntent, TapError> {
+    let binding = bind_verified_agent(principal, layerx_agent, verified, store, trace)?;
+    Ok(TrustedCommerceIntent {
+        principal: principal.clone(),
+        layerx_agent,
+        trusted_agent_id: verified.agent_id.clone(),
+        intent: verified.intent,
+        credential_evidence: binding.evidence_digest,
+    })
+}
+
 /// Merchant-facing closed status for a TAP credential attempt.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MerchantCredentialStatus {
@@ -571,6 +661,13 @@ fn parse_quoted(value: &str) -> Result<&str, TapError> {
         return Err(TapError::MalformedSignatureInput);
     }
     Ok(unquoted)
+}
+
+fn validate_extension_parameter(name: &str, value: &str) -> Result<(), TapError> {
+    if !valid_token(name) || value.trim().is_empty() || value.len() > VALUE_LIMIT {
+        return Err(TapError::MalformedSignatureInput);
+    }
+    Ok(())
 }
 
 fn valid_token(value: &str) -> bool {
@@ -664,6 +761,8 @@ pub enum TapError {
     InvalidLayerxAgent,
     LayerxAgentMismatch,
     StorageRefused,
+    IntentRefused,
+    ReceiptMismatch,
     Gateway(GatewayError),
 }
 
@@ -694,6 +793,8 @@ impl Display for TapError {
             Self::InvalidLayerxAgent => "LayerX agent identifier is invalid",
             Self::LayerxAgentMismatch => "trusted credential is not bound to this LayerX agent",
             Self::StorageRefused => "credential binding storage refused",
+            Self::IntentRefused => "LayerX typed-intent authority refused the request",
+            Self::ReceiptMismatch => "LayerX receipt verification failed",
             Self::Gateway(_) => "TAP adapter declaration failed",
         };
         formatter.write_str(message)
