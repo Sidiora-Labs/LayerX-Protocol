@@ -1727,6 +1727,30 @@ human-test-journey:
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) run test:journey
 
+human-e2e-journeys:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run build
+	HUMAN_E2E_REAL_STACK=1 \
+	HUMAN_E2E_LOCAL_PRODUCTION=1 \
+	HUMAN_E2E_BASE_URL=http://127.0.0.1:3105 \
+		$(HUMAN_NPM) run test:journey
+
+human-e2e-settings:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run build
+	HUMAN_E2E_REAL_STACK=1 \
+	HUMAN_E2E_LOCAL_PRODUCTION=1 \
+	HUMAN_E2E_BASE_URL=http://127.0.0.1:3105 \
+		$(HUMAN_NPM) run test:settings
+
+human-e2e-explorer:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run build
+	HUMAN_E2E_REAL_STACK=1 \
+	HUMAN_E2E_LOCAL_PRODUCTION=1 \
+	HUMAN_E2E_BASE_URL=http://127.0.0.1:3105 \
+		$(HUMAN_NPM) run test:explorer
+
 human-test-e2e:
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) run test:e2e

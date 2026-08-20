@@ -1,4 +1,5 @@
-import { Badge, Card, Input, cn } from "@layerx/ui";
+import { Badge, Card, Input } from "@layerx/ui";
+import { cn } from "@layerx/ui/cn";
 import Link from "next/link";
 import type { ReactNode, TextareaHTMLAttributes } from "react";
 

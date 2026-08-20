@@ -1,4 +1,5 @@
-import { Card, EmptyState, Skeleton, SkeletonRow, cn } from "@layerx/ui";
+import { Card, EmptyState, Skeleton, SkeletonRow } from "@layerx/ui";
+import { cn } from "@layerx/ui/cn";
 import type { ReactNode } from "react";
 
 export function ScreenCard({
