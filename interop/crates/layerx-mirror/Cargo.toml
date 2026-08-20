@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 layerx-agent-api.workspace = true
 layerx-client.workspace = true
+layerx-crypto.workspace = true
 layerx-proof.workspace = true
 layerx-wire.workspace = true
 sha2.workspace = true

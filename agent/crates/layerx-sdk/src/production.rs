@@ -3,6 +3,10 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+pub use layerx_mirror::{
+    MirrorVerification, MirrorVerificationFreshness, MirrorVerifier, MirrorVerifyError,
+    SignedHeaderTrust,
+};
 use layerx_proof::checkpoint::{
     verify_certificate, Certificate, CheckpointError, GuarantorKey, ThresholdReport,
 };
@@ -579,6 +583,23 @@ pub fn verify_receipt(
     authorised_batch: &AuthorizedBatch,
 ) -> Result<VerifiedReceipt, VerificationFailure> {
     verify_outcome(canonical_receipt, authorised_batch)
+}
+
+/// Verifies one receipt from an untrusted mirror archive with no node, gateway,
+/// or hosted LayerX dependency. Signed-header trust is caller configuration and
+/// freshness is returned with the result rather than implied.
+///
+/// # Errors
+///
+/// Rejects malformed or tampered archives, untrusted batch headers, missing
+/// receipt inclusion, and invalid receipt signatures.
+pub fn verify_mirror_receipt(
+    archive_bytes: &[u8],
+    canonical_receipt: &[u8],
+    trust: SignedHeaderTrust,
+    freshness: MirrorVerificationFreshness,
+) -> Result<MirrorVerification<VerifiedReceipt>, MirrorVerifyError> {
+    MirrorVerifier::new(archive_bytes, trust, freshness)?.receipt(canonical_receipt)
 }
 
 /// Verifies canonical activity inclusion under an authorised signed batch header.

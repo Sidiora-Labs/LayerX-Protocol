@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 mod freshness;
+pub mod mirror;
 mod query;
 pub mod verify;
 
