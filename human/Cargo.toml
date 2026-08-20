@@ -23,6 +23,7 @@ layerx-sdk = { path = "../agent/crates/layerx-sdk" }
 layerx-agentd = { path = "../agent/crates/layerx-agentd" }
 layerx-paxeer-client = { path = "crates/layerx-paxeer-client" }
 proptest = "=1.7.0"
+zeroize = "=1.9.0"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

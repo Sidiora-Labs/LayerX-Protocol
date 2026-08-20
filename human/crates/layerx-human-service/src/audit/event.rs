@@ -103,6 +103,12 @@ pub enum SigningOperation {
     BridgeDepositCredit,
     BridgeWithdrawRequest,
     SessionProvision,
+    ProtocolMutation,
+    ApprovalDecision,
+    SecuritySettings,
+    SecretReveal,
+    EmergencyExit,
+    AgentArchive,
 }
 
 impl SigningOperation {
@@ -121,6 +127,12 @@ impl SigningOperation {
             Self::BridgeDepositCredit => 11,
             Self::BridgeWithdrawRequest => 12,
             Self::SessionProvision => 13,
+            Self::ProtocolMutation => 14,
+            Self::ApprovalDecision => 15,
+            Self::SecuritySettings => 16,
+            Self::SecretReveal => 17,
+            Self::EmergencyExit => 18,
+            Self::AgentArchive => 19,
         }
     }
 
@@ -139,6 +151,12 @@ impl SigningOperation {
             11 => Ok(Self::BridgeDepositCredit),
             12 => Ok(Self::BridgeWithdrawRequest),
             13 => Ok(Self::SessionProvision),
+            14 => Ok(Self::ProtocolMutation),
+            15 => Ok(Self::ApprovalDecision),
+            16 => Ok(Self::SecuritySettings),
+            17 => Ok(Self::SecretReveal),
+            18 => Ok(Self::EmergencyExit),
+            19 => Ok(Self::AgentArchive),
             _ => Err(AuditError::Corrupt("unknown signing operation")),
         }
     }

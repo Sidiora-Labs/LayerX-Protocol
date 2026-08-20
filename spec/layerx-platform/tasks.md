@@ -245,7 +245,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Record every device and session in the inventory with last-activity, and emit the new-device security notification.
     - Test session expiry honesty: expired sessions land on re-authentication with destination preserved, and no money operation succeeds on an expired session.
     - _Requirements: 3.1, 4.3, 8.8, 21.9_
-  - [-] 5.3 Implement the KMS keystore and the custody signer
+  - [x] 5.3 Implement the KMS keystore and the custody signer
     - Implement the KMS-backed keystore holding human and managed-agent keys with per-principal isolation, zeroization on release and no plaintext key material at rest outside the KMS boundary.
     - Implement the custody signer as a layerx-crypto remote signer: it signs only given the exact canonical bytes plus a disclosure that re-encodes byte-identically, refusing on any mismatch.
     - Gate designated operations on step-up evidence bound to the disclosure digest, refusing a signature without it.

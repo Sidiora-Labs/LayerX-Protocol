@@ -485,12 +485,15 @@ dependencies = [
 name = "layerx-human-service"
 version = "0.1.0"
 dependencies = [
+ "layerx-agentd",
  "layerx-client",
  "layerx-crypto",
+ "layerx-intents",
  "layerx-paxeer-client",
  "layerx-proof",
  "layerx-sdk",
  "layerx-types",
+ "zeroize",
 ]
 
 [[package]]
