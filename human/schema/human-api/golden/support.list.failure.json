@@ -1,0 +1,12 @@
+{
+  "status": 503,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "support-unavailable",
+      "copy_key": "error.support.unavailable",
+      "retry": "retryable"
+    },
+    "trace": "trc_11a2b3c4d5e6f708192a3b4c5d6e7f80"
+  }
+}

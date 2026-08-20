@@ -138,6 +138,10 @@ export type StageId = string;
 
 export type StepUpChallengeId = string;
 
+export type SupportConversationId = string;
+
+export type SupportMessageId = string;
+
 export type Timestamp = string;
 
 export type TraceId = string;
@@ -426,6 +430,62 @@ export function decodeStreamEventKind(value: JsonValue | undefined, at: string):
     }
   }
   throw new HumanApiDecodeError(at + " must be a declared StreamEventKind variant");
+}
+
+export type SupportAuthor = "you" | "support";
+
+export const supportAuthorVariants: readonly SupportAuthor[] = ["you", "support"];
+
+export function decodeSupportAuthor(value: JsonValue | undefined, at: string): SupportAuthor {
+  const text = expectString(value, at);
+  for (const variant of supportAuthorVariants) {
+    if (variant === text) {
+      return variant;
+    }
+  }
+  throw new HumanApiDecodeError(at + " must be a declared SupportAuthor variant");
+}
+
+export type SupportConversationState = "waiting-for-support" | "waiting-for-you" | "resolved";
+
+export const supportConversationStateVariants: readonly SupportConversationState[] = ["waiting-for-support", "waiting-for-you", "resolved"];
+
+export function decodeSupportConversationState(value: JsonValue | undefined, at: string): SupportConversationState {
+  const text = expectString(value, at);
+  for (const variant of supportConversationStateVariants) {
+    if (variant === text) {
+      return variant;
+    }
+  }
+  throw new HumanApiDecodeError(at + " must be a declared SupportConversationState variant");
+}
+
+export type SupportShell = "mobile" | "desktop";
+
+export const supportShellVariants: readonly SupportShell[] = ["mobile", "desktop"];
+
+export function decodeSupportShell(value: JsonValue | undefined, at: string): SupportShell {
+  const text = expectString(value, at);
+  for (const variant of supportShellVariants) {
+    if (variant === text) {
+      return variant;
+    }
+  }
+  throw new HumanApiDecodeError(at + " must be a declared SupportShell variant");
+}
+
+export type SupportTopic = "deposit" | "withdrawal" | "agents" | "account" | "report";
+
+export const supportTopicVariants: readonly SupportTopic[] = ["deposit", "withdrawal", "agents", "account", "report"];
+
+export function decodeSupportTopic(value: JsonValue | undefined, at: string): SupportTopic {
+  const text = expectString(value, at);
+  for (const variant of supportTopicVariants) {
+    if (variant === text) {
+      return variant;
+    }
+  }
+  throw new HumanApiDecodeError(at + " must be a declared SupportTopic variant");
 }
 
 export type VerificationLevel = "unverified" | "receipt-verified" | "checkpoint-finalised" | "paxeer-finalised";
@@ -2659,6 +2719,256 @@ export function encodeStreamPosition(value: StreamPosition): JsonValue {
   return result;
 }
 
+export interface SupportConversation {
+  conversation_id: SupportConversationId;
+  shell: SupportShell;
+  state: SupportConversationState;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  messages: SupportMessage[];
+  feedback: SupportFeedback[];
+  trace_id?: TraceId;
+}
+
+export function decodeSupportConversation(value: JsonValue | undefined, at: string): SupportConversation {
+  const object = expectObject(value, at);
+  const result: SupportConversation = {
+    conversation_id: expectString(object["conversation_id"], at + ".conversation_id"),
+    shell: decodeSupportShell(object["shell"], at + ".shell"),
+    state: decodeSupportConversationState(object["state"], at + ".state"),
+    created_at: expectString(object["created_at"], at + ".created_at"),
+    updated_at: expectString(object["updated_at"], at + ".updated_at"),
+    messages: decodeArray(object["messages"], at + ".messages", decodeSupportMessage),
+    feedback: decodeArray(object["feedback"], at + ".feedback", decodeSupportFeedback),
+  };
+  if (object["trace_id"] !== undefined) {
+    result.trace_id = expectString(object["trace_id"], at + ".trace_id");
+  }
+  return result;
+}
+
+export function encodeSupportConversation(value: SupportConversation): JsonValue {
+  const result: JsonObject = {
+    conversation_id: value.conversation_id,
+    shell: value.shell,
+    state: value.state,
+    created_at: value.created_at,
+    updated_at: value.updated_at,
+    messages: value.messages.map(encodeSupportMessage),
+    feedback: value.feedback.map(encodeSupportFeedback),
+  };
+  if (value.trace_id !== undefined) {
+    result["trace_id"] = value.trace_id;
+  }
+  return result;
+}
+
+export interface SupportConversationPage {
+  conversations: SupportConversation[];
+}
+
+export function decodeSupportConversationPage(value: JsonValue | undefined, at: string): SupportConversationPage {
+  const object = expectObject(value, at);
+  const result: SupportConversationPage = {
+    conversations: decodeArray(object["conversations"], at + ".conversations", decodeSupportConversation),
+  };
+  return result;
+}
+
+export function encodeSupportConversationPage(value: SupportConversationPage): JsonValue {
+  const result: JsonObject = {
+    conversations: value.conversations.map(encodeSupportConversation),
+  };
+  return result;
+}
+
+export interface SupportConversationStatus {
+  conversation_id: SupportConversationId;
+  state: SupportConversationState;
+  unread_count: number;
+  updated_at: Timestamp;
+}
+
+export function decodeSupportConversationStatus(value: JsonValue | undefined, at: string): SupportConversationStatus {
+  const object = expectObject(value, at);
+  const result: SupportConversationStatus = {
+    conversation_id: expectString(object["conversation_id"], at + ".conversation_id"),
+    state: decodeSupportConversationState(object["state"], at + ".state"),
+    unread_count: expectInteger(object["unread_count"], at + ".unread_count"),
+    updated_at: expectString(object["updated_at"], at + ".updated_at"),
+  };
+  return result;
+}
+
+export function encodeSupportConversationStatus(value: SupportConversationStatus): JsonValue {
+  const result: JsonObject = {
+    conversation_id: value.conversation_id,
+    state: value.state,
+    unread_count: value.unread_count,
+    updated_at: value.updated_at,
+  };
+  return result;
+}
+
+export interface SupportCreateRequest {
+  body: string;
+  shell: SupportShell;
+  topic?: SupportTopic;
+  trace_id?: TraceId;
+}
+
+export function decodeSupportCreateRequest(value: JsonValue | undefined, at: string): SupportCreateRequest {
+  const object = expectObject(value, at);
+  const result: SupportCreateRequest = {
+    body: expectString(object["body"], at + ".body"),
+    shell: decodeSupportShell(object["shell"], at + ".shell"),
+  };
+  if (object["topic"] !== undefined) {
+    result.topic = decodeSupportTopic(object["topic"], at + ".topic");
+  }
+  if (object["trace_id"] !== undefined) {
+    result.trace_id = expectString(object["trace_id"], at + ".trace_id");
+  }
+  return result;
+}
+
+export function encodeSupportCreateRequest(value: SupportCreateRequest): JsonValue {
+  const result: JsonObject = {
+    body: value.body,
+    shell: value.shell,
+  };
+  if (value.topic !== undefined) {
+    result["topic"] = value.topic;
+  }
+  if (value.trace_id !== undefined) {
+    result["trace_id"] = value.trace_id;
+  }
+  return result;
+}
+
+export interface SupportFeedback {
+  message_id: SupportMessageId;
+  helpful: boolean;
+  received_at: Timestamp;
+}
+
+export function decodeSupportFeedback(value: JsonValue | undefined, at: string): SupportFeedback {
+  const object = expectObject(value, at);
+  const result: SupportFeedback = {
+    message_id: expectString(object["message_id"], at + ".message_id"),
+    helpful: expectBoolean(object["helpful"], at + ".helpful"),
+    received_at: expectString(object["received_at"], at + ".received_at"),
+  };
+  return result;
+}
+
+export function encodeSupportFeedback(value: SupportFeedback): JsonValue {
+  const result: JsonObject = {
+    message_id: value.message_id,
+    helpful: value.helpful,
+    received_at: value.received_at,
+  };
+  return result;
+}
+
+export interface SupportFeedbackRequest {
+  message_id: SupportMessageId;
+  helpful: boolean;
+}
+
+export function decodeSupportFeedbackRequest(value: JsonValue | undefined, at: string): SupportFeedbackRequest {
+  const object = expectObject(value, at);
+  const result: SupportFeedbackRequest = {
+    message_id: expectString(object["message_id"], at + ".message_id"),
+    helpful: expectBoolean(object["helpful"], at + ".helpful"),
+  };
+  return result;
+}
+
+export function encodeSupportFeedbackRequest(value: SupportFeedbackRequest): JsonValue {
+  const result: JsonObject = {
+    message_id: value.message_id,
+    helpful: value.helpful,
+  };
+  return result;
+}
+
+export interface SupportMessage {
+  message_id: SupportMessageId;
+  author: SupportAuthor;
+  body: string;
+  sent_at: Timestamp;
+  read: boolean;
+  topic?: SupportTopic;
+}
+
+export function decodeSupportMessage(value: JsonValue | undefined, at: string): SupportMessage {
+  const object = expectObject(value, at);
+  const result: SupportMessage = {
+    message_id: expectString(object["message_id"], at + ".message_id"),
+    author: decodeSupportAuthor(object["author"], at + ".author"),
+    body: expectString(object["body"], at + ".body"),
+    sent_at: expectString(object["sent_at"], at + ".sent_at"),
+    read: expectBoolean(object["read"], at + ".read"),
+  };
+  if (object["topic"] !== undefined) {
+    result.topic = decodeSupportTopic(object["topic"], at + ".topic");
+  }
+  return result;
+}
+
+export function encodeSupportMessage(value: SupportMessage): JsonValue {
+  const result: JsonObject = {
+    message_id: value.message_id,
+    author: value.author,
+    body: value.body,
+    sent_at: value.sent_at,
+    read: value.read,
+  };
+  if (value.topic !== undefined) {
+    result["topic"] = value.topic;
+  }
+  return result;
+}
+
+export interface SupportReadRequest {
+  through_message_id: SupportMessageId;
+}
+
+export function decodeSupportReadRequest(value: JsonValue | undefined, at: string): SupportReadRequest {
+  const object = expectObject(value, at);
+  const result: SupportReadRequest = {
+    through_message_id: expectString(object["through_message_id"], at + ".through_message_id"),
+  };
+  return result;
+}
+
+export function encodeSupportReadRequest(value: SupportReadRequest): JsonValue {
+  const result: JsonObject = {
+    through_message_id: value.through_message_id,
+  };
+  return result;
+}
+
+export interface SupportReplyRequest {
+  body: string;
+}
+
+export function decodeSupportReplyRequest(value: JsonValue | undefined, at: string): SupportReplyRequest {
+  const object = expectObject(value, at);
+  const result: SupportReplyRequest = {
+    body: expectString(object["body"], at + ".body"),
+  };
+  return result;
+}
+
+export function encodeSupportReplyRequest(value: SupportReplyRequest): JsonValue {
+  const result: JsonObject = {
+    body: value.body,
+  };
+  return result;
+}
+
 export interface VerifiedMoney {
   money: Money;
   verification: VerificationLevel;
@@ -2913,6 +3223,12 @@ export const operationNames = [
   "stepup.finish",
   "stream.next",
   "stream.open",
+  "support.create",
+  "support.feedback",
+  "support.list",
+  "support.read",
+  "support.reply",
+  "support.status",
   "version",
   "withdraw.claim",
   "withdraw.start",
@@ -2974,6 +3290,12 @@ export const operations: { readonly [name in OperationName]: OperationShape } = 
   "stepup.finish": { method: "POST", path: "/v1/step-up/{challenge_id}", pathParams: ["challenge_id"], request: "StepUpFinish", response: "StepUpEvidence", idempotency: false, bodyless: false },
   "stream.next": { method: "GET", path: "/v1/stream/{cursor}", pathParams: ["cursor"], request: "Empty", response: "StreamPage", idempotency: false, bodyless: true },
   "stream.open": { method: "POST", path: "/v1/stream", pathParams: [], request: "Empty", response: "StreamPosition", idempotency: false, bodyless: true },
+  "support.create": { method: "POST", path: "/v1/support/conversations", pathParams: [], request: "SupportCreateRequest", response: "SupportConversation", idempotency: true, bodyless: false },
+  "support.feedback": { method: "POST", path: "/v1/support/conversations/{conversation_id}/feedback", pathParams: ["conversation_id"], request: "SupportFeedbackRequest", response: "SupportConversation", idempotency: false, bodyless: false },
+  "support.list": { method: "GET", path: "/v1/support/conversations", pathParams: [], request: "Empty", response: "SupportConversationPage", idempotency: false, bodyless: true },
+  "support.read": { method: "POST", path: "/v1/support/conversations/{conversation_id}/read", pathParams: ["conversation_id"], request: "SupportReadRequest", response: "SupportConversationStatus", idempotency: false, bodyless: false },
+  "support.reply": { method: "POST", path: "/v1/support/conversations/{conversation_id}/replies", pathParams: ["conversation_id"], request: "SupportReplyRequest", response: "SupportConversation", idempotency: true, bodyless: false },
+  "support.status": { method: "GET", path: "/v1/support/conversations/{conversation_id}/status", pathParams: ["conversation_id"], request: "Empty", response: "SupportConversationStatus", idempotency: false, bodyless: true },
   "version": { method: "GET", path: "/v1/version", pathParams: [], request: "Empty", response: "VersionInfo", idempotency: false, bodyless: true },
   "withdraw.claim": { method: "POST", path: "/v1/withdrawals/{journey_id}/claim", pathParams: ["journey_id"], request: "WithdrawClaimRequest", response: "Journey", idempotency: false, bodyless: false },
   "withdraw.start": { method: "POST", path: "/v1/withdrawals", pathParams: [], request: "WithdrawStartRequest", response: "Journey", idempotency: true, bodyless: false },
@@ -3041,6 +3363,12 @@ export interface HumanApiClient {
   stepupFinish(challenge_id: string, request: StepUpFinish): Promise<StepUpEvidence>;
   streamNext(cursor: string): Promise<StreamPage>;
   streamOpen(): Promise<StreamPosition>;
+  supportCreate(request: SupportCreateRequest, idempotencyKey: string): Promise<SupportConversation>;
+  supportFeedback(conversation_id: string, request: SupportFeedbackRequest): Promise<SupportConversation>;
+  supportList(): Promise<SupportConversationPage>;
+  supportRead(conversation_id: string, request: SupportReadRequest): Promise<SupportConversationStatus>;
+  supportReply(conversation_id: string, request: SupportReplyRequest, idempotencyKey: string): Promise<SupportConversation>;
+  supportStatus(conversation_id: string): Promise<SupportConversationStatus>;
   version(): Promise<VersionInfo>;
   withdrawClaim(journey_id: string, request: WithdrawClaimRequest): Promise<Journey>;
   withdrawStart(request: WithdrawStartRequest, idempotencyKey: string): Promise<Journey>;
@@ -3189,6 +3517,18 @@ export function createHumanApiClient(options: HumanApiClientOptions = {}): Human
       decodeStreamPage(await execute("GET", "/v1/stream/" + encodeURIComponent(cursor), undefined, undefined), "stream.next result"),
     streamOpen: async () =>
       decodeStreamPosition(await execute("POST", "/v1/stream", undefined, undefined), "stream.open result"),
+    supportCreate: async (request, idempotencyKey) =>
+      decodeSupportConversation(await execute("POST", "/v1/support/conversations", encodeSupportCreateRequest(request), idempotencyKey), "support.create result"),
+    supportFeedback: async (conversation_id, request) =>
+      decodeSupportConversation(await execute("POST", "/v1/support/conversations/" + encodeURIComponent(conversation_id) + "/feedback", encodeSupportFeedbackRequest(request), undefined), "support.feedback result"),
+    supportList: async () =>
+      decodeSupportConversationPage(await execute("GET", "/v1/support/conversations", undefined, undefined), "support.list result"),
+    supportRead: async (conversation_id, request) =>
+      decodeSupportConversationStatus(await execute("POST", "/v1/support/conversations/" + encodeURIComponent(conversation_id) + "/read", encodeSupportReadRequest(request), undefined), "support.read result"),
+    supportReply: async (conversation_id, request, idempotencyKey) =>
+      decodeSupportConversation(await execute("POST", "/v1/support/conversations/" + encodeURIComponent(conversation_id) + "/replies", encodeSupportReplyRequest(request), idempotencyKey), "support.reply result"),
+    supportStatus: async (conversation_id) =>
+      decodeSupportConversationStatus(await execute("GET", "/v1/support/conversations/" + encodeURIComponent(conversation_id) + "/status", undefined, undefined), "support.status result"),
     version: async () =>
       decodeVersionInfo(await execute("GET", "/v1/version", undefined, undefined), "version result"),
     withdrawClaim: async (journey_id, request) =>

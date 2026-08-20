@@ -1,0 +1,12 @@
+{
+  "status": 404,
+  "body": {
+    "ok": false,
+    "error": {
+      "code": "support-message-unknown",
+      "copy_key": "error.support.message-unknown",
+      "retry": "final"
+    },
+    "trace": "trc_81a2b3c4d5e6f708192a3b4c5d6e7f80"
+  }
+}

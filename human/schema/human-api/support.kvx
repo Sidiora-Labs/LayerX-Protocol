@@ -1,0 +1,102 @@
+[module]
+name = "support"
+contract_major = 1
+compatibility = "additive_only"
+spine = "Authenticated people can create and resume support conversations without exposing protocol payloads, credentials or browser diagnostics. A consented error trace is the only error-report field accepted by this surface."
+
+[scalar.SupportConversationId]
+json = "string"
+prefix = "sup_"
+rust = "String"
+typescript = "string"
+
+[scalar.SupportMessageId]
+json = "string"
+prefix = "msg_"
+rust = "String"
+typescript = "string"
+
+[type.SupportShell]
+variants = ["mobile","desktop"]
+
+[type.SupportTopic]
+variants = ["deposit","withdrawal","agents","account","report"]
+
+[type.SupportAuthor]
+variants = ["you","support"]
+
+[type.SupportConversationState]
+variants = ["waiting-for-support","waiting-for-you","resolved"]
+
+[type.SupportMessage]
+required = ["message_id:SupportMessageId","author:SupportAuthor","body:string","sent_at:Timestamp","read:boolean"]
+optional = ["topic:SupportTopic"]
+rendering = "Every message body was persisted by its declared author. The application SHALL NOT generate a support-authored acknowledgement or present a system response as a person's reply."
+
+[type.SupportFeedback]
+required = ["message_id:SupportMessageId","helpful:boolean","received_at:Timestamp"]
+
+[type.SupportConversationStatus]
+required = ["conversation_id:SupportConversationId","state:SupportConversationState","unread_count:integer","updated_at:Timestamp"]
+
+[type.SupportConversation]
+required = ["conversation_id:SupportConversationId","shell:SupportShell","state:SupportConversationState","created_at:Timestamp","updated_at:Timestamp","messages:SupportMessage[]","feedback:SupportFeedback[]"]
+optional = ["trace_id:TraceId"]
+privacy = "trace_id is the only error-report context admitted to a conversation. The service resolves its redacted report server-side and never accepts a machine code, route, stack, credential or arbitrary diagnostic field here."
+
+[type.SupportConversationPage]
+required = ["conversations:SupportConversation[]"]
+bounds = "The service returns the authenticated principal's newest 100 conversations in updated_at order."
+
+[type.SupportCreateRequest]
+required = ["body:string","shell:SupportShell"]
+optional = ["topic:SupportTopic","trace_id:TraceId"]
+bounds = "body is trimmed UTF-8 text between 1 and 2000 Unicode scalar values. The required Idempotency-Key is the create identity for retries."
+
+[type.SupportReplyRequest]
+required = ["body:string"]
+bounds = "body is trimmed UTF-8 text between 1 and 2000 Unicode scalar values. The required Idempotency-Key is the reply identity for retries."
+
+[type.SupportReadRequest]
+required = ["through_message_id:SupportMessageId"]
+
+[type.SupportFeedbackRequest]
+required = ["message_id:SupportMessageId","helpful:boolean"]
+
+[operation.support.list]
+method = "GET"
+path = "/v1/support/conversations"
+request = "Empty"
+response = "SupportConversationPage"
+
+[operation.support.create]
+method = "POST"
+path = "/v1/support/conversations"
+request = "SupportCreateRequest"
+response = "SupportConversation"
+idempotency = true
+
+[operation.support.reply]
+method = "POST"
+path = "/v1/support/conversations/{conversation_id}/replies"
+request = "SupportReplyRequest"
+response = "SupportConversation"
+idempotency = true
+
+[operation.support.read]
+method = "POST"
+path = "/v1/support/conversations/{conversation_id}/read"
+request = "SupportReadRequest"
+response = "SupportConversationStatus"
+
+[operation.support.status]
+method = "GET"
+path = "/v1/support/conversations/{conversation_id}/status"
+request = "Empty"
+response = "SupportConversationStatus"
+
+[operation.support.feedback]
+method = "POST"
+path = "/v1/support/conversations/{conversation_id}/feedback"
+request = "SupportFeedbackRequest"
+response = "SupportConversation"

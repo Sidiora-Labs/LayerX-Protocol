@@ -1,0 +1,5 @@
+{
+  "method": "POST",
+  "path": "/v1/support/conversations/sup_01j8cx4h0f6x2y7z9p3q5r8t1v/read",
+  "body": { "through_message_id": "msg_01j8cx6n2h8z4a9b1r5s7t0w3x" }
+}

@@ -28,6 +28,10 @@ import {
   decodeSessionOpenRequest,
   decodeStepUpFinish,
   decodeStepUpRequest,
+  decodeSupportCreateRequest,
+  decodeSupportFeedbackRequest,
+  decodeSupportReadRequest,
+  decodeSupportReplyRequest,
   decodeWithdrawClaimRequest,
   decodeWithdrawStartRequest,
   encodeAccountCreation,
@@ -61,6 +65,9 @@ import {
   encodeStepUpEvidence,
   encodeStreamPage,
   encodeStreamPosition,
+  encodeSupportConversation,
+  encodeSupportConversationPage,
+  encodeSupportConversationStatus,
   encodeVersionInfo,
   encodeWalletBinding,
   type HumanApiClient,
@@ -204,6 +211,18 @@ export const conformance: { readonly [name in OperationName]: (run: ConformanceR
     encodeStreamPage(await run.client.streamNext(runParam(run, "cursor"))),
   "stream.open": async (run) =>
     encodeStreamPosition(await run.client.streamOpen()),
+  "support.create": async (run) =>
+    encodeSupportConversation(await run.client.supportCreate(decodeSupportCreateRequest(runBody(run), "golden request body"), runKey(run))),
+  "support.feedback": async (run) =>
+    encodeSupportConversation(await run.client.supportFeedback(runParam(run, "conversation_id"), decodeSupportFeedbackRequest(runBody(run), "golden request body"))),
+  "support.list": async (run) =>
+    encodeSupportConversationPage(await run.client.supportList()),
+  "support.read": async (run) =>
+    encodeSupportConversationStatus(await run.client.supportRead(runParam(run, "conversation_id"), decodeSupportReadRequest(runBody(run), "golden request body"))),
+  "support.reply": async (run) =>
+    encodeSupportConversation(await run.client.supportReply(runParam(run, "conversation_id"), decodeSupportReplyRequest(runBody(run), "golden request body"), runKey(run))),
+  "support.status": async (run) =>
+    encodeSupportConversationStatus(await run.client.supportStatus(runParam(run, "conversation_id"))),
   "version": async (run) =>
     encodeVersionInfo(await run.client.version()),
   "withdraw.claim": async (run) =>

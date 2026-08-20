@@ -13,6 +13,7 @@ pub mod notify;
 pub mod onboarding;
 pub mod redaction;
 pub mod store;
+pub mod support;
 pub mod trace;
 
 /// The immutable workspace boundary consumed by the human control plane.

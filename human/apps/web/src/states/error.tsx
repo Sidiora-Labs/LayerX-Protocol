@@ -48,9 +48,9 @@ function diagnostic(value: unknown, key: string): string | undefined {
 
 function generatedTraceId(): string {
   const suffix = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
-  return `trc_ui_${suffix}`;
+    ? crypto.randomUUID().replaceAll("-", "")
+    : Date.now().toString(16).padStart(32, "0").slice(-32);
+  return `trc_${suffix}`;
 }
 
 export function errorPresentation(error: unknown, traceId = generatedTraceId()): ErrorPresentation {
@@ -63,18 +63,17 @@ export function errorPresentation(error: unknown, traceId = generatedTraceId()):
     : "UI_UNHANDLED";
   const suppliedTrace = diagnostic(detail, "trace_id")
     ?? diagnostic(error, "traceId")
+    ?? diagnostic(error, "trace")
     ?? diagnostic(error, "digest");
-  const prefixedTrace = suppliedTrace === undefined ? undefined : `trc_ui_${suppliedTrace}`;
+  const canonicalTrace = suppliedTrace !== undefined && /^trc_[0-9a-f]{32}$/u.test(suppliedTrace)
+    ? suppliedTrace
+    : undefined;
   return Object.freeze({
     titleKey: "state.error",
     descriptionKey: "state.error.body",
     moneyImpactKey: "error.money.not_started",
     machineCode,
-    traceId: prefixedTrace !== undefined
-      && prefixedTrace.length <= 120
-      && /^[A-Za-z0-9][A-Za-z0-9._:-]*$/u.test(prefixedTrace)
-      ? prefixedTrace
-      : traceId,
+    traceId: canonicalTrace ?? traceId,
     retriable: true,
     structural: true,
   });
@@ -164,6 +163,12 @@ export function ErrorSurface({
         ) : null}
         <KitButton variant="secondary" onClick={() => setReportOpen(true)}>
           {copyEntry("action.report").message}
+        </KitButton>
+        <KitButton
+          variant="secondary"
+          onClick={() => window.location.assign(`/app/support?trace=${encodeURIComponent(error.traceId)}`)}
+        >
+          {copyEntry("support.open").message}
         </KitButton>
       </div>
       {reportStatus === "saved" ? (

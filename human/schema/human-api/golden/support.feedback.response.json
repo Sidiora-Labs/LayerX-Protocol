@@ -1,0 +1,39 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "conversation_id": "sup_01j8cx4h0f6x2y7z9p3q5r8t1v",
+      "shell": "desktop",
+      "state": "waiting-for-you",
+      "created_at": "2026-08-20T09:00:00Z",
+      "updated_at": "2026-08-20T09:05:00Z",
+      "trace_id": "trc_01j8cx3j8k6s4m2n0p9q7r5t3v",
+      "messages": [
+        {
+          "message_id": "msg_01j8cx5m1g7y3z8a0q4r6s9v2w",
+          "author": "you",
+          "body": "I want to follow up on an error I reported.",
+          "topic": "report",
+          "sent_at": "2026-08-20T09:00:00Z",
+          "read": true
+        },
+        {
+          "message_id": "msg_01j8cx6n2h8z4a9b1r5s7t0w3x",
+          "author": "support",
+          "body": "I found your report and I am checking the failed request now.",
+          "sent_at": "2026-08-20T09:04:00Z",
+          "read": true
+        }
+      ],
+      "feedback": [
+        {
+          "message_id": "msg_01j8cx6n2h8z4a9b1r5s7t0w3x",
+          "helpful": true,
+          "received_at": "2026-08-20T09:05:00Z"
+        }
+      ]
+    },
+    "trace": "trc_01j8cxb17p3e9f4g6x0y2z5b8c"
+  }
+}

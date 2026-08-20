@@ -1,0 +1,6 @@
+{
+  "method": "POST",
+  "path": "/v1/support/conversations/sup_01j8cx4h0f6x2y7z9p3q5r8t1v/replies",
+  "headers": { "Idempotency-Key": "support-reply-01j8cxd39r5g1h6j8z2a4b7d0e" },
+  "body": { "body": "The same error happened again after I signed in." }
+}

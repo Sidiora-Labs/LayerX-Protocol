@@ -91,6 +91,7 @@ impl RowKey {
 pub enum Table {
     Journeys,
     Notifications,
+    Support,
     Telemetry,
     Cache,
 }
@@ -100,6 +101,7 @@ impl Table {
         match self {
             Self::Journeys => 1,
             Self::Notifications => 2,
+            Self::Support => 6,
             Self::Telemetry => 4,
             Self::Cache => 5,
         }
@@ -109,6 +111,7 @@ impl Table {
         match value {
             1 => Ok(Self::Journeys),
             2 => Ok(Self::Notifications),
+            6 => Ok(Self::Support),
             4 => Ok(Self::Telemetry),
             5 => Ok(Self::Cache),
             _ => Err(StoreError::Corrupt("unknown table code")),

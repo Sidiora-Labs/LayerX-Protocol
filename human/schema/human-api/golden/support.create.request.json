@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "path": "/v1/support/conversations",
+  "headers": { "Idempotency-Key": "support-create-01j8cx5m1g7y3z8a0q4r6s9v2w" },
+  "body": {
+    "body": "I want to follow up on an error I reported.",
+    "shell": "desktop",
+    "topic": "report",
+    "trace_id": "trc_21a2b3c4d5e6f708192a3b4c5d6e7f80"
+  }
+}

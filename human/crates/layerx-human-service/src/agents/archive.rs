@@ -755,6 +755,7 @@ fn table_code(table: Table) -> u8 {
     match table {
         Table::Journeys => 1,
         Table::Notifications => 2,
+        Table::Support => 6,
         Table::Telemetry => 4,
         Table::Cache => 5,
     }
@@ -764,6 +765,7 @@ fn table_from_code(code: u8) -> Result<Table, ArchiveError> {
     match code {
         1 => Ok(Table::Journeys),
         2 => Ok(Table::Notifications),
+        6 => Ok(Table::Support),
         4 => Ok(Table::Telemetry),
         5 => Ok(Table::Cache),
         _ => Err(ArchiveError::Corrupt("archive evidence table is invalid")),

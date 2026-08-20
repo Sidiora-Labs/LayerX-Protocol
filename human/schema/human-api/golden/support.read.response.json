@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "result": {
+      "conversation_id": "sup_01j8cx4h0f6x2y7z9p3q5r8t1v",
+      "state": "waiting-for-you",
+      "unread_count": 0,
+      "updated_at": "2026-08-20T09:05:00Z"
+    },
+    "trace": "trc_71a2b3c4d5e6f708192a3b4c5d6e7f80"
+  }
+}

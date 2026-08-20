@@ -42,6 +42,7 @@ impl RetentionPolicy {
         match table {
             Table::Journeys => self.journeys,
             Table::Notifications => self.notifications,
+            Table::Support => self.notifications,
             Table::Telemetry => self.telemetry,
             Table::Cache => self.cache,
         }

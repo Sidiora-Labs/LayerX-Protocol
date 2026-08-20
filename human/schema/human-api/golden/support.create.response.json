@@ -1,0 +1,26 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "result": {
+      "conversation_id": "sup_01j8cx4h0f6x2y7z9p3q5r8t1v",
+      "shell": "desktop",
+      "state": "waiting-for-support",
+      "created_at": "2026-08-20T09:00:00Z",
+      "updated_at": "2026-08-20T09:00:00Z",
+      "trace_id": "trc_21a2b3c4d5e6f708192a3b4c5d6e7f80",
+      "messages": [
+        {
+          "message_id": "msg_01j8cx5m1g7y3z8a0q4r6s9v2w",
+          "author": "you",
+          "body": "I want to follow up on an error I reported.",
+          "topic": "report",
+          "sent_at": "2026-08-20T09:00:00Z",
+          "read": true
+        }
+      ],
+      "feedback": []
+    },
+    "trace": "trc_31a2b3c4d5e6f708192a3b4c5d6e7f80"
+  }
+}
