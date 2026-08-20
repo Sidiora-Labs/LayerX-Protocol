@@ -1,5 +1,8 @@
-import { LoadingSurface } from "../../states";
+import { copyEntry } from "../../../copy/catalog";
+import { PerformanceLoadingCard } from "../../kit";
 
-export default function ExplorerRouteLoading() {
-  return <LoadingSurface />;
+export default function ExplorerLoading() {
+  return (
+    <PerformanceLoadingCard plane="explorer" label={copyEntry("state.loading").message} />
+  );
 }

@@ -74,6 +74,27 @@ jobs:
         if: github.event_name == 'schedule'
         run: make human-test-e2e-long
 
+  browser-performance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install pinned Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.11.0
+          cache: npm
+          cache-dependency-path: human/apps/web/package-lock.json
+      - name: Install pinned Chromium
+        run: >-
+          npm --prefix human/apps/web ci &&
+          npm --prefix human/apps/web exec playwright install --with-deps chromium
+      - name: Enforce route and browser performance budgets
+        run: make human-e2e-perf
+
   intent-fuzz:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-24.04

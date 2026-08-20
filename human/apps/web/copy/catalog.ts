@@ -37,6 +37,8 @@ export const copyEntries = [
   { key: "app.home.summary", message: "Your account tools and recent activity are available here.", context: "Authenticated plane home introduction.", surface: "default", kind: "body", moneyAdjacent: false },
   { key: "explorer.title", message: "LayerX Explorer", context: "Public explorer page heading.", surface: "explorer", kind: "body", moneyAdjacent: false },
   { key: "explorer.summary", message: "Look up public LayerX activity and verify its records.", context: "Public explorer introduction.", surface: "explorer", kind: "body", moneyAdjacent: false },
+  { key: "action.open_app", message: "Open app", context: "Move from the public explorer into the authenticated application.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "action.open_explorer", message: "Open explorer", context: "Move from the landing surface into the public explorer.", surface: "default", kind: "action", moneyAdjacent: false },
   { key: "status.getting_ready", message: "Getting ready", context: "Prepared activity that has not been signed.", surface: "default", kind: "status", moneyAdjacent: true },
   { key: "status.sending", message: "Sending", context: "Submitted activity without a receipt yet.", surface: "default", kind: "status", moneyAdjacent: true },
   { key: "status.processing", message: "Processing", context: "Executed activity awaiting final settlement.", surface: "default", kind: "status", moneyAdjacent: true },

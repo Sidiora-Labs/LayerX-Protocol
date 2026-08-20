@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import { copyEntry } from "../../copy/catalog";
+import { WebVitalsRum } from "../perf/web-vitals-rum";
 import { ApplicationStateBoundary } from "../states";
 
 import "./globals.css";
@@ -20,7 +21,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body><ApplicationStateBoundary>{children}</ApplicationStateBoundary></body>
+      <body>
+        <WebVitalsRum />
+        <ApplicationStateBoundary>{children}</ApplicationStateBoundary>
+      </body>
     </html>
   );
 }

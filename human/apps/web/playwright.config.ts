@@ -13,6 +13,16 @@ export default defineConfig({
   retries: process.env.CI === "true" ? 2 : 0,
   reporter: [["line"], ["html", { open: "never", outputFolder: "test-results/report" }]],
   snapshotPathTemplate: "{testDir}/__screenshots__/{projectName}/{arg}{ext}",
+  ...(harness.localProduction
+    ? {
+        webServer: {
+          command: "npm run start -- --hostname 127.0.0.1 --port 3105",
+          url: harness.baseUrl,
+          reuseExistingServer: false,
+          timeout: 120_000,
+        },
+      }
+    : {}),
   use: {
     baseURL: harness.baseUrl,
     trace: "retain-on-failure",

@@ -1714,6 +1714,14 @@ human-e2e-foundation:
 	$(HUMAN_NPM) run test:foundation
 	$(HUMAN_NPM) run build
 
+human-e2e-perf:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run build
+	HUMAN_E2E_REAL_STACK=1 \
+	HUMAN_E2E_LOCAL_PRODUCTION=1 \
+	HUMAN_E2E_BASE_URL=http://127.0.0.1:3105 \
+		$(HUMAN_NPM) run test:perf
+
 human-test-journey:
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) run test:journey

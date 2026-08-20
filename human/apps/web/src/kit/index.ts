@@ -87,3 +87,5 @@ export {
   InlineNotice,
   type StateTone,
 } from "./surface";
+export { PerformanceLoadingCard } from "./performance";
+export { PlaneRouteAction } from "./plane-route-action";
