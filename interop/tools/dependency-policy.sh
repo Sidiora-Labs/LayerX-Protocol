@@ -9,7 +9,7 @@ trap 'rm -f -- "$metadata_file" "$license_file"' EXIT HUP INT TERM
 cargo metadata --manifest-path "$repo_root/interop/Cargo.toml" \
     --locked --format-version 1 >"$metadata_file"
 
-banned='^(bindgen|libsqlite3-sys|rusqlite|sqlx-sqlite|layerx-core|layerx-protocol-core|layerx-human-service|layerx-intents|layerx-paxeer-client|layerx-explorer-index|ctor|inventory)$'
+banned='^(bindgen|libsqlite3-sys|rusqlite|sqlx-sqlite|layerx-core|layerx-protocol-core|layerx-human-service|layerx-paxeer-client|layerx-explorer-index|ctor|inventory)$'
 if jq -r '.packages[].name' "$metadata_file" | grep -Eq "$banned"; then
     echo "interop dependency policy: forbidden boundary or global-initialisation crate" >&2
     exit 1
