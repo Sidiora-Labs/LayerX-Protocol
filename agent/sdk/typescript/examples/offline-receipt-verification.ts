@@ -1,7 +1,12 @@
-import { VerificationLevel, requireVerified, type VerifiedRead } from "../src/index.js";
+import {
+  verifyReceipt,
+  type AuthorizedReceiptBatch,
+  type ReceiptVerification,
+} from "../src/index.js";
 
-export interface OfflineReceipt { readonly canonicalBytes: Uint8Array; readonly receiptDigest: Uint8Array }
-
-export function offlineReceiptVerification(read: VerifiedRead<OfflineReceipt>): OfflineReceipt {
-  return requireVerified(VerificationLevel.SequencerSigned, read).value;
+export function offlineReceiptVerification(
+  canonicalReceipt: Uint8Array,
+  authorizedBatch: AuthorizedReceiptBatch,
+): Promise<ReceiptVerification> {
+  return verifyReceipt(canonicalReceipt, authorizedBatch);
 }

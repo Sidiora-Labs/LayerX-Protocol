@@ -1,13 +1,14 @@
-from dataclasses import dataclass
-
-from layerx_sdk import VerificationLevel, VerifiedRead, require_verified
-
-
-@dataclass(frozen=True)
-class OfflineReceipt:
-    canonical_bytes: bytes
-    receipt_digest: bytes
+from layerx_sdk import (
+    AuthorizedReceiptBatch,
+    LocalSignatureVerifier,
+    ReceiptVerification,
+    verify_receipt,
+)
 
 
-def offline_receipt_verification(read: VerifiedRead[OfflineReceipt]) -> OfflineReceipt:
-    return require_verified(VerificationLevel.SEQUENCER_SIGNED, read).value
+def offline_receipt_verification(
+    canonical_receipt: bytes,
+    authorized_batch: AuthorizedReceiptBatch,
+    signatures: LocalSignatureVerifier,
+) -> ReceiptVerification:
+    return verify_receipt(canonical_receipt, authorized_batch, signatures)

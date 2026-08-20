@@ -2,15 +2,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Literal, Protocol
+from typing import Literal, Protocol, cast
 
 from .production import PlatformSdkError, SdkErrorCode
 
 _MERKLE_LEAF_DOMAIN = b"LXP/v1/merkle-leaf\0"
 _MERKLE_INTERNAL_DOMAIN = b"LXP/v1/merkle-internal\0"
 _BATCH_HEADER_DOMAIN = b"LXP/v1/batch-header\0"
+_RECEIPT_DOMAIN = b"LXP/v1/receipt\0"
 _CHECKPOINT_DOMAIN = b"LXP/v1/checkpoint-certificate\0"
 _BATCH_HEADER_BYTES = 354
+_MAX_MESSAGE_BYTES = 1_048_576
+_MAX_EFFECTS = 512
+_MAX_EFFECT_BODY = 256
+_MAX_U128 = 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 _ALL_AVAILABILITY_CLASSES = 0x1F
 
 
@@ -113,8 +118,23 @@ class _Decoder:
     def u64(self) -> int:
         return self.integer(8)
 
+    def u128(self) -> int:
+        return self.integer(16)
+
+    def i32(self) -> int:
+        return int.from_bytes(self.fixed(4), "big", signed=True)
+
+    def position(self) -> int:
+        return self._offset
+
     def bounded(self, length: int) -> bytes:
         if self.u32() != length:
+            _failure()
+        return self.fixed(length)
+
+    def bounded_at_most(self, maximum: int) -> bytes:
+        length = self.u32()
+        if length > maximum:
             _failure()
         return self.fixed(length)
 
@@ -206,6 +226,66 @@ def decode_batch_header(canonical_header: bytes) -> BatchHeader:
 class LocalSignatureVerifier(Protocol):
     def verify_ed25519(self, public_key: bytes, signature: bytes, digest: bytes) -> bool: ...
     def verify_secp256k1(self, public_key: bytes, signature: bytes, digest: bytes) -> bool: ...
+
+
+@dataclass(frozen=True)
+class ReceiptEffect:
+    module_id: int
+    ordinal: int
+    event_type: int
+    kind: Literal[1, 2, 3]
+    monetary: bool
+    transfer_set_root: bytes
+    body: bytes
+
+
+@dataclass(frozen=True)
+class ProtocolReceipt:
+    protocol_version: int
+    activity_id: bytes
+    global_sequence: int
+    previous_state_root: bytes
+    resulting_state_root: bytes
+    activity_root: bytes
+    result_code: int
+    effects: tuple[ReceiptEffect, ...]
+    fee_charged: int
+    batch_id: bytes
+    module_id: int
+    module_version: int
+    parameter_version: int
+    operation: int
+    asset: bytes
+    amount: int
+    from_account: bytes
+    from_balance_before: int
+    from_balance_after: int
+    from_sequence: int
+    to_account: bytes
+    to_balance_before: int
+    to_balance_after: int
+    transfer_set_root: bytes
+    authorization_hash: bytes
+    context_hash: bytes
+    timestamp: int
+    sequencer_signature: bytes
+
+
+@dataclass(frozen=True)
+class AuthorizedReceiptBatch:
+    batch_id: bytes
+    asset: bytes
+    previous_state_root: bytes
+    resulting_state_root: bytes
+    sequencer_public_key: bytes
+
+
+@dataclass(frozen=True)
+class ReceiptVerification:
+    level: Literal["sequencer-signed"]
+    receipt: ProtocolReceipt
+    canonical_bytes: bytes
+    receipt_digest: bytes
 
 
 @dataclass(frozen=True)
@@ -411,3 +491,156 @@ def verify_checkpoint(
         required=certificate.threshold,
         header=header,
     )
+
+
+def _all_zero(value: bytes) -> bool:
+    aggregate = 0
+    for byte in value:
+        aggregate |= byte
+    return aggregate == 0
+
+
+def _decode_protocol_receipt(canonical_receipt: bytes) -> tuple[ProtocolReceipt, bytes]:
+    if not canonical_receipt or len(canonical_receipt) > _MAX_MESSAGE_BYTES:
+        _failure()
+    decoder = _Decoder(canonical_receipt)
+    if decoder.u16() != 1 or decoder.u16() != 0x5201:
+        _failure()
+    protocol_version = decoder.u16()
+    if protocol_version != 1:
+        _failure()
+    activity_id = decoder.bounded(32)
+    global_sequence = decoder.u64()
+    previous_state_root = decoder.bounded(32)
+    resulting_state_root = decoder.bounded(32)
+    activity_root = decoder.bounded(32)
+    result_code = decoder.i32()
+    effect_count = decoder.u32()
+    if effect_count > _MAX_EFFECTS:
+        _failure()
+    effects: list[ReceiptEffect] = []
+    for _ in range(effect_count):
+        module_id = decoder.u16()
+        ordinal = decoder.u16()
+        event_type = decoder.u16()
+        kind_value = decoder.u8()
+        if kind_value < 1 or kind_value > 3:
+            _failure()
+        monetary_value = decoder.u8()
+        if monetary_value > 1 or (monetary_value == 1 and kind_value != 2):
+            _failure()
+        effects.append(ReceiptEffect(
+            module_id=module_id,
+            ordinal=ordinal,
+            event_type=event_type,
+            kind=cast(Literal[1, 2, 3], kind_value),
+            monetary=monetary_value == 1,
+            transfer_set_root=decoder.bounded(32),
+            body=decoder.bounded_at_most(_MAX_EFFECT_BODY),
+        ))
+    fee_charged = decoder.u128()
+    batch_id = decoder.bounded(32)
+    module_id = decoder.u16()
+    module_version = decoder.u32()
+    parameter_version = decoder.u32()
+    operation = decoder.u8()
+    asset = decoder.bounded(32)
+    amount = decoder.u128()
+    from_account = decoder.bounded(32)
+    from_balance_before = decoder.u128()
+    from_balance_after = decoder.u128()
+    from_sequence = decoder.u64()
+    to_account = decoder.bounded(32)
+    to_balance_before = decoder.u128()
+    to_balance_after = decoder.u128()
+    transfer_set_root = decoder.bounded(32)
+    authorization_hash = decoder.bounded(32)
+    context_hash = decoder.bounded(32)
+    timestamp = decoder.u64()
+    signature_flag_offset = decoder.position()
+    if decoder.u8() != 1:
+        _failure()
+    sequencer_signature = decoder.bounded(64)
+    decoder.finish()
+    return (
+        ProtocolReceipt(
+            protocol_version=protocol_version,
+            activity_id=activity_id,
+            global_sequence=global_sequence,
+            previous_state_root=previous_state_root,
+            resulting_state_root=resulting_state_root,
+            activity_root=activity_root,
+            result_code=result_code,
+            effects=tuple(effects),
+            fee_charged=fee_charged,
+            batch_id=batch_id,
+            module_id=module_id,
+            module_version=module_version,
+            parameter_version=parameter_version,
+            operation=operation,
+            asset=asset,
+            amount=amount,
+            from_account=from_account,
+            from_balance_before=from_balance_before,
+            from_balance_after=from_balance_after,
+            from_sequence=from_sequence,
+            to_account=to_account,
+            to_balance_before=to_balance_before,
+            to_balance_after=to_balance_after,
+            transfer_set_root=transfer_set_root,
+            authorization_hash=authorization_hash,
+            context_hash=context_hash,
+            timestamp=timestamp,
+            sequencer_signature=sequencer_signature,
+        ),
+        canonical_receipt[:signature_flag_offset] + b"\0",
+    )
+
+
+def verify_receipt_outcome(
+    canonical_receipt: bytes,
+    authorized: AuthorizedReceiptBatch,
+    signatures: LocalSignatureVerifier,
+) -> ReceiptVerification:
+    receipt, unsigned_receipt = _decode_protocol_receipt(canonical_receipt)
+    if (
+        receipt.operation == 0
+        or _all_zero(receipt.activity_id)
+        or _all_zero(receipt.asset)
+        or not _equal(receipt.batch_id, _exact(authorized.batch_id, 32))
+        or not _equal(receipt.asset, _exact(authorized.asset, 32))
+        or not _equal(receipt.previous_state_root, _exact(authorized.previous_state_root, 32))
+        or not _equal(receipt.resulting_state_root, _exact(authorized.resulting_state_root, 32))
+    ):
+        _failure()
+    if receipt.result_code == 0 and (
+        receipt.from_balance_before < receipt.amount
+        or receipt.from_balance_before - receipt.amount != receipt.from_balance_after
+        or receipt.to_balance_before + receipt.amount > _MAX_U128
+        or receipt.to_balance_before + receipt.amount != receipt.to_balance_after
+    ):
+        _failure()
+    receipt_digest = _digest(_RECEIPT_DOMAIN, unsigned_receipt)
+    if not signatures.verify_ed25519(
+        _exact(authorized.sequencer_public_key, 32),
+        receipt.sequencer_signature,
+        receipt_digest,
+    ):
+        _failure()
+    return ReceiptVerification(
+        level="sequencer-signed",
+        receipt=receipt,
+        canonical_bytes=bytes(canonical_receipt),
+        receipt_digest=receipt_digest,
+    )
+
+
+def verify_receipt(
+    canonical_receipt: bytes,
+    authorized: AuthorizedReceiptBatch,
+    signatures: LocalSignatureVerifier,
+) -> ReceiptVerification:
+    verified = verify_receipt_outcome(canonical_receipt, authorized, signatures)
+    if verified.receipt.result_code != 0:
+        _failure()
+    return verified

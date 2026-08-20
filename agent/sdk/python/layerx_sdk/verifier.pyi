@@ -30,6 +30,62 @@ class LocalSignatureVerifier(Protocol):
     def verify_secp256k1(self, public_key: bytes, signature: bytes, digest: bytes) -> bool: ...
 
 @dataclass(frozen=True)
+class ReceiptEffect:
+    module_id: int
+    ordinal: int
+    event_type: int
+    kind: Literal[1, 2, 3]
+    monetary: bool
+    transfer_set_root: bytes
+    body: bytes
+
+@dataclass(frozen=True)
+class ProtocolReceipt:
+    protocol_version: int
+    activity_id: bytes
+    global_sequence: int
+    previous_state_root: bytes
+    resulting_state_root: bytes
+    activity_root: bytes
+    result_code: int
+    effects: tuple[ReceiptEffect, ...]
+    fee_charged: int
+    batch_id: bytes
+    module_id: int
+    module_version: int
+    parameter_version: int
+    operation: int
+    asset: bytes
+    amount: int
+    from_account: bytes
+    from_balance_before: int
+    from_balance_after: int
+    from_sequence: int
+    to_account: bytes
+    to_balance_before: int
+    to_balance_after: int
+    transfer_set_root: bytes
+    authorization_hash: bytes
+    context_hash: bytes
+    timestamp: int
+    sequencer_signature: bytes
+
+@dataclass(frozen=True)
+class AuthorizedReceiptBatch:
+    batch_id: bytes
+    asset: bytes
+    previous_state_root: bytes
+    resulting_state_root: bytes
+    sequencer_public_key: bytes
+
+@dataclass(frozen=True)
+class ReceiptVerification:
+    level: Literal["sequencer-signed"]
+    receipt: ProtocolReceipt
+    canonical_bytes: bytes
+    receipt_digest: bytes
+
+@dataclass(frozen=True)
 class SequencerAuthorization:
     sequencer_id: bytes
     public_key: bytes
@@ -91,3 +147,5 @@ def verify_merkle_inclusion(canonical_leaf: bytes, proof: MerkleProof, expected_
 def decode_batch_header(canonical_header: bytes) -> BatchHeader: ...
 def verify_batch_inclusion(kind: InclusionKind, canonical_leaf: bytes, proof: MerkleProof, canonical_header: bytes, header_signature: bytes, authorization: SequencerAuthorization, signatures: LocalSignatureVerifier) -> InclusionVerification: ...
 def verify_checkpoint(verification: CheckpointVerificationInput, signatures: LocalSignatureVerifier) -> CheckpointVerification: ...
+def verify_receipt_outcome(canonical_receipt: bytes, authorized: AuthorizedReceiptBatch, signatures: LocalSignatureVerifier) -> ReceiptVerification: ...
+def verify_receipt(canonical_receipt: bytes, authorized: AuthorizedReceiptBatch, signatures: LocalSignatureVerifier) -> ReceiptVerification: ...

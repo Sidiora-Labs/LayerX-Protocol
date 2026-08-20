@@ -62,6 +62,7 @@ from .stream import (
     StreamPage as StreamPage,
 )
 from .verifier import (
+    AuthorizedReceiptBatch as AuthorizedReceiptBatch,
     BatchHeader as BatchHeader,
     CheckpointAttestation as CheckpointAttestation,
     CheckpointCertificate as CheckpointCertificate,
@@ -71,9 +72,14 @@ from .verifier import (
     InclusionVerification as InclusionVerification,
     LocalSignatureVerifier as LocalSignatureVerifier,
     MerkleProof as MerkleProof,
+    ProtocolReceipt as ProtocolReceipt,
+    ReceiptEffect as ReceiptEffect,
+    ReceiptVerification as ReceiptVerification,
     SequencerAuthorization as SequencerAuthorization,
     decode_batch_header as decode_batch_header,
     verify_batch_inclusion as verify_batch_inclusion,
     verify_checkpoint as verify_checkpoint,
     verify_merkle_inclusion as verify_merkle_inclusion,
+    verify_receipt as verify_receipt,
+    verify_receipt_outcome as verify_receipt_outcome,
 )

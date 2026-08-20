@@ -3,8 +3,13 @@ import { PlatformSdkError } from "./production.js";
 const MERKLE_LEAF_DOMAIN = new TextEncoder().encode("LXP/v1/merkle-leaf\0");
 const MERKLE_INTERNAL_DOMAIN = new TextEncoder().encode("LXP/v1/merkle-internal\0");
 const BATCH_HEADER_DOMAIN = new TextEncoder().encode("LXP/v1/batch-header\0");
+const RECEIPT_DOMAIN = new TextEncoder().encode("LXP/v1/receipt\0");
 const CHECKPOINT_DOMAIN = new TextEncoder().encode("LXP/v1/checkpoint-certificate\0");
 const BATCH_HEADER_BYTES = 354;
+const MAX_MESSAGE_BYTES = 1_048_576;
+const MAX_EFFECTS = 512;
+const MAX_EFFECT_BODY = 256;
+const MAX_U128 = 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffffn;
 const ALL_AVAILABILITY_CLASSES = 0x1f;
 
 export interface MerkleProof {
@@ -92,6 +97,62 @@ export interface CheckpointVerification {
 
 export interface LocalSignatureVerifier {
   verifySecp256k1(publicKey: Uint8Array, signature: Uint8Array, digest: Uint8Array): Promise<boolean>;
+}
+
+export interface ReceiptEffect {
+  readonly moduleId: number;
+  readonly ordinal: number;
+  readonly eventType: number;
+  readonly kind: 1 | 2 | 3;
+  readonly monetary: boolean;
+  readonly transferSetRoot: Uint8Array;
+  readonly body: Uint8Array;
+}
+
+export interface ProtocolReceipt {
+  readonly protocolVersion: number;
+  readonly activityId: Uint8Array;
+  readonly globalSequence: bigint;
+  readonly previousStateRoot: Uint8Array;
+  readonly resultingStateRoot: Uint8Array;
+  readonly activityRoot: Uint8Array;
+  readonly resultCode: number;
+  readonly effects: readonly ReceiptEffect[];
+  readonly feeCharged: bigint;
+  readonly batchId: Uint8Array;
+  readonly moduleId: number;
+  readonly moduleVersion: number;
+  readonly parameterVersion: number;
+  readonly operation: number;
+  readonly asset: Uint8Array;
+  readonly amount: bigint;
+  readonly from: Uint8Array;
+  readonly fromBalanceBefore: bigint;
+  readonly fromBalanceAfter: bigint;
+  readonly fromSequence: bigint;
+  readonly to: Uint8Array;
+  readonly toBalanceBefore: bigint;
+  readonly toBalanceAfter: bigint;
+  readonly transferSetRoot: Uint8Array;
+  readonly authorizationHash: Uint8Array;
+  readonly contextHash: Uint8Array;
+  readonly timestamp: bigint;
+  readonly sequencerSignature: Uint8Array;
+}
+
+export interface AuthorizedReceiptBatch {
+  readonly batchId: Uint8Array;
+  readonly asset: Uint8Array;
+  readonly previousStateRoot: Uint8Array;
+  readonly resultingStateRoot: Uint8Array;
+  readonly sequencerPublicKey: Uint8Array;
+}
+
+export interface ReceiptVerification {
+  readonly level: "sequencer-signed";
+  readonly receipt: ProtocolReceipt;
+  readonly canonicalBytes: Uint8Array;
+  readonly receiptDigest: Uint8Array;
 }
 
 function verificationFailure(): never {
@@ -225,6 +286,19 @@ class Decoder {
     return this.integer(8);
   }
 
+  public u128(): bigint {
+    return this.integer(16);
+  }
+
+  public i32(): number {
+    const value = this.u32();
+    return value > 0x7fff_ffff ? value - 0x1_0000_0000 : value;
+  }
+
+  public position(): number {
+    return this.#offset;
+  }
+
   public fixed(length: number): Uint8Array {
     const end = this.#offset + length;
     if (!Number.isSafeInteger(end) || end > this.bytes.length) {
@@ -237,6 +311,14 @@ class Decoder {
 
   public bounded(length: number): Uint8Array {
     if (this.u32() !== length) {
+      return verificationFailure();
+    }
+    return this.fixed(length);
+  }
+
+  public boundedAtMost(maximum: number): Uint8Array {
+    const length = this.u32();
+    if (length > maximum) {
       return verificationFailure();
     }
     return this.fixed(length);
@@ -485,4 +567,175 @@ export async function verifyCheckpoint(
     required: certificate.threshold,
     header,
   });
+}
+
+interface DecodedReceipt {
+  readonly receipt: ProtocolReceipt;
+  readonly unsignedBytes: Uint8Array;
+}
+
+function allZero(value: Uint8Array): boolean {
+  let aggregate = 0;
+  for (const byte of value) {
+    aggregate |= byte;
+  }
+  return aggregate === 0;
+}
+
+function decodeProtocolReceipt(canonicalReceipt: Uint8Array): DecodedReceipt {
+  if (canonicalReceipt.length === 0 || canonicalReceipt.length > MAX_MESSAGE_BYTES) {
+    return verificationFailure();
+  }
+  const decoder = new Decoder(canonicalReceipt);
+  if (decoder.u16() !== 1 || decoder.u16() !== 0x5201) {
+    return verificationFailure();
+  }
+  const protocolVersion = decoder.u16();
+  if (protocolVersion !== 1) {
+    return verificationFailure();
+  }
+  const activityId = decoder.bounded(32);
+  const globalSequence = decoder.u64();
+  const previousStateRoot = decoder.bounded(32);
+  const resultingStateRoot = decoder.bounded(32);
+  const activityRoot = decoder.bounded(32);
+  const resultCode = decoder.i32();
+  const effectCount = decoder.u32();
+  if (effectCount > MAX_EFFECTS) {
+    return verificationFailure();
+  }
+  const effects: ReceiptEffect[] = [];
+  for (let index = 0; index < effectCount; index += 1) {
+    const moduleId = decoder.u16();
+    const ordinal = decoder.u16();
+    const eventType = decoder.u16();
+    const kindValue = decoder.u8();
+    if (kindValue < 1 || kindValue > 3) {
+      return verificationFailure();
+    }
+    const monetaryValue = decoder.u8();
+    if (monetaryValue > 1 || (monetaryValue === 1 && kindValue !== 2)) {
+      return verificationFailure();
+    }
+    effects.push(Object.freeze({
+      moduleId,
+      ordinal,
+      eventType,
+      kind: kindValue as 1 | 2 | 3,
+      monetary: monetaryValue === 1,
+      transferSetRoot: decoder.bounded(32),
+      body: decoder.boundedAtMost(MAX_EFFECT_BODY),
+    }));
+  }
+  const feeCharged = decoder.u128();
+  const batchId = decoder.bounded(32);
+  const moduleId = decoder.u16();
+  const moduleVersion = decoder.u32();
+  const parameterVersion = decoder.u32();
+  const operation = decoder.u8();
+  const asset = decoder.bounded(32);
+  const amount = decoder.u128();
+  const from = decoder.bounded(32);
+  const fromBalanceBefore = decoder.u128();
+  const fromBalanceAfter = decoder.u128();
+  const fromSequence = decoder.u64();
+  const to = decoder.bounded(32);
+  const toBalanceBefore = decoder.u128();
+  const toBalanceAfter = decoder.u128();
+  const transferSetRoot = decoder.bounded(32);
+  const authorizationHash = decoder.bounded(32);
+  const contextHash = decoder.bounded(32);
+  const timestamp = decoder.u64();
+  const signatureFlagOffset = decoder.position();
+  if (decoder.u8() !== 1) {
+    return verificationFailure();
+  }
+  const sequencerSignature = decoder.bounded(64);
+  decoder.finish();
+  return Object.freeze({
+    receipt: Object.freeze({
+      protocolVersion,
+      activityId,
+      globalSequence,
+      previousStateRoot,
+      resultingStateRoot,
+      activityRoot,
+      resultCode,
+      effects: Object.freeze(effects),
+      feeCharged,
+      batchId,
+      moduleId,
+      moduleVersion,
+      parameterVersion,
+      operation,
+      asset,
+      amount,
+      from,
+      fromBalanceBefore,
+      fromBalanceAfter,
+      fromSequence,
+      to,
+      toBalanceBefore,
+      toBalanceAfter,
+      transferSetRoot,
+      authorizationHash,
+      contextHash,
+      timestamp,
+      sequencerSignature,
+    }),
+    unsignedBytes: concatenate(canonicalReceipt.slice(0, signatureFlagOffset), new Uint8Array([0])),
+  });
+}
+
+export async function verifyReceiptOutcome(
+  canonicalReceipt: Uint8Array,
+  authorized: AuthorizedReceiptBatch,
+): Promise<ReceiptVerification> {
+  const { receipt, unsignedBytes } = decodeProtocolReceipt(canonicalReceipt);
+  if (
+    receipt.operation === 0
+    || allZero(receipt.activityId)
+    || allZero(receipt.asset)
+    || !equal(receipt.batchId, exactBytes(authorized.batchId, 32))
+    || !equal(receipt.asset, exactBytes(authorized.asset, 32))
+    || !equal(receipt.previousStateRoot, exactBytes(authorized.previousStateRoot, 32))
+    || !equal(receipt.resultingStateRoot, exactBytes(authorized.resultingStateRoot, 32))
+  ) {
+    return verificationFailure();
+  }
+  if (receipt.resultCode === 0) {
+    if (
+      receipt.fromBalanceBefore < receipt.amount
+      || receipt.fromBalanceBefore - receipt.amount !== receipt.fromBalanceAfter
+      || receipt.toBalanceBefore + receipt.amount > MAX_U128
+      || receipt.toBalanceBefore + receipt.amount !== receipt.toBalanceAfter
+    ) {
+      return verificationFailure();
+    }
+  }
+  const receiptDigest = await sha256(RECEIPT_DOMAIN, unsignedBytes);
+  if (!await verifyEd25519(
+    exactBytes(authorized.sequencerPublicKey, 32),
+    receipt.sequencerSignature,
+    receiptDigest,
+  )) {
+    return verificationFailure();
+  }
+  return Object.freeze({
+    level: "sequencer-signed",
+    receipt,
+    canonicalBytes: canonicalReceipt.slice(),
+    receiptDigest,
+  });
+}
+
+export async function verifyReceipt(
+  canonicalReceipt: Uint8Array,
+  authorized: AuthorizedReceiptBatch,
+): Promise<ReceiptVerification> {
+  const verified = await verifyReceiptOutcome(canonicalReceipt, authorized);
+  if (verified.receipt.resultCode !== 0) {
+    return verificationFailure();
+  }
+  return verified;
 }

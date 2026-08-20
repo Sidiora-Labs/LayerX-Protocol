@@ -57,6 +57,7 @@ from .production import (
 )
 from .stream import ResumableStream, StreamCursor, StreamEvent, StreamPage
 from .verifier import (
+    AuthorizedReceiptBatch,
     BatchHeader,
     CheckpointAttestation,
     CheckpointCertificate,
@@ -66,11 +67,16 @@ from .verifier import (
     InclusionVerification,
     LocalSignatureVerifier,
     MerkleProof,
+    ProtocolReceipt,
+    ReceiptEffect,
+    ReceiptVerification,
     SequencerAuthorization,
     decode_batch_header,
     verify_batch_inclusion,
     verify_checkpoint,
     verify_merkle_inclusion,
+    verify_receipt,
+    verify_receipt_outcome,
 )
 
 __all__ = [
@@ -132,6 +138,7 @@ __all__ = [
     "StreamPage",
     "platform_sdk_python",
     "BatchHeader",
+    "AuthorizedReceiptBatch",
     "CheckpointAttestation",
     "CheckpointCertificate",
     "CheckpointVerification",
@@ -140,9 +147,14 @@ __all__ = [
     "InclusionVerification",
     "LocalSignatureVerifier",
     "MerkleProof",
+    "ProtocolReceipt",
+    "ReceiptEffect",
+    "ReceiptVerification",
     "SequencerAuthorization",
     "decode_batch_header",
     "verify_batch_inclusion",
     "verify_checkpoint",
     "verify_merkle_inclusion",
+    "verify_receipt",
+    "verify_receipt_outcome",
 ]
