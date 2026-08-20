@@ -1,0 +1,15 @@
+[package]
+name = "layerx-fiat"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+layerx-interop-gateway.workspace = true
+layerx-proof.workspace = true
+sha2.workspace = true
+zeroize.workspace = true
+
+[lints]
+workspace = true

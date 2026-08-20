@@ -385,6 +385,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "layerx-fiat"
+version = "0.1.0"
+dependencies = [
+ "layerx-interop-gateway",
+ "layerx-proof",
+ "sha2",
+ "zeroize",
+]
+
+[[package]]
 name = "layerx-interop-gateway"
 version = "0.1.0"
 dependencies = [
