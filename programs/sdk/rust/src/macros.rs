@@ -7,6 +7,7 @@
 #[macro_export]
 macro_rules! program {
     ($handler:path) => {
+        #[allow(unsafe_code)]
         #[no_mangle]
         pub extern "C" fn layerx_main(input: i64) -> i64 {
             let handler: fn(i64) -> ::core::result::Result<i64, $crate::ProgramError> = $handler;
@@ -29,11 +30,13 @@ macro_rules! program {
 #[macro_export]
 macro_rules! callable {
     ($handler:path) => {
+        #[allow(unsafe_code)]
         #[no_mangle]
         pub extern "C" fn layerx_reserve(length: i32) -> i32 {
             $crate::entry::reserve_call_input(length)
         }
 
+        #[allow(unsafe_code)]
         #[no_mangle]
         pub extern "C" fn layerx_call(input_pointer: i32, input_length: i32) -> i32 {
             let handler: fn(

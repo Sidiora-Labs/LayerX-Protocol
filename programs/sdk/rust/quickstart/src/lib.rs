@@ -223,6 +223,7 @@ fn note_call(input_pointer: i32, input_length: i32) -> Result<i32, i32> {
 /// Records the fee, the asset it is denominated in and the account the
 /// settled fee is paid to, and zeroes the counter.
 #[allow(clippy::too_many_arguments)]
+#[allow(unsafe_code)]
 #[no_mangle]
 pub extern "C" fn configure(
     fee_high: i64,
@@ -254,6 +255,7 @@ pub extern "C" fn configure(
 }
 
 /// Returns the number of settlements the program has recorded.
+#[allow(unsafe_code)]
 #[no_mangle]
 pub extern "C" fn count() -> i64 {
     match load_counter() {
@@ -264,6 +266,7 @@ pub extern "C" fn count() -> i64 {
 
 /// Settles one verified receipt against the configured fee, advances the
 /// counter, pays the configured account and files the evidence.
+#[allow(unsafe_code)]
 #[no_mangle]
 pub extern "C" fn settle(
     digest_word0: i64,
@@ -279,6 +282,7 @@ pub extern "C" fn settle(
 
 /// Calls another program with a note, handing on only the storage-read and
 /// emit-event authority this program already holds.
+#[allow(unsafe_code)]
 #[no_mangle]
 pub extern "C" fn forward(
     callee_word0: i64,
@@ -294,6 +298,7 @@ pub extern "C" fn forward(
 }
 
 /// Clears the counter without disturbing the fee configuration.
+#[allow(unsafe_code)]
 #[no_mangle]
 pub extern "C" fn reset() -> i32 {
     match reset_counter() {
@@ -304,6 +309,7 @@ pub extern "C" fn reset() -> i32 {
 
 /// Canonical entrypoint: selector zero reads the counter, selector one
 /// clears it.
+#[allow(unsafe_code)]
 #[no_mangle]
 pub extern "C" fn layerx_main(selector: i64) -> i64 {
     match selector {
@@ -314,6 +320,7 @@ pub extern "C" fn layerx_main(selector: i64) -> i64 {
 }
 
 /// Reserves the bounded region a calling program writes its input into.
+#[allow(unsafe_code)]
 #[no_mangle]
 pub extern "C" fn layerx_reserve(length: i32) -> i32 {
     entry::reserve_call_input(length)
@@ -322,6 +329,7 @@ pub extern "C" fn layerx_reserve(length: i32) -> i32 {
 /// Callee half of [`forward`]. It holds only the storage-read and emit-event
 /// grants that call narrows to, so it files the caller's note as evidence
 /// without reaching for an authority it was not handed.
+#[allow(unsafe_code)]
 #[no_mangle]
 pub extern "C" fn layerx_call(input_pointer: i32, input_length: i32) -> i32 {
     match note_call(input_pointer, input_length) {
