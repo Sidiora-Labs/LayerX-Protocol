@@ -51,13 +51,22 @@ pub struct Chunk {
 
 /// A chunk whose metadata digest and inclusion path both passed.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedChunk(Chunk);
+pub struct VerifiedChunk {
+    chunk: Chunk,
+    data_availability_root: [u8; 32],
+}
 
 impl VerifiedChunk {
     /// Borrows the exact verified provider response.
     #[must_use]
     pub const fn chunk(&self) -> &Chunk {
-        &self.0
+        &self.chunk
+    }
+
+    /// Returns the availability root against which this exact chunk passed.
+    #[must_use]
+    pub const fn data_availability_root(&self) -> [u8; 32] {
+        self.data_availability_root
     }
 }
 
@@ -111,7 +120,7 @@ pub struct ClassReport {
 }
 
 fn class_report(chunks: &[VerifiedChunk]) -> ClassReport {
-    let obtained_set: BTreeSet<_> = chunks.iter().map(|chunk| chunk.0.class).collect();
+    let obtained_set: BTreeSet<_> = chunks.iter().map(|chunk| chunk.chunk.class).collect();
     let obtained = AvailabilityClass::ALL
         .into_iter()
         .filter(|class| obtained_set.contains(class))
@@ -221,16 +230,19 @@ pub fn verify_chunk(
             classes: no_classes(),
         }
     })?;
-    Ok(VerifiedChunk(chunk))
+    Ok(VerifiedChunk {
+        chunk,
+        data_availability_root: *data_availability_root,
+    })
 }
 
 fn all_served_bytes(chunks: &[VerifiedChunk]) -> Vec<u8> {
     let capacity = chunks.iter().fold(0_usize, |total, chunk| {
-        total.saturating_add(chunk.0.bytes.len())
+        total.saturating_add(chunk.chunk.bytes.len())
     });
     let mut bytes = Vec::with_capacity(capacity);
     for chunk in chunks {
-        bytes.extend_from_slice(&chunk.0.bytes);
+        bytes.extend_from_slice(&chunk.chunk.bytes);
     }
     bytes
 }
@@ -275,7 +287,10 @@ pub fn verify_reassembled(
     let classes = class_report(chunks);
     let served_bytes = all_served_bytes(chunks);
     for pair in chunks.windows(2) {
-        if pair[0].0.index >= pair[1].0.index || pair[0].0.batch_number != pair[1].0.batch_number {
+        if pair[0].chunk.index >= pair[1].chunk.index
+            || pair[0].chunk.batch_number != pair[1].chunk.batch_number
+            || pair[0].data_availability_root != pair[1].data_availability_root
+        {
             return Err(AvailabilityFailure {
                 check: AvailabilityCheck::ChunkOrder,
                 served_bytes,
@@ -286,8 +301,8 @@ pub fn verify_reassembled(
     }
     for class in AvailabilityClass::ALL {
         let mut expected_offset = 0_u64;
-        for chunk in chunks.iter().filter(|chunk| chunk.0.class == class) {
-            if chunk.0.class_offset != expected_offset {
+        for chunk in chunks.iter().filter(|chunk| chunk.chunk.class == class) {
+            if chunk.chunk.class_offset != expected_offset {
                 return Err(AvailabilityFailure {
                     check: AvailabilityCheck::ClassOffset,
                     served_bytes,
@@ -296,7 +311,7 @@ pub fn verify_reassembled(
                 });
             }
             expected_offset = expected_offset
-                .saturating_add(u64::try_from(chunk.0.bytes.len()).unwrap_or(u64::MAX));
+                .saturating_add(u64::try_from(chunk.chunk.bytes.len()).unwrap_or(u64::MAX));
         }
     }
     if !classes.missing.is_empty() {

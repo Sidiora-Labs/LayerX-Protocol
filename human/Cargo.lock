@@ -684,11 +684,13 @@ dependencies = [
 name = "layerx-explorer-index"
 version = "0.1.0"
 dependencies = [
+ "k256",
  "layerx-client",
  "layerx-crypto",
  "layerx-proof",
  "layerx-sdk",
  "layerx-types",
+ "sha2",
 ]
 
 [[package]]

@@ -1285,7 +1285,7 @@ status = "pending"
 
 [task.10.1]
 title = "Build the rebuildable explorer index"
-status = "in_progress"
+status = "done"
 wave = 5
 requires = ["1.1"]
 do_1 = "Implement layerx-explorer-index ingesting checkpoints, batches, receipts and events exclusively through the node boundary and availability retrieval."
@@ -1345,7 +1345,7 @@ reqs = ["14.5","22.3"]
 
 [task.10.5]
 title = "Serve explorer lookups and the verifier"
-status = "pending"
+status = "in_progress"
 wave = 5
 requires = ["10.1"]
 do_1 = "Serve checkpoint and batch browsing, receipt lookup by identifier and account activity views from the index."

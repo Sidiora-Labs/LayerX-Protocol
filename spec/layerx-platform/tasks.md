@@ -448,7 +448,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 5 - Evidence and Read Surfaces
 
 - [ ] 10. Build the explorer index and the activity surface
-  - [-] 10.1 Build the rebuildable explorer index
+  - [x] 10.1 Build the rebuildable explorer index
     - Implement layerx-explorer-index ingesting checkpoints, batches, receipts and events exclusively through the node boundary and availability retrieval.
     - Make the index rebuildable from those sources alone, proven by a delete-and-rebuild test that converges to identical query results.
     - Track and expose index freshness: the head and latest finalised checkpoint indexed.
@@ -476,7 +476,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Serve the user's own audit export through the same bundle machinery.
     - Test exports for size bounds, principal scoping and redaction.
     - _Requirements: 14.5, 22.3_
-  - [ ] 10.5 Serve explorer lookups and the verifier
+  - [-] 10.5 Serve explorer lookups and the verifier
     - Serve checkpoint and batch browsing, receipt lookup by identifier and account activity views from the index.
     - Implement the evidence verifier: pasted receipt or proof bytes verified with the plane's proof machinery, reporting the achieved verification level, never the index's opinion.
     - Show the verification level achieved for every displayed protocol fact.

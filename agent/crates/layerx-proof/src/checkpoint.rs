@@ -6,6 +6,7 @@ use layerx_crypto::secp256k1;
 use layerx_wire::hash::{checkpoint_attestation_digest, checkpoint_id as hash_checkpoint_id};
 use layerx_wire::receipt::{decode_batch_header, encode_batch_header};
 
+use crate::availability::RootCommitments;
 use crate::evidence::Evidence;
 use crate::level::achieved;
 
@@ -33,6 +34,13 @@ impl Checkpoint {
     #[must_use]
     pub fn header_bytes(&self) -> &[u8] {
         &self.header_bytes
+    }
+
+    /// Borrows the exact core-produced validity proof committed by the
+    /// checkpoint identifier.
+    #[must_use]
+    pub fn validity_proof(&self) -> &[u8] {
+        &self.validity_proof
     }
 }
 
@@ -183,6 +191,11 @@ pub struct ThresholdReport {
     evidence: Evidence,
     protocol_version: u16,
     network_id: u32,
+    batch_number: u64,
+    first_sequence: u64,
+    last_sequence: u64,
+    data_availability_root: [u8; 32],
+    record_roots: RootCommitments,
     resulting_state_root: [u8; 32],
 }
 
@@ -209,6 +222,36 @@ impl ThresholdReport {
     #[must_use]
     pub const fn network_id(&self) -> u32 {
         self.network_id
+    }
+
+    /// Returns the verified batch number committed by the checkpoint.
+    #[must_use]
+    pub const fn batch_number(&self) -> u64 {
+        self.batch_number
+    }
+
+    /// Returns the first global sequence committed by the checkpoint batch.
+    #[must_use]
+    pub const fn first_sequence(&self) -> u64 {
+        self.first_sequence
+    }
+
+    /// Returns the last global sequence committed by the checkpoint batch.
+    #[must_use]
+    pub const fn last_sequence(&self) -> u64 {
+        self.last_sequence
+    }
+
+    /// Returns the data-availability root verified as part of the checkpoint.
+    #[must_use]
+    pub const fn data_availability_root(&self) -> [u8; 32] {
+        self.data_availability_root
+    }
+
+    /// Returns the four record roots verified as part of the checkpoint.
+    #[must_use]
+    pub const fn record_roots(&self) -> RootCommitments {
+        self.record_roots
     }
 
     /// Returns the resulting state root from the verified canonical header.
@@ -320,6 +363,16 @@ pub fn verify_certificate(
         evidence: Evidence::checkpoint(identifier, settlement_reference),
         protocol_version: header.protocol_version(),
         network_id: header.network_id(),
+        batch_number: header.batch_number(),
+        first_sequence: header.first_sequence(),
+        last_sequence: header.last_sequence(),
+        data_availability_root: header.data_availability_root(),
+        record_roots: RootCommitments {
+            activity: header.activity_merkle_root(),
+            receipt: header.receipt_merkle_root(),
+            event: header.event_merkle_root(),
+            oracle: header.oracle_root(),
+        },
         resulting_state_root: header.resulting_state_root(),
     })
 }

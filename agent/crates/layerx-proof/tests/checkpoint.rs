@@ -111,6 +111,14 @@ fn reports_distinct_threshold_and_settlement_levels() {
     assert_eq!(finalised.required, 2);
     assert_eq!(finalised.protocol_version(), 1);
     assert_eq!(finalised.network_id(), 42);
+    assert_eq!(finalised.batch_number(), 8);
+    assert_eq!(finalised.first_sequence(), 11);
+    assert_eq!(finalised.last_sequence(), 19);
+    assert_eq!(finalised.data_availability_root(), [12; 32]);
+    assert_eq!(finalised.record_roots().activity, [9; 32]);
+    assert_eq!(finalised.record_roots().receipt, [10; 32]);
+    assert_eq!(finalised.record_roots().event, [11; 32]);
+    assert_eq!(finalised.record_roots().oracle, [13; 32]);
     assert_eq!(finalised.resulting_state_root(), [8; 32]);
     assert_eq!(finalised.level(), VerificationLevel::CHECKPOINT_FINALISED);
     assert_eq!(finalised.evidence().checkpoint_id(), Some(identifier));

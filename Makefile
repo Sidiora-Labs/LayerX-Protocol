@@ -1632,6 +1632,9 @@ human-test-journeys:
 		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test journey_faults; \
 	fi
 
+human-test-explorer:
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-explorer-index --test rebuild
+
 human-test-notify:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test notify
 

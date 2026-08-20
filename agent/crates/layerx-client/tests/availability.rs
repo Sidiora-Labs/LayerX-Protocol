@@ -276,6 +276,13 @@ fn corrupt_provider_is_isolated_and_complete_provider_wins() {
     assert_eq!(result.provider, "good");
     assert_eq!(result.chunks.len(), 5);
     assert_eq!(result.report.classes.obtained.len(), 5);
+    assert_eq!(result.batch_number(), 7);
+    assert_eq!(result.data_availability_root(), fixture.availability_root);
+    assert_eq!(result.record_roots(), fixture.record_roots);
+    assert_eq!(result.records().activities, vec![b"activity".to_vec()]);
+    assert_eq!(result.records().receipts, vec![b"receipt".to_vec()]);
+    assert_eq!(result.records().events, vec![b"event".to_vec()]);
+    assert_eq!(result.records().oracle_inputs, vec![b"oracle".to_vec()]);
     assert_eq!(progress[0], ("corrupt".to_owned(), 0));
     assert_eq!(
         progress.iter().filter(|(name, _)| name == "good").count(),

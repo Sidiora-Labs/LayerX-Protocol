@@ -157,6 +157,103 @@ pub struct AvailabilityResult {
     pub provider: String,
     pub chunks: Vec<VerifiedChunk>,
     pub report: ReassemblyReport,
+    records: AvailabilityRecords,
+    record_roots: RootCommitments,
+    batch_number: u64,
+    data_availability_root: [u8; 32],
+}
+
+impl AvailabilityResult {
+    /// Constructs a complete retrieval only after rechecking the record roots,
+    /// class completeness, chunk ordering, batch identity and availability-root
+    /// identity carried by the proof-gated chunks.
+    ///
+    /// # Errors
+    ///
+    /// Returns the exact availability verification failure for incomplete,
+    /// reordered, cross-batch, cross-root or record-root-mismatched material.
+    pub fn from_verified(
+        provider: String,
+        chunks: Vec<VerifiedChunk>,
+        records: AvailabilityRecords,
+        record_roots: RootCommitments,
+    ) -> Result<Self, AvailabilityFailure> {
+        let report = records.verify(&chunks, record_roots)?;
+        let first = chunks.first().ok_or_else(|| malformed(&chunks))?;
+        let batch_number = first.chunk().batch_number;
+        let data_availability_root = first.data_availability_root();
+        if chunks.iter().any(|chunk| {
+            chunk.chunk().batch_number != batch_number
+                || chunk.data_availability_root() != data_availability_root
+        }) {
+            return Err(malformed(&chunks));
+        }
+        Ok(Self {
+            provider,
+            chunks,
+            report,
+            records,
+            record_roots,
+            batch_number,
+            data_availability_root,
+        })
+    }
+
+    /// Returns the exact public record streams whose committed roots passed.
+    #[must_use]
+    pub const fn records(&self) -> &AvailabilityRecords {
+        &self.records
+    }
+
+    /// Returns the verified batch shared by every chunk.
+    #[must_use]
+    pub const fn batch_number(&self) -> u64 {
+        self.batch_number
+    }
+
+    /// Returns the verified root shared by every chunk proof.
+    #[must_use]
+    pub const fn data_availability_root(&self) -> [u8; 32] {
+        self.data_availability_root
+    }
+
+    /// Returns the four roots rechecked over the exposed record streams.
+    #[must_use]
+    pub const fn record_roots(&self) -> RootCommitments {
+        self.record_roots
+    }
+}
+
+/// Exact owned record streams recovered from a complete availability result.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AvailabilityRecords {
+    pub activities: Vec<Vec<u8>>,
+    pub receipts: Vec<Vec<u8>>,
+    pub events: Vec<Vec<u8>>,
+    pub oracle_inputs: Vec<Vec<u8>>,
+}
+
+impl AvailabilityRecords {
+    fn verify(
+        &self,
+        chunks: &[VerifiedChunk],
+        commitments: RootCommitments,
+    ) -> Result<ReassemblyReport, AvailabilityFailure> {
+        let activities: Vec<_> = self.activities.iter().map(Vec::as_slice).collect();
+        let receipts: Vec<_> = self.receipts.iter().map(Vec::as_slice).collect();
+        let events: Vec<_> = self.events.iter().map(Vec::as_slice).collect();
+        let oracle_inputs: Vec<_> = self.oracle_inputs.iter().map(Vec::as_slice).collect();
+        verify_reassembled(
+            chunks,
+            &ReassembledRecords {
+                activities: &activities,
+                receipts: &receipts,
+                events: &events,
+                oracle_inputs: &oracle_inputs,
+            },
+            commitments,
+        )
+    }
 }
 
 /// Complete single-provider result or all provider-attributed partials.
@@ -280,19 +377,23 @@ where
                         ProviderFailure::UnexpectedResponse,
                     ));
                 }
-                let sections = Sections::from_chunks(&chunks).map_err(|failure| {
+                let records = Sections::from_chunks(&chunks).map_err(|failure| {
                     report(provider, &chunks, ProviderFailure::Reassembly(failure))
-                })?;
-                let verified =
-                    sections
-                        .verify(&chunks, context.record_roots)
-                        .map_err(|failure| {
-                            report(provider, &chunks, ProviderFailure::Reassembly(failure))
-                        })?;
+                });
+                let records = records?.into_records();
+                let verified = records
+                    .verify(&chunks, context.record_roots)
+                    .map_err(|failure| {
+                        report(provider, &chunks, ProviderFailure::Reassembly(failure))
+                    })?;
                 return Ok(AvailabilityResult {
                     provider: provider.to_owned(),
                     chunks,
                     report: verified,
+                    records,
+                    record_roots: context.record_roots,
+                    batch_number: context.expected_batch_number,
+                    data_availability_root: context.data_availability_root,
                 });
             }
             _ => {
@@ -468,22 +569,13 @@ impl Sections {
         })
     }
 
-    fn verify(
-        &self,
-        chunks: &[VerifiedChunk],
-        commitments: RootCommitments,
-    ) -> Result<ReassemblyReport, AvailabilityFailure> {
-        let activities: Vec<_> = self.activities.iter().map(Vec::as_slice).collect();
-        let receipts: Vec<_> = self.receipts.iter().map(Vec::as_slice).collect();
-        let events: Vec<_> = self.events.iter().map(Vec::as_slice).collect();
-        let oracle_inputs: Vec<_> = self.oracle.iter().map(Vec::as_slice).collect();
-        let records = ReassembledRecords {
-            activities: &activities,
-            receipts: &receipts,
-            events: &events,
-            oracle_inputs: &oracle_inputs,
-        };
-        verify_reassembled(chunks, &records, commitments)
+    fn into_records(self) -> AvailabilityRecords {
+        AvailabilityRecords {
+            activities: self.activities,
+            receipts: self.receipts,
+            events: self.events,
+            oracle_inputs: self.oracle,
+        }
     }
 }
 
