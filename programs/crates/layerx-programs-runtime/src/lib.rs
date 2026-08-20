@@ -16,6 +16,8 @@ pub mod limits;
 #[deny(unsafe_code)]
 pub mod meter;
 #[deny(unsafe_code)]
+pub mod qualification;
+#[deny(unsafe_code)]
 pub mod storage;
 #[deny(unsafe_code)]
 pub mod test_support;
@@ -33,6 +35,10 @@ pub use lifecycle::{
 };
 pub use limits::{DeclaredLimit, LimitsRefusal, ValidationLimits};
 pub use meter::{FeeSchedule, Meter, MeterRefusal, MeteredUsage, ResourceBudget, ResourceKind};
+pub use qualification::{
+    programs_differential_gate, programs_fuzz_targets, replay_recorded_execution,
+    DifferentialMismatch, FuzzTarget, RecordedExecution, ReplayRefusal,
+};
 pub use storage::{PrincipalId, ProgramId, Storage, StorageError, StorageNamespace};
 pub use validate::{ValidatedModule, ValidationRefusal};
 

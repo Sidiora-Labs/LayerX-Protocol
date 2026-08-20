@@ -2323,7 +2323,8 @@ interop-lint:
 PROGRAMS_CARGO ?= cargo
 PROGRAMS_RUNTIME_LIB := programs/target/debug/liblayerx_programs_runtime.a
 
-.PHONY: programs-build programs-lint programs-test programs-core-test
+.PHONY: programs-build programs-lint programs-test programs-core-test \
+	programs-fuzz-smoke
 
 $(PROGRAMS_RUNTIME_LIB):
 	cd programs && $(PROGRAMS_CARGO) build --locked --workspace
@@ -2353,5 +2354,10 @@ programs-core-test: $(BUILD_DIR)/tests/programs_registration \
 	$(RUN_PREFIX) $(BUILD_DIR)/tests/programs_registration
 	$(RUN_PREFIX) $(BUILD_DIR)/tests/programs_lifecycle
 
-programs-test: programs-core-test
+programs-fuzz-smoke:
+	cd programs && $(PROGRAMS_CARGO) run --locked -p layerx-programs-fuzz --bin programs-fuzz -- validation fuzz/corpus/validation
+	cd programs && $(PROGRAMS_CARGO) run --locked -p layerx-programs-fuzz --bin programs-fuzz -- instantiation fuzz/corpus/instantiation
+	cd programs && $(PROGRAMS_CARGO) run --locked -p layerx-programs-fuzz --bin programs-fuzz -- execution fuzz/corpus/execution
+
+programs-test: programs-core-test programs-fuzz-smoke
 	cd programs && $(PROGRAMS_CARGO) test --locked --workspace

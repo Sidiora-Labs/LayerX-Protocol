@@ -21,6 +21,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e04e2fd2b8188ea827b32ef11de88377086d690286ab35747ef7f9bf3ccb590"
 
 [[package]]
+name = "layerx-programs-fuzz"
+version = "0.1.0"
+dependencies = [
+ "layerx-programs-runtime",
+]
+
+[[package]]
 name = "layerx-programs-registry"
 version = "0.1.0"
 dependencies = [

@@ -2,6 +2,7 @@
 members = [
     "crates/layerx-programs-registry",
     "crates/layerx-programs-runtime",
+    "fuzz",
 ]
 resolver = "2"
 

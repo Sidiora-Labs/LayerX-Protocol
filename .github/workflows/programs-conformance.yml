@@ -1,6 +1,8 @@
 name: Programs Conformance
 
 on:
+  schedule:
+    - cron: "23 3 * * *"
   push:
     branches: [main]
     paths:
@@ -20,6 +22,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  fuzz-smoke:
+    name: Bounded committed-corpus fuzz gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.91.1 --profile minimal --no-self-update
+      - name: Run validation instantiation and execution fuzz targets
+        run: make programs-fuzz-smoke PROGRAMS_CARGO="cargo +1.91.1"
+
   deterministic-execution:
     name: ${{ matrix.name }}
     strategy:

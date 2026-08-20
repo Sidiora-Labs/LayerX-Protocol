@@ -108,6 +108,20 @@ pub struct ValidatedModule {
 }
 
 impl ValidatedModule {
+    /// Instantiates the validated module for qualification without invoking it.
+    ///
+    /// # Errors
+    ///
+    /// Returns the typed engine fault if deterministic instantiation fails.
+    pub fn instantiate_for_qualification(&self) -> Result<(), crate::ExecutionFault> {
+        let meter = crate::Meter::new(
+            crate::ResourceBudget::declared(),
+            crate::FeeSchedule::declared(),
+        );
+        self.instantiate_metered(meter)
+            .map(|_| ())
+            .map_err(|(fault, _)| fault)
+    }
     /// Returns the byte size of the validated module.
     #[must_use]
     pub const fn byte_size(&self) -> u64 {

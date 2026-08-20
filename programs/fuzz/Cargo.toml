@@ -1,0 +1,17 @@
+[package]
+name = "layerx-programs-fuzz"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+layerx-programs-runtime = { path = "../crates/layerx-programs-runtime" }
+
+[[bin]]
+name = "programs-fuzz"
+path = "src/main.rs"
+
+[lints]
+workspace = true
