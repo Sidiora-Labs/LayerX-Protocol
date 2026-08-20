@@ -843,7 +843,7 @@ reqs = ["22.1","22.8"]
 
 [task.5.2]
 title = "Implement passkey authentication, sessions and step-up"
-status = "in_progress"
+status = "done"
 wave = 3
 requires = ["5.1"]
 do_1 = "Implement passkey registration and assertion as the primary credential with a fallback credential path that never weakens the passkey path."

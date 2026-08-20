@@ -238,7 +238,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Declare retention per store - journeys, notifications, audit, telemetry buffers - and enforce expiry that never deletes evidence referenced by an exportable audit entry.
     - Prove isolation adversarially with a suite attempting cross-principal reads and writes through every access path.
     - _Requirements: 22.1, 22.8_
-  - [-] 5.2 Implement passkey authentication, sessions and step-up
+  - [x] 5.2 Implement passkey authentication, sessions and step-up
     - Implement passkey registration and assertion as the primary credential with a fallback credential path that never weakens the passkey path.
     - Implement session issuance bound to the authenticated principal with anti-forgery protections for the browser client, expiry, refresh, per-session revocation including sign-out-everywhere, and per-principal request rate limiting with typed refusals carrying retry timing.
     - Implement step-up: a fresh passkey ceremony bound to a specific operation digest, with a validity window, required by the designated operation classes.

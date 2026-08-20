@@ -35,7 +35,10 @@ deny = [
     { name = "ctor", reason = "Process-wide initialisation is forbidden" },
     { name = "inventory", reason = "Process-wide registries are forbidden" },
 ]
-skip = []
+skip = [
+    { name = "getrandom", version = "=0.2.17" },
+    { name = "syn", version = "=2.0.119" },
+]
 skip-tree = []
 
 [sources]
