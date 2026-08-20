@@ -12,6 +12,7 @@ layerx-proof.workspace = true
 layerx-client.workspace = true
 layerx-sdk.workspace = true
 layerx-mirror.workspace = true
+layerx-programs.workspace = true
 sha2.workspace = true
 
 [dev-dependencies]

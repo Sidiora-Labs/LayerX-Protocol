@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/layerx-programs-registry",
     "crates/layerx-programs-runtime",
 ]
 resolver = "2"
@@ -11,6 +12,7 @@ version = "0.1.0"
 license = "LicenseRef-Centra-ai-Protocol"
 
 [workspace.dependencies]
+sha2 = "=0.10.9"
 wasmi = "=0.31.2"
 wasmparser-nostd = "=0.100.2"
 
