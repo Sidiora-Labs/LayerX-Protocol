@@ -1066,6 +1066,11 @@ $(BUILD_DIR)/tests/test_receipt_offline: tests/test_receipt_offline.c \
 test-receipt-offline: $(BUILD_DIR)/tests/test_receipt_offline
 	$(RUN_PREFIX) $(BUILD_DIR)/tests/test_receipt_offline
 
+$(BUILD_DIR)/tests/explorer_fixture: tests/explorer_fixture.c $(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) \
+		$(EXTRA_LDFLAGS) -lcrypto -pthread -o $@
+
 LAYERXD_SOURCES = \
 	cmd/layerxd/lxp_daemon_main.c \
 	cmd/layerxd/lxp_daemon_config.c \
@@ -1639,8 +1644,10 @@ human-test-journeys:
 		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test deposit; \
 	fi
 
-human-test-explorer:
-	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-explorer-index --test rebuild
+human-test-explorer: $(BUILD_DIR)/tests/explorer_fixture
+	LAYERX_EXPLORER_CORE_FIXTURE=$(abspath $<) \
+		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked \
+		-p layerx-explorer-index
 
 human-test-notify:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test notify

@@ -1062,7 +1062,7 @@ reqs = ["10.1","10.2","10.6"]
 
 [task.7.4]
 title = "Implement the withdrawal and claim journey"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["7.2","6.3"]
 do_1 = "Implement the withdrawal journey: receipt-verified debit first, checkpoint wait with configured expectation, claim readiness, wallet claim stage and payout verification."
@@ -1345,7 +1345,7 @@ reqs = ["14.5","22.3"]
 
 [task.10.5]
 title = "Serve explorer lookups and the verifier"
-status = "in_progress"
+status = "done"
 wave = 5
 requires = ["10.1"]
 do_1 = "Serve checkpoint and batch browsing, receipt lookup by identifier and account activity views from the index."

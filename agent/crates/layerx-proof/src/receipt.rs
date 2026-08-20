@@ -145,6 +145,11 @@ pub fn verify(
 
 /// Verifies a full sequencer-signed receipt while preserving either its
 /// successful or rejected protocol result exactly.
+///
+/// # Errors
+///
+/// Returns the exact canonical, invariant, root-chain, or signature check that
+/// failed. No partial verified value is returned.
 pub fn verify_outcome(
     receipt_bytes: &[u8],
     authorised: &AuthorizedBatch,

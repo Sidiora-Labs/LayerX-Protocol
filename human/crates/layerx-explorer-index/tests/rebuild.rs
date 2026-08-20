@@ -1,7 +1,8 @@
 use k256::ecdsa::{signature::hazmat::PrehashSigner as _, Signature, SigningKey};
 use layerx_client::availability::{AvailabilityRecords, AvailabilityResult};
 use layerx_client::head::Head;
-use layerx_explorer_index::{IndexError, Indexer, IngestOutcome};
+use layerx_explorer_index::verify::Verifier;
+use layerx_explorer_index::{IndexError, Indexer, IngestOutcome, QueryError};
 use layerx_proof::availability::{
     verify_chunk, AvailabilityClass, Chunk, RootCommitments, VerifiedChunk,
 };
@@ -261,6 +262,42 @@ fn deleting_and_rebuilding_from_verified_boundary_evidence_is_identical() {
         .unwrap_or_else(|| panic!("rebuilt receipt missing"));
     assert_eq!(receipt.canonical_bytes, b"receipt-public-1");
     assert!(rebuilt.batch(8).freshness.is_current());
+
+    let verifier = Verifier::new(Vec::new(), Vec::new());
+    let public = rebuilt.public(&verifier);
+    let checkpoints = public
+        .checkpoints(None, 10)
+        .unwrap_or_else(|failure| panic!("checkpoint browse failed: {failure:?}"));
+    assert_eq!(checkpoints.value.items.len(), 1);
+    assert_eq!(checkpoints.value.items[0].checkpoint_id, checkpoint_id);
+    assert_eq!(
+        checkpoints.value.items[0].verification_level,
+        VerificationLevel::CHECKPOINT_FINALISED
+    );
+    assert!(checkpoints.freshness.is_current());
+    let batches = public
+        .batches(None, 10)
+        .unwrap_or_else(|failure| panic!("batch browse failed: {failure:?}"));
+    assert_eq!(batches.value.items.len(), 1);
+    assert_eq!(batches.value.items[0].batch_number, 8);
+    assert_eq!(
+        batches.value.items[0].verification_level,
+        VerificationLevel::CHECKPOINT_FINALISED
+    );
+    assert!(batches.freshness.is_current());
+    let Err(invalid) = public.batches(None, 0) else {
+        panic!("zero-sized public page unexpectedly succeeded");
+    };
+    assert_eq!(invalid.error, QueryError::InvalidPageSize);
+    assert!(invalid.freshness.is_current());
+    let Err(incomplete) = public.account_activity([5; 32], None, 10) else {
+        panic!("unverified account index unexpectedly answered");
+    };
+    assert_eq!(
+        incomplete.error,
+        QueryError::AccountIndexIncomplete { batch: 8 }
+    );
+    assert!(incomplete.freshness.is_current());
 }
 
 #[test]

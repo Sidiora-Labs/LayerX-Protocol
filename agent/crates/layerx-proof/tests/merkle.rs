@@ -1,5 +1,6 @@
 use layerx_proof::merkle::{
-    build_proof, leaf_hash, node_hash, root, verify_path, MerkleError, Proof,
+    build_proof, decode_proof, encode_proof, leaf_hash, node_hash, root, verify_path, MerkleError,
+    Proof,
 };
 
 fn decode_hex(value: &str) -> [u8; 32] {
@@ -96,4 +97,24 @@ fn rejects_false_odd_promotion_sibling() {
         verify_path(b"c", &changed, &expected),
         Err(MerkleError::PromotionSibling { level: 0 })
     );
+}
+
+#[test]
+fn public_proof_codec_is_canonical_and_bounded() {
+    let leaves: [&[u8]; 3] = [b"a", b"b", b"c"];
+    let (proof, _) = build_proof(&leaves, 1)
+        .unwrap_or_else(|error| panic!("proof construction failed: {error:?}"));
+    let encoded = encode_proof(&proof);
+    assert_eq!(decode_proof(&encoded), Ok(proof));
+
+    let mut unknown_version = encoded.clone();
+    unknown_version[0] = 2;
+    assert_eq!(decode_proof(&unknown_version), Err(MerkleError::Encoding));
+    assert_eq!(
+        decode_proof(&encoded[..encoded.len() - 1]),
+        Err(MerkleError::Encoding)
+    );
+    let mut trailing = encoded;
+    trailing.push(0);
+    assert_eq!(decode_proof(&trailing), Err(MerkleError::Encoding));
 }

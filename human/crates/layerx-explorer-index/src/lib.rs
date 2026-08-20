@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 
 mod freshness;
+mod query;
+pub mod verify;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -10,10 +12,12 @@ use layerx_proof::availability::RootCommitments;
 use layerx_proof::checkpoint::{
     verify_certificate, Certificate, CheckpointError, GuarantorKey,
 };
+use layerx_proof::receipt::{verify_outcome, AuthorizedBatch, ReceiptCheck};
 use layerx_types::verify::VerificationLevel;
 use sha2::{Digest as _, Sha256};
 
 pub use freshness::{Freshness, Indexed};
+pub use query::{Page, PublicExplorer, QueryError, QueryFailure, VerificationFailure};
 
 /// Stable identity of the rebuildable public projection.
 pub const CRATE_IDENTITY: &str = "layerx-explorer-index";
@@ -25,6 +29,12 @@ const RECORD_DOMAIN: &[u8] = b"layerx-explorer-record/v1\0";
 pub struct RecordId([u8; 32]);
 
 impl RecordId {
+    /// Reconstructs a public record identifier from its exact link bytes.
+    #[must_use]
+    pub const fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
     #[must_use]
     pub const fn bytes(self) -> [u8; 32] {
         self.0
@@ -81,6 +91,24 @@ pub struct BatchRecord {
     pub verification_level: VerificationLevel,
 }
 
+/// One account-affecting fact decoded only after its canonical receipt and
+/// independent sequencer authority pass `layerx-proof`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AccountActivityRecord {
+    pub receipt_id: RecordId,
+    pub receipt_digest: [u8; 32],
+    pub batch_number: u64,
+    pub global_sequence: u64,
+    pub activity_id: [u8; 32],
+    pub operation: u8,
+    pub result_code: i32,
+    pub asset: [u8; 32],
+    pub amount: u128,
+    pub from: [u8; 32],
+    pub to: [u8; 32],
+    pub verification_level: VerificationLevel,
+}
+
 /// Deterministic query image used by rebuild and replica convergence checks.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IndexSnapshot {
@@ -89,6 +117,8 @@ pub struct IndexSnapshot {
     pub batches: Vec<BatchRecord>,
     pub receipts: Vec<PublicRecord>,
     pub events: Vec<PublicRecord>,
+    pub account_activities: Vec<AccountActivityRecord>,
+    pub receipt_authority_batches: Vec<u64>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -111,6 +141,13 @@ pub enum IndexError {
     ConflictingBatch { batch: u64 },
     AvailabilityCheckpointMismatch { batch: u64 },
     ReplayedPublicRecord { id: RecordId },
+    ReplayedProtocolReceipt {
+        identifier: [u8; 32],
+    },
+    ReceiptVerification {
+        id: RecordId,
+        check: ReceiptCheck,
+    },
     RecordCountOverflow,
 }
 
@@ -121,7 +158,10 @@ pub struct Indexer {
     checkpoints_by_batch: BTreeMap<u64, [u8; 32]>,
     batches: BTreeMap<u64, BatchRecord>,
     receipts: BTreeMap<RecordId, PublicRecord>,
+    receipts_by_protocol_id: BTreeMap<[u8; 32], RecordId>,
     events: BTreeMap<RecordId, PublicRecord>,
+    account_activities: BTreeMap<RecordId, AccountActivityRecord>,
+    receipt_authority_batches: BTreeSet<u64>,
 }
 
 impl Indexer {
@@ -134,7 +174,10 @@ impl Indexer {
             checkpoints_by_batch: BTreeMap::new(),
             batches: BTreeMap::new(),
             receipts: BTreeMap::new(),
+            receipts_by_protocol_id: BTreeMap::new(),
             events: BTreeMap::new(),
+            account_activities: BTreeMap::new(),
+            receipt_authority_batches: BTreeSet::new(),
         }
     }
 
@@ -254,10 +297,9 @@ impl Indexer {
                 });
             }
         }
-        let level = checkpoint.map_or(
-            VerificationLevel::BATCH_INCLUDED,
-            |record| record.verification_level,
-        );
+        let level = checkpoint.map_or(VerificationLevel::UNVERIFIED, |record| {
+            record.verification_level
+        });
         let records = result.records();
         let activity_ids = record_ids(b"activity", &records.activities);
         let receipt_ids = record_ids(b"receipt", &records.receipts);
@@ -302,6 +344,112 @@ impl Indexer {
                 .map(|record| (record.id, record)),
         );
         self.batches.insert(batch_number, batch);
+        Ok(IngestOutcome::Inserted)
+    }
+
+    /// Verifies every canonical receipt in one indexed batch against
+    /// independently supplied core batch authority, then materialises the
+    /// protocol-public account activity view atomically.
+    ///
+    /// # Errors
+    ///
+    /// Refuses an unknown batch or the first receipt check that fails. No
+    /// account activity row or completeness marker is inserted on failure.
+    pub fn ingest_receipt_authority(
+        &mut self,
+        batch_number: u64,
+        authorised: &AuthorizedBatch,
+    ) -> Result<IngestOutcome, IndexError> {
+        let batch = self
+            .batches
+            .get(&batch_number)
+            .ok_or(IndexError::ConflictingBatch {
+                batch: batch_number,
+            })?;
+        let mut staged = Vec::with_capacity(batch.receipt_ids.len());
+        for identifier in &batch.receipt_ids {
+            let record = self
+                .receipts
+                .get(identifier)
+                .ok_or(IndexError::ReplayedPublicRecord { id: *identifier })?;
+            let verified =
+                verify_outcome(&record.canonical_bytes, authorised).map_err(|failure| {
+                    IndexError::ReceiptVerification {
+                        id: *identifier,
+                        check: failure.check,
+                    }
+                })?;
+            let receipt = verified
+                .receipt()
+                .protocol()
+                .ok_or(IndexError::ReceiptVerification {
+                    id: *identifier,
+                    check: ReceiptCheck::ReceiptShape,
+                })?;
+            let receipt_digest =
+                verified
+                    .evidence()
+                    .receipt_digest()
+                    .ok_or(IndexError::ReceiptVerification {
+                        id: *identifier,
+                        check: ReceiptCheck::ReceiptShape,
+                    })?;
+            let verification_level =
+                if record.verification_level >= VerificationLevel::CHECKPOINT_FINALISED {
+                    record.verification_level
+                } else {
+                    verified.level()
+                };
+            staged.push(AccountActivityRecord {
+                receipt_id: *identifier,
+                receipt_digest,
+                batch_number,
+                global_sequence: receipt.global_sequence(),
+                activity_id: receipt.activity_id(),
+                operation: receipt.operation(),
+                result_code: receipt.result_code(),
+                asset: receipt.asset(),
+                amount: receipt.amount(),
+                from: receipt.from(),
+                to: receipt.to(),
+                verification_level,
+            });
+        }
+        if self.receipt_authority_batches.contains(&batch_number) {
+            let mut existing = self
+                .account_activities
+                .values()
+                .filter(|record| record.batch_number == batch_number)
+                .cloned()
+                .collect::<Vec<_>>();
+            existing.sort_by_key(|record| record.receipt_id);
+            staged.sort_by_key(|record| record.receipt_id);
+            return if existing == staged {
+                Ok(IngestOutcome::AlreadyPresent)
+            } else {
+                Err(IndexError::ConflictingBatch {
+                    batch: batch_number,
+                })
+            };
+        }
+        let mut protocol_ids = BTreeMap::new();
+        for record in &staged {
+            for lookup in [record.activity_id, record.receipt_digest] {
+                let existing = self
+                    .receipts_by_protocol_id
+                    .get(&lookup)
+                    .copied()
+                    .or_else(|| protocol_ids.get(&lookup).copied());
+                if existing.is_some_and(|identifier| identifier != record.receipt_id) {
+                    return Err(IndexError::ReplayedProtocolReceipt { identifier: lookup });
+                }
+                protocol_ids.insert(lookup, record.receipt_id);
+            }
+        }
+        self.receipts_by_protocol_id.extend(protocol_ids);
+        self.account_activities
+            .extend(staged.into_iter().map(|record| (record.receipt_id, record)));
+        self.receipt_authority_batches.insert(batch_number);
         Ok(IngestOutcome::Inserted)
     }
 
@@ -361,6 +509,8 @@ impl Indexer {
             batches: self.batches.values().cloned().collect(),
             receipts: self.receipts.values().cloned().collect(),
             events: self.events.values().cloned().collect(),
+            account_activities: self.account_activities.values().cloned().collect(),
+            receipt_authority_batches: self.receipt_authority_batches.iter().copied().collect(),
         }
     }
 
@@ -390,6 +540,13 @@ impl Indexer {
             if let Some(record) = self.events.get_mut(identifier) {
                 record.verification_level = checkpoint.verification_level;
             }
+        }
+        for record in self
+            .account_activities
+            .values_mut()
+            .filter(|record| record.batch_number == checkpoint.batch_number)
+        {
+            record.verification_level = checkpoint.verification_level;
         }
     }
 }

@@ -342,7 +342,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Notify on completion and failure with a deep link to the journey.
     - Test the full deposit end to end against the test network and a real core, including crash-resume at every stage.
     - _Requirements: 10.1, 10.2, 10.6_
-  - [ ] 7.4 Implement the withdrawal and claim journey
+  - [-] 7.4 Implement the withdrawal and claim journey
     - Implement the withdrawal journey: receipt-verified debit first, checkpoint wait with configured expectation, claim readiness, wallet claim stage and payout verification.
     - State irreversibility at review: a committed withdrawal completes, it does not cancel.
     - Surface challenge-window holds and post-challenge cancellation honestly through the journey states.
@@ -476,7 +476,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Serve the user's own audit export through the same bundle machinery.
     - Test exports for size bounds, principal scoping and redaction.
     - _Requirements: 14.5, 22.3_
-  - [-] 10.5 Serve explorer lookups and the verifier
+  - [x] 10.5 Serve explorer lookups and the verifier
     - Serve checkpoint and batch browsing, receipt lookup by identifier and account activity views from the index.
     - Implement the evidence verifier: pasted receipt or proof bytes verified with the plane's proof machinery, reporting the achieved verification level, never the index's opinion.
     - Show the verification level achieved for every displayed protocol fact.

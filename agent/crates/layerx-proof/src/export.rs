@@ -104,6 +104,11 @@ pub enum ExportVerificationError {
 }
 
 /// Re-runs every proof using only the export object and `layerx-proof`.
+///
+/// # Errors
+///
+/// Returns the first malformed statement, failed receipt, inclusion,
+/// checkpoint, or aggregate-consistency check.
 pub fn verify(export: &OfflineExport) -> Result<VerificationReport, ExportVerificationError> {
     let mut receipt_digests = Vec::with_capacity(export.receipts.len());
     let mut achieved_levels = Vec::new();

@@ -4,6 +4,8 @@ use layerx_wire::hash::{merkle_internal, merkle_leaf};
 
 /// Maximum proof depth published by the C17 protocol implementation.
 pub const MAX_DEPTH: usize = 32;
+const PROOF_VERSION: u8 = 1;
+const PROOF_PREFIX_BYTES: usize = 10;
 
 /// One canonical index-aware Merkle proof.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -70,6 +72,8 @@ impl Proof {
 /// Exact failure class for Merkle construction or verification.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MerkleError {
+    /// Canonical proof bytes had an unknown version, wrong length or trailing data.
+    Encoding,
     /// Inclusion proofs cannot target an empty tree.
     EmptyTree,
     /// The proof index lies outside the committed tree.
@@ -84,6 +88,49 @@ pub enum MerkleError {
     TreeTooLarge,
     /// Domain-separated hashing rejected the input length.
     Hash,
+}
+
+/// Encodes one proof into the bounded canonical representation used by public
+/// evidence exchange.
+#[must_use]
+pub fn encode_proof(proof: &Proof) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(
+        PROOF_PREFIX_BYTES.saturating_add(proof.siblings.len().saturating_mul(32)),
+    );
+    bytes.push(PROOF_VERSION);
+    bytes.extend_from_slice(&proof.leaf_index.to_be_bytes());
+    bytes.extend_from_slice(&proof.leaf_count.to_be_bytes());
+    bytes.push(u8::try_from(proof.siblings.len()).unwrap_or(u8::MAX));
+    for sibling in &proof.siblings {
+        bytes.extend_from_slice(sibling);
+    }
+    bytes
+}
+
+/// Decodes the bounded canonical public proof representation.
+///
+/// # Errors
+///
+/// Refuses unknown versions, excessive paths, structural mismatches, truncated
+/// fields and trailing bytes.
+pub fn decode_proof(bytes: &[u8]) -> Result<Proof, MerkleError> {
+    if bytes.len() < PROOF_PREFIX_BYTES || bytes[0] != PROOF_VERSION {
+        return Err(MerkleError::Encoding);
+    }
+    let leaf_index = u32::from_be_bytes(bytes[1..5].try_into().map_err(|_| MerkleError::Encoding)?);
+    let leaf_count = u32::from_be_bytes(bytes[5..9].try_into().map_err(|_| MerkleError::Encoding)?);
+    let sibling_count = usize::from(bytes[9]);
+    let expected = PROOF_PREFIX_BYTES
+        .checked_add(sibling_count.checked_mul(32).ok_or(MerkleError::Encoding)?)
+        .ok_or(MerkleError::Encoding)?;
+    if sibling_count > MAX_DEPTH || bytes.len() != expected {
+        return Err(MerkleError::Encoding);
+    }
+    let mut siblings = Vec::with_capacity(sibling_count);
+    for chunk in bytes[PROOF_PREFIX_BYTES..].chunks_exact(32) {
+        siblings.push(chunk.try_into().map_err(|_| MerkleError::Encoding)?);
+    }
+    Proof::new(leaf_index, leaf_count, siblings)
 }
 
 fn proof_depth(mut count: u32) -> usize {
