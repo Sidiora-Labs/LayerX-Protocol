@@ -29,13 +29,39 @@ fn place(root: &Path, relative: &str, contents: &str) {
 
 fn repo_fixture(label: &str) -> PathBuf {
     let root = directory(label);
-    place(&root, "agent/schema/agent-api/v1.kvx", "[schema]\nversion = \"1\"\n");
+    place(&root, "agent/schema/agent-api/v1.kvx", "[schema]\nincludes = [\"errors.kvx\",\"approval.kvx\",\"stream.kvx\"]\n\n[scalar.Amount]\nrust = \"u128\"\n");
+    place(&root, "agent/schema/agent-api/errors.kvx", "[operation.agent.register]\nrequest = \"Register\"\nresponse = \"Registered\"\n\n[mutation.agent.register]\nenvelope = \"IdempotentMutation\"\n\n[type.ErrorClass]\nvariants = [\"TransportFailure\"]\n\n[type.Retriability]\nvariants = [\"Terminal\"]\n");
+    place(
+        &root,
+        "agent/schema/agent-api/approval.kvx",
+        "[type.ApprovalLifecycleEvent]\nvariants = [\"Created\"]\n\n[type.ApprovalState]\nvariants = [\"Held\"]\n\n[type.ApprovalDecisionOutcome]\nvariants = [\"Granted\"]\n",
+    );
+    place(
+        &root,
+        "agent/schema/agent-api/stream.kvx",
+        "[type.Delivery]\nvariants = [\"Event\"]\n",
+    );
     place(
         &root,
         "agent/schema/agent-api/golden/version-request.hex",
         "00ff\n",
     );
-    place(&root, "human/schema/human-api/v1.kvx", "[schema]\nversion = \"1\"\n");
+    place(&root, "human/schema/human-api/v1.kvx", "[schema]\nincludes = [\"errors.kvx\",\"journeys.kvx\",\"stream.kvx\"]\n\n[operation.version]\nmethod = \"GET\"\npath = \"/v1/version\"\nrequest = \"Empty\"\nresponse = \"VersionInfo\"\n");
+    place(
+        &root,
+        "human/schema/human-api/errors.kvx",
+        "[type.ErrorCode]\nvariants = [\"unavailable\"]\n\n[type.Retriability]\nvariants = [\"retriable\"]\n",
+    );
+    place(
+        &root,
+        "human/schema/human-api/journeys.kvx",
+        "[type.JourneyKind]\nvariants = [\"onboarding\"]\n\n[type.JourneyState]\nvariants = [\"processing\"]\n\n[type.VerificationLevel]\nvariants = [\"unverified\"]\n\n[type.ApprovalState]\nvariants = [\"pending\"]\n",
+    );
+    place(
+        &root,
+        "human/schema/human-api/stream.kvx",
+        "[type.StreamEventKind]\nvariants = [\"journey-progress\"]\n",
+    );
     place(
         &root,
         "human/schema/human-api/golden/account.create.request.json",
@@ -126,7 +152,11 @@ fn missing_lock_fails_the_gate() {
 fn schema_edit_fails_the_gate_as_stale() {
     let root = repo_fixture("stale-schema");
     generate(&root);
-    place(&root, "agent/schema/agent-api/v1.kvx", "[schema]\nversion = \"2\"\n");
+    place(
+        &root,
+        "agent/schema/agent-api/v1.kvx",
+        "[schema]\nversion = \"2\"\n",
+    );
     expect_failure(&root, "stale generated SDKs: schema agent-api");
     cleanup(&root);
 }

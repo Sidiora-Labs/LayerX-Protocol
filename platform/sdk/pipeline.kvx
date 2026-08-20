@@ -1,14 +1,14 @@
 [pipeline]
 sources = ["agent-api", "human-api"]
-outputs = ["agent-typescript", "agent-python", "agent-compatibility", "human-typescript"]
+outputs = ["agent-typescript", "agent-python", "agent-compatibility", "human-typescript", "platform-go"]
 
 [source.agent-api]
 root = "agent/schema/agent-api"
-digest = "377a88a8e521f735b78daf700b6a823134a8dba22267ea9b086eb4db8d452ec3"
+digest = "f6a35f783071efd1664be305734e912a6f4848c60b53e17a58fca4d4c6f830d2"
 
 [source.human-api]
 root = "human/schema/human-api"
-digest = "2e04dceb6ed82b63c423f788b77d35ff4dfd300e6ae1223cc067f68d91fa63cc"
+digest = "d935692ed90007b83f529c64037882f78cc6982c473b123ce5398add9371b33e"
 
 [output.agent-typescript]
 language = "typescript"
@@ -41,4 +41,11 @@ root = "human/apps/web/src/api/generated"
 
 [files.human-typescript]
 "conformance.ts" = "f78951a7832ecbae5da6afa778854442fe073acbf9ccc534083d778a34735e56"
-"index.ts" = "0d83e57db9067d0e92fb82b4e203bf62931d40075122dc4a55f75f9933ef7800"
+"index.ts" = "f423750ead1db1fdc6ac9b07749fdbdad0c65a7baffd7ea3ccfff6b720270a3d"
+
+[output.platform-go]
+language = "go"
+root = "platform/sdk/go"
+
+[files.platform-go]
+"generated.go" = "10d9b335f7e06d7baa00e4320c3a6f274d733d7dce1c544d336cc0b7d0a6cfd5"

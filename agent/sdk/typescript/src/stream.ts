@@ -46,16 +46,25 @@ export class ResumableStream<T> {
     }
     let expected = this.#cursor;
     const accepted: StreamEvent<T>[] = [];
+    const pageEventIds = new Set<string>();
     for (const event of page.events) {
-      if (event.eventId.length === 0 || event.previousCursor !== expected || this.#seen.has(event.eventId)) {
+      if (
+        event.eventId.length === 0
+        || event.previousCursor !== expected
+        || this.#seen.has(event.eventId)
+        || pageEventIds.has(event.eventId)
+      ) {
         throw new PlatformSdkError({ code: "decode-failure", retry: "never" });
       }
-      this.#seen.add(event.eventId);
+      pageEventIds.add(event.eventId);
       accepted.push(event);
       expected = event.cursor;
     }
     if (page.nextCursor !== expected) {
       throw new PlatformSdkError({ code: "decode-failure", retry: "never" });
+    }
+    for (const eventId of pageEventIds) {
+      this.#seen.add(eventId);
     }
     this.#cursor = page.nextCursor;
     return Object.freeze(accepted);

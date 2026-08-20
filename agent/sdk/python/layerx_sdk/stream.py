@@ -45,14 +45,21 @@ class ResumableStream(Generic[T]):
             raise PlatformSdkError(SdkErrorCode.DECODE_FAILURE, "never")
         expected = self._cursor
         accepted: list[StreamEvent[T]] = []
+        page_event_ids: set[str] = set()
         for event in page.events:
-            if not event.event_id or event.previous_cursor != expected or event.event_id in self._seen:
+            if (
+                not event.event_id
+                or event.previous_cursor != expected
+                or event.event_id in self._seen
+                or event.event_id in page_event_ids
+            ):
                 raise PlatformSdkError(SdkErrorCode.DECODE_FAILURE, "never")
-            self._seen.add(event.event_id)
+            page_event_ids.add(event.event_id)
             accepted.append(event)
             expected = event.cursor
         if page.next_cursor != expected:
             raise PlatformSdkError(SdkErrorCode.DECODE_FAILURE, "never")
+        self._seen.update(page_event_ids)
         self._cursor = page.next_cursor
         return tuple(accepted)
 
