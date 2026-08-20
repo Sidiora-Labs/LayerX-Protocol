@@ -386,7 +386,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Show the receipt-backed result on the agent and in activity.
     - Test reclaim through each mechanism against a real agent layer.
     - _Requirements: 12.5, 9.1_
-  - [-] 8.4 Implement agent rotation and recovery
+  - [x] 8.4 Implement agent rotation and recovery
     - Implement agent key rotation and recovery under the human's recovery authority through the protocol mechanism, with the challenge delay in plain time.
     - Keep agent identity and history continuous across rotation.
     - Handle a competing rotation during an open challenge window exactly as the protocol does, surfaced honestly.

@@ -1156,7 +1156,7 @@ reqs = ["12.5","9.1"]
 
 [task.8.4]
 title = "Implement agent rotation and recovery"
-status = "in_progress"
+status = "done"
 wave = 4
 requires = ["8.1"]
 do_1 = "Implement agent key rotation and recovery under the human's recovery authority through the protocol mechanism, with the challenge delay in plain time."
