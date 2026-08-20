@@ -158,11 +158,7 @@ fn is_kit_source(web_root: &Path, path: &Path) -> bool {
 }
 
 fn line_number(source: &str, offset: usize) -> usize {
-    source.as_bytes()[..offset]
-        .iter()
-        .filter(|byte| **byte == b'\n')
-        .count()
-        + 1
+    source[..offset].split('\n').count()
 }
 
 fn is_layerx_ui_specifier(specifier: &str) -> bool {

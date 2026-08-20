@@ -14,7 +14,9 @@ export const PATTERN_PAIRS = [
   "notifications",
 ] as const;
 
-export const kit = Object.freeze({ patterns: PATTERN_PAIRS });
+export function kit(): Readonly<{ patterns: typeof PATTERN_PAIRS }> {
+  return Object.freeze({ patterns: PATTERN_PAIRS });
+}
 
 export const STATUS_PRESENTATIONS = Object.freeze({
   getting_ready: { copyKey: "status.getting_ready", tone: "neutral" },

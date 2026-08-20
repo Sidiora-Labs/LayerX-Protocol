@@ -494,7 +494,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Make deep links resolve to the equivalent screen in whichever shell is active.
     - Test selection across device profiles, resize, and server-client capability mismatch.
     - _Requirements: 16.4, 16.5, 16.7, 21.7_
-  - [ ] 11.2 Build the component kit in both shells
+  - [x] 11.2 Build the component kit in both shells
     - Implement the pattern-pair kit: navigation, primary action, confirmation, detail, filters, money lists, wizards, search, code entry and notifications, each with an explicit mobile and desktop component sharing one logic layer.
     - Implement the money primitives: signed worded amounts in tabular numerals, label-over-value, status pills from the translation table, copyable identifiers, and the numbered fee-math disclosure that walks a charge from inputs to total.
     - Implement the confirmation grammar - reversible, destructive, irreversible with typed confirmation - such that the wrong grammar is unrepresentable through the kit.

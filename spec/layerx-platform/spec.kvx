@@ -1380,7 +1380,7 @@ reqs = ["16.4","16.5","16.7","21.7"]
 
 [task.11.2]
 title = "Build the component kit in both shells"
-status = "pending"
+status = "done"
 wave = 6
 requires = ["11.1"]
 do_1 = "Implement the pattern-pair kit: navigation, primary action, confirmation, detail, filters, money lists, wizards, search, code entry and notifications, each with an explicit mobile and desktop component sharing one logic layer."
