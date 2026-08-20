@@ -1,0 +1,29 @@
+{
+  "name": "@sidiora/layerx-seller-middleware",
+  "version": "0.1.0",
+  "description": "Receipt-gated LayerX x402 seller middleware",
+  "type": "module",
+  "private": false,
+  "license": "SEE LICENSE IN LICENSE",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@sidiora/layerx-sdk": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

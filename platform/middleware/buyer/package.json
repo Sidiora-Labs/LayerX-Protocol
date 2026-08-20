@@ -1,0 +1,30 @@
+{
+  "name": "@sidiora/layerx-buyer-middleware",
+  "version": "0.1.0",
+  "description": "Receipt-verifying LayerX x402 buyer middleware",
+  "type": "module",
+  "private": false,
+  "license": "SEE LICENSE IN LICENSE",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@sidiora/layerx-sdk": "0.1.0",
+    "@sidiora/layerx-seller-middleware": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
