@@ -15,6 +15,8 @@ export {
 } from "./a11y";
 export {
   statusPresentation,
+  statusKeyFromCopyKey,
+  verificationWord,
   directionWord,
   confirmationVariant,
   typedConfirmationReady,
@@ -25,6 +27,7 @@ export {
   type ProtocolAmount,
   type StatusKey,
   type StatusTone,
+  type VerificationKey,
 } from "./model";
 export {
   KitButton,
@@ -109,3 +112,23 @@ export {
 } from "./explorer";
 export { TextField, type TextFieldProps } from "./field";
 export { DeviceSessionList, type DeviceListItem } from "./device-list";
+export {
+  ActionGrid,
+  BalanceSummary,
+  CountBadge,
+  KitIconTile,
+  KitList,
+  KitListItem,
+  KitOptionList,
+  KitSectionHeader,
+  KitTextField,
+  KitViewAllChip,
+  formatRecency,
+  type ActionGridIcon,
+  type ActionGridItem,
+  type ActionGridProps,
+  type BalanceSummaryProps,
+  type CountBadgeProps,
+  type KitTextFieldProps,
+  type OptionListItem,
+} from "./display";

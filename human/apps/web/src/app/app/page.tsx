@@ -1,12 +1,5 @@
-import { copyEntry } from "../../../copy/catalog";
-import { ScreenCard } from "../../kit";
+import { Home } from "../../journeys/home/home";
 
 export default function AppPlanePage() {
-  return (
-    <ScreenCard
-      landmark="section"
-      title={copyEntry("navigation.home").message}
-      description={copyEntry("app.home.summary").message}
-    />
-  );
+  return <Home />;
 }

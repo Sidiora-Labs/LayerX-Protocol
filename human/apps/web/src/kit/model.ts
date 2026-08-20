@@ -35,8 +35,16 @@ export const STATUS_PRESENTATIONS = Object.freeze({
   paid_out: { copyKey: "status.paid_out", tone: "success" },
 } as const);
 
+export const VERIFICATION_PRESENTATIONS = Object.freeze({
+  unverified: { copyKey: "verification.unverified" },
+  "receipt-verified": { copyKey: "verification.receipt_verified" },
+  "checkpoint-finalised": { copyKey: "verification.checkpoint_finalised" },
+  "paxeer-finalised": { copyKey: "verification.paxeer_finalised" },
+} as const);
+
 export type StatusKey = keyof typeof STATUS_PRESENTATIONS;
 export type StatusTone = (typeof STATUS_PRESENTATIONS)[StatusKey]["tone"];
+export type VerificationKey = keyof typeof VERIFICATION_PRESENTATIONS;
 export type MoneyDirection = "inbound" | "outbound" | "other";
 export type ConfirmationKind = "reversible" | "destructive" | "irreversible";
 declare const protocolAmountBrand: unique symbol;
@@ -55,6 +63,18 @@ export function statusPresentation(status: StatusKey): Readonly<{ label: string;
     label: copyEntry(presentation.copyKey).message,
     tone: presentation.tone,
   });
+}
+
+export function statusKeyFromCopyKey(copyKey: string): StatusKey {
+  const key = copyKey.replace(/^status\./u, "").replaceAll("-", "_");
+  if (!Object.hasOwn(STATUS_PRESENTATIONS, key)) {
+    throw new Error(`Unknown status copy key: ${copyKey}`);
+  }
+  return key as StatusKey;
+}
+
+export function verificationWord(verification: VerificationKey): string {
+  return copyEntry(VERIFICATION_PRESENTATIONS[verification].copyKey).message;
 }
 
 export function directionWord(direction: MoneyDirection): string {

@@ -78,12 +78,14 @@ export interface StillCheckingSurfaceProps {
   readonly lookupOutcome: () => Promise<"pending" | "resolved">;
   readonly onResolved: () => void;
   readonly pollIntervalMs?: number;
+  readonly children?: ReactNode;
 }
 
 export function StillCheckingSurface({
   lookupOutcome,
   onResolved,
   pollIntervalMs = 3_000,
+  children,
 }: StillCheckingSurfaceProps) {
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +124,7 @@ export function StillCheckingSurface({
       busy
       role="status"
     >
+      {children}
       <KitButton disabled disabledReason={copyEntry("state.still_checking.locked").message}>
         {copyEntry("action.send_again").message}
       </KitButton>

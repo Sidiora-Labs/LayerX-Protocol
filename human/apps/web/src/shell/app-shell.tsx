@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { copyEntry } from "../../copy/catalog";
 import {
@@ -29,6 +29,16 @@ const DESTINATIONS: Readonly<Record<(typeof NAVIGATION)[number]["id"], string>> 
   activity: "/app/activity",
   more: "/app/settings",
 };
+
+const ShellSelectionContext = createContext<ShellSelection | undefined>(undefined);
+
+export function useShellSelection(): ShellSelection {
+  const selection = useContext(ShellSelectionContext);
+  if (selection === undefined) {
+    throw new Error("useShellSelection requires the authenticated shell");
+  }
+  return selection;
+}
 
 function pointerCapability(): PointerCapability {
   if (window.matchMedia("(pointer: coarse)").matches) {
@@ -145,7 +155,7 @@ export function AuthenticatedShell({
         }}
         title={copyEntry(`navigation.${activeNavigation(pathname)}`).message}
       >
-        {children}
+        <ShellSelectionContext.Provider value={selection}>{children}</ShellSelectionContext.Provider>
       </Navigation>
     </div>
   );
