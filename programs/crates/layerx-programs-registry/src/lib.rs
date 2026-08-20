@@ -1,11 +1,14 @@
 #![forbid(unsafe_code)]
 
+mod hash;
+
 use core::fmt::{self, Display};
 use std::collections::BTreeMap;
 
 use layerx_programs_runtime::{DeploymentReceipt, ProgramVersion};
 pub use layerx_programs_runtime::{ProgramId, UpgradePolicy};
-use sha2::{Digest, Sha256};
+
+use hash::sha256;
 
 const TEXT_LIMIT: usize = 512;
 const COMMAND_LIMIT: usize = 32;
@@ -424,10 +427,6 @@ fn environment_hash(environment: &BuildEnvironment) -> [u8; 32] {
         bytes.extend_from_slice(part.as_bytes());
     }
     sha256(&bytes)
-}
-
-fn sha256(bytes: &[u8]) -> [u8; 32] {
-    Sha256::digest(bytes).into()
 }
 
 #[must_use]

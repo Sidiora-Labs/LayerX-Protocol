@@ -10,7 +10,6 @@ name = "layerx_programs"
 
 [dependencies]
 layerx-programs-runtime = { path = "../layerx-programs-runtime" }
-sha2.workspace = true
 
 [lints]
 workspace = true
