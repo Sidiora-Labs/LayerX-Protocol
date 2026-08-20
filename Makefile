@@ -2318,8 +2318,12 @@ interop-lint:
 	cargo deny --manifest-path $(INTEROP_MANIFEST) check advisories bans sources
 
 PROGRAMS_CARGO ?= cargo
+PROGRAMS_RUNTIME_LIB := programs/target/debug/liblayerx_programs_runtime.a
 
 .PHONY: programs-build programs-lint programs-test programs-core-test
+
+$(PROGRAMS_RUNTIME_LIB):
+	cd programs && $(PROGRAMS_CARGO) build --locked --workspace
 
 programs-build:
 	cd programs && $(PROGRAMS_CARGO) build --locked --workspace
@@ -2330,13 +2334,21 @@ programs-lint:
 	cd programs && $(PROGRAMS_CARGO) deny check advisories bans sources
 
 $(BUILD_DIR)/tests/programs_registration: tests/programs/test_registration.c \
-		$(LIBRARY)
+		$(LIBRARY) $(PROGRAMS_RUNTIME_LIB)
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
-		-lcrypto -pthread -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(PROGRAMS_RUNTIME_LIB) \
+		$(EXTRA_LDFLAGS) -lcrypto -pthread -ldl -lm -o $@
 
-programs-core-test: $(BUILD_DIR)/tests/programs_registration
+$(BUILD_DIR)/tests/programs_lifecycle: tests/programs/test_lifecycle.c \
+		$(LIBRARY) $(PROGRAMS_RUNTIME_LIB)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(PROGRAMS_RUNTIME_LIB) \
+		$(EXTRA_LDFLAGS) -lcrypto -pthread -ldl -lm -o $@
+
+programs-core-test: $(BUILD_DIR)/tests/programs_registration \
+		$(BUILD_DIR)/tests/programs_lifecycle
 	$(RUN_PREFIX) $(BUILD_DIR)/tests/programs_registration
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/programs_lifecycle
 
 programs-test: programs-core-test
 	cd programs && $(PROGRAMS_CARGO) test --locked --workspace

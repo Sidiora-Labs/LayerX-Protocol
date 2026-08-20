@@ -1,19 +1,35 @@
 //! Deterministic WASM runtime foundation for `LayerX` guest programs.
 
+#[deny(unsafe_code)]
 pub mod abi;
+#[deny(unsafe_code)]
 pub mod engine;
+#[deny(unsafe_code)]
 pub mod execute;
+mod ffi;
+#[deny(unsafe_code)]
 mod host;
+#[deny(unsafe_code)]
+pub mod lifecycle;
+#[deny(unsafe_code)]
 pub mod limits;
+#[deny(unsafe_code)]
 pub mod meter;
+#[deny(unsafe_code)]
 pub mod storage;
+#[deny(unsafe_code)]
 pub mod test_support;
+#[deny(unsafe_code)]
 pub mod validate;
 
 pub use engine::{EngineRefusal, WasmEngine};
 pub use execute::{
     AuthorizedExecutionRecord, AuthorizedExecutionRequest, ExecutionError, ExecutionFault,
     ExecutionRecord, Executor, ProgramInstance, WasmValue, ABI_VERSION, RUNTIME_VERSION,
+};
+pub use lifecycle::{
+    CodeHash, Deploy, DeploymentReceipt, DiagnosticArtifact, Lifecycle, LifecycleRefusal,
+    Migration, ProgramVersion, Upgrade, UpgradePolicy,
 };
 pub use limits::{DeclaredLimit, LimitsRefusal, ValidationLimits};
 pub use meter::{FeeSchedule, Meter, MeterRefusal, MeteredUsage, ResourceBudget, ResourceKind};

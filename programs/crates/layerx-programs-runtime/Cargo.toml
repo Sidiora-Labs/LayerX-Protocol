@@ -5,9 +5,20 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+crate-type = ["rlib", "staticlib"]
+
 [dependencies]
 wasmi.workspace = true
 wasmparser-nostd.workspace = true
 
-[lints]
-workspace = true
+[lints.rust]
+unsafe_code = "allow"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+float_arithmetic = "deny"
+lossy_float_literal = "deny"
