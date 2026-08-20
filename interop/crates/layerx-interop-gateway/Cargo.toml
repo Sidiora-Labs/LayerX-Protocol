@@ -1,0 +1,17 @@
+[package]
+name = "layerx-interop-gateway"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+layerx-proof.workspace = true
+
+[dev-dependencies]
+ed25519-dalek.workspace = true
+layerx-types.workspace = true
+sha2.workspace = true
+
+[lints]
+workspace = true

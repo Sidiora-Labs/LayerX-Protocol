@@ -918,7 +918,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 11 - The Interoperability Gateway
 
 - [ ] 22. Build the gateway and the x402 v2 adapter
-  - [-] 22.1 Establish the interop workspace and the gateway core
+  - [x] 22.1 Establish the interop workspace and the gateway core
     - Create interop/ with the gateway service and adapter crates, plus the interop-build, interop-lint and interop-test make targets under the workspace policy gates.
     - Build the gateway core: adapter registration, principal isolation, idempotency, typed errors, redaction, audit and trace propagation exactly as the human service enforces them.
     - Enforce the edge-only rule: adapters translate, hold no protocol authority, and terminate every state-changing translation in a receipt-verified LayerX operation.
@@ -989,7 +989,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 12 - The Multichain Surface
 
 - [ ] 25. Publish and verify batch mirrors
-  - [ ] 25.1 Build the mirror publisher
+  - [-] 25.1 Build the mirror publisher
     - Build the mirror publisher anchoring batch commitments to Ethereum and Solana with batch data retrievable per mirror, fed exclusively through the node boundary.
     - Publish as pure archives: no vault, portal or custody semantics of any kind on the mirror chains.
     - Track and expose per-mirror freshness - latest batch and checkpoint mirrored - with lag stated honestly.

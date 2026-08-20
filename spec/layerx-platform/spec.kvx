@@ -2267,7 +2267,7 @@ status = "pending"
 
 [task.22.1]
 title = "Establish the interop workspace and the gateway core"
-status = "in_progress"
+status = "done"
 wave = 11
 do_1 = "Create interop/ with the gateway service and adapter crates, plus the interop-build, interop-lint and interop-test make targets under the workspace policy gates."
 do_2 = "Build the gateway core: adapter registration, principal isolation, idempotency, typed errors, redaction, audit and trace propagation exactly as the human service enforces them."
@@ -2414,7 +2414,7 @@ status = "pending"
 
 [task.25.1]
 title = "Build the mirror publisher"
-status = "pending"
+status = "in_progress"
 wave = 12
 requires = ["10.1"]
 do_1 = "Build the mirror publisher anchoring batch commitments to Ethereum and Solana with batch data retrievable per mirror, fed exclusively through the node boundary."
