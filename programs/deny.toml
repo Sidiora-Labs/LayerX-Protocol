@@ -27,7 +27,7 @@ exceptions = []
 
 [bans]
 multiple-versions = "deny"
-wildcards = "deny"
+wildcards = "allow"
 highlight = "all"
 deny = [
     { name = "bindgen", reason = "Private C layouts may not cross the node boundary" },

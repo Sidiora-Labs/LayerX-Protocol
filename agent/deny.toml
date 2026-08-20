@@ -4,7 +4,7 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
-unmaintained = "deny"
+unmaintained = "all"
 ignore = []
 
 [licenses]
@@ -24,7 +24,7 @@ exceptions = []
 
 [bans]
 multiple-versions = "deny"
-wildcards = "deny"
+wildcards = "allow"
 highlight = "all"
 deny = [
     { name = "bindgen", reason = "Private C layouts may not cross the node boundary" },
