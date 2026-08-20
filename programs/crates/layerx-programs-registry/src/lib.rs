@@ -1,6 +1,11 @@
 #![forbid(unsafe_code)]
 
+mod deprecate;
 mod hash;
+
+pub use deprecate::{
+    Deprecation, DeprecationRefusal, DeprecationRequest, ValueAccount, WindDownView,
+};
 
 use core::fmt::{self, Display};
 use std::collections::BTreeMap;
@@ -322,6 +327,12 @@ impl Registry {
             .entries
             .get_mut(&request.program)
             .ok_or(RegistryError::UnknownProgram)?;
+        if !matches!(
+            entry.upgrade_policy,
+            UpgradePolicy::Authority(expected) if expected == request.authority
+        ) {
+            return Err(RegistryError::InvalidLifecycleTransition);
+        }
         if entry.lifecycle != request.expected {
             return Err(RegistryError::LifecycleConflict);
         }
