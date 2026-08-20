@@ -487,7 +487,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 6 - The Application Foundation
 
 - [ ] 11. Build the application foundation: planes, shells and state machinery
-  - [ ] 11.1 Build the two planes and SSR-safe shell selection
+  - [x] 11.1 Build the two planes and SSR-safe shell selection
     - Structure the application into the public /explorer plane and the authenticated /app plane with their routing, authentication boundary and layout roots, a strict content security policy with pinned asset origins, and no third-party scripts on authenticated surfaces, enforced by a CI check.
     - Implement shell selection from viewport and pointer capability hints at server render, confirmed on the client, correcting a mismatch without layout thrash or a flash of the wrong shell.
     - Never select on user-agent strings alone, and give tablets the desktop layout with touch-sized targets.

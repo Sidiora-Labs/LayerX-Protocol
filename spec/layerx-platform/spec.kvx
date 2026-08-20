@@ -1365,7 +1365,7 @@ status = "pending"
 
 [task.11.1]
 title = "Build the two planes and SSR-safe shell selection"
-status = "pending"
+status = "done"
 wave = 6
 requires = ["1.4","4.6"]
 do_1 = "Structure the application into the public /explorer plane and the authenticated /app plane with their routing, authentication boundary and layout roots, a strict content security policy with pinned asset origins, and no third-party scripts on authenticated surfaces, enforced by a CI check."
