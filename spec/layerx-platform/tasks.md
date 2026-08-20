@@ -328,14 +328,14 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Property-test resolver determinism and totality: equivalent requests choose identical routes, and an unservable route returns a typed unavailable refusal with no partial attempt.
     - Surface policy, budget, capability and protocol refusals with which limit refused and where it can be changed.
     - _Requirements: 9.1, 9.2, 9.9_
-  - [-] 7.2 Implement the durable journey engine
+  - [x] 7.2 Implement the durable journey engine
     - Implement the journey engine: durable state machines whose legs run intent compilation, disclosure verification, custody signing and agent-layer submission, verifying each leg's receipt before the next leg starts.
     - Persist every transition so a service restart resumes every in-flight journey without duplicating any leg, under the idempotency keys the contract requires.
     - Implement still-checking: an unknown leg pauses the journey, resolves only by receipt lookup, and never re-submits an undetermined leg.
     - Emit journey progress on the streaming surface and to the notification service at stage boundaries.
     - Prove exactly-once economic effect per leg with a fault-injection suite crashing at every stage against a real agent layer.
     - _Requirements: 9.4, 9.5, 9.6_
-  - [ ] 7.3 Implement the deposit journey
+  - [-] 7.3 Implement the deposit journey
     - Implement the deposit journey: binding check, wallet signature stage, custody finality tracking, proof construction, credit submission and credit-receipt verification, as one resumable journey.
     - Keep the in-flight amount out of every balance presentation until the credit receipt verifies, exposing it as in-flight.
     - Map each stage's failure to its typed state - wallet rejected, custody failed, reorg displaced, finality stalled, credit refused - with stall reported as delay carrying a revised expectation.

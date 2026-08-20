@@ -1032,7 +1032,7 @@ reqs = ["9.1","9.2","9.9"]
 
 [task.7.2]
 title = "Implement the durable journey engine"
-status = "in_progress"
+status = "done"
 wave = 4
 requires = ["5.1","5.3"]
 do_1 = "Implement the journey engine: durable state machines whose legs run intent compilation, disclosure verification, custody signing and agent-layer submission, verifying each leg's receipt before the next leg starts."
@@ -1047,7 +1047,7 @@ reqs = ["9.4","9.5","9.6"]
 
 [task.7.3]
 title = "Implement the deposit journey"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["7.2","6.2"]
 do_1 = "Implement the deposit journey: binding check, wallet signature stage, custody finality tracking, proof construction, credit submission and credit-receipt verification, as one resumable journey."

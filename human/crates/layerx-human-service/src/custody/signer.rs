@@ -8,7 +8,7 @@ use layerx_types::payload::ModuleRegistry;
 use crate::audit::{
     AuditChain, AuditEvent, Decision, SigningOperation, StepUpEvidence as AuditStepUpEvidence,
 };
-use crate::store::{PrincipalId, PrincipalStore, RowKey, Table};
+use crate::store::{PrincipalId, PrincipalScope, PrincipalStore, RowKey, Table};
 use crate::trace::TraceId;
 
 use super::{CustodyError, KeyId, Keystore};
@@ -368,6 +368,77 @@ impl CustodySigner {
         })
     }
 
+    /// Signs through the same KMS and disclosure gate while recording rate,
+    /// step-up and audit state in an already-open principal scope. Journey
+    /// engines use this form so a subsequent journey write cannot overwrite a
+    /// signing audit appended through a second stale store handle.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same typed refusals as [`Self::sign`] and additionally
+    /// refuses a request whose principal differs from the supplied scope.
+    pub async fn sign_in_scope(
+        &self,
+        scope: &mut PrincipalScope<'_>,
+        request: SignRequest<'_>,
+    ) -> Result<SignatureGrant, CustodyError> {
+        if scope.principal() != request.principal {
+            return Err(CustodyError::InvalidEvidence);
+        }
+        let Ok(disclosure_digest) = request.disclosure.audit_digest() else {
+            let error = CustodyError::Sign(layerx_crypto::signer::SignError::InvalidDisclosure);
+            append_decision_to_scope(scope, &request, None, Some(&error))?;
+            return Err(error);
+        };
+        if let Err(error) = validate_step_up(&request, &disclosure_digest) {
+            append_decision_to_scope(scope, &request, Some(disclosure_digest), Some(&error))?;
+            return Err(error);
+        }
+        if let Some(evidence) = request
+            .step_up
+            .filter(|_| request.operation.requires_step_up())
+        {
+            if let Err(error) = consume_step_up_in_scope(scope, evidence, request.now) {
+                append_decision_to_scope(scope, &request, Some(disclosure_digest), Some(&error))?;
+                return Err(error);
+            }
+        }
+        if let Err(error) = consume_rate_in_scope(scope, self.limits, request.now) {
+            append_decision_to_scope(scope, &request, Some(disclosure_digest), Some(&error))?;
+            return Err(error);
+        }
+
+        let (signer, _class) = match self.keystore.unseal_signer(request.principal, request.key) {
+            Ok(signer) => signer,
+            Err(error) => {
+                append_decision_to_scope(scope, &request, Some(disclosure_digest), Some(&error))?;
+                return Err(error);
+            }
+        };
+        let signer_public_key = signer.public_key();
+        let signature = match sign_disclosed(
+            &signer,
+            request.canonical_bytes,
+            request.disclosure,
+            &self.registry,
+        )
+        .await
+        {
+            Ok(signature) => *signature.as_bytes(),
+            Err(error) => {
+                let error = CustodyError::Sign(error);
+                append_decision_to_scope(scope, &request, Some(disclosure_digest), Some(&error))?;
+                return Err(error);
+            }
+        };
+        append_decision_to_scope(scope, &request, Some(disclosure_digest), None)?;
+        Ok(SignatureGrant {
+            signature,
+            signer_public_key,
+            disclosure_digest,
+        })
+    }
+
     fn store(&self) -> Result<MutexGuard<'_, PrincipalStore>, CustodyError> {
         self.store
             .lock()
@@ -466,6 +537,94 @@ impl CustodySigner {
             .map(|_| ())
             .map_err(CustodyError::Audit)
     }
+}
+
+fn consume_rate_in_scope(
+    scope: &mut PrincipalScope<'_>,
+    limits: SigningLimits,
+    now: u64,
+) -> Result<(), CustodyError> {
+    let key = RowKey::new(RATE_KEY).map_err(CustodyError::Store)?;
+    let mut state = match scope.get(Table::Cache, &key) {
+        Some(row) => RateState::decode(row.bytes())?,
+        None => RateState {
+            window_start: now,
+            attempts: 0,
+        },
+    };
+    if now < state.window_start {
+        return Err(CustodyError::NonMonotonicTime);
+    }
+    let retry_at = state.window_start.saturating_add(limits.window);
+    if now >= retry_at {
+        state = RateState {
+            window_start: now,
+            attempts: 0,
+        };
+    } else if state.attempts >= limits.maximum {
+        return Err(CustodyError::ThroughputExceeded { retry_at });
+    }
+    state.attempts = state
+        .attempts
+        .checked_add(1)
+        .ok_or(CustodyError::CorruptState("signing attempt count overflow"))?;
+    scope
+        .put(Table::Cache, key, now, state.encode().to_vec())
+        .map_err(CustodyError::Store)
+}
+
+fn consume_step_up_in_scope(
+    scope: &mut PrincipalScope<'_>,
+    evidence: &StepUpEvidence,
+    now: u64,
+) -> Result<(), CustodyError> {
+    let key = RowKey::new(format!("{STEP_UP_KEY_PREFIX}{}", evidence.evidence_id))
+        .map_err(CustodyError::Store)?;
+    if scope.get(Table::Cache, &key).is_some() {
+        return Err(CustodyError::StepUpReplayed);
+    }
+    let bytes = format!(
+        "version=1\noperation={}\ndisclosure_digest={}\nvalid_from={}\nexpires_at={}\n",
+        evidence.operation.label(),
+        hex(evidence.disclosure_digest),
+        evidence.valid_from,
+        evidence.expires_at,
+    )
+    .into_bytes();
+    scope
+        .put(Table::Cache, key, now, bytes)
+        .map_err(CustodyError::Store)
+}
+
+fn append_decision_to_scope(
+    scope: &mut PrincipalScope<'_>,
+    request: &SignRequest<'_>,
+    disclosure_digest: Option<[u8; 32]>,
+    refusal: Option<&CustodyError>,
+) -> Result<(), CustodyError> {
+    let digest = disclosure_digest.unwrap_or([0; 32]);
+    let step_up = match request.step_up {
+        Some(evidence) => AuditStepUpEvidence::Fresh {
+            ceremony_digest: ceremony_digest(evidence)?,
+        },
+        None if request.operation.requires_step_up() => AuditStepUpEvidence::Missing,
+        None => AuditStepUpEvidence::NotRequired,
+    };
+    let event = AuditEvent::SigningDecision {
+        operation: signing_operation(request),
+        disclosure_digest: digest,
+        step_up,
+        outcome: if refusal.is_some() {
+            Decision::Refused
+        } else {
+            Decision::Granted
+        },
+    };
+    let mut chain = AuditChain::open(scope).map_err(CustodyError::Audit)?;
+    chain
+        .append(scope, request.now, request.trace, &event, &[])
+        .map(|_| ())
+        .map_err(CustodyError::Audit)
 }
 
 impl Debug for CustodySigner {
