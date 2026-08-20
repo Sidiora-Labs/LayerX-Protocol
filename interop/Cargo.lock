@@ -405,6 +405,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "layerx-migrate"
+version = "0.1.0"
+dependencies = [
+ "layerx-interop-gateway",
+ "layerx-proof",
+ "sha2",
+]
+
+[[package]]
 name = "layerx-proof"
 version = "0.1.0"
 dependencies = [

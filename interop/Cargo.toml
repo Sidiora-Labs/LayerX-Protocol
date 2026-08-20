@@ -2,6 +2,7 @@
 members = [
     "crates/layerx-interop-gateway",
     "crates/layerx-fiat",
+    "crates/layerx-migrate",
     "crates/layerx-x402",
 ]
 resolver = "2"
