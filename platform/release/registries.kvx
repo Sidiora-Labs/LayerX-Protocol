@@ -1,0 +1,67 @@
+[release]
+registries = ["crates-io", "npm", "pypi", "go-modules", "maven-central", "swiftpm", "nuget"]
+tag_format = "sdk-v{version}"
+source_digest = "git-archive-sha256"
+
+[registry.crates-io]
+ecosystem = "rust"
+artifact = "crate"
+distribution = "https://crates.io"
+signing = "sigstore-keyless"
+provenance = "github-actions-attestation"
+verification = "byte-compare-against-tagged-source"
+status = "skeleton"
+
+[registry.npm]
+ecosystem = "typescript"
+artifact = "npm-package"
+distribution = "https://registry.npmjs.org"
+signing = "sigstore-keyless"
+provenance = "npm-provenance-attestation"
+verification = "byte-compare-against-tagged-source"
+status = "skeleton"
+
+[registry.pypi]
+ecosystem = "python"
+artifact = "sdist-and-wheel"
+distribution = "https://pypi.org"
+signing = "sigstore-keyless"
+provenance = "pypi-trusted-publisher-attestation"
+verification = "byte-compare-against-tagged-source"
+status = "skeleton"
+
+[registry.go-modules]
+ecosystem = "go"
+artifact = "module-zip"
+distribution = "https://proxy.golang.org"
+signing = "git-tag-signature"
+provenance = "go-checksum-database"
+verification = "byte-compare-against-tagged-source"
+status = "skeleton"
+
+[registry.maven-central]
+ecosystem = "jvm"
+artifact = "jar-and-pom"
+distribution = "https://repo1.maven.org/maven2"
+signing = "pgp-detached-signature"
+provenance = "github-actions-attestation"
+verification = "byte-compare-against-tagged-source"
+status = "skeleton"
+
+[registry.swiftpm]
+ecosystem = "swift"
+artifact = "git-tag"
+distribution = "https://github.com"
+signing = "git-tag-signature"
+provenance = "github-actions-attestation"
+verification = "byte-compare-against-tagged-source"
+status = "skeleton"
+
+[registry.nuget]
+ecosystem = "dotnet"
+artifact = "nupkg"
+distribution = "https://www.nuget.org"
+signing = "nuget-repository-signature"
+provenance = "github-actions-attestation"
+verification = "byte-compare-against-tagged-source"
+status = "skeleton"

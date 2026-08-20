@@ -1,0 +1,44 @@
+[pipeline]
+sources = ["agent-api", "human-api"]
+outputs = ["agent-typescript", "agent-python", "agent-compatibility", "human-typescript"]
+
+[source.agent-api]
+root = "agent/schema/agent-api"
+digest = "377a88a8e521f735b78daf700b6a823134a8dba22267ea9b086eb4db8d452ec3"
+
+[source.human-api]
+root = "human/schema/human-api"
+digest = "2e04dceb6ed82b63c423f788b77d35ff4dfd300e6ae1223cc067f68d91fa63cc"
+
+[output.agent-typescript]
+language = "typescript"
+root = "agent/sdk/typescript/src/generated"
+
+[files.agent-typescript]
+"client.ts" = "f3ba2684e5162dd5b4b3eb87fe63161cfbe470f06597c9394db7a24fa268be87"
+"guarantees.md" = "16a010803f8a34b36a0101965f577d7884c6f05b6d5713054fb33e50ab9fff86"
+
+[output.agent-python]
+language = "python"
+root = "agent/sdk/python/layerx_sdk/generated"
+
+[files.agent-python]
+"__init__.py" = "77443a167e387bbc057cb69b0ce071a5c2750cf296945ba71980d40663bee210"
+"client.py" = "00d6f58e618b1951c4688c7b49d6a88917362efed15d4db013243ac019230f9a"
+"client.pyi" = "276de41062e640a03c1d073e31f832ad5f0661ef5da7756d26883ec2ca81ca35"
+"guarantees.md" = "16a010803f8a34b36a0101965f577d7884c6f05b6d5713054fb33e50ab9fff86"
+
+[output.agent-compatibility]
+language = "markdown"
+root = "agent/sdk"
+
+[files.agent-compatibility]
+"COMPATIBILITY.md" = "923af97b0371af79f30fe985576ad529c8ce7ad0823c09fdb2f405a1068b457d"
+
+[output.human-typescript]
+language = "typescript"
+root = "human/apps/web/src/api/generated"
+
+[files.human-typescript]
+"conformance.ts" = "f78951a7832ecbae5da6afa778854442fe073acbf9ccc534083d778a34735e56"
+"index.ts" = "0d83e57db9067d0e92fb82b4e203bf62931d40075122dc4a55f75f9933ef7800"

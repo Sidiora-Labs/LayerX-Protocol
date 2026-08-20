@@ -2283,3 +2283,5 @@ ci: public-audit test reproducible scan-consensus test-sanitizers
 -include $(LIB_OBJECTS:.o=.d)
 
 include tools/build/sanitizers.mk
+
+include platform/Makefile.inc

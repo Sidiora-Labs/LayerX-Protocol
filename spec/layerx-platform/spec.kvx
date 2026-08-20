@@ -1539,7 +1539,7 @@ status = "pending"
 
 [task.13.1]
 title = "Build settings and preferences"
-status = "pending"
+status = "in_progress"
 wave = 7
 requires = ["11.2","9.4"]
 do_1 = "Build the settings hub sectioned as profile, security, linked wallet, notifications, advanced and help, with current values on rows."
@@ -1729,7 +1729,7 @@ status = "pending"
 
 [task.15.1]
 title = "Establish the platform workspace and its gates"
-status = "in_progress"
+status = "done"
 wave = 9
 do_1 = "Create platform/ with directories for sdk generators, middleware, cli, emulator, gateway, docs and examples, plus the platform-build, platform-lint and platform-test make targets delegating into it without entering the C, agent or human builds."
 do_2 = "Apply the dependency, license, lockfile and audit policy of the human workspace to every platform ecosystem, failing the build rather than warning."

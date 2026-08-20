@@ -570,7 +570,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - _Requirements: 14.3, 14.4, 18.9_
 
 - [ ] 13. Build settings, security, support and the explorer plane
-  - [ ] 13.1 Build settings and preferences
+  - [-] 13.1 Build settings and preferences
     - Build the settings hub sectioned as profile, security, linked wallet, notifications, advanced and help, with current values on rows.
     - Build notification preferences: per-event classes under channel toggles, the notification detail level, and the non-suppressible security classes presented as such.
     - Build privacy mode masking balances and every derived figure across both shells, persisted per user.
@@ -662,7 +662,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 9 - The Developer Platform
 
 - [ ] 15. Ship the SDK family
-  - [-] 15.1 Establish the platform workspace and its gates
+  - [x] 15.1 Establish the platform workspace and its gates
     - Create platform/ with directories for sdk generators, middleware, cli, emulator, gateway, docs and examples, plus the platform-build, platform-lint and platform-test make targets delegating into it without entering the C, agent or human builds.
     - Apply the dependency, license, lockfile and audit policy of the human workspace to every platform ecosystem, failing the build rather than warning.
     - Wire the SDK generation pipeline to the agent-api and human-api schemas as the single sources, with the drift gate failing on stale or hand-edited output in any language.

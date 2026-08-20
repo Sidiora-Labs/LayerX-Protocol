@@ -1,0 +1,45 @@
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+unmaintained = "all"
+ignore = []
+
+[licenses]
+version = 2
+confidence-threshold = 0.93
+allow = [
+    "Apache-2.0",
+    "BSD-1-Clause",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "Unicode-3.0",
+    "Zlib",
+]
+exceptions = []
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+highlight = "all"
+deny = [
+    { name = "bindgen", reason = "Private C layouts may not cross the node boundary" },
+    { name = "libsqlite3-sys", reason = "The platform workspace may not open node projections" },
+    { name = "rusqlite", reason = "The platform workspace may not open node projections" },
+    { name = "sqlx-sqlite", reason = "The platform workspace may not open node projections" },
+    { name = "ctor", reason = "Process-wide initialisation is forbidden" },
+    { name = "inventory", reason = "Process-wide registries are forbidden" },
+]
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

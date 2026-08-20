@@ -1,0 +1,207 @@
+#[allow(dead_code)]
+#[path = "../src/main.rs"]
+mod pipeline;
+
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use pipeline::{capture, check, parse_lock, render, write_lock};
+
+static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(1);
+
+fn directory(label: &str) -> PathBuf {
+    let sequence = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!(
+        "layerx-platform-sdkgen-{label}-{}-{sequence}",
+        std::process::id()
+    ))
+}
+
+fn place(root: &Path, relative: &str, contents: &str) {
+    let path = root.join(relative);
+    let parent = path
+        .parent()
+        .unwrap_or_else(|| panic!("no parent for {relative}"));
+    fs::create_dir_all(parent).unwrap_or_else(|error| panic!("create {relative}: {error}"));
+    fs::write(&path, contents).unwrap_or_else(|error| panic!("write {relative}: {error}"));
+}
+
+fn repo_fixture(label: &str) -> PathBuf {
+    let root = directory(label);
+    place(&root, "agent/schema/agent-api/v1.kvx", "[schema]\nversion = \"1\"\n");
+    place(
+        &root,
+        "agent/schema/agent-api/golden/version-request.hex",
+        "00ff\n",
+    );
+    place(&root, "human/schema/human-api/v1.kvx", "[schema]\nversion = \"1\"\n");
+    place(
+        &root,
+        "human/schema/human-api/golden/account.create.request.json",
+        "{}\n",
+    );
+    place(
+        &root,
+        "agent/sdk/typescript/src/generated/client.ts",
+        "export const generated = true;\n",
+    );
+    place(
+        &root,
+        "agent/sdk/typescript/src/generated/guarantees.md",
+        "guarantees\n",
+    );
+    place(
+        &root,
+        "agent/sdk/python/layerx_sdk/generated/client.py",
+        "GENERATED = True\n",
+    );
+    place(
+        &root,
+        "agent/sdk/python/layerx_sdk/generated/client.pyi",
+        "GENERATED: bool\n",
+    );
+    place(
+        &root,
+        "agent/sdk/python/layerx_sdk/generated/guarantees.md",
+        "guarantees\n",
+    );
+    place(&root, "agent/sdk/COMPATIBILITY.md", "compatibility\n");
+    place(
+        &root,
+        "human/apps/web/src/api/generated/index.ts",
+        "export const humanApi = true;\n",
+    );
+    root
+}
+
+fn lock_path(root: &Path) -> PathBuf {
+    root.join("platform/sdk/pipeline.kvx")
+}
+
+fn generate(root: &Path) {
+    write_lock(root, &lock_path(root)).unwrap_or_else(|error| panic!("write lock: {error}"));
+}
+
+fn expect_failure(root: &Path, needle: &str) {
+    let error = check(root, &lock_path(root))
+        .err()
+        .unwrap_or_else(|| panic!("drift gate passed but expected failure about {needle}"));
+    assert!(
+        error.contains(needle),
+        "expected failure mentioning {needle}, got: {error}"
+    );
+}
+
+fn cleanup(root: &Path) {
+    fs::remove_dir_all(root).unwrap_or_else(|error| panic!("cleanup: {error}"));
+}
+
+#[test]
+fn freshly_generated_pipeline_passes_the_gate() {
+    let root = repo_fixture("fresh");
+    generate(&root);
+    check(&root, &lock_path(&root)).unwrap_or_else(|error| panic!("gate failed: {error}"));
+    cleanup(&root);
+}
+
+#[test]
+fn lock_round_trips_through_render_and_parse() {
+    let root = repo_fixture("roundtrip");
+    let live = capture(&root).unwrap_or_else(|error| panic!("capture: {error}"));
+    let text = render(&live).unwrap_or_else(|error| panic!("render: {error}"));
+    let parsed = parse_lock(&text).unwrap_or_else(|error| panic!("parse: {error}"));
+    assert_eq!(parsed, live);
+    cleanup(&root);
+}
+
+#[test]
+fn missing_lock_fails_the_gate() {
+    let root = repo_fixture("missing-lock");
+    expect_failure(&root, "pipeline lock missing");
+    cleanup(&root);
+}
+
+#[test]
+fn schema_edit_fails_the_gate_as_stale() {
+    let root = repo_fixture("stale-schema");
+    generate(&root);
+    place(&root, "agent/schema/agent-api/v1.kvx", "[schema]\nversion = \"2\"\n");
+    expect_failure(&root, "stale generated SDKs: schema agent-api");
+    cleanup(&root);
+}
+
+#[test]
+fn human_schema_edit_fails_the_gate_as_stale() {
+    let root = repo_fixture("stale-human-schema");
+    generate(&root);
+    place(
+        &root,
+        "human/schema/human-api/golden/account.create.request.json",
+        "{\"edited\":true}\n",
+    );
+    expect_failure(&root, "stale generated SDKs: schema human-api");
+    cleanup(&root);
+}
+
+#[test]
+fn hand_edited_typescript_output_fails_the_gate() {
+    let root = repo_fixture("edit-ts");
+    generate(&root);
+    place(
+        &root,
+        "agent/sdk/typescript/src/generated/client.ts",
+        "export const generated = false;\n",
+    );
+    expect_failure(&root, "agent/sdk/typescript/src/generated/client.ts");
+    cleanup(&root);
+}
+
+#[test]
+fn hand_edited_python_output_fails_the_gate() {
+    let root = repo_fixture("edit-py");
+    generate(&root);
+    place(
+        &root,
+        "agent/sdk/python/layerx_sdk/generated/client.py",
+        "GENERATED = False\n",
+    );
+    expect_failure(&root, "agent/sdk/python/layerx_sdk/generated/client.py");
+    cleanup(&root);
+}
+
+#[test]
+fn deleted_generated_file_fails_the_gate() {
+    let root = repo_fixture("deleted");
+    generate(&root);
+    fs::remove_file(root.join("human/apps/web/src/api/generated/index.ts"))
+        .unwrap_or_else(|error| panic!("remove: {error}"));
+    expect_failure(&root, "human/apps/web/src/api/generated");
+    cleanup(&root);
+}
+
+#[test]
+fn untracked_file_in_a_generated_root_fails_the_gate() {
+    let root = repo_fixture("untracked");
+    generate(&root);
+    place(
+        &root,
+        "agent/sdk/typescript/src/generated/extra.ts",
+        "export const extra = true;\n",
+    );
+    expect_failure(&root, "untracked file in generated typescript root");
+    cleanup(&root);
+}
+
+#[test]
+fn lock_missing_an_output_fails_the_gate() {
+    let root = repo_fixture("tampered-lock");
+    generate(&root);
+    let path = lock_path(&root);
+    let text = fs::read_to_string(&path).unwrap_or_else(|error| panic!("read lock: {error}"));
+    let tampered = text.replace(", \"human-typescript\"]", "]");
+    assert_ne!(tampered, text);
+    fs::write(&path, tampered).unwrap_or_else(|error| panic!("tamper lock: {error}"));
+    expect_failure(&root, "does not match the wired pipeline");
+    cleanup(&root);
+}

@@ -1,0 +1,57 @@
+name: Platform workspace
+
+on:
+  push:
+    branches: [main]
+    tags: ["sdk-v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-lint-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain and policy auditor
+        run: >-
+          rustup toolchain install 1.91.1 --profile minimal --component clippy &&
+          cargo install cargo-deny --locked --version 0.19.0
+      - name: Enforce workspace, dependency, license and audit policies
+        run: make platform-lint
+      - name: Build the platform workspace and run its drift and release gates
+        run: make platform-build
+      - name: Test the platform workspace
+        run: make platform-test
+
+  release-pipeline:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/sdk-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.91.1 --profile minimal
+      - name: Verify the signed release registry manifest
+        run: make platform-release-check
+      - name: Verify the generated SDKs against the schemas
+        run: make platform-build
+      - name: Emit the machine-readable release plan
+        run: make platform-release-plan | tee release-plan.txt
+      - name: Record the reproducible source digest for byte-verification
+        run: git archive --format=tar HEAD | sha256sum | tee source-digest.txt
