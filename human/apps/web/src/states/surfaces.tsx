@@ -125,9 +125,9 @@ export function StillCheckingSurface({
       role="status"
     >
       {children}
-      <KitButton disabled disabledReason={copyEntry("state.still_checking.locked").message}>
-        {copyEntry("action.send_again").message}
-      </KitButton>
+      <p className="text-sm font-semibold">
+        {copyEntry("state.still_checking.locked").message}
+      </p>
     </StateFrame>
   );
 }

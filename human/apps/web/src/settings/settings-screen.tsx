@@ -386,6 +386,12 @@ export function SettingsScreen({
             )}
             trailingCaption={privacyValue}
           />
+          <SettingsRow
+            title={copyEntry("exit.title").message}
+            subtitle={copyEntry("exit.summary").message}
+            navigates
+            onClick={() => router.push("/app/settings/exit")}
+          />
         </SettingsSection>
 
         <SettingsSection title={copyEntry("settings.section.help").message}>
