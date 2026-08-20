@@ -2,6 +2,7 @@
 
 pub mod auth;
 pub mod audit;
+pub mod approvals;
 pub mod binding;
 pub mod custody;
 pub mod health;

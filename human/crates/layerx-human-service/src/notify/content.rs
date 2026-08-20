@@ -1,7 +1,7 @@
 use std::fmt::Write as _;
 
 use super::class::{DetailLevel, NotificationClass};
-use super::event::{Event, JourneyOutcome, Money, NotificationId};
+use super::event::{AgentId, Event, JourneyOutcome, Money, NotificationId};
 
 const MINIMAL_TITLE: &str = "notification.minimal.title";
 const MINIMAL_BODY: &str = "notification.minimal.body";
@@ -14,6 +14,7 @@ pub(crate) struct Content {
     pub payload_body_copy_key: String,
     pub action_copy_key: Option<String>,
     pub deep_link: String,
+    pub payload_agent: Option<AgentId>,
     pub payload_money: Option<Money>,
     pub email_subject: String,
     pub email_lines: Vec<String>,
@@ -37,6 +38,8 @@ pub(crate) fn build(event: &Event, detail: DetailLevel) -> Content {
         ),
     };
     let money = event_money(event);
+    let agent = event_agent(event);
+    let payload_agent = matches!(detail, DetailLevel::Full).then(|| agent).flatten();
     let payload_money = match detail {
         DetailLevel::Full => money.clone(),
         DetailLevel::Summary | DetailLevel::Minimal => None,
@@ -48,9 +51,29 @@ pub(crate) fn build(event: &Event, detail: DetailLevel) -> Content {
         payload_body_copy_key,
         action_copy_key: action_copy_key(class),
         deep_link: deep_link(event),
+        payload_agent: payload_agent.clone(),
         payload_money: payload_money.clone(),
         email_subject: email_subject(event, detail),
-        email_lines: email_lines(event, detail, payload_money.as_ref()),
+        email_lines: email_lines(
+            event,
+            detail,
+            payload_agent.as_ref(),
+            payload_money.as_ref(),
+        ),
+    }
+}
+
+fn event_agent(event: &Event) -> Option<AgentId> {
+    match event {
+        Event::ApprovalWaiting { agent_id, .. } => Some(agent_id.clone()),
+        Event::MoneyArrived { .. }
+        | Event::JourneyFinished { .. }
+        | Event::ClaimReady { .. }
+        | Event::SecurityNewDevice { .. }
+        | Event::SecurityRecovery { .. }
+        | Event::SecurityWalletRebinding { .. }
+        | Event::SecurityKeyRotation { .. }
+        | Event::ServiceStatus { .. } => None,
     }
 }
 
@@ -153,13 +176,21 @@ fn email_sentence(event: &Event) -> &'static str {
     }
 }
 
-fn email_lines(event: &Event, detail: DetailLevel, payload_money: Option<&Money>) -> Vec<String> {
+fn email_lines(
+    event: &Event,
+    detail: DetailLevel,
+    payload_agent: Option<&AgentId>,
+    payload_money: Option<&Money>,
+) -> Vec<String> {
     let mut lines = Vec::new();
     if matches!(detail, DetailLevel::Minimal) {
         lines.push("Open the app to see what happened.".to_owned());
         return lines;
     }
     lines.push(email_sentence(event).to_owned());
+    if let Some(agent) = payload_agent {
+        lines.push(format!("Agent: {}", agent.as_str()));
+    }
     if let Some(money) = payload_money {
         lines.push(format!("Amount: {}", money.render()));
     }
@@ -177,6 +208,9 @@ pub(crate) fn push_payload(content: &Content, id: &NotificationId, created_at: u
     ];
     if let Some(action) = &content.action_copy_key {
         members.push(text_member("action_copy_key", action));
+    }
+    if let Some(agent) = &content.payload_agent {
+        members.push(text_member("agent_id", agent.as_str()));
     }
     if let Some(money) = &content.payload_money {
         members.push(format!(
@@ -201,6 +235,9 @@ pub(crate) fn in_app_payload(content: &Content, id: &NotificationId, created_at:
     ];
     if let Some(action) = &content.action_copy_key {
         members.push(text_member("action_copy_key", action));
+    }
+    if let Some(agent) = &content.payload_agent {
+        members.push(text_member("agent_id", agent.as_str()));
     }
     if let Some(money) = &content.payload_money {
         members.push(format!(

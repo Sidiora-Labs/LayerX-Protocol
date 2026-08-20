@@ -1205,7 +1205,7 @@ status = "pending"
 
 [task.9.1]
 title = "Implement the approval inbox service"
-status = "in_progress"
+status = "done"
 wave = 4
 requires = ["2.5","5.2"]
 do_1 = "Consume the agent layer's approval module to serve the inbox: pending holds with agent, counterparty, amount, budget-after, hold reason and expiry."

@@ -409,7 +409,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - _Requirements: 12.8, 12.9_
 
 - [ ] 9. Implement approvals and notifications
-  - [-] 9.1 Implement the approval inbox service
+  - [x] 9.1 Implement the approval inbox service
     - Consume the agent layer's approval module to serve the inbox: pending holds with agent, counterparty, amount, budget-after, hold reason and expiry.
     - Track hold lifecycle through the approval event stream so the inbox and its counts stay live without polling.
     - Serve resolved holds honestly: approved with their released activity's tracking, rejected, and expired with the nothing-moved statement.
