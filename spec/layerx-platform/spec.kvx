@@ -997,7 +997,7 @@ reqs = ["11.6","11.7"]
 
 [task.6.5]
 title = "Report degradation honestly across the boundary"
-status = "in_progress"
+status = "done"
 wave = 3
 requires = ["6.1"]
 do_1 = "Expose a status surface distinguishing Paxeer endpoint failure, chain congestion, finality delay and contract-level refusal."

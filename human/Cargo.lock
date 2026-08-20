@@ -487,6 +487,7 @@ version = "0.1.0"
 dependencies = [
  "layerx-client",
  "layerx-crypto",
+ "layerx-paxeer-client",
  "layerx-proof",
  "layerx-sdk",
  "layerx-types",

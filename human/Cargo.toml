@@ -21,6 +21,7 @@ layerx-proof = { path = "../agent/crates/layerx-proof" }
 layerx-client = { path = "../agent/crates/layerx-client" }
 layerx-sdk = { path = "../agent/crates/layerx-sdk" }
 layerx-agentd = { path = "../agent/crates/layerx-agentd" }
+layerx-paxeer-client = { path = "crates/layerx-paxeer-client" }
 proptest = "=1.7.0"
 
 [workspace.lints.rust]

@@ -310,7 +310,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Read emergency-exit eligibility from Paxeer contract state, and surface ineligible, failure and hold states typed for the journey engine.
     - Test the exit against the test network including a scenario with LayerX reads unavailable.
     - _Requirements: 11.6, 11.7_
-  - [-] 6.5 Report degradation honestly across the boundary
+  - [x] 6.5 Report degradation honestly across the boundary
     - Expose a status surface distinguishing Paxeer endpoint failure, chain congestion, finality delay and contract-level refusal.
     - Attach expected-timing context from declared configuration to every delay state so journeys can present honest expectations.
     - Never collapse a delay into a failure or a failure into a delay; classify each observable case explicitly.
