@@ -676,7 +676,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Implement resumable streaming with stable cursors and no-gap-no-duplicate reconnection in all three.
     - Prove secret hygiene: no key material or session token in logs, errors or serialised output, zeroized where the language permits, covered by the conformance suite.
     - _Requirements: 24.3, 24.4, 24.5, 24.8, 24.9_
-  - [ ] 15.3 Build the Go SDK
+  - [x] 15.3 Build the Go SDK
     - Generate the Go SDK from the same schemas in the same build, covering every operation, journey, error and event with idiomatic Go naming, contexts and error wrapping.
     - Implement the local receipt and proof verification path.
     - Implement streaming with resumable cursors over the standard library HTTP stack.
@@ -690,7 +690,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Enforce integer-only money via BigInteger-backed protocol types, idempotency keys and secret hygiene.
     - Run the golden vectors and the conformance suite against the live schema in CI.
     - _Requirements: 24.1, 24.3, 24.4_
-  - [ ] 15.5 Build the Swift and C# SDKs
+  - [x] 15.5 Build the Swift and C# SDKs
     - Generate the Swift SDK from the same schemas with async/await APIs suitable for iOS and server-side Swift.
     - Generate the C# SDK from the same schemas with idiomatic async Task APIs and nullable annotations.
     - Implement the local receipt and proof verification path in both.
