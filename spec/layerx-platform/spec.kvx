@@ -918,7 +918,7 @@ reqs = ["22.2","22.4","22.5","22.6"]
 
 [task.5.7]
 title = "Implement the wallet-binding journey"
-status = "in_progress"
+status = "done"
 wave = 3
 requires = ["5.3","3.2"]
 do_1 = "Issue the domain-separated binding statement naming the DID and network_id for the wallet to sign, and verify the returned EVM signature before anything is submitted."
@@ -1111,7 +1111,7 @@ status = "pending"
 
 [task.8.1]
 title = "Orchestrate receipt-verified agent creation"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["5.4","5.5"]
 do_1 = "Implement the creation journey from name, purpose and monthly limit: agent DID registration, custody key generation, recovery authority naming the human, session-key provisioning, capability narrowing and budget creation with initial funding, each step receipt-verified."
@@ -1205,7 +1205,7 @@ status = "pending"
 
 [task.9.1]
 title = "Implement the approval inbox service"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["2.5","5.2"]
 do_1 = "Consume the agent layer's approval module to serve the inbox: pending holds with agent, counterparty, amount, budget-after, hold reason and expiry."

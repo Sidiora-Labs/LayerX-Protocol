@@ -273,7 +273,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Propagate the trace identifier from human-api requests through the service into agent-layer calls and back onto error responses, and instrument the journey funnels - onboarding, deposit, move, create-agent, approval, withdrawal - with stage-level outcomes under the redaction rules.
     - Implement the user's own audit export with referenced receipts and proofs as an independently verifiable evidence bundle.
     - _Requirements: 22.2, 22.4, 22.5, 22.6_
-  - [-] 5.7 Implement the wallet-binding journey
+  - [x] 5.7 Implement the wallet-binding journey
     - Issue the domain-separated binding statement naming the DID and network_id for the wallet to sign, and verify the returned EVM signature before anything is submitted.
     - Submit the binding as a typed intent through the agent layer and treat the binding as active only when its receipt verifies.
     - Verify the address that signed the statement matches the address recorded in the receipt before presenting the binding as active, surfacing a mismatch as a verification failure.
@@ -365,7 +365,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - _Requirements: 9.3, 9.7, 9.8_
 
 - [ ] 8. Implement the managed-agent journeys
-  - [ ] 8.1 Orchestrate receipt-verified agent creation
+  - [-] 8.1 Orchestrate receipt-verified agent creation
     - Implement the creation journey from name, purpose and monthly limit: agent DID registration, custody key generation, recovery authority naming the human, session-key provisioning, capability narrowing and budget creation with initial funding, each step receipt-verified.
     - Present Active only when every step's receipt has verified; expose honest partial status and resumption otherwise.
     - Make creation idempotent so a crash never yields a phantom agent or a duplicate.
@@ -409,7 +409,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - _Requirements: 12.8, 12.9_
 
 - [ ] 9. Implement approvals and notifications
-  - [ ] 9.1 Implement the approval inbox service
+  - [-] 9.1 Implement the approval inbox service
     - Consume the agent layer's approval module to serve the inbox: pending holds with agent, counterparty, amount, budget-after, hold reason and expiry.
     - Track hold lifecycle through the approval event stream so the inbox and its counts stay live without polling.
     - Serve resolved holds honestly: approved with their released activity's tracking, rejected, and expired with the nothing-moved statement.

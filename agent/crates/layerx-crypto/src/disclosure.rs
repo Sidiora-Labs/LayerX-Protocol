@@ -19,6 +19,9 @@ const SEND_FIELD_COUNT: u16 = 10;
 const BRIDGE_DEPOSIT_CREDIT_ORDINAL: u16 = 1;
 const BRIDGE_DEPOSIT_CREDIT_WIRE_TAG: u16 = 0x4801;
 const BRIDGE_DEPOSIT_CREDIT_FIELD_COUNT: u16 = 7;
+const GOVERNANCE_EVM_BINDING_ORDINAL: u16 = 4;
+const GOVERNANCE_EVM_BINDING_WIRE_TAG: u16 = 0x7104;
+const GOVERNANCE_EVM_BINDING_FIELD_COUNT: u16 = 4;
 const MAX_SEND_CONDITIONS: usize = 8;
 const MAX_SEND_PAYLOAD_BYTES: usize = 512;
 const MAX_TRANSPORT_DISCLOSURE_BYTES: usize = 1_048_576;
@@ -57,6 +60,19 @@ pub struct DisclosedAmount {
     pub value: u128,
 }
 
+/// Complete governance wallet-binding semantics decoded from canonical bytes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DisclosedEvmPayoutBinding {
+    /// Core DID identifier whose payout address changes.
+    pub did_id: [u8; 32],
+    /// Protocol network named by the wallet ownership proof.
+    pub network_id: u32,
+    /// Exact EVM address recovered from the ownership signature.
+    pub payout_address: [u8; 20],
+    /// Commitment to the full public ownership signature carried by the intent.
+    pub ownership_signature_digest: [u8; 32],
+}
+
 /// Every time bound that can make the disclosed activity expire.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Expiry {
@@ -92,6 +108,8 @@ pub struct Disclosure {
     pub expiry: Expiry,
     /// Exact retry identity shared by envelope and payload.
     pub idempotency_key: [u8; 32],
+    /// Governance wallet-binding semantics, present only for that activity type.
+    pub evm_payout_binding: Option<DisclosedEvmPayoutBinding>,
     activity: Activity,
     signing_digest: [u8; 32],
 }
@@ -253,6 +271,35 @@ fn decode_bridge_deposit_credit(
     })
 }
 
+fn decode_evm_payout_binding(
+    payload: &[u8],
+    activity: &Activity,
+) -> Result<DisclosedEvmPayoutBinding, DisclosureError> {
+    let mut decoder = Decoder::new(payload, 0);
+    if decoder.u16()? != GOVERNANCE_EVM_BINDING_WIRE_TAG
+        || decoder.u16()? != GOVERNANCE_EVM_BINDING_FIELD_COUNT
+    {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    let did_id = fixed(&mut decoder)?;
+    let network_id = decoder.u32()?;
+    let payout_address = fixed(&mut decoder)?;
+    let ownership_signature = decoder.bytes(128)?;
+    decoder.finish()?;
+    if network_id != activity.network_id() || ownership_signature.len() != 65 {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(b"LXP/agent/evm-ownership-signature/v1\0");
+    hasher.update(ownership_signature);
+    Ok(DisclosedEvmPayoutBinding {
+        did_id,
+        network_id,
+        payout_address,
+        ownership_signature_digest: hasher.finalize().into(),
+    })
+}
+
 fn semantics(activity: &Activity) -> Result<SendSemantics, DisclosureError> {
     let activity_type = activity.activity_type();
     if activity.payload().len() > MAX_SEND_PAYLOAD_BYTES {
@@ -268,11 +315,36 @@ fn semantics(activity: &Activity) -> Result<SendSemantics, DisclosureError> {
 }
 
 fn decoded_fields(activity: &Activity) -> Result<DisclosureFields, DisclosureError> {
-    let send = semantics(activity)?;
     let TimestampBound {
         not_before,
         not_after,
     } = activity.timestamp_bound();
+    if matches!(
+        (
+            activity.activity_type().module(),
+            activity.activity_type().ordinal()
+        ),
+        (ModuleId::Governance, GOVERNANCE_EVM_BINDING_ORDINAL)
+    ) {
+        let binding = decode_evm_payout_binding(activity.payload(), activity)?;
+        return Ok(DisclosureFields {
+            activity_type: activity.activity_type(),
+            actor: activity.actor_did().to_vec(),
+            authority: activity.authority().to_vec(),
+            counterparties: Vec::new(),
+            amounts: Vec::new(),
+            asset: [0; 32],
+            fee_limit: activity.fee_limit(),
+            expiry: Expiry {
+                not_before,
+                not_after,
+                payload_expires_at: not_after,
+            },
+            idempotency_key: activity.idempotency_key(),
+            evm_payout_binding: Some(binding),
+        });
+    }
+    let send = semantics(activity)?;
     Ok(DisclosureFields {
         activity_type: activity.activity_type(),
         actor: activity.actor_did().to_vec(),
@@ -299,6 +371,7 @@ fn decoded_fields(activity: &Activity) -> Result<DisclosureFields, DisclosureErr
             payload_expires_at: send.expires_at,
         },
         idempotency_key: send.idempotency_key,
+        evm_payout_binding: None,
     })
 }
 
@@ -312,6 +385,7 @@ struct DisclosureFields {
     fee_limit: u128,
     expiry: Expiry,
     idempotency_key: [u8; 32],
+    evm_payout_binding: Option<DisclosedEvmPayoutBinding>,
 }
 
 impl Disclosure {
@@ -333,6 +407,7 @@ impl Disclosure {
         require_field!(fee_limit);
         require_field!(expiry);
         require_field!(idempotency_key);
+        require_field!(evm_payout_binding);
         Ok(())
     }
 
@@ -384,6 +459,16 @@ impl Disclosure {
         encoder.u64(self.expiry.not_after)?;
         encoder.u64(self.expiry.payload_expires_at)?;
         encoder.fixed(&self.idempotency_key)?;
+        match self.evm_payout_binding {
+            Some(binding) => {
+                encoder.u8(1)?;
+                encoder.fixed(&binding.did_id)?;
+                encoder.u32(binding.network_id)?;
+                encoder.fixed(&binding.payout_address)?;
+                encoder.fixed(&binding.ownership_signature_digest)?;
+            }
+            None => encoder.u8(0)?,
+        }
         Ok(encoder.finish())
     }
 
@@ -472,6 +557,7 @@ pub fn bind(canonical: &[u8], registry: &ModuleRegistry) -> Result<Disclosure, D
         fee_limit: fields.fee_limit,
         expiry: fields.expiry,
         idempotency_key: fields.idempotency_key,
+        evm_payout_binding: fields.evm_payout_binding,
         activity,
         signing_digest: message.digest(),
     })
