@@ -2,6 +2,7 @@
   "method": "POST",
   "path": "/v1/withdrawals/jrn_01j2gxw5mtb1c2d3e4f5g6h7j8/claim",
   "body": {
-    "claim_signature": "0x92c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a91b"
+    "claim_signature": "0x92c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a91b",
+    "settlement_domain": "paxeer"
   }
 }

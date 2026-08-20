@@ -442,6 +442,80 @@ fn quote_without_a_separate_fee_ceiling_is_rejected() {
 }
 
 #[test]
+fn custody_claim_without_a_settlement_domain_declaration_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "movement.kvx",
+        "required = [\"claim_signature:WalletSignature\"]\noptional = [\"settlement_domain:SettlementDomain\"]\nsettlement_domain = \"paxeer\"",
+        "required = [\"claim_signature:WalletSignature\"]\noptional = [\"settlement_domain:SettlementDomain\"]",
+    );
+    assert!(violation_rules(fixture.path()).contains(&"untagged-custody-claim"));
+}
+
+#[test]
+fn custody_claim_without_the_domain_field_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "movement.kvx",
+        "required = [\"confirmation:string\"]\noptional = [\"settlement_domain:SettlementDomain\"]",
+        "required = [\"confirmation:string\"]",
+    );
+    let rules = violation_rules(fixture.path());
+    assert!(rules.contains(&"untagged-custody-claim"));
+}
+
+#[test]
+fn custody_claim_vector_without_its_domain_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "golden/withdraw.start.request.json",
+        ",\n    \"settlement_domain\": \"paxeer\"",
+        "",
+    );
+    assert!(violation_rules(fixture.path()).contains(&"untagged-custody-claim"));
+}
+
+#[test]
+fn foreign_settlement_domain_on_a_custody_claim_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "golden/deposit.start.request.json",
+        "\"settlement_domain\": \"paxeer\"",
+        "\"settlement_domain\": \"ethereum\"",
+    );
+    let rules = violation_rules(fixture.path());
+    assert!(rules.contains(&"invalid-settlement-domain"));
+    assert!(rules.contains(&"undeclared-enum-value"));
+}
+
+#[test]
+fn internal_movement_naming_a_settlement_domain_is_rejected() {
+    let fixture = Fixture::from_real_schema();
+    fixture.rewrite(
+        "movement.kvx",
+        "[type.MoveCommitRequest]\nrequired = [\"quote_id:QuoteId\"]",
+        "[type.MoveCommitRequest]\nrequired = [\"quote_id:QuoteId\"]\nsettlement_domain = \"paxeer\"",
+    );
+    assert!(violation_rules(fixture.path()).contains(&"invalid-settlement-domain"));
+}
+
+#[test]
+fn adding_a_settlement_domain_variant_is_additive_by_construction() {
+    let fixture = Fixture::from_real_schema();
+    let base = passing_report(fixture.path());
+    fixture.rewrite(
+        "movement.kvx",
+        "[type.SettlementDomain]\nvariants = [\"paxeer\"]",
+        "[type.SettlementDomain]\nvariants = [\"paxeer\",\"solana\"]",
+    );
+    let outcome = passing_report(fixture.path());
+    assert_eq!(outcome.additions_beyond_baseline, 0);
+    assert_eq!(outcome.declarations, base.declarations);
+    assert_eq!(outcome.operations, base.operations);
+    assert_eq!(outcome.golden_vectors, base.golden_vectors);
+}
+
+#[test]
 fn duplicate_json_object_keys_are_rejected() {
     let parsed = parse_json("{\"a\": 1, \"a\": 2}");
     assert!(parsed.is_err());

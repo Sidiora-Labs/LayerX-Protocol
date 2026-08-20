@@ -48,6 +48,7 @@ provider_isolation = "A complete result names one provider. Partial reports rema
 request_required = ["fact_set","requested_verification_level"]
 response = "VerifiedRead<OfflineExport>"
 response_required = ["facts","receipts","proofs","certificates","headers"]
+settlement_domain = "Paxeer"
 verification_environment = "layerx-proof_without_daemon_or_network"
 
 [operation.project]

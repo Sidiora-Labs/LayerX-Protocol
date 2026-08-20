@@ -2444,7 +2444,7 @@ reqs = ["34.2","34.3"]
 
 [task.25.3]
 title = "Reserve domain-tagged claim vocabulary"
-status = "in_progress"
+status = "done"
 wave = 12
 requires = ["4.3"]
 do_1 = "Tag every custody-boundary claim and receipt shape in the schemas with its settlement domain, Paxeer as the sole valid domain in this version."

@@ -40,6 +40,12 @@ python = "int"
 wire = "decimal_string"
 consensus_integer = true
 
+[type.SettlementDomain]
+variants = ["Paxeer"]
+sole_domain = "Paxeer is the sole valid settlement domain in this contract version. The custody and withdrawal guarantee remains Paxeer exclusively and no other venue is a place funds live."
+reservation = "Every custody-boundary claim and receipt shape names its settlement domain through this vocabulary, so adding a settlement domain later is an additive schema change by construction: a new variant appended to this list with every existing declaration untouched."
+one_ledger = "One identity, one balance system and one canonical order are preserved unchanged by this vocabulary."
+
 [record.ContractVersion]
 fields = ["major:u16","minor:u16"]
 
@@ -75,3 +81,8 @@ change = "Adds approval.kvx without changing any contract 1.0 declaration."
 [compatibility.feature.approval]
 introduced_contract = "1.1"
 classification = "additive_only"
+
+[compatibility.feature.settlement_domain]
+introduced_contract = "1.1"
+classification = "additive_only"
+note = "Reserves the settlement-domain claim vocabulary with Paxeer as the sole valid domain and tags every custody-boundary claim and receipt shape. Adding a settlement domain is an additive change by construction: a new SettlementDomain variant is appended and no contract 1.x declaration changes."

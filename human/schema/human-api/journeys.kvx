@@ -26,6 +26,8 @@ ordering = "declaration_order"
 
 [type.EvidenceRef]
 required = ["evidence_id:EvidenceId","class:EvidenceClass","verification:VerificationLevel"]
+optional = ["settlement_domain:SettlementDomain"]
+settlement_domain = "paxeer"
 export = "Every evidence reference is sufficient to fetch the receipt or proof material for export and independent verification."
 
 [type.JourneyStage]
@@ -41,6 +43,8 @@ required = ["journeys:Journey[]","next_cursor:Cursor"]
 
 [type.EvidenceMaterial]
 required = ["evidence_id:EvidenceId","class:EvidenceClass","verification:VerificationLevel","content_type:string","bytes_base64:string"]
+optional = ["settlement_domain:SettlementDomain"]
+settlement_domain = "paxeer"
 material = "The referenced receipt or proof in its canonical bytes, exactly as the protocol produced them, sufficient for export and for verification independent of this plane."
 
 [operation.evidence.get]

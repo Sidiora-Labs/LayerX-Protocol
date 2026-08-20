@@ -8,6 +8,49 @@ use layerx_agent_api::{
 const BASELINE: &str = include_str!("../../../schema/agent-api/golden/v1.kvx");
 const REQUEST_VECTOR: &str = include_str!("../../../schema/agent-api/golden/version-request.hex");
 const RESPONSE_VECTOR: &str = include_str!("../../../schema/agent-api/golden/version-response.hex");
+const WRITE_SOURCE: &str = include_str!("../../../schema/agent-api/write.kvx");
+const READ_SOURCE: &str = include_str!("../../../schema/agent-api/read.kvx");
+const STREAM_SOURCE: &str = include_str!("../../../schema/agent-api/stream.kvx");
+
+const CUSTODY_CLAIM_TAGS: &[(&str, &str)] = &[
+    ("write.kvx", "type.SubmissionState.Executed.settlement_domain"),
+    ("stream.kvx", "type.ReceiptReference.Verified.settlement_domain"),
+    ("read.kvx", "operation.export.offline.settlement_domain"),
+];
+
+fn settlement_domain_gate(
+    root: &BTreeMap<String, String>,
+    modules: &[(&str, &BTreeMap<String, String>)],
+) -> Result<(), String> {
+    let variants = root
+        .get("type.SettlementDomain.variants")
+        .ok_or_else(|| "missing the type.SettlementDomain claim vocabulary".to_owned())?;
+    if !variants.starts_with("[\"Paxeer\"") {
+        return Err(format!(
+            "Paxeer must be the first settlement domain variant, got {variants}"
+        ));
+    }
+    for (module, entries) in modules {
+        for (key, value) in entries.iter() {
+            if key.ends_with(".settlement_domain") && value != "\"Paxeer\"" {
+                return Err(format!(
+                    "{module} names a foreign settlement domain at {key}: {value}"
+                ));
+            }
+        }
+    }
+    for (module, key) in CUSTODY_CLAIM_TAGS {
+        let tagged = modules.iter().any(|(name, entries)| {
+            name == module && entries.get(*key).map(String::as_str) == Some("\"Paxeer\"")
+        });
+        if !tagged {
+            return Err(format!(
+                "untagged custody claim: {module} must declare {key} = \"Paxeer\""
+            ));
+        }
+    }
+    Ok(())
+}
 
 fn declarations(source: &str) -> BTreeMap<String, String> {
     let mut section = String::new();
@@ -115,6 +158,97 @@ fn compatibility_gate_accepts_additions_and_rejects_mutation_or_removal() {
         agent_api_compat_gate(1, 1, &previous, &[("record.Request.fields", "id:u128")]).is_err()
     );
     assert_eq!(agent_api_compat_gate(1, 2, &previous, &[]), Ok(()));
+}
+
+#[test]
+fn custody_receipt_shapes_name_the_paxeer_settlement_domain() {
+    let root = declarations(AGENT_API_V1_SOURCE);
+    assert_eq!(
+        root["type.SettlementDomain.variants"],
+        "[\"Paxeer\"]",
+        "Paxeer is the sole valid settlement domain in this contract version"
+    );
+    let write = declarations(WRITE_SOURCE);
+    let read = declarations(READ_SOURCE);
+    let stream = declarations(STREAM_SOURCE);
+    let modules = [
+        ("v1.kvx", &root),
+        ("write.kvx", &write),
+        ("read.kvx", &read),
+        ("stream.kvx", &stream),
+    ];
+    assert_eq!(settlement_domain_gate(&root, &modules), Ok(()));
+}
+
+#[test]
+fn untagged_or_foreign_custody_claims_are_rejected() {
+    let root = declarations(AGENT_API_V1_SOURCE);
+    let read = declarations(READ_SOURCE);
+    let stream = declarations(STREAM_SOURCE);
+
+    let stripped_source =
+        WRITE_SOURCE.replace("Executed.settlement_domain = \"Paxeer\"\n", "");
+    assert!(stripped_source.len() < WRITE_SOURCE.len());
+    let stripped = declarations(&stripped_source);
+    let untagged = settlement_domain_gate(
+        &root,
+        &[
+            ("v1.kvx", &root),
+            ("write.kvx", &stripped),
+            ("read.kvx", &read),
+            ("stream.kvx", &stream),
+        ],
+    );
+    assert!(untagged.is_err_and(|error| error.contains("untagged custody claim")));
+
+    let foreign_source = WRITE_SOURCE.replace(
+        "Executed.settlement_domain = \"Paxeer\"",
+        "Executed.settlement_domain = \"Ethereum\"",
+    );
+    let foreign = declarations(&foreign_source);
+    let mistagged = settlement_domain_gate(
+        &root,
+        &[
+            ("v1.kvx", &root),
+            ("write.kvx", &foreign),
+            ("read.kvx", &read),
+            ("stream.kvx", &stream),
+        ],
+    );
+    assert!(mistagged.is_err_and(|error| error.contains("foreign settlement domain")));
+
+    let no_vocabulary = declarations(
+        &AGENT_API_V1_SOURCE.replace("variants = [\"Paxeer\"]", "variants = [\"paxeer\"]"),
+    );
+    assert!(settlement_domain_gate(&no_vocabulary, &[]).is_err());
+}
+
+#[test]
+fn adding_a_settlement_domain_is_additive_by_construction() {
+    let previous = [(
+        "type.SubmissionState.Executed.settlement_domain",
+        "\"Paxeer\"",
+    )];
+    let with_second_domain = [
+        (
+            "type.SubmissionState.Executed.settlement_domain",
+            "\"Paxeer\"",
+        ),
+        ("type.SettlementDomain.variants", "[\"Paxeer\",\"Solana\"]"),
+    ];
+    assert_eq!(
+        agent_api_compat_gate(1, 1, &previous, &with_second_domain),
+        Ok(())
+    );
+    assert!(agent_api_compat_gate(
+        1,
+        1,
+        &previous,
+        &[("type.SubmissionState.Executed.settlement_domain", "\"Solana\"")]
+    )
+    .is_err());
+    let baseline = declarations(BASELINE);
+    assert!(!baseline.contains_key("type.SettlementDomain.variants"));
 }
 
 #[test]

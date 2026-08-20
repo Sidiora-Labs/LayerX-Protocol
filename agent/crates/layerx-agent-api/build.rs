@@ -132,6 +132,46 @@ fn additive_string_list(previous: &str, current: &str) -> bool {
     }
 }
 
+const CUSTODY_CLAIM_TAGS: &[(&str, &str)] = &[
+    ("write.kvx", "type.SubmissionState.Executed.settlement_domain"),
+    ("stream.kvx", "type.ReceiptReference.Verified.settlement_domain"),
+    ("read.kvx", "operation.export.offline.settlement_domain"),
+];
+
+fn settlement_domain_gate(
+    root: &BTreeMap<String, String>,
+    modules: &[(String, BTreeMap<String, String>)],
+) -> Result<(), String> {
+    let variants = root
+        .get("type.SettlementDomain.variants")
+        .ok_or_else(|| "missing the type.SettlementDomain claim vocabulary".to_owned())?;
+    if !variants.starts_with("[\"Paxeer\"") {
+        return Err(format!(
+            "Paxeer must be the first settlement domain variant, got {variants}"
+        ));
+    }
+    for (module, entries) in modules {
+        for (key, value) in entries {
+            if key.ends_with(".settlement_domain") && value != "\"Paxeer\"" {
+                return Err(format!(
+                    "{module} names a foreign settlement domain at {key}: {value}"
+                ));
+            }
+        }
+    }
+    for (module, key) in CUSTODY_CLAIM_TAGS {
+        let tagged = modules.iter().any(|(name, entries)| {
+            name == module && entries.get(*key).map(String::as_str) == Some("\"Paxeer\"")
+        });
+        if !tagged {
+            return Err(format!(
+                "untagged custody claim: {module} must declare {key} = \"Paxeer\""
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn generated_source(entries: &BTreeMap<String, String>) -> Result<String, String> {
     let name = unquote(
         entries
@@ -267,6 +307,8 @@ fn main() {
     compatibility_gate(&old, &current)
         .unwrap_or_else(|error| panic!("incompatible schema: {error}"));
 
+    let mut modules: Vec<(String, BTreeMap<String, String>)> =
+        vec![("v1.kvx".to_owned(), current.clone())];
     for module in [
         "identity.kvx",
         "write.kvx",
@@ -299,7 +341,10 @@ fn main() {
                 panic!("incompatible {}: {error}", current_module.display())
             });
         }
+        modules.push((module.to_owned(), current_entries));
     }
+    settlement_domain_gate(&current, &modules)
+        .unwrap_or_else(|error| panic!("invalid schema: {error}"));
     let fresh =
         generated_source(&current).unwrap_or_else(|error| panic!("generation failed: {error}"));
 

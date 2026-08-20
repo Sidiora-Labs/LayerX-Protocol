@@ -8,6 +8,7 @@
     "money": {
       "amount": "1000000",
       "currency": "LXP"
-    }
+    },
+    "settlement_domain": "paxeer"
   }
 }

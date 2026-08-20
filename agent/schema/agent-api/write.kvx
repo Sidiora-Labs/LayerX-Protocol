@@ -33,6 +33,7 @@ response_required = ["state","evidence","verification_level","transitions"]
 variants = ["Prepared","Signed","Queued","Submitted","Acknowledged","Unknown","Executed","Failed","Expired"]
 Unknown.semantics = "first_class_terminal_pending"
 Executed.required = ["receipt_ref"]
+Executed.settlement_domain = "Paxeer"
 
 [type.Transition]
 required = ["from","to","cause","at"]

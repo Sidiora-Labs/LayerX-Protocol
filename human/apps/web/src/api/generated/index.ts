@@ -400,6 +400,20 @@ export function decodeRetriability(value: JsonValue | undefined, at: string): Re
   throw new HumanApiDecodeError(at + " must be a declared Retriability variant");
 }
 
+export type SettlementDomain = "paxeer";
+
+export const settlementDomainVariants: readonly SettlementDomain[] = ["paxeer"];
+
+export function decodeSettlementDomain(value: JsonValue | undefined, at: string): SettlementDomain {
+  const text = expectString(value, at);
+  for (const variant of settlementDomainVariants) {
+    if (variant === text) {
+      return variant;
+    }
+  }
+  throw new HumanApiDecodeError(at + " must be a declared SettlementDomain variant");
+}
+
 export type StreamEventKind = "journey-progress" | "approval-created" | "approval-approved" | "approval-rejected" | "approval-expired" | "notification";
 
 export const streamEventKindVariants: readonly StreamEventKind[] = ["journey-progress", "approval-created", "approval-approved", "approval-rejected", "approval-expired", "notification"];
@@ -1297,6 +1311,7 @@ export function encodeClassToggle(value: ClassToggle): JsonValue {
 
 export interface DepositConfirmRequest {
   wallet_transaction: WalletTxId;
+  settlement_domain?: SettlementDomain;
 }
 
 export function decodeDepositConfirmRequest(value: JsonValue | undefined, at: string): DepositConfirmRequest {
@@ -1304,6 +1319,9 @@ export function decodeDepositConfirmRequest(value: JsonValue | undefined, at: st
   const result: DepositConfirmRequest = {
     wallet_transaction: expectString(object["wallet_transaction"], at + ".wallet_transaction"),
   };
+  if (object["settlement_domain"] !== undefined) {
+    result.settlement_domain = decodeSettlementDomain(object["settlement_domain"], at + ".settlement_domain");
+  }
   return result;
 }
 
@@ -1311,11 +1329,15 @@ export function encodeDepositConfirmRequest(value: DepositConfirmRequest): JsonV
   const result: JsonObject = {
     wallet_transaction: value.wallet_transaction,
   };
+  if (value.settlement_domain !== undefined) {
+    result["settlement_domain"] = value.settlement_domain;
+  }
   return result;
 }
 
 export interface DepositStartRequest {
   money: Money;
+  settlement_domain?: SettlementDomain;
 }
 
 export function decodeDepositStartRequest(value: JsonValue | undefined, at: string): DepositStartRequest {
@@ -1323,6 +1345,9 @@ export function decodeDepositStartRequest(value: JsonValue | undefined, at: stri
   const result: DepositStartRequest = {
     money: decodeMoney(object["money"], at + ".money"),
   };
+  if (object["settlement_domain"] !== undefined) {
+    result.settlement_domain = decodeSettlementDomain(object["settlement_domain"], at + ".settlement_domain");
+  }
   return result;
 }
 
@@ -1330,6 +1355,9 @@ export function encodeDepositStartRequest(value: DepositStartRequest): JsonValue
   const result: JsonObject = {
     money: encodeMoney(value.money),
   };
+  if (value.settlement_domain !== undefined) {
+    result["settlement_domain"] = value.settlement_domain;
+  }
   return result;
 }
 
@@ -1375,6 +1403,7 @@ export interface EvidenceMaterial {
   verification: VerificationLevel;
   content_type: string;
   bytes_base64: string;
+  settlement_domain?: SettlementDomain;
 }
 
 export function decodeEvidenceMaterial(value: JsonValue | undefined, at: string): EvidenceMaterial {
@@ -1386,6 +1415,9 @@ export function decodeEvidenceMaterial(value: JsonValue | undefined, at: string)
     content_type: expectString(object["content_type"], at + ".content_type"),
     bytes_base64: expectString(object["bytes_base64"], at + ".bytes_base64"),
   };
+  if (object["settlement_domain"] !== undefined) {
+    result.settlement_domain = decodeSettlementDomain(object["settlement_domain"], at + ".settlement_domain");
+  }
   return result;
 }
 
@@ -1397,6 +1429,9 @@ export function encodeEvidenceMaterial(value: EvidenceMaterial): JsonValue {
     content_type: value.content_type,
     bytes_base64: value.bytes_base64,
   };
+  if (value.settlement_domain !== undefined) {
+    result["settlement_domain"] = value.settlement_domain;
+  }
   return result;
 }
 
@@ -1404,6 +1439,7 @@ export interface EvidenceRef {
   evidence_id: EvidenceId;
   class: EvidenceClass;
   verification: VerificationLevel;
+  settlement_domain?: SettlementDomain;
 }
 
 export function decodeEvidenceRef(value: JsonValue | undefined, at: string): EvidenceRef {
@@ -1413,6 +1449,9 @@ export function decodeEvidenceRef(value: JsonValue | undefined, at: string): Evi
     class: decodeEvidenceClass(object["class"], at + ".class"),
     verification: decodeVerificationLevel(object["verification"], at + ".verification"),
   };
+  if (object["settlement_domain"] !== undefined) {
+    result.settlement_domain = decodeSettlementDomain(object["settlement_domain"], at + ".settlement_domain");
+  }
   return result;
 }
 
@@ -1422,6 +1461,9 @@ export function encodeEvidenceRef(value: EvidenceRef): JsonValue {
     class: value.class,
     verification: value.verification,
   };
+  if (value.settlement_domain !== undefined) {
+    result["settlement_domain"] = value.settlement_domain;
+  }
   return result;
 }
 
@@ -1429,6 +1471,7 @@ export interface ExitEligibility {
   eligible: boolean;
   copy_key: CopyKey;
   withdraw_instead_path?: string;
+  settlement_domain?: SettlementDomain;
 }
 
 export function decodeExitEligibility(value: JsonValue | undefined, at: string): ExitEligibility {
@@ -1439,6 +1482,9 @@ export function decodeExitEligibility(value: JsonValue | undefined, at: string):
   };
   if (object["withdraw_instead_path"] !== undefined) {
     result.withdraw_instead_path = expectString(object["withdraw_instead_path"], at + ".withdraw_instead_path");
+  }
+  if (object["settlement_domain"] !== undefined) {
+    result.settlement_domain = decodeSettlementDomain(object["settlement_domain"], at + ".settlement_domain");
   }
   return result;
 }
@@ -1451,11 +1497,15 @@ export function encodeExitEligibility(value: ExitEligibility): JsonValue {
   if (value.withdraw_instead_path !== undefined) {
     result["withdraw_instead_path"] = value.withdraw_instead_path;
   }
+  if (value.settlement_domain !== undefined) {
+    result["settlement_domain"] = value.settlement_domain;
+  }
   return result;
 }
 
 export interface ExitStartRequest {
   confirmation: string;
+  settlement_domain?: SettlementDomain;
 }
 
 export function decodeExitStartRequest(value: JsonValue | undefined, at: string): ExitStartRequest {
@@ -1463,6 +1513,9 @@ export function decodeExitStartRequest(value: JsonValue | undefined, at: string)
   const result: ExitStartRequest = {
     confirmation: expectString(object["confirmation"], at + ".confirmation"),
   };
+  if (object["settlement_domain"] !== undefined) {
+    result.settlement_domain = decodeSettlementDomain(object["settlement_domain"], at + ".settlement_domain");
+  }
   return result;
 }
 
@@ -1470,6 +1523,9 @@ export function encodeExitStartRequest(value: ExitStartRequest): JsonValue {
   const result: JsonObject = {
     confirmation: value.confirmation,
   };
+  if (value.settlement_domain !== undefined) {
+    result["settlement_domain"] = value.settlement_domain;
+  }
   return result;
 }
 
@@ -2692,6 +2748,7 @@ export interface WalletSignRequest {
   copy_key: CopyKey;
   from_address: WalletAddress;
   to_sign_base64: string;
+  settlement_domain?: SettlementDomain;
 }
 
 export function decodeWalletSignRequest(value: JsonValue | undefined, at: string): WalletSignRequest {
@@ -2702,6 +2759,9 @@ export function decodeWalletSignRequest(value: JsonValue | undefined, at: string
     from_address: expectString(object["from_address"], at + ".from_address"),
     to_sign_base64: expectString(object["to_sign_base64"], at + ".to_sign_base64"),
   };
+  if (object["settlement_domain"] !== undefined) {
+    result.settlement_domain = decodeSettlementDomain(object["settlement_domain"], at + ".settlement_domain");
+  }
   return result;
 }
 
@@ -2712,11 +2772,15 @@ export function encodeWalletSignRequest(value: WalletSignRequest): JsonValue {
     from_address: value.from_address,
     to_sign_base64: value.to_sign_base64,
   };
+  if (value.settlement_domain !== undefined) {
+    result["settlement_domain"] = value.settlement_domain;
+  }
   return result;
 }
 
 export interface WithdrawClaimRequest {
   claim_signature: WalletSignature;
+  settlement_domain?: SettlementDomain;
 }
 
 export function decodeWithdrawClaimRequest(value: JsonValue | undefined, at: string): WithdrawClaimRequest {
@@ -2724,6 +2788,9 @@ export function decodeWithdrawClaimRequest(value: JsonValue | undefined, at: str
   const result: WithdrawClaimRequest = {
     claim_signature: expectString(object["claim_signature"], at + ".claim_signature"),
   };
+  if (object["settlement_domain"] !== undefined) {
+    result.settlement_domain = decodeSettlementDomain(object["settlement_domain"], at + ".settlement_domain");
+  }
   return result;
 }
 
@@ -2731,12 +2798,16 @@ export function encodeWithdrawClaimRequest(value: WithdrawClaimRequest): JsonVal
   const result: JsonObject = {
     claim_signature: value.claim_signature,
   };
+  if (value.settlement_domain !== undefined) {
+    result["settlement_domain"] = value.settlement_domain;
+  }
   return result;
 }
 
 export interface WithdrawStartRequest {
   money: Money;
   destination: WalletAddress;
+  settlement_domain?: SettlementDomain;
 }
 
 export function decodeWithdrawStartRequest(value: JsonValue | undefined, at: string): WithdrawStartRequest {
@@ -2745,6 +2816,9 @@ export function decodeWithdrawStartRequest(value: JsonValue | undefined, at: str
     money: decodeMoney(object["money"], at + ".money"),
     destination: expectString(object["destination"], at + ".destination"),
   };
+  if (object["settlement_domain"] !== undefined) {
+    result.settlement_domain = decodeSettlementDomain(object["settlement_domain"], at + ".settlement_domain");
+  }
   return result;
 }
 
@@ -2753,6 +2827,9 @@ export function encodeWithdrawStartRequest(value: WithdrawStartRequest): JsonVal
     money: encodeMoney(value.money),
     destination: value.destination,
   };
+  if (value.settlement_domain !== undefined) {
+    result["settlement_domain"] = value.settlement_domain;
+  }
   return result;
 }
 

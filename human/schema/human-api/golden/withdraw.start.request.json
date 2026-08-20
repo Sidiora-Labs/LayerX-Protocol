@@ -9,6 +9,7 @@
       "amount": "750000",
       "currency": "LXP"
     },
-    "destination": "0x8ba1f109551bd432803012645ac136ddd64dba72"
+    "destination": "0x8ba1f109551bd432803012645ac136ddd64dba72",
+    "settlement_domain": "paxeer"
   }
 }

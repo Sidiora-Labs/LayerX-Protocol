@@ -39,6 +39,12 @@ variants = ["fund","allocate","return","transfer"]
 resolved = "The route resolver derives the mechanism from source, destination and their relationship. The user never chooses it."
 boundary = "deposit, withdraw and exit are never mechanisms of an internal movement: they name custody-boundary journeys exclusively."
 
+[type.SettlementDomain]
+variants = ["paxeer"]
+sole_domain = "paxeer is the sole valid settlement domain in this contract version. The custody and withdrawal guarantee remains Paxeer exclusively, and no other venue is ever presented as a place funds live."
+reservation = "Every custody-boundary claim and receipt shape names its settlement domain through this vocabulary, so adding a settlement domain later is an additive schema change by construction: a new variant appended to this list with every existing declaration untouched."
+one_ledger = "An internal movement never names a settlement domain. One identity, one balance system and one canonical order are preserved unchanged by this vocabulary."
+
 [type.RefusedBy]
 variants = ["policy","budget","capability","protocol","limit"]
 classes = "The machine classes a movement can be refused by. The journey surface always speaks the refusal in plain language through the Refusal copy key."
@@ -52,6 +58,8 @@ change_path_rule = "change_path names the surface where the user can change the 
 
 [type.WalletSignRequest]
 required = ["stage_id:StageId","copy_key:CopyKey","from_address:WalletAddress","to_sign_base64:string"]
+optional = ["settlement_domain:SettlementDomain"]
+settlement_domain = "paxeer"
 opens_once = "The wallet opens exactly once per wallet request, at an explicit signing moment, and copy_key states in plain language what the signature does."
 opaque = "to_sign_base64 carries exactly what the wallet consumes - the custody transaction, the binding statement or a claim. The client hands it to the wallet unchanged and never assembles or inspects it."
 bound_address = "from_address is the bound address the signature must come from."
@@ -74,24 +82,35 @@ required = ["quote_id:QuoteId"]
 
 [type.DepositStartRequest]
 required = ["money:Money"]
+optional = ["settlement_domain:SettlementDomain"]
+settlement_domain = "paxeer"
 
 [type.DepositConfirmRequest]
 required = ["wallet_transaction:WalletTxId"]
+optional = ["settlement_domain:SettlementDomain"]
+settlement_domain = "paxeer"
 
 [type.WithdrawStartRequest]
 required = ["money:Money","destination:WalletAddress"]
+optional = ["settlement_domain:SettlementDomain"]
+settlement_domain = "paxeer"
 review = "The review before commitment shows the amount, the full destination address and the explicit statement that a committed withdrawal cannot be cancelled, only completed."
 
 [type.WithdrawClaimRequest]
 required = ["claim_signature:WalletSignature"]
+optional = ["settlement_domain:SettlementDomain"]
+settlement_domain = "paxeer"
 
 [type.ExitStartRequest]
 required = ["confirmation:string"]
+optional = ["settlement_domain:SettlementDomain"]
+settlement_domain = "paxeer"
 typed_confirmation = "confirmation carries the exact typed phrase the irreversible-action grammar requires. Anything else is refused."
 
 [type.ExitEligibility]
 required = ["eligible:boolean","copy_key:CopyKey"]
-optional = ["withdraw_instead_path:string"]
+optional = ["withdraw_instead_path:string","settlement_domain:SettlementDomain"]
+settlement_domain = "paxeer"
 normal_operation = "Where the protocol has not declared exit eligibility, eligible is false and copy_key states plainly that the exit is unavailable because the network is operating normally, with withdraw_instead_path offering the ordinary withdrawal instead."
 
 [operation.move.quote]

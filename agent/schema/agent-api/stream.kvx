@@ -41,6 +41,7 @@ consumer_rule = "Consumers must deduplicate on deduplication_id before applying 
 [type.ReceiptReference]
 variants = ["None","Verified"]
 Verified.required = ["receipt_ref","verification_level"]
+Verified.settlement_domain = "Paxeer"
 
 [type.Delivery]
 variants = ["Event","Gap","Truncated"]
