@@ -29,11 +29,11 @@ interface RumState {
   readonly series: Map<string, number[]>;
 }
 
-type RumGlobal = typeof globalThis & { __layerxRumState?: RumState };
+type RumGlobal = typeof globalThis & { __layerxDevelopmentRumState?: RumState };
 
 const runtime = globalThis as RumGlobal;
-const state = runtime.__layerxRumState ?? { series: new Map<string, number[]>() };
-runtime.__layerxRumState = state;
+const state = runtime.__layerxDevelopmentRumState ?? { series: new Map<string, number[]>() };
+runtime.__layerxDevelopmentRumState = state;
 
 function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -84,7 +84,7 @@ export function rumSnapshot(): readonly RumAggregate[] {
         !isPerformanceRoute(route) ||
         !isWebVitalName(metric)
       ) {
-        throw new TypeError("The bounded RUM store contains an invalid key");
+        throw new TypeError("The development RUM fallback contains an invalid key");
       }
       const observed = percentile75(values);
       return Object.freeze({

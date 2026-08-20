@@ -1720,6 +1720,7 @@ human-e2e-perf:
 	HUMAN_E2E_REAL_STACK=1 \
 	HUMAN_E2E_LOCAL_PRODUCTION=1 \
 	HUMAN_E2E_BASE_URL=http://127.0.0.1:3105 \
+	LAYERX_RUM_STORAGE_DIRECTORY=$(abspath human/apps/web/.next/rum-data) \
 		$(HUMAN_NPM) run test:perf
 
 human-test-journey:

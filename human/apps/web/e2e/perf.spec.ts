@@ -157,11 +157,28 @@ test("redacted RUM, cache controls, and generic 3G route progress use the produc
   page,
   request,
 }) => {
+  const rumHeaders = {
+    Origin: "http://127.0.0.1:3105",
+    "Sec-Fetch-Site": "same-origin",
+  } as const;
   const accepted = await request.post("/api/performance/vitals", {
+    headers: rumHeaders,
     data: { version: 1, route: "app", metric: "CLS", observed: 50_000 },
   });
   expect(accepted.status()).toBe(202);
+  expect((await accepted.json()) as unknown).toMatchObject({
+    accepted: true,
+    durable: true,
+    sink: {
+      mode: "durable-file",
+      configured: true,
+      durable: true,
+      delivery: "healthy",
+      reason: "delivery-confirmed",
+    },
+  });
   const refused = await request.post("/api/performance/vitals", {
+    headers: rumHeaders,
     data: {
       version: 1,
       route: "explorer",
@@ -172,18 +189,34 @@ test("redacted RUM, cache controls, and generic 3G route progress use the produc
   });
   expect(refused.status()).toBe(400);
   const snapshot = await request.get("/api/performance/vitals");
-  expect((await snapshot.json()) as unknown).toMatchObject({
+  const rum = (await snapshot.json()) as {
+    version: number;
+    sink: Readonly<Record<string, unknown>>;
+    aggregates: Array<{
+      route: string;
+      metric: string;
+      samples: number;
+      percentile75: number;
+      withinBudget: boolean;
+    }>;
+  };
+  expect(rum).toMatchObject({
     version: 1,
-    aggregates: [
-      {
-        route: "app",
-        metric: "CLS",
-        samples: 1,
-        percentile75: 50_000,
-        withinBudget: true,
-      },
-    ],
+    sink: {
+      mode: "durable-file",
+      configured: true,
+      durable: true,
+      delivery: "healthy",
+      reason: "delivery-confirmed",
+    },
   });
+  const cls = rum.aggregates.find(
+    (aggregate) => aggregate.route === "app" && aggregate.metric === "CLS",
+  );
+  expect(cls).toBeDefined();
+  expect(cls?.samples).toBeGreaterThanOrEqual(1);
+  expect(cls?.percentile75).toBe(50_000);
+  expect(cls?.withinBudget).toBe(true);
   const explorer = await request.get("/explorer");
   expect(explorer.headers()["cache-control"]).toContain("s-maxage=60");
 
