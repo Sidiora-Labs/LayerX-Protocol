@@ -437,7 +437,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Keep payloads free of secrets and within the user's notification detail level, degrading lock-screen content to non-sensitive summaries.
     - Deduplicate repeated events and record every dispatch in the audit trail.
     - _Requirements: 19.1, 19.2, 19.3_
-  - [ ] 9.5 Implement deep links, counts and resolved-state landing
+  - [x] 9.5 Implement deep links, counts and resolved-state landing
     - Make every notification deep link resolve to the exact surface in whichever shell is active.
     - Land links whose subject is resolved on the resolved state honestly - expired approvals read expired, completed journeys read done.
     - Serve the in-app inventory grouped by recency with read state.

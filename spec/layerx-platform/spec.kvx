@@ -1265,7 +1265,7 @@ reqs = ["19.1","19.2","19.3"]
 
 [task.9.5]
 title = "Implement deep links, counts and resolved-state landing"
-status = "pending"
+status = "done"
 wave = 4
 requires = ["9.4","9.1"]
 do_1 = "Make every notification deep link resolve to the exact surface in whichever shell is active."
