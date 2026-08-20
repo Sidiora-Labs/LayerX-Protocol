@@ -423,7 +423,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Property-test that rendered amounts and counterparties equal the disclosure's fields exactly, and that budget figures equal the agent-layer verified budget read.
     - Show an unknown activity class as explicitly unrenderable and not approvable from this plane.
     - _Requirements: 13.2, 2.3_
-  - [ ] 9.3 Implement approve and reject with step-up
+  - [x] 9.3 Implement approve and reject with step-up
     - Require step-up evidence bound to the held digest for approve, and grant through the approval module for exactly that digest.
     - Track the released activity to its receipt and surface it like any movement.
     - Implement reject with immediate confirmation that nothing moved.

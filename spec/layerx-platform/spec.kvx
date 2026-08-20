@@ -1235,7 +1235,7 @@ reqs = ["13.2","2.3"]
 
 [task.9.3]
 title = "Implement approve and reject with step-up"
-status = "pending"
+status = "done"
 wave = 4
 requires = ["9.2","5.3"]
 do_1 = "Require step-up evidence bound to the held digest for approve, and grant through the approval module for exactly that digest."
