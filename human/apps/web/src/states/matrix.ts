@@ -9,7 +9,19 @@ export const REQUIRED_SCREEN_STATES = [
   "still-checking",
 ] as const;
 
-export const CURRENT_ROUTES = ["/", "/app", "/app/settings", "/explorer"] as const;
+export const CURRENT_ROUTES = [
+  "/",
+  "/app",
+  "/app/settings",
+  "/explorer",
+  "/explorer/checkpoints",
+  "/explorer/checkpoints/[checkpointId]",
+  "/explorer/batches",
+  "/explorer/batches/[batchNumber]",
+  "/explorer/receipts/[receiptId]",
+  "/explorer/accounts/[accountId]",
+  "/explorer/verify",
+] as const;
 export const CURRENT_SHELLS = ["authenticated"] as const;
 
 export type ScreenState = (typeof REQUIRED_SCREEN_STATES)[number];
@@ -73,6 +85,13 @@ const currentTargets: readonly ScreenStateEntry[] = Object.freeze([
   Object.freeze({ id: "route.app", kind: "route", route: "/app", shells: BOTH_SHELLS, states: completeStates() }),
   Object.freeze({ id: "route.app.settings", kind: "route", route: "/app/settings", shells: BOTH_SHELLS, states: completeStates() }),
   Object.freeze({ id: "route.explorer", kind: "route", route: "/explorer", shells: BOTH_SHELLS, states: completeStates() }),
+  Object.freeze({ id: "route.explorer.checkpoints", kind: "route", route: "/explorer/checkpoints", shells: BOTH_SHELLS, states: completeStates() }),
+  Object.freeze({ id: "route.explorer.checkpoint", kind: "route", route: "/explorer/checkpoints/[checkpointId]", shells: BOTH_SHELLS, states: completeStates() }),
+  Object.freeze({ id: "route.explorer.batches", kind: "route", route: "/explorer/batches", shells: BOTH_SHELLS, states: completeStates() }),
+  Object.freeze({ id: "route.explorer.batch", kind: "route", route: "/explorer/batches/[batchNumber]", shells: BOTH_SHELLS, states: completeStates() }),
+  Object.freeze({ id: "route.explorer.receipt", kind: "route", route: "/explorer/receipts/[receiptId]", shells: BOTH_SHELLS, states: completeStates() }),
+  Object.freeze({ id: "route.explorer.account", kind: "route", route: "/explorer/accounts/[accountId]", shells: BOTH_SHELLS, states: completeStates() }),
+  Object.freeze({ id: "route.explorer.verify", kind: "route", route: "/explorer/verify", shells: BOTH_SHELLS, states: completeStates() }),
   Object.freeze({ id: "shell.authenticated", kind: "shell", route: "/app", shells: BOTH_SHELLS, states: completeStates() }),
 ]);
 
