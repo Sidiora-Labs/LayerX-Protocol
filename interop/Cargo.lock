@@ -427,6 +427,15 @@ name = "layerx-types"
 version = "0.1.0"
 
 [[package]]
+name = "layerx-ucp"
+version = "0.1.0"
+dependencies = [
+ "layerx-interop-gateway",
+ "layerx-proof",
+ "sha2",
+]
+
+[[package]]
 name = "layerx-wire"
 version = "0.1.0"
 dependencies = [
