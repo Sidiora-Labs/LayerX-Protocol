@@ -254,7 +254,11 @@ fn lock_missing_an_output_fails_the_gate() {
     generate(&root);
     let path = lock_path(&root);
     let text = fs::read_to_string(&path).unwrap_or_else(|error| panic!("read lock: {error}"));
-    let tampered = text.replace(", \"platform-conformance\"]", "]");
+    let tampered = if text.contains("\"platform-conformance\", ") {
+        text.replace("\"platform-conformance\", ", "")
+    } else {
+        text.replace(", \"platform-conformance\"", "")
+    };
     assert_ne!(tampered, text);
     fs::write(&path, tampered).unwrap_or_else(|error| panic!("tamper lock: {error}"));
     expect_failure(&root, "does not match the wired pipeline");

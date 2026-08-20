@@ -33,19 +33,23 @@ fn manifest() -> String {
         .unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
+fn declared_directories(source: &str) -> Vec<String> {
+    source
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("path = \""))
+        .filter_map(|value| value.strip_suffix('"'))
+        .map(str::to_owned)
+        .collect()
+}
+
 fn repo_fixture(label: &str) -> PathBuf {
     let root = directory(label);
-    for relative in [
-        "platform/sdk/generators",
-        "platform/middleware",
-        "platform/cli",
-        "platform/emulator",
-        "platform/hosted/gateway",
-        "platform/docs",
-        "platform/examples",
-        "platform/release",
-        "platform/tools",
-    ] {
+    let declared = declared_directories(&manifest());
+    assert!(
+        !declared.is_empty(),
+        "committed manifest declares no workspace directory"
+    );
+    for relative in &declared {
         fs::create_dir_all(root.join(relative))
             .unwrap_or_else(|error| panic!("create {relative}: {error}"));
     }

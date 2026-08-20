@@ -160,7 +160,7 @@ additive_only
 | Declaration | Kind | Shape |
 |---|---|---|
 | `ApiError` | type | required: `code:ErrorCode`, `copy_key:CopyKey`, `retry:Retriability`<br>optional: `retry_after_ms:integer`, `field:string` |
-| `ErrorCode` | type | variants: `unauthenticated`, `session-expired`, `step-up-required`, `forbidden`, `not-found`, `invalid-request`, `conflict`, `rate-limited`, `cursor-expired`, `unavailable`, `upstream-degraded`, `challenge-expired`, `refused-by-policy`, `refused-by-budget`, `refused-by-capability`, `refused-by-protocol`, `refused-by-limit`, `quote-expired`, `wallet-not-bound`, `exit-unavailable`, `already-decided`, `hold-expired`, `hold-defective`, `archive-needs-disposition`, `confirmation-mismatch`, `not-suppressible` |
+| `ErrorCode` | type | variants: `unauthenticated`, `session-expired`, `step-up-required`, `forbidden`, `not-found`, `invalid-request`, `conflict`, `rate-limited`, `cursor-expired`, `unavailable`, `upstream-degraded`, `challenge-expired`, `refused-by-policy`, `refused-by-budget`, `refused-by-capability`, `refused-by-protocol`, `refused-by-limit`, `quote-expired`, `wallet-not-bound`, `exit-unavailable`, `already-decided`, `hold-expired`, `hold-defective`, `archive-needs-disposition`, `confirmation-mismatch`, `not-suppressible`, `support-unavailable`, `support-conversation-unknown`, `support-message-unknown` |
 | `Retriability` | type | variants: `retriable`, `retriable-after`, `structural`, `final` |
 
 ### Module `identity`

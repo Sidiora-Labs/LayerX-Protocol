@@ -36,6 +36,9 @@ Every failure response carries one typed shape: a stable machine code, the copy-
 | `archive-needs-disposition` |
 | `confirmation-mismatch` |
 | `not-suppressible` |
+| `support-unavailable` |
+| `support-conversation-unknown` |
+| `support-message-unknown` |
 
 ### Retriability
 
