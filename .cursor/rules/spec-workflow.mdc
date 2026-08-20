@@ -15,7 +15,7 @@ This file is a GENERATED pointer to it. Do not hand-edit it; edit `spec/workflow
 ## Principles
 
 - **Task Driven**: Work is driven by the active feature's spec.kvx task list — not ad-hoc. Pick the next eligible task by dependency wave, do it, mark it, move on.
-- **One In Progress**: At most ONE task is in_progress at a time. Set it to in_progress before starting, to done only when it genuinely meets the bar.
+- **One In Progress**: At most 6 task is in_progress at a time YOU CAN USE SUB AGENTS TO WORK ON TASKS IN PARALEL WITHIN 1 WAVE. Set it to in_progress before starting, to done only when it genuinely meets the bar.
 - **No False Success**: Never mark a task done or attest completion that did not happen. Surface honest partials. A green test driven by a fake is not done.
 - **Read Full**: When a tool output is flagged truncated/paginated with a way to get the rest, retrieve the full content before reasoning. An information gap is a stop condition.
 - **Deliver Complete**: Deliver complete, runnable artifacts, not diffs. Follow existing repo style; add no comments/docs unless asked.

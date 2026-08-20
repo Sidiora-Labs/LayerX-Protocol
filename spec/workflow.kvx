@@ -20,7 +20,7 @@ active_feature  = "layerx-platform"
 
 [principle]
 task_driven     = "Work is driven by the active feature's spec.kvx task list — not ad-hoc. Pick the next eligible task by dependency wave, do it, mark it, move on."
-one_in_progress = "At most ONE task is in_progress at a time. Set it to in_progress before starting, to done only when it genuinely meets the bar."
+one_in_progress = "At most 6 task is in_progress at a time YOU CAN USE SUB AGENTS TO WORK ON TASKS IN PARALEL WITHIN 1 WAVE. Set it to in_progress before starting, to done only when it genuinely meets the bar."
 no_false_success= "Never mark a task done or attest completion that did not happen. Surface honest partials. A green test driven by a fake is not done."
 read_full       = "When a tool output is flagged truncated/paginated with a way to get the rest, retrieve the full content before reasoning. An information gap is a stop condition."
 deliver_complete= "Deliver complete, runnable artifacts, not diffs. Follow existing repo style; add no comments/docs unless asked."
