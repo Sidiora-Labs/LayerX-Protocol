@@ -203,6 +203,8 @@ test("amounts decode to bigint and re-encode to the exact decimal string", () =>
   assert.deepEqual(encodeMoney(money), { amount: "250000000", currency: "LXP" });
 });
 
+const EXPLORER_TRANSPORT = "explorer/client.ts";
+
 test("the web application reaches the service only through the generated client", async () => {
   const srcRoot = new URL("../src/", import.meta.url);
   const files = await readdir(srcRoot, { recursive: true });
@@ -213,7 +215,13 @@ test("the web application reaches the service only through the generated client"
     }
     const body = await readFile(new URL(relative, srcRoot), "utf8");
     assert.ok(!body.includes("api/generated"), "src/" + relative + " must consume src/api instead of the generated client directly");
-    assert.ok(!/\bfetch\s*\(/.test(body), "src/" + relative + " must not call the service outside src/api");
+    if (relative !== EXPLORER_TRANSPORT) {
+      assert.ok(!body.includes("explorerOrigin"), "src/" + relative + " must reach the explorer read API through src/" + EXPLORER_TRANSPORT);
+      for (const call of body.matchAll(/\bfetch\s*\(\s*([^,)]+)/g)) {
+        const target = (call[1] ?? "").trim();
+        assert.ok(/^"\/api\//.test(target), "src/" + relative + " may only fetch a same-origin app route, not " + target);
+      }
+    }
   }
   const surface = await readFile(new URL("../src/api/index.ts", import.meta.url), "utf8");
   assert.ok(surface.includes("./generated/index.ts"), "src/api/index.ts must present the generated client");
