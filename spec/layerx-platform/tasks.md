@@ -365,14 +365,14 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - _Requirements: 9.3, 9.7, 9.8_
 
 - [ ] 8. Implement the managed-agent journeys
-  - [-] 8.1 Orchestrate receipt-verified agent creation
+  - [x] 8.1 Orchestrate receipt-verified agent creation
     - Implement the creation journey from name, purpose and monthly limit: agent DID registration, custody key generation, recovery authority naming the human, session-key provisioning, capability narrowing and budget creation with initial funding, each step receipt-verified.
     - Present Active only when every step's receipt has verified; expose honest partial status and resumption otherwise.
     - Make creation idempotent so a crash never yields a phantom agent or a duplicate.
     - Map purpose presets to declared capability templates as configuration, not code.
     - Test creation end to end against a real agent layer, including partial-failure resume at every step.
     - _Requirements: 12.1, 12.2_
-  - [ ] 8.2 Implement pause, resume and limit changes
+  - [-] 8.2 Implement pause, resume and limit changes
     - Implement pause as prompt revocation or suspension of the agent's operating authority, and resume as its receipt-verified restoration.
     - Implement limit changes through budget intents where protocol-backed, labelling any daemon-enforced remainder app-enforced.
     - Never describe a daemon restriction as a protocol guarantee in any response or copy string.

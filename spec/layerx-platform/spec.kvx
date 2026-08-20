@@ -1111,7 +1111,7 @@ status = "pending"
 
 [task.8.1]
 title = "Orchestrate receipt-verified agent creation"
-status = "in_progress"
+status = "done"
 wave = 4
 requires = ["5.4","5.5"]
 do_1 = "Implement the creation journey from name, purpose and monthly limit: agent DID registration, custody key generation, recovery authority naming the human, session-key provisioning, capability narrowing and budget creation with initial funding, each step receipt-verified."
@@ -1126,7 +1126,7 @@ reqs = ["12.1","12.2"]
 
 [task.8.2]
 title = "Implement pause, resume and limit changes"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["8.1"]
 do_1 = "Implement pause as prompt revocation or suspension of the agent's operating authority, and resume as its receipt-verified restoration."

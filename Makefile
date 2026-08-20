@@ -1626,6 +1626,9 @@ human-test-intents:
 human-test-service:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service
 
+human-test-agents:
+	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test agent_create
+
 human-test-journeys:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test resolver
 	@if [ -f human/crates/layerx-human-service/tests/journey_faults.rs ]; then \

@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod agents;
 pub mod auth;
 pub mod audit;
 pub mod approvals;
