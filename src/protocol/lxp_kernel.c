@@ -8,7 +8,7 @@
 
 static const char *const module_names[LXP_MODULE_RESERVED_COUNT] = {
     "asset", "escrow", "budget", "stream", "service", "perps",
-    "governance", "bridge"
+    "governance", "bridge", "programs"
 };
 
 static bool registration_active(const lxp_module_registration *registration,

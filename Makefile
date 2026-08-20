@@ -2313,7 +2313,7 @@ interop-lint:
 
 PROGRAMS_CARGO ?= cargo
 
-.PHONY: programs-build programs-lint programs-test
+.PHONY: programs-build programs-lint programs-test programs-core-test
 
 programs-build:
 	cd programs && $(PROGRAMS_CARGO) build --locked --workspace
@@ -2323,5 +2323,14 @@ programs-lint:
 	sh programs/tools/dependency-policy.sh
 	cd programs && $(PROGRAMS_CARGO) deny check advisories bans sources
 
-programs-test:
+$(BUILD_DIR)/tests/programs_registration: tests/programs/test_registration.c \
+		$(LIBRARY)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
+
+programs-core-test: $(BUILD_DIR)/tests/programs_registration
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/programs_registration
+
+programs-test: programs-core-test
 	cd programs && $(PROGRAMS_CARGO) test --locked --workspace
