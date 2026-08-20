@@ -219,6 +219,45 @@ pub struct ExecutionRecord {
     pub usage: MeteredUsage,
 }
 
+impl ExecutionRecord {
+    /// Encodes the execution outcome into architecture-independent evidence bytes.
+    ///
+    /// Every integer uses network byte order and every value carries an explicit
+    /// width tag, so the same execution can be compared byte-for-byte across
+    /// operating systems, CPU architectures and optimisation profiles.
+    #[must_use]
+    pub fn canonical_evidence(&self) -> Vec<u8> {
+        let mut evidence = Vec::with_capacity(64 + self.outputs.len().saturating_mul(9));
+        evidence.extend_from_slice(b"LXP/program-execution\0");
+        evidence.extend_from_slice(&self.runtime_version.to_be_bytes());
+        evidence.extend_from_slice(&self.abi_version.to_be_bytes());
+        let native_output_count = self.outputs.len().to_be_bytes();
+        let mut output_count = [0u8; 16];
+        let count_offset = output_count.len() - native_output_count.len();
+        output_count[count_offset..].copy_from_slice(&native_output_count);
+        evidence.extend_from_slice(&output_count);
+        for output in &self.outputs {
+            match output {
+                WasmValue::I32(value) => {
+                    evidence.push(1);
+                    evidence.extend_from_slice(&value.to_be_bytes());
+                }
+                WasmValue::I64(value) => {
+                    evidence.push(2);
+                    evidence.extend_from_slice(&value.to_be_bytes());
+                }
+            }
+        }
+        evidence.extend_from_slice(&self.usage.cpu_fuel.to_be_bytes());
+        evidence.extend_from_slice(&self.usage.memory_bytes.to_be_bytes());
+        evidence.extend_from_slice(&self.usage.storage_read_bytes.to_be_bytes());
+        evidence.extend_from_slice(&self.usage.storage_write_bytes.to_be_bytes());
+        evidence.extend_from_slice(&self.usage.output_values.to_be_bytes());
+        evidence.extend_from_slice(&self.usage.fee_units.to_be_bytes());
+        evidence
+    }
+}
+
 /// Failure of an isolated execution; no instance or guest mutation is returned.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExecutionError {
