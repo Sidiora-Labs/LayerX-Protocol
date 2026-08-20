@@ -1,5 +1,7 @@
 use ed25519_dalek::{Signer as _, SigningKey};
-use layerx_proof::receipt::{verify, AuthorizedBatch, ReceiptCheck, VerificationFailure};
+use layerx_proof::receipt::{
+    canonical_protocol_facts, verify, AuthorizedBatch, ReceiptCheck, VerificationFailure,
+};
 use layerx_types::verify::VerificationLevel;
 use layerx_wire::encode::Encoder;
 use layerx_wire::hash::receipt_digest;
@@ -100,6 +102,12 @@ fn verifies_from_bytes_with_no_ambient_capabilities() {
         .unwrap_or_else(|error| panic!("valid core receipt rejected: {error:?}"));
     assert_eq!(verified.canonical_bytes(), bytes);
     assert_eq!(verified.level(), VerificationLevel::SEQUENCER_SIGNED);
+    let facts = canonical_protocol_facts(verified.canonical_bytes())
+        .unwrap_or_else(|error| panic!("verified receipt facts rejected: {error:?}"));
+    assert_eq!(facts.result_code(), 0);
+    assert_eq!(facts.asset(), fields.asset);
+    assert_eq!(facts.amount(), fields.amount);
+    assert_eq!(facts.fee_charged(), 1);
 }
 
 #[test]

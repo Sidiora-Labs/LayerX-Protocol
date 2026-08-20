@@ -16,6 +16,12 @@ use crate::{ct, SignatureMessage};
 const ASSET_SEND_ORDINAL: u16 = 5;
 const SEND_WIRE_TAG: u16 = 0x5301;
 const SEND_FIELD_COUNT: u16 = 10;
+const BUDGET_CREATE_ORDINAL: u16 = 1;
+const BUDGET_CREATE_WIRE_TAG: u16 = 0x4201;
+const BUDGET_CREATE_FIELD_COUNT: u16 = 10;
+const BUDGET_FUND_ORDINAL: u16 = 2;
+const BUDGET_FUND_WIRE_TAG: u16 = 0x4202;
+const BUDGET_FUND_FIELD_COUNT: u16 = 6;
 const ASSET_RECEIVE_ORDINAL: u16 = 6;
 const RECEIVE_WIRE_TAG: u16 = 0x5201;
 const RECEIVE_FIELD_COUNT: u16 = 8;
@@ -58,6 +64,8 @@ pub struct Counterparty {
 pub enum AmountRole {
     /// Principal transferred from payer to recipient.
     Transfer,
+    /// Maximum spend permitted in one configured budget period.
+    SpendingLimit,
 }
 
 /// One complete amount entry decoded from a module payload.
@@ -186,6 +194,15 @@ struct SendSemantics {
     expires_at: u64,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct BudgetCreateSemantics {
+    owner: [u8; 32],
+    budget: [u8; 32],
+    asset: [u8; 32],
+    per_period_limit: u128,
+    expires_at: u64,
+}
+
 fn fixed<const N: usize>(decoder: &mut Decoder<'_>) -> Result<[u8; N], DisclosureError> {
     decoder
         .fixed(N)
@@ -310,6 +327,74 @@ fn decode_budget_defund(
     })
 }
 
+fn decode_budget_create(payload: &[u8]) -> Result<BudgetCreateSemantics, DisclosureError> {
+    let mut decoder = Decoder::new(payload, 0);
+    if decoder.u16()? != BUDGET_CREATE_WIRE_TAG || decoder.u16()? != BUDGET_CREATE_FIELD_COUNT {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    let budget_id: [u8; 32] = fixed(&mut decoder)?;
+    let owner = fixed(&mut decoder)?;
+    let budget = fixed(&mut decoder)?;
+    let asset = fixed(&mut decoder)?;
+    let per_period_limit = decoder.u128()?;
+    let period_length = decoder.u64()?;
+    let rollover = decoder.u8()?;
+    let carry_cap = decoder.u128()?;
+    let _purpose: [u8; 32] = fixed(&mut decoder)?;
+    let expires_at = decoder.u64()?;
+    decoder.finish()?;
+    if budget_id == [0; 32]
+        || owner == budget
+        || per_period_limit == 0
+        || period_length == 0
+        || !matches!(rollover, 1 | 2)
+        || carry_cap > per_period_limit
+        || expires_at == 0
+    {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    Ok(BudgetCreateSemantics {
+        owner,
+        budget,
+        asset,
+        per_period_limit,
+        expires_at,
+    })
+}
+
+fn decode_budget_fund(
+    payload: &[u8],
+    activity: &Activity,
+) -> Result<SendSemantics, DisclosureError> {
+    let mut decoder = Decoder::new(payload, 0);
+    if decoder.u16()? != BUDGET_FUND_WIRE_TAG || decoder.u16()? != BUDGET_FUND_FIELD_COUNT {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    let budget_id: [u8; 32] = fixed(&mut decoder)?;
+    let from = fixed(&mut decoder)?;
+    let to = fixed(&mut decoder)?;
+    let asset = fixed(&mut decoder)?;
+    let amount = decoder.u128()?;
+    let idempotency_key = fixed(&mut decoder)?;
+    decoder.finish()?;
+    if budget_id == [0; 32]
+        || from == to
+        || amount == 0
+        || idempotency_key != activity.idempotency_key()
+    {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    Ok(SendSemantics {
+        from,
+        to,
+        asset,
+        amount,
+        sequence: activity.account_sequence(),
+        idempotency_key,
+        expires_at: activity.timestamp_bound().not_after,
+    })
+}
+
 fn decode_bridge_deposit_credit(
     payload: &[u8],
     activity: &Activity,
@@ -419,6 +504,7 @@ fn semantics(activity: &Activity) -> Result<SendSemantics, DisclosureError> {
         (ModuleId::Budget, BUDGET_DEFUND_ORDINAL) => {
             decode_budget_defund(activity.payload(), activity)
         }
+        (ModuleId::Budget, BUDGET_FUND_ORDINAL) => decode_budget_fund(activity.payload(), activity),
         (ModuleId::Bridge, BRIDGE_DEPOSIT_CREDIT_ORDINAL) => {
             decode_bridge_deposit_credit(activity.payload(), activity)
         }
@@ -457,6 +543,43 @@ fn decoded_fields(activity: &Activity) -> Result<DisclosureFields, DisclosureErr
             },
             idempotency_key: activity.idempotency_key(),
             evm_payout_binding: Some(binding),
+        });
+    }
+    if matches!(
+        (
+            activity.activity_type().module(),
+            activity.activity_type().ordinal()
+        ),
+        (ModuleId::Budget, BUDGET_CREATE_ORDINAL)
+    ) {
+        let budget = decode_budget_create(activity.payload())?;
+        return Ok(DisclosureFields {
+            activity_type: activity.activity_type(),
+            actor: activity.actor_did().to_vec(),
+            authority: activity.authority().to_vec(),
+            counterparties: vec![
+                Counterparty {
+                    role: CounterpartyRole::Payer,
+                    account: budget.owner,
+                },
+                Counterparty {
+                    role: CounterpartyRole::Recipient,
+                    account: budget.budget,
+                },
+            ],
+            amounts: vec![DisclosedAmount {
+                role: AmountRole::SpendingLimit,
+                value: budget.per_period_limit,
+            }],
+            asset: budget.asset,
+            fee_limit: activity.fee_limit(),
+            expiry: Expiry {
+                not_before,
+                not_after,
+                payload_expires_at: budget.expires_at,
+            },
+            idempotency_key: activity.idempotency_key(),
+            evm_payout_binding: None,
         });
     }
     let send = semantics(activity)?;
@@ -569,6 +692,7 @@ impl Disclosure {
         for amount in &self.amounts {
             encoder.u8(match amount.role {
                 AmountRole::Transfer => 1,
+                AmountRole::SpendingLimit => 2,
             })?;
             encoder.u128(amount.value)?;
         }

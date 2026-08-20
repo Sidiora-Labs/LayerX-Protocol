@@ -272,6 +272,7 @@ pub struct JourneyStatus {
     current_leg: usize,
     phases: Vec<JourneyPhase>,
     receipt_digests: Vec<Option<[u8; 32]>>,
+    refusal_codes: Vec<Option<i32>>,
 }
 
 impl JourneyStatus {
@@ -298,6 +299,12 @@ impl JourneyStatus {
     #[must_use]
     pub fn receipt_digests(&self) -> &[Option<[u8; 32]>] {
         &self.receipt_digests
+    }
+
+    /// Returns the exact protocol result for each refused leg.
+    #[must_use]
+    pub fn refusal_codes(&self) -> &[Option<i32>] {
+        &self.refusal_codes
     }
 }
 
@@ -643,12 +650,19 @@ impl JourneyEngine {
             .iter()
             .map(|leg| leg.receipt_digest)
             .collect();
+        let refusal_codes = self
+            .record
+            .legs
+            .iter()
+            .map(|leg| leg.refusal_code)
+            .collect();
         Ok(JourneyStatus {
             journey_id,
             state: self.state(),
             current_leg: self.record.current_leg,
             phases,
             receipt_digests,
+            refusal_codes,
         })
     }
 

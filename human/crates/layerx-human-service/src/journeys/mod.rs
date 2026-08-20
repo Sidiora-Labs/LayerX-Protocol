@@ -3,6 +3,7 @@
 mod deposit;
 mod engine;
 mod exit;
+mod move_money;
 mod resolver;
 mod withdraw;
 
@@ -17,6 +18,11 @@ pub use engine::{
     AgentBoundary, AgentBoundaryError, AgentObservation, AgentPreparation, JourneyEngine,
     JourneyError, JourneyLeg, JourneyPhase, JourneyPlan, JourneyProgress, JourneyState,
     JourneyStatus, ReceiptLookup, ReceiptMaterial, VerifiedLegEvidence,
+};
+
+pub use move_money::{
+    MoveAuthorization, MoveJourney, MoveJourneyError, MoveLegExecution, MoveLegProgress, MovePlan,
+    MoveQuote, MoveReceiptReference, MoveStage, MoveStatus,
 };
 
 pub use exit::{

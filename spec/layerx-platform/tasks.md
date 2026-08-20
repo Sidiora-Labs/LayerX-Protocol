@@ -356,7 +356,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Record the exit fully in the audit trail with its evidence.
     - Test the exit journey end to end including the degraded-core and ineligible-during-normal-operation scenarios.
     - _Requirements: 11.6, 11.8_
-  - [-] 7.6 Implement the move-money journey
+  - [x] 7.6 Implement the move-money journey
     - Implement the internal movement journey over the resolver and engine: quote with fee estimate and ceiling, plain-language review content, commit, per-leg progress and receipt-backed completion.
     - Return the receipt-backed actual amounts and fees at completion, replacing every estimate.
     - Reference every leg receipt in order on the journey record.

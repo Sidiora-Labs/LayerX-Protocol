@@ -1092,7 +1092,7 @@ reqs = ["11.6","11.8"]
 
 [task.7.6]
 title = "Implement the move-money journey"
-status = "in_progress"
+status = "done"
 wave = 4
 requires = ["7.1","7.2"]
 do_1 = "Implement the internal movement journey over the resolver and engine: quote with fee estimate and ceiling, plain-language review content, commit, per-leg progress and receipt-backed completion."

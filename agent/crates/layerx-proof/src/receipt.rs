@@ -120,6 +120,41 @@ pub struct VerifiedReceipt {
     evidence: Evidence,
 }
 
+/// Exact economic facts decoded from one canonical protocol receipt.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ProtocolReceiptFacts {
+    result_code: i32,
+    asset: [u8; 32],
+    amount: u128,
+    fee_charged: u128,
+}
+
+impl ProtocolReceiptFacts {
+    /// Returns the exact protocol result.
+    #[must_use]
+    pub const fn result_code(self) -> i32 {
+        self.result_code
+    }
+
+    /// Returns the receipt asset identifier.
+    #[must_use]
+    pub const fn asset(self) -> [u8; 32] {
+        self.asset
+    }
+
+    /// Returns the exact executed amount.
+    #[must_use]
+    pub const fn amount(self) -> u128 {
+        self.amount
+    }
+
+    /// Returns the exact fee charged by core.
+    #[must_use]
+    pub const fn fee_charged(self) -> u128 {
+        self.fee_charged
+    }
+}
+
 impl VerifiedReceipt {
     /// Borrows the decoded core receipt.
     #[must_use]
@@ -239,5 +274,34 @@ pub fn verify_outcome(
         receipt,
         canonical_bytes: reproduced,
         evidence: Evidence::sequencer(digest),
+    })
+}
+
+/// Decodes exact economic facts only when the supplied receipt is canonical.
+/// Authority and state-root verification remain the responsibility of
+/// [`verify_outcome`]; callers use this only with receipt bytes retained from a
+/// successfully verified value.
+///
+/// # Errors
+///
+/// Returns the exact decode, canonical-encoding or receipt-shape failure.
+pub fn canonical_protocol_facts(
+    receipt_bytes: &[u8],
+) -> Result<ProtocolReceiptFacts, VerificationFailure> {
+    let receipt =
+        decode(receipt_bytes).map_err(|_| VerificationFailure::at(ReceiptCheck::Decode))?;
+    let reproduced =
+        encode(&receipt).map_err(|_| VerificationFailure::at(ReceiptCheck::CanonicalEncoding))?;
+    if reproduced != receipt_bytes {
+        return Err(VerificationFailure::at(ReceiptCheck::CanonicalEncoding));
+    }
+    let protocol = receipt
+        .protocol()
+        .ok_or_else(|| VerificationFailure::at(ReceiptCheck::ReceiptShape))?;
+    Ok(ProtocolReceiptFacts {
+        result_code: protocol.result_code(),
+        asset: protocol.asset(),
+        amount: protocol.amount(),
+        fee_charged: protocol.fee_charged(),
     })
 }
