@@ -10,6 +10,7 @@ import {
   type Money,
   type MoveQuote,
 } from "../../api/index.ts";
+import { ACTIVE_ACCOUNT_STORAGE_KEY } from "../../auth/session.ts";
 import { formatExplicitCurrencyAmount } from "../../kit/a11y.ts";
 import {
   protocolAmount,
@@ -25,7 +26,7 @@ export const MOVE_STEP_IDS = ["who", "how-much", "review"] as const;
 export const MOVE_CURRENCY = "LXP";
 export const AMOUNT_LOCALE = "en";
 export const OTHER_ACCOUNT_OPTION = "other-account";
-export const ACCOUNT_STORAGE_KEY = "layerx.account";
+export const ACCOUNT_STORAGE_KEY = ACTIVE_ACCOUNT_STORAGE_KEY;
 export const PENDING_MOVE_STORAGE_KEY = "layerx.move.pending.v1";
 
 const REFUSAL_CODES = [

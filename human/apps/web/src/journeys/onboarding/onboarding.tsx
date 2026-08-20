@@ -11,6 +11,7 @@ import {
   type NotificationSummary,
   type Session,
 } from "../../api";
+import { ACTIVE_ACCOUNT_STORAGE_KEY } from "../../auth/session";
 import {
   DesktopPrimaryAction,
   InlineNotice,
@@ -97,6 +98,22 @@ function forgetPending(): void {
   }
 }
 
+function rememberActivatedAccount(journey: Journey): void {
+  if (!accountActive(journey)) {
+    return;
+  }
+  const pending = pendingOnboarding();
+  if (pending?.accountId === undefined) {
+    return;
+  }
+  try {
+    localStorage.setItem(ACTIVE_ACCOUNT_STORAGE_KEY, pending.accountId);
+  } catch {
+    return;
+  }
+  forgetPending();
+}
+
 function failureFromError(error: unknown): Failure {
   if (error instanceof HumanApiError) {
     return {
@@ -181,10 +198,6 @@ export function Onboarding({
   const creationKey = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    if (initiallyAuthenticated) {
-      forgetPending();
-      return;
-    }
     const pending = pendingOnboarding();
     if (pending === undefined) {
       return;
@@ -192,7 +205,7 @@ export function Onboarding({
     creationKey.current = pending.idempotencyKey;
     setEmail(pending.email);
     setDisplayName(pending.displayName);
-    if (pending.accountId !== undefined) {
+    if (!initiallyAuthenticated && pending.accountId !== undefined) {
       setPhase({
         name: "passkey",
         accountId: pending.accountId,
@@ -224,6 +237,7 @@ export function Onboarding({
       try {
         const next = await api.onboardingStatus();
         if (!cancelled) {
+          rememberActivatedAccount(next);
           setJourney(next);
           setFailure(undefined);
         }
@@ -334,9 +348,10 @@ export function Onboarding({
       }
       const assertionEmail = email.trim().toLowerCase();
       await openSession(assertionEmail.length === 0 ? undefined : assertionEmail);
-      forgetPending();
       setPhase({ name: "progress" });
-      setJourney(await api.onboardingStatus());
+      const next = await api.onboardingStatus();
+      rememberActivatedAccount(next);
+      setJourney(next);
     });
   };
 
@@ -344,9 +359,9 @@ export function Onboarding({
     run(async () => {
       const trimmed = email.trim().toLowerCase();
       const opened = await openSession(trimmed.length === 0 ? undefined : trimmed);
-      forgetPending();
       setPhase({ name: "progress" });
       const [next, page] = await Promise.all([api.onboardingStatus(), api.notificationList()]);
+      rememberActivatedAccount(next);
       setJourney(next);
       const openedAt = Date.parse(opened.opened_at);
       const notice = page.groups
@@ -363,6 +378,7 @@ export function Onboarding({
   const resume = (): void => {
     run(async () => {
       const next = await api.onboardingResume();
+      rememberActivatedAccount(next);
       setJourney(next);
     });
   };
