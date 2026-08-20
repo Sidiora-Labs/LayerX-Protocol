@@ -1,0 +1,12 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Sidiora Labs//LayerX Testnet//EN
+BEGIN:VEVENT
+UID:layerx-testnet-reset@layerx.network
+DTSTART:20260901T090000Z
+RRULE:FREQ=MONTHLY;BYDAY=1TU
+DURATION:PT30M
+SUMMARY:LayerX public testnet reset
+DESCRIPTION:Balances and receipts on the LayerX public testnet are reset.
+END:VEVENT
+END:VCALENDAR

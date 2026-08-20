@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: layerx-testnet}
+spec:
+  serviceName: layerx-testnet
+  replicas: 1
+  selector: {matchLabels: {app: layerx-testnet}}
+  template:
+    metadata: {labels: {app: layerx-testnet, layerx-plane: core}}
+    spec:
+      securityContext: {runAsNonRoot: true, runAsUser: 4020, fsGroup: 4020}
+      containers:
+        - name: core
+          image: ghcr.io/sidiora-labs/layerx-testnet:0.1.0
+          imagePullPolicy: Always
+          command: ["/opt/layerx/run-testnet.sh"]
+          env:
+            - {name: LAYERX_TESTNET_NETWORK_ID, value: "402"}
+            - {name: LAYERX_TESTNET_STATE, value: /var/lib/layerx-testnet/state.snapshot}
+          ports: [{name: gateway, containerPort: 9402}]
+          readinessProbe: {httpGet: {path: /healthz, port: gateway}, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /healthz, port: gateway}, periodSeconds: 15}
+          resources: {requests: {cpu: 500m, memory: 512Mi}, limits: {cpu: "2", memory: 2Gi}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts: [{name: state, mountPath: /var/lib/layerx-testnet}, {name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {}}]
+  volumeClaimTemplates:
+    - metadata: {name: state}
+      spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 20Gi}}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: layerx-testnet}
+spec: {selector: {app: layerx-testnet}, ports: [{name: gateway, port: 9402, targetPort: gateway}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: layerx-faucet}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: layerx-faucet}}
+  template:
+    metadata: {labels: {app: layerx-faucet, layerx-plane: gateway}}
+    spec:
+      securityContext: {runAsNonRoot: true, runAsUser: 4020, fsGroup: 4020}
+      containers:
+        - name: faucet
+          image: ghcr.io/sidiora-labs/layerx-faucet:0.1.0
+          env:
+            - {name: LAYERX_TESTNET_ADMIN_ADDRESS, value: layerx-testnet:9402}
+            - {name: LAYERX_FAUCET_STATE, value: /var/lib/layerx-faucet/claims.tsv}
+            - {name: LAYERX_FAUCET_IDENTITY_LIMIT, value: "10000000"}
+            - {name: LAYERX_FAUCET_ADDRESS_LIMIT, value: "10000000"}
+            - {name: LAYERX_FAUCET_IP_LIMIT, value: "50000000"}
+          ports: [{name: http, containerPort: 9410}]
+          readinessProbe: {httpGet: {path: /healthz, port: http}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts: [{name: state, mountPath: /var/lib/layerx-faucet}]
+      volumes: [{name: state, persistentVolumeClaim: {claimName: layerx-faucet-state}}]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: layerx-faucet-state}
+spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 2Gi}}}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: layerx-testnet-admin-boundary}
+spec:
+  podSelector: {matchLabels: {app: layerx-testnet}}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {app: layerx-faucet}}}]
+      ports: [{protocol: TCP, port: 9402}]
+    - from: [{podSelector: {matchLabels: {app: layerx-gateway}}}]
+      ports: [{protocol: TCP, port: 9402}]

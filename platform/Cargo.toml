@@ -4,6 +4,8 @@ members = [
     "ramps/reference",
     "cli",
     "emulator",
+    "hosted/faucet",
+    "hosted/testnet",
     "sdk/generators",
     "release",
     "tools/kvx",

@@ -1216,6 +1216,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "layerx-mirror"
+version = "0.1.0"
+dependencies = [
+ "layerx-agent-api",
+ "layerx-client",
+ "layerx-crypto",
+ "layerx-proof",
+ "layerx-wire",
+ "sha2",
+]
+
+[[package]]
 name = "layerx-platform-cli"
 version = "0.1.0"
 dependencies = [
@@ -1238,6 +1250,13 @@ name = "layerx-platform-emulator"
 version = "0.1.0"
 
 [[package]]
+name = "layerx-platform-faucet"
+version = "0.1.0"
+dependencies = [
+ "sha2",
+]
+
+[[package]]
 name = "layerx-platform-kvx"
 version = "0.1.0"
 
@@ -1255,6 +1274,10 @@ dependencies = [
  "layerx-platform-kvx",
  "sha2",
 ]
+
+[[package]]
+name = "layerx-platform-testnet"
+version = "0.1.0"
 
 [[package]]
 name = "layerx-platform-workspace-gate"
@@ -1302,6 +1325,7 @@ version = "0.1.0"
 dependencies = [
  "layerx-agent-api",
  "layerx-client",
+ "layerx-mirror",
  "layerx-proof",
  "layerx-types",
  "zeroize",

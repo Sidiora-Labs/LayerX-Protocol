@@ -22,12 +22,23 @@ platform-test:
 platform-test-tooling:
 	$(PLATFORM_CARGO) check --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-cli
 	$(PLATFORM_CARGO) check --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-emulator
+	$(PLATFORM_CARGO) test --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-faucet
+	$(PLATFORM_CARGO) test --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-testnet
+	sh -n platform/hosted/testnet/run-testnet.sh platform/hosted/testnet/reset-testnet.sh \
+		platform/hosted/testnet/render-status.sh platform/hosted/testnet/tests/hosted-smoke.sh
 	@if test -n "$${LAYERX_TESTNET_URL:-}" && test -n "$${LAYERX_CONFORMANCE_ACTIVITIES:-}"; then \
 		sh platform/emulator/tests/conformance.sh \
 			"$${LAYERX_EMULATOR_URL:-http://127.0.0.1:9402}" \
 			"$$LAYERX_TESTNET_URL" "$${LAYERX_CONFORMANCE_ACTIVITIES}"; \
 	else \
 		echo "emulator/testnet differential skipped: set LAYERX_TESTNET_URL and LAYERX_CONFORMANCE_ACTIVITIES"; \
+	fi
+	@if test -n "$${LAYERX_TESTNET_URL:-}" && test -n "$${LAYERX_FAUCET_URL:-}" && \
+		test -n "$${LAYERX_TEST_IDENTITY:-}" && test -n "$${LAYERX_TEST_PUBLIC_KEY:-}" && \
+		test -n "$${LAYERX_TEST_DID:-}" && test -n "$${LAYERX_CONFORMANCE_ACTIVITIES:-}"; then \
+		sh platform/hosted/testnet/tests/hosted-smoke.sh; \
+	else \
+		echo "hosted testnet/faucet smoke skipped: set scheduled CI hosted-testnet variables"; \
 	fi
 
 platform-emulator-conformance:
