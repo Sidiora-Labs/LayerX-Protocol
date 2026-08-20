@@ -1,0 +1,12 @@
+{
+  "name": "@sidiora/layerx-example-agent-spend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node index.mjs" },
+  "dependencies": {
+    "@sidiora/layerx-agent-middleware": "0.1.0",
+    "@sidiora/layerx-sdk": "0.1.0"
+  },
+  "engines": { "node": ">=22" }
+}
