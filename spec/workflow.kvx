@@ -16,7 +16,7 @@ kind            = "portable-agent-operating-contract"
 version         = "1.0.0"
 status          = "active"
 source_of_truth = "spec/ (kvx). Per-IDE rule files are GENERATED pointers — never hand-edit; run spec/specgen to regenerate."
-active_feature  = "layerx-human-interface"
+active_feature  = "layerx-platform"
 
 [principle]
 task_driven     = "Work is driven by the active feature's spec.kvx task list — not ad-hoc. Pick the next eligible task by dependency wave, do it, mark it, move on."
