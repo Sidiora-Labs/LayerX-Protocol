@@ -89,3 +89,11 @@ export {
 } from "./surface";
 export { PerformanceLoadingCard } from "./performance";
 export { PlaneRouteAction } from "./plane-route-action";
+export {
+  SettingsSection,
+  SettingsRow,
+  SettingsSwitch,
+  SettingsTextInput,
+  SettingsSegmentedControl,
+  type SettingsRowProps,
+} from "./settings";

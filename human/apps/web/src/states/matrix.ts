@@ -9,7 +9,7 @@ export const REQUIRED_SCREEN_STATES = [
   "still-checking",
 ] as const;
 
-export const CURRENT_ROUTES = ["/", "/app", "/explorer"] as const;
+export const CURRENT_ROUTES = ["/", "/app", "/app/settings", "/explorer"] as const;
 export const CURRENT_SHELLS = ["authenticated"] as const;
 
 export type ScreenState = (typeof REQUIRED_SCREEN_STATES)[number];
@@ -71,6 +71,7 @@ const BOTH_SHELLS: readonly HumanShell[] = Object.freeze(["mobile", "desktop"]);
 const currentTargets: readonly ScreenStateEntry[] = Object.freeze([
   Object.freeze({ id: "route.root", kind: "route", route: "/", shells: BOTH_SHELLS, states: completeStates() }),
   Object.freeze({ id: "route.app", kind: "route", route: "/app", shells: BOTH_SHELLS, states: completeStates() }),
+  Object.freeze({ id: "route.app.settings", kind: "route", route: "/app/settings", shells: BOTH_SHELLS, states: completeStates() }),
   Object.freeze({ id: "route.explorer", kind: "route", route: "/explorer", shells: BOTH_SHELLS, states: completeStates() }),
   Object.freeze({ id: "shell.authenticated", kind: "shell", route: "/app", shells: BOTH_SHELLS, states: completeStates() }),
 ]);

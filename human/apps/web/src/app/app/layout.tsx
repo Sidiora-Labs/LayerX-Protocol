@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 
 import { AuthenticatedShell } from "../../shell/app-shell";
 import { selectServerShell } from "../../shell/server";
+import { PrivacyModeProvider } from "../../settings/privacy";
+import { privacyPrincipalScope } from "../../settings/server";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +16,10 @@ export default async function AppPlaneLayout({ children }: Readonly<{ children: 
   }
 
   return (
-    <AuthenticatedShell initialSelection={selectServerShell(requestHeaders, requestCookies)}>
-      {children}
-    </AuthenticatedShell>
+    <PrivacyModeProvider principalScope={privacyPrincipalScope(requestHeaders, requestCookies)}>
+      <AuthenticatedShell initialSelection={selectServerShell(requestHeaders, requestCookies)}>
+        {children}
+      </AuthenticatedShell>
+    </PrivacyModeProvider>
   );
 }
