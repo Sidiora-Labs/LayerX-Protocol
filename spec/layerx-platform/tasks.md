@@ -416,7 +416,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Keep inbox counts consistent with the inbox within the declared freshness bound.
     - Test the inbox against a real agent layer generating holds.
     - _Requirements: 13.1, 13.5, 13.7_
-  - [-] 9.2 Render disclosures bound to their digests
+  - [x] 9.2 Render disclosures bound to their digests
     - Render the held activity's structured disclosure into plain-language approval content, with every rendered fact sourced only from the disclosure.
     - Verify before rendering that the disclosure re-encodes to the held digest, refusing to render an approvable presentation of a defective hold.
     - Cover every v1 activity class a hold can carry with a rendering template from the copy catalog.

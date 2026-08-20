@@ -1,5 +1,12 @@
 //! Event-driven projection of the agent approval module into the Human inbox.
 
+mod render;
+
+pub use render::{
+    ApprovalActivityClass, ApprovalPresentation, DisclosureRenderError, DisclosureRenderer,
+    RenderedApproval, RenderedApprovalFacts, RenderedCounterparty, UnrenderableApproval,
+};
+
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Write as _};
 
