@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/layerx-ap2",
     "crates/layerx-interop-gateway",
     "crates/layerx-fiat",
     "crates/layerx-migrate",
@@ -23,7 +24,9 @@ layerx-wire = { path = "../agent/crates/layerx-wire" }
 layerx-crypto = { path = "../agent/crates/layerx-crypto" }
 layerx-proof = { path = "../agent/crates/layerx-proof" }
 layerx-interop-gateway = { path = "crates/layerx-interop-gateway" }
+layerx-intents = { path = "../human/crates/layerx-intents" }
 openssl = "=0.10.73"
+p256 = { version = "=0.13.2", default-features = false, features = ["ecdsa", "std"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.149"
 sha2 = "=0.10.9"
