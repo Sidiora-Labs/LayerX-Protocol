@@ -152,9 +152,9 @@ pub fn verified_submission(id: u8) -> VerifiedSubmission {
         &registry(),
     ))
     .unwrap_or_else(|error| panic!("sign: {error:?}"));
-    let signed = attach_external_signature(&prepared, *signature.as_bytes())
+    let signed_bytes = attach_external_signature(&prepared, *signature.as_bytes())
         .unwrap_or_else(|error| panic!("attach: {error:?}"));
-    verify_before_submit(&signed, &prepared, &signer.public_key(), &registry())
+    verify_before_submit(&signed_bytes, &prepared, &signer.public_key(), &registry())
         .unwrap_or_else(|error| panic!("verify: {error:?}"))
 }
 

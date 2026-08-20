@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use crate::store::TenantId;
 use crate::tenant::{Config, RedactionPolicy};
 
-use super::log::{entry_hash, read_frames, verify_chain, AuditError};
+use super::log::{entry_hash, read_frames, verify_chain, AuditError, VerifiedFrame};
 use super::records::{decode_entry, Entry, RecordError};
 use super::PayloadEvidence;
 
@@ -264,14 +264,7 @@ pub fn export(
         return Err(ExportError::WrongTenant);
     }
     let frames = read_frames(log_path)?;
-    let mut decoded = Vec::with_capacity(frames.len());
-    for frame in &frames {
-        let entry = decode_entry(&frame.payload)?;
-        if entry.tenant != config.tenant {
-            return Err(ExportError::WrongTenant);
-        }
-        decoded.push(entry);
-    }
+    let decoded = decode_owned_entries(&frames, config)?;
 
     let selected_sequences: BTreeSet<_> = decoded
         .iter()
@@ -295,6 +288,49 @@ pub fn export(
         });
     }
 
+    let referenced_evidence = collect_referenced_evidence(&entries, evidence_store)?;
+
+    let first_index = usize::try_from(first_sequence).map_err(|_| ExportError::EmptySlice)?;
+    let links = chain_links(
+        &frames,
+        &decoded,
+        &entries,
+        &selected_sequences,
+        first_index,
+    );
+
+    Ok(AuditExport {
+        query,
+        entries,
+        chain: ChainMaterial {
+            tenant_hash: verification.tenant_hash,
+            anchor_entries: verification.entries,
+            anchor_tail_hash: verification.tail_hash,
+            links,
+        },
+        referenced_evidence,
+    })
+}
+
+fn decode_owned_entries(
+    frames: &[VerifiedFrame],
+    config: &Config,
+) -> Result<Vec<Entry>, ExportError> {
+    let mut decoded = Vec::with_capacity(frames.len());
+    for frame in frames {
+        let entry = decode_entry(&frame.payload)?;
+        if entry.tenant != config.tenant {
+            return Err(ExportError::WrongTenant);
+        }
+        decoded.push(entry);
+    }
+    Ok(decoded)
+}
+
+fn collect_referenced_evidence(
+    entries: &[ExportedEntry],
+    evidence_store: &EvidenceStore,
+) -> Result<Vec<ReferencedEvidence>, ExportError> {
     let receipt_ids: BTreeSet<_> = entries
         .iter()
         .filter_map(|exported| exported.entry.receipt_id)
@@ -320,9 +356,17 @@ pub fn export(
             protocol_facts,
         });
     }
+    Ok(referenced_evidence)
+}
 
-    let first_index = usize::try_from(first_sequence).map_err(|_| ExportError::EmptySlice)?;
-    let links = frames
+fn chain_links(
+    frames: &[VerifiedFrame],
+    decoded: &[Entry],
+    entries: &[ExportedEntry],
+    selected_sequences: &BTreeSet<u64>,
+    first_index: usize,
+) -> Vec<ChainLink> {
+    frames
         .iter()
         .enumerate()
         .skip(first_index)
@@ -348,19 +392,7 @@ pub fn export(
                 canonical_entry_bytes,
             }
         })
-        .collect();
-
-    Ok(AuditExport {
-        query,
-        entries,
-        chain: ChainMaterial {
-            tenant_hash: verification.tenant_hash,
-            anchor_entries: verification.entries,
-            anchor_tail_hash: verification.tail_hash,
-            links,
-        },
-        referenced_evidence,
-    })
+        .collect()
 }
 
 /// Verifies the exported hash-chain suffix against its durable tail anchor.
@@ -504,7 +536,7 @@ pub fn review(exported: &AuditExport) -> Result<ReviewReport, ReviewError> {
 }
 
 fn apply_retention(config: &Config, sequence: u64, current_sequence: u64, entry: &mut Entry) {
-    let retained = current_sequence <= sequence.saturating_add(config.retention.audit_sequences);
+    let retained = current_sequence <= sequence.saturating_add(config.retention.audit);
     if entry.submitted_bytes.is_some()
         && (config.redaction == RedactionPolicy::ReceiptOnly || !retained)
     {

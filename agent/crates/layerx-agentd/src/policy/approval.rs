@@ -28,6 +28,11 @@ pub struct ApprovalContext {
 pub struct ApproverId(String);
 
 impl ApproverId {
+    /// Creates a non-empty approver identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidApprover` for an empty identifier.
     pub fn new(value: impl Into<String>) -> Result<Self, ApprovalError> {
         let value = value.into();
         if value.is_empty() {
@@ -115,11 +120,21 @@ pub struct ApprovalRegistry {
 }
 
 impl ApprovalRegistry {
+    /// Returns the disclosure-only ticket for one hold when it exists.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` when the hold registry lock is poisoned.
     pub fn ticket(&self, hold_id: [u8; 32]) -> Result<Option<ApprovalTicket>, ApprovalError> {
         let holds = self.holds.lock().map_err(|_| ApprovalError::Unavailable)?;
         Ok(holds.get(&hold_id).map(ticket_from_hold))
     }
 
+    /// Returns the terminal audit entry recorded for one hold when it exists.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` when the hold registry lock is poisoned.
     pub fn audit_entry(
         &self,
         hold_id: [u8; 32],
@@ -230,6 +245,12 @@ pub enum ApprovalError {
 }
 
 /// Holds only prepared bytes and their decoded disclosure, never the caller request.
+///
+/// # Errors
+///
+/// Refuses a window that does not close before the preparation expires, a digest that does not
+/// match the canonical bytes, an actor other than the disclosed one, a duplicate request
+/// identifier, and a poisoned registry.
 pub fn hold(
     registry: &ApprovalRegistry,
     context: ApprovalContext,
@@ -270,6 +291,11 @@ pub fn hold(
 }
 
 /// Applies exactly one decision to the disclosure digest the approver saw.
+///
+/// # Errors
+///
+/// Refuses an unknown hold, an already decided or newly expired hold, a presented digest that
+/// differs from the held disclosure, and a poisoned registry.
 pub fn decide(
     registry: &ApprovalRegistry,
     hold_id: [u8; 32],
@@ -349,6 +375,10 @@ fn snapshot(held: &HeldApproval) -> ApprovalSnapshot {
 }
 
 /// Expires every elapsed hold against an explicit protocol-relative sequence.
+///
+/// # Errors
+///
+/// Returns `Unavailable` when the hold registry lock is poisoned.
 pub fn expire(
     registry: &ApprovalRegistry,
     current_sequence: u64,

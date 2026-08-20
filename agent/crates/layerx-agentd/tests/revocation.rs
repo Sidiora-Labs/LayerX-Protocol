@@ -3,7 +3,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use layerx_agentd::identity::{register, CoreIdentity, IdentityError, IdentityResolver, ProtocolAuthority};
+use layerx_agentd::identity::{
+    register, CoreIdentity, IdentityError, IdentityResolver, ProtocolAuthority,
+};
 use layerx_agentd::session::{
     invalidate_on_revocation, open, InvalidationReason, OpenRequest, PendingActivity,
     PreparationState, RevocationEvent, SessionId, SessionRegistry,
@@ -95,9 +97,14 @@ fn revocation_cancels_only_unsubmitted_work_and_persists_session_invalidation() 
     assert_eq!(report.executed_untouched, 1);
     assert!(activities[0].cancelled);
     assert!(!activities[1].cancelled);
-    assert!(!sessions.get(SessionId([1; 32])).is_some_and(|record| record.open));
+    assert!(!sessions
+        .get(SessionId([1; 32]))
+        .is_some_and(|record| record.open));
     drop(store);
-    assert!(Store::open(&path).is_ok(), "persisted invalidation store must reopen");
+    assert!(
+        Store::open(&path).is_ok(),
+        "persisted invalidation store must reopen"
+    );
     let _ = fs::remove_dir_all(path);
 }
 

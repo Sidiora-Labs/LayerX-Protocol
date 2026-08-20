@@ -74,7 +74,10 @@ fn registration_resolves_core_state_and_persists_provenance() {
     assert_eq!(boundary.calls, 1);
     assert_eq!(record.head_sequence(), 41);
     assert_eq!(record.verification_level(), VerificationLevel::STATE_PROVEN);
-    assert_eq!(record.authorities(), &[ProtocolAuthority::SessionKey([7; 32])]);
+    assert_eq!(
+        record.authorities(),
+        &[ProtocolAuthority::SessionKey([7; 32])]
+    );
     assert_eq!(record.canonical_core_bytes(), b"identity-at-41");
     let _ = fs::remove_dir_all(root);
 }
@@ -97,13 +100,19 @@ fn unknown_frozen_unverified_and_unavailable_identities_are_refused() {
             })),
             IdentityError::Unverified,
         ),
-        (Err(IdentityError::BoundaryUnavailable), IdentityError::BoundaryUnavailable),
+        (
+            Err(IdentityError::BoundaryUnavailable),
+            IdentityError::BoundaryUnavailable,
+        ),
     ];
     for (index, (result, expected)) in cases.into_iter().enumerate() {
         let root = directory(&format!("refusal-{index}"));
         let mut store = Store::open(&root).unwrap_or_else(|error| panic!("open failed: {error}"));
         let mut boundary = BoundaryIdentityLedger { result, calls: 0 };
-        assert_eq!(register(&mut store, tenant(), did(), &mut boundary), Err(expected));
+        assert_eq!(
+            register(&mut store, tenant(), did(), &mut boundary),
+            Err(expected)
+        );
         let _ = fs::remove_dir_all(root);
     }
 }
@@ -128,7 +137,10 @@ fn restored_binding_is_revalidated_and_freeze_is_observed() {
         })),
         calls: 0,
     };
-    assert_eq!(revalidate(&mut reopened, &record, &mut frozen), Err(IdentityError::Frozen));
+    assert_eq!(
+        revalidate(&mut reopened, &record, &mut frozen),
+        Err(IdentityError::Frozen)
+    );
     assert_eq!(frozen.calls, 1);
     let _ = fs::remove_dir_all(root);
 }

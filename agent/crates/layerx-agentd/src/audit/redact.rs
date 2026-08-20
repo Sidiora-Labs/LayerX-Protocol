@@ -136,11 +136,18 @@ impl RedactionRegistry {
             config.tenant.clone(),
             TenantRedaction {
                 policy: config.redaction,
-                audit_retention_sequences: config.retention.audit_sequences,
+                audit_retention_sequences: config.retention.audit,
             },
         );
     }
 
+    /// Renders one value for a surface under the owning tenant's configured policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns `MissingTenantConfiguration` for an unconfigured tenant, and `InvalidPublicText`
+    /// when public text is not UTF-8, is empty, exceeds 4096 bytes, or carries a control
+    /// character other than tab or newline.
     pub fn render(
         &self,
         tenant: &TenantId,
@@ -157,6 +164,13 @@ impl RedactionRegistry {
     }
 }
 
+/// Renders one value for a surface under an explicitly supplied tenant configuration.
+///
+/// # Errors
+///
+/// Returns `WrongTenant` when the configuration belongs to another tenant, and
+/// `InvalidPublicText` when public text is not UTF-8, is empty, exceeds 4096 bytes, or carries a
+/// control character other than tab or newline.
 pub fn redact(
     config: &Config,
     tenant: &TenantId,
@@ -171,7 +185,7 @@ pub fn redact(
     render_with(
         TenantRedaction {
             policy: config.redaction,
-            audit_retention_sequences: config.retention.audit_sequences,
+            audit_retention_sequences: config.retention.audit,
         },
         surface,
         class,
@@ -187,8 +201,7 @@ pub fn protect_payload(
     current_sequence: u64,
     value: &[u8],
 ) -> PayloadEvidence {
-    let retained =
-        current_sequence <= written_sequence.saturating_add(config.retention.audit_sequences);
+    let retained = current_sequence <= written_sequence.saturating_add(config.retention.audit);
     match (config.redaction, retained) {
         (RedactionPolicy::ReceiptOnly, _) | (_, false) => PayloadEvidence::Redacted,
         (RedactionPolicy::Strict | RedactionPolicy::Standard, true) => {

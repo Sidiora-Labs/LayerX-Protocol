@@ -43,11 +43,23 @@ pub enum UnknownBoundaryError {
 
 /// The only boundary operations unknown-state resolution is permitted to use.
 pub trait ReceiptLookup {
+    /// Looks up terminal receipt evidence already recorded under one idempotency key.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` when the node cannot be reached and `InvalidResponse` for a reply that
+    /// is not decodable receipt evidence; a reachable node holding no receipt returns `Ok(None)`.
     fn receipt_by_idempotency_key(
         &mut self,
         idempotency_key: [u8; 32],
     ) -> Result<Option<ResolvedReceipt>, UnknownBoundaryError>;
 
+    /// Resends the stored signed bytes unchanged under their original idempotency key.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` when the node cannot be reached and `InvalidResponse` for an unusable
+    /// reply; both leave the send indeterminate, so neither may be read as a refusal.
     fn resend_exact(
         &mut self,
         idempotency_key: [u8; 32],
@@ -104,6 +116,12 @@ impl From<StoreError> for UnknownResolutionError {
 }
 
 /// Resolves an unknown submission solely from a receipt lookup by idempotency key.
+///
+/// # Errors
+///
+/// Returns `Outbox(NotFound)` for an untracked submission and `NotUnknown` for a record in any
+/// other state, `TimeRegressed`, `Arithmetic` or `Corrupt` from the persisted backoff record, and
+/// `Store` for failed durable writes; lookup and resend failures surface as observations instead.
 pub fn resolve_unknown<B: ReceiptLookup>(
     outbox: &mut Outbox,
     store: &mut Store,
@@ -152,16 +170,13 @@ pub fn resolve_unknown<B: ReceiptLookup>(
         .ok_or(UnknownResolutionError::Arithmetic)?;
     store.put_local(key.clone(), encode_state(age))?;
 
-    let receipt = match boundary.receipt_by_idempotency_key(submission_id) {
-        Ok(receipt) => receipt,
-        Err(_) => {
-            return Ok(UnknownResolution {
-                state: SubmissionState::Unknown,
-                age,
-                observation: ResolutionObservation::LookupUnavailable,
-                resend: ResendObservation::NotWarranted,
-            });
-        }
+    let Ok(receipt) = boundary.receipt_by_idempotency_key(submission_id) else {
+        return Ok(UnknownResolution {
+            state: SubmissionState::Unknown,
+            age,
+            observation: ResolutionObservation::LookupUnavailable,
+            resend: ResendObservation::NotWarranted,
+        });
     };
 
     if let Some(receipt) = receipt {

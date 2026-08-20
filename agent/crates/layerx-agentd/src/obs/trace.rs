@@ -86,6 +86,11 @@ impl Trace {
         }
     }
 
+    /// Records one span, which must be the next stage in the fixed order.
+    ///
+    /// # Errors
+    ///
+    /// Returns `StageOutOfOrder` when the stage is not the one that follows the recorded spans.
     pub fn enter(&mut self, stage: TraceStage, outcome: TraceOutcome) -> Result<(), TraceError> {
         if TraceStage::ALL.get(self.spans.len()).copied() != Some(stage) {
             return Err(TraceError::StageOutOfOrder);
@@ -94,6 +99,11 @@ impl Trace {
         Ok(())
     }
 
+    /// Closes a trace that has recorded every stage.
+    ///
+    /// # Errors
+    ///
+    /// Returns `TraceIncomplete` when any of the six stages has not been entered.
     pub fn finish(self) -> Result<Self, TraceError> {
         if self.spans.len() == TraceStage::ALL.len() {
             Ok(self)

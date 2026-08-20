@@ -133,6 +133,11 @@ impl Coverage {
             .collect()
     }
 
+    /// Requires at least one recorded entry for every audited event class.
+    ///
+    /// # Errors
+    ///
+    /// Returns `IncompleteCoverage` naming every class without a recorded entry.
     pub fn require_complete(&self) -> Result<(), RecordError> {
         let missing = self.missing();
         if missing.is_empty() {
@@ -221,6 +226,13 @@ impl From<RedactionError> for RecordError {
     }
 }
 
+/// Appends the audit entry durably before the operation runs.
+///
+/// # Errors
+///
+/// Returns `Invalid` for an empty, oversized, or evidence-incomplete entry and an
+/// audit error when the chain cannot be verified or appended; the operation does
+/// not run in either case.
 pub fn record<T>(
     log: &mut Log,
     coverage: &mut Coverage,
@@ -235,6 +247,12 @@ pub fn record<T>(
     Ok(output)
 }
 
+/// Reads every entry from the verified audit chain at `path`.
+///
+/// # Errors
+///
+/// Returns an audit error when the chain cannot be verified or read and `Decode`
+/// when a payload is not a well-formed audit entry.
 pub fn read_entries(path: impl AsRef<Path>) -> Result<Vec<Entry>, RecordError> {
     read_payloads(path)?
         .into_iter()
@@ -242,6 +260,13 @@ pub fn read_entries(path: impl AsRef<Path>) -> Result<Vec<Entry>, RecordError> {
         .collect()
 }
 
+/// Rebuilds one session's decisions and evidence from audited entries.
+///
+/// # Errors
+///
+/// Returns `IncompleteReconstruction` when the submission or terminal record is
+/// absent, ambiguous, or missing its evidence, the referenced receipt is not
+/// stored, or the stored submission does not match the audited digest.
 pub fn reconstruct_session(
     entries: &[Entry],
     receipts: &BTreeMap<[u8; 32], StoredReceiptEvidence>,

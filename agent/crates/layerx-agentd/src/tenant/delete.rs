@@ -24,6 +24,12 @@ pub struct LegalAuditRecord {
 }
 
 impl LegalAuditRecord {
+    /// Builds a legal-retention record out of metadata alone.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DeletionError::InvalidRetention` when the reason code is empty, longer than
+    /// 128 bytes or carries a NUL, or when the retain-until sequence is zero.
     pub fn new(
         class: LegalAuditClass,
         reason_code: impl Into<String>,
@@ -76,6 +82,12 @@ impl From<StoreError> for DeletionError {
 }
 
 /// Persists one schema-restricted legal record that contains metadata only.
+///
+/// # Errors
+///
+/// Returns `DeletionError::Store` wrapping `StoreError::InvalidObjectId` for an empty or
+/// oversized audit object id, or the `Io`/`SizeOverflow` raised while persisting, and
+/// `InvalidRetention` if the reason code will not fit its `u16` length prefix.
 pub fn record_legal_audit(
     store: &mut Store,
     tenant: TenantId,
@@ -181,7 +193,11 @@ fn decode_legal(bytes: &[u8]) -> Result<LegalAuditRecord, DeletionError> {
 fn encode_retention(retained: &BTreeSet<Vec<u8>>) -> Vec<u8> {
     let mut bytes = Vec::new();
     for object_id in retained {
-        bytes.extend_from_slice(&(object_id.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(
+            &u32::try_from(object_id.len())
+                .unwrap_or(u32::MAX)
+                .to_be_bytes(),
+        );
         bytes.extend_from_slice(object_id);
     }
     bytes

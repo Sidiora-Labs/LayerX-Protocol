@@ -84,6 +84,12 @@ pub struct PolicyRegistry {
 }
 
 impl PolicyRegistry {
+    /// Seeds the registry with a validated initial policy at generation 1.
+    ///
+    /// # Errors
+    ///
+    /// Propagates `validate_policy`: `EmptyVersion`, `ZeroStepLimit`, `StepLimitTooSmall`,
+    /// `EmptyRuleId`, `DuplicateRuleId`, `EmptyPurpose` or `InvalidSequenceWindow`.
     pub fn new(initial: PolicySet) -> Result<Self, PolicyValidationError> {
         validate_policy(&initial)?;
         let active_version = initial.version.clone();
@@ -185,7 +191,7 @@ pub(crate) fn activate_policy(
     registry
         .versions
         .insert(active_version.clone(), Arc::new(policy));
-    registry.active_version = active_version.clone();
+    registry.active_version.clone_from(&active_version);
     registry.generation = generation;
     Ok(Activation {
         previous_version,
@@ -195,6 +201,12 @@ pub(crate) fn activate_policy(
 }
 
 /// Loads a bounded line-oriented policy source without ambient state.
+///
+/// # Errors
+///
+/// Returns `TooLarge`, `InvalidUtf8`, `LineTooLarge` or `TooManyRules` on the bounds,
+/// `InvalidDeclaration` for an unknown, repeated or absent `version=`/`steps=` or a
+/// comma-less `rule=`, `InvalidInteger`, `InvalidEffect`, or `Validation` on the set.
 pub fn load_policy_source(source: &[u8]) -> Result<PolicySet, PolicySourceError> {
     if source.len() > MAX_POLICY_SOURCE_BYTES {
         return Err(PolicySourceError::TooLarge);

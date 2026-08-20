@@ -41,6 +41,11 @@ pub struct AdmissionConfig {
 
 impl AdmissionConfig {
     /// Creates a configuration only when every priority lane has finite bounds.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidConfiguration` for a zero in-flight or message-byte maximum, or when any of
+    /// the seven priorities is missing a lane or carries a zero request or byte bound.
     pub fn new(
         maximum_in_flight: usize,
         maximum_message_bytes: usize,
@@ -141,6 +146,7 @@ pub struct BoundaryAdmission {
 }
 
 impl BoundaryAdmission {
+    #[must_use]
     pub fn new(config: AdmissionConfig) -> Self {
         let queues = Priority::ALL
             .into_iter()
@@ -160,6 +166,12 @@ impl BoundaryAdmission {
     }
 
     /// Admits work into its independently bounded lane only while core is ready.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidWork` for an empty or oversized tenant or payload, `DuplicateRequest` for an
+    /// identifier already queued or in flight, and `Backpressure` sourced from `CoreBackpressured`,
+    /// `CoreUnavailable`, `QueueRequests` or `QueueBytes`.
     pub fn admit(
         &mut self,
         work: BoundaryWork,
@@ -199,10 +211,7 @@ impl BoundaryAdmission {
 
         let request_id = work.request_id;
         let priority = work.priority;
-        self.queues
-            .get_mut(&priority)
-            .expect("all priority lanes are initialized")
-            .push_back(work);
+        self.queues.entry(priority).or_default().push_back(work);
         self.queued_ids.insert(request_id);
         self.utilization.insert(
             priority,
@@ -215,6 +224,12 @@ impl BoundaryAdmission {
     }
 
     /// Dispatches the oldest request from the strict highest-priority lane.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Backpressure` sourced from `CoreBackpressured` or `CoreUnavailable` for a core that
+    /// is not ready, or from `InFlight` once the in-flight maximum is reached; empty queues are
+    /// `Ok(None)` rather than an error.
     pub fn dispatch(
         &mut self,
         availability: CoreAvailability,
@@ -235,12 +250,9 @@ impl BoundaryAdmission {
             ));
         }
 
-        let work = self
-            .queues
-            .get_mut(&priority)
-            .expect("all priority lanes are initialized")
-            .pop_front()
-            .expect("selected queue is non-empty");
+        let Some(work) = self.queues.entry(priority).or_default().pop_front() else {
+            return Ok(None);
+        };
         let current = self.utilization[&priority];
         self.utilization.insert(
             priority,
@@ -259,6 +271,12 @@ impl BoundaryAdmission {
 
     /// Releases one boundary slot and propagates the exact core outcome.
     /// Failed work is caller-owned and is never silently requeued.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnknownInFlight` for an identifier this controller never dispatched, or
+    /// `Backpressure` carrying the core's `retry_after_ms` for a `Backpressured` or `Unavailable`
+    /// outcome; the in-flight slot is released before either refusal.
     pub fn finish(&mut self, request_id: u64, outcome: CoreOutcome) -> Result<(), AdmissionError> {
         let priority = self
             .in_flight

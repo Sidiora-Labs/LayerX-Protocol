@@ -9,6 +9,12 @@ pub struct BoundAuthority {
 }
 
 impl BoundAuthority {
+    /// Binds one tenant's operation set and counterparty to a daemon-held authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidAuthority` for an empty, oversized or NUL-bearing tenant, an
+    /// empty operation set, or an operation name that fails the same text validation.
     pub fn new(
         tenant: impl Into<String>,
         operations: BTreeSet<String>,
@@ -65,6 +71,13 @@ pub enum ValidationError {
 }
 
 /// Validates untrusted arguments while deriving authority only from daemon-held state.
+///
+/// # Errors
+///
+/// Returns `Schema` for a malformed operation name or oversized untrusted text,
+/// `ScopeDenied` when the operation is outside the bound authority, `CounterpartyDenied`
+/// for a counterparty the authority does not name, and `AuthorityOverride` when the
+/// untrusted text attempts to widen the daemon-held authority.
 pub fn validate(
     authority: &BoundAuthority,
     arguments: ToolArguments,

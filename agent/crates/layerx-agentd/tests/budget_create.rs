@@ -19,7 +19,7 @@ impl BudgetPipeline for SignedActivityPipeline {
         &mut self,
         request: &BudgetRequest,
     ) -> Result<CoreBudgetReceipt, BudgetCreationError> {
-        self.submitted_bytes = request.canonical_activity.clone();
+        self.submitted_bytes.clone_from(&request.canonical_activity);
         match &self.result {
             Ok(value) => Ok(value.clone()),
             Err(BudgetCreationError::Submission) => Err(BudgetCreationError::Submission),
@@ -47,7 +47,10 @@ fn request() -> BudgetRequest {
 
 fn root(label: &str) -> std::path::PathBuf {
     let sequence = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("layerx-budget-{label}-{}-{sequence}", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "layerx-budget-{label}-{}-{sequence}",
+        std::process::id()
+    ))
 }
 
 #[test]
@@ -94,6 +97,8 @@ fn failed_creation_leaves_no_daemon_budget_record() {
 fn local_limit_is_never_described_as_protocol_equivalent() {
     let limit = LocalLimit::new(tenant(), [4; 32], [2; 32], 500);
     assert_eq!(limit.enforcement, "daemon-enforced");
-    assert!(limit.bypass_statement.contains("bypassing layerx-agentd bypasses"));
+    assert!(limit
+        .bypass_statement
+        .contains("bypassing layerx-agentd bypasses"));
     assert!(!limit.bypass_statement.contains("equivalent"));
 }

@@ -270,6 +270,7 @@ pub struct ClientWritePlan {
 
 impl ClientWritePlan {
     #[must_use]
+    #[allow(clippy::unused_self)]
     pub const fn stages(&self) -> [ClientWriteStage; 4] {
         ORDINARY_CLIENT_WRITE
     }
@@ -326,6 +327,11 @@ impl Surface {
     }
 
     /// Returns an unknown outbox status without granting transition authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidOperator` or `Audit` when the attempt cannot be audited, and
+    /// `NotUnknown` when the submission is absent or is not in the `Unknown` state.
     pub fn inspect_unknown(
         &mut self,
         context: &OperatorContext,
@@ -342,6 +348,12 @@ impl Surface {
     }
 
     /// Runs the existing receipt-only unknown resolver after durable audit.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidOperator` or `Audit` when the attempt cannot be audited, then
+    /// `UnknownResolution` for an unknown submission id, a non-`Unknown` state, an
+    /// observation time before the first sighting, or a failed durable backoff write.
     pub fn resolve_unknown<B: ReceiptLookup>(
         &mut self,
         context: &OperatorContext,
@@ -357,6 +369,12 @@ impl Surface {
     }
 
     /// Reads an exact-scope subscription only when it is paused or continuity-blocked.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidOperator` or `Audit` when the attempt cannot be audited,
+    /// `Subscription` carrying `NotFound` for an absent, terminated or out-of-scope target,
+    /// and `NotStalled` when the record is neither paused nor continuity-blocked.
     pub fn inspect_stalled_subscription(
         &mut self,
         context: &OperatorContext,
@@ -381,6 +399,12 @@ impl Surface {
     }
 
     /// Resumes only daemon-local delivery; gap and truncation state remain enforced.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidOperator` or `Audit` when the attempt cannot be audited, or
+    /// `Subscription` carrying `NotFound` for an absent, terminated or out-of-scope target
+    /// and `Durable` when the unpaused record cannot be written back.
     pub fn resume_stalled_subscription(
         &mut self,
         context: &OperatorContext,
@@ -398,6 +422,11 @@ impl Surface {
     }
 
     /// Audits and returns the already-derived divergence evidence unchanged.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidOperator` or `Audit` when the attempt cannot be audited; the supplied
+    /// alert is never re-derived, so no divergence-specific failure exists here.
     pub fn inspect_budget_divergence(
         &mut self,
         context: &OperatorContext,
@@ -409,6 +438,12 @@ impl Surface {
     }
 
     /// Rebuilds only the local budget cache from verified core evidence and receipts.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidOperator` or `Audit` when the attempt cannot be audited, or
+    /// `BudgetReconciliation` for unverified protocol state, an unverified receipt, a receipt
+    /// from another spend window, or accounting overflow.
     pub fn reconcile_budget_divergence(
         &mut self,
         context: &OperatorContext,
@@ -425,6 +460,11 @@ impl Surface {
     }
 
     /// Audits and returns a genuine backlog observation without changing its levels.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidOperator` or `Audit` when the attempt cannot be audited, or
+    /// `NotBacklogged` when the observed level already reaches the requested one.
     pub fn inspect_verification_backlog(
         &mut self,
         context: &OperatorContext,
@@ -441,6 +481,12 @@ impl Surface {
     }
 
     /// Retries the normal evidence observer; the operator cannot supply the reached level.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidOperator` or `Audit` when the attempt cannot be audited, or
+    /// `Verification` for a deadline before `started_at_ms`, a zero poll interval, poll-clock
+    /// overflow, or the observer's own failure to report a level.
     pub fn retry_verification<P: VerificationProgress>(
         &mut self,
         context: &OperatorContext,
@@ -466,6 +512,12 @@ impl Surface {
     }
 
     /// Converts an operator request into the same complete input accepted from clients.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidOperator` or `Audit` when the attempt cannot be audited, or
+    /// `RouteInvariant` if dispatch selected anything but the four-stage
+    /// `OrdinaryClientWrite` plan.
     pub fn route_activity(
         &mut self,
         context: &OperatorContext,

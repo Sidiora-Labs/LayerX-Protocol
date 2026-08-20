@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use layerx_agentd::read::{availability, AvailabilityAudit, AvailabilityRead};
+use layerx_agentd::read::{availability, AvailabilityAudit, AvailabilityRead, AvailabilityRequest};
 use layerx_agentd::store::{ObjectKind, Store, TenantId};
 use layerx_client::availability::{
     AvailabilitySelector, FetchContext, Provider, ProviderSet, RetrievalLimits,
@@ -226,12 +226,14 @@ fn complete_five_class_retrieval_streams_and_emits_offline_replay_frames() {
     let mut streamed = 0;
     let outcome = availability(
         &mut store,
-        tenant(),
+        &tenant(),
         &mut audit,
         &mut providers,
-        AvailabilitySelector::Batch(7),
-        [0x77; 32],
-        context(&fixture, 70),
+        &AvailabilityRequest {
+            selector: AvailabilitySelector::Batch(7),
+            checkpoint_id: [0x77; 32],
+            context: context(&fixture, 70),
+        },
         |_| streamed += 1,
     )
     .unwrap_or_else(|error| panic!("availability: {error:?}"));
@@ -279,12 +281,14 @@ fn corruption_withholding_and_repeated_provider_failure_are_durable_evidence() {
         }]);
         let outcome = availability(
             &mut store,
-            tenant(),
+            &tenant(),
             &mut audit,
             &mut providers,
-            AvailabilitySelector::Checkpoint([0x77; 32]),
-            [0x77; 32],
-            context(&fixture, 80 + u64::try_from(attempt).unwrap_or(0)),
+            &AvailabilityRequest {
+                selector: AvailabilitySelector::Checkpoint([0x77; 32]),
+                checkpoint_id: [0x77; 32],
+                context: context(&fixture, 80 + u64::try_from(attempt).unwrap_or(0)),
+            },
             |_| {},
         )
         .unwrap_or_else(|error| panic!("availability: {error:?}"));

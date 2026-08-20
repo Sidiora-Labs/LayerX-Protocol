@@ -105,7 +105,7 @@ impl ReadOnly {
     /// Refuses invocations from any other binding or deployment mode.
     pub fn complete(
         &mut self,
-        invocation: DaemonInvocation,
+        invocation: &DaemonInvocation,
         outcome: InvocationOutcome,
     ) -> Result<InvocationRecord, ServerError> {
         if invocation.tool().kind != ToolKind::Read || invocation.tool().mutation != "none" {

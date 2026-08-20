@@ -17,11 +17,15 @@ fn binding() -> layerx_agentd::capability::Binding {
             counterparties: BTreeSet::from([[2; 32]]),
             assets: BTreeSet::from([[3; 32]]),
             amount_ceiling: 500,
-            rate_ceiling: RateCeiling { maximum_uses: 5, window_sequences: 10 },
+            rate_ceiling: RateCeiling {
+                maximum_uses: 5,
+                window_sequences: 10,
+            },
             purposes: BTreeSet::from(["service".to_owned()]),
             expiry_sequence: 100,
         },
-    ).unwrap_or_else(|error| panic!("capability: {error:?}"));
+    )
+    .unwrap_or_else(|error| panic!("capability: {error:?}"));
     let scope = ProtocolScope {
         activity_types: BTreeSet::from([7]),
         counterparties: BTreeSet::from([[2; 32]]),
@@ -36,8 +40,12 @@ fn binding() -> layerx_agentd::capability::Binding {
             Dimension::Expiry,
         ]),
     };
-    assert_narrowing(&capability, ProtocolAuthority::CapabilityGrant([9; 32]), &scope)
-        .unwrap_or_else(|error| panic!("binding: {error:?}"))
+    assert_narrowing(
+        &capability,
+        ProtocolAuthority::CapabilityGrant([9; 32]),
+        &scope,
+    )
+    .unwrap_or_else(|error| panic!("binding: {error:?}"))
 }
 
 #[test]
@@ -50,16 +58,25 @@ fn report_covers_every_dimension_and_is_identical_on_all_surfaces() {
             deciding_dimension: None,
             resulting_activity_id: Some([8; 32]),
         },
-    ).unwrap_or_else(|error| panic!("report: {error:?}"));
+    )
+    .unwrap_or_else(|error| panic!("report: {error:?}"));
     assert_eq!(surfaces.report.restrictions.len(), 7);
     assert_eq!(surfaces.contract, surfaces.command_line);
     assert_eq!(surfaces.command_line, surfaces.audit);
-    let daemon_only: Vec<_> = surfaces.report.restrictions.iter()
+    let daemon_only: Vec<_> = surfaces
+        .report
+        .restrictions
+        .iter()
         .filter(|item| item.enforcement == Enforcement::DaemonOnly)
         .collect();
     assert_eq!(daemon_only.len(), 2);
-    assert!(daemon_only.iter().all(|item| item.statement.contains("bypassing layerx-agentd bypasses")));
-    assert!(surfaces.report.restrictions.iter()
+    assert!(daemon_only
+        .iter()
+        .all(|item| item.statement.contains("bypassing layerx-agentd bypasses")));
+    assert!(surfaces
+        .report
+        .restrictions
+        .iter()
         .filter(|item| item.enforcement == Enforcement::Protocol)
         .all(|item| item.protocol_object_id == Some([9; 32])));
 }
@@ -72,5 +89,6 @@ fn misleading_daemon_only_guarantee_wording_is_build_check_failure() {
     );
     assert!(check_guarantee_wording(
         "daemon-enforced only; bypassing layerx-agentd bypasses this restriction"
-    ).is_ok());
+    )
+    .is_ok());
 }

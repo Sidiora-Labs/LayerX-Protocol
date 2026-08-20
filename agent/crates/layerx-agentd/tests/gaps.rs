@@ -157,9 +157,8 @@ fn receive_subscription(stream: &mut UnixStream) -> ClientCursor {
         Err(error) => panic!("subscription envelope failed: {error:?}"),
     };
     assert_eq!(envelope.message_tag, 21);
-    let cursor = match envelope.canonical_payload.get(..48) {
-        Some(value) => value,
-        None => panic!("subscription cursor missing"),
+    let Some(cursor) = envelope.canonical_payload.get(..48) else {
+        panic!("subscription cursor missing")
     };
     match ClientCursor::decode(cursor) {
         Ok(value) => value,
@@ -248,7 +247,9 @@ fn skipped_sequence_is_backfilled_over_the_real_stream_before_unblocking() {
     assert!(server.join().is_ok(), "core stream server panicked");
     let recovered = match &report {
         BackfillReport::Recovered { events, .. } => events.clone(),
-        other => panic!("backfill did not recover: {other:?}"),
+        other @ BackfillReport::Incomplete { .. } => {
+            panic!("backfill did not recover: {other:?}")
+        }
     };
 
     let durable = subscriptions.into_durable();

@@ -38,6 +38,12 @@ pub struct CorePreparationState {
 
 /// Boundary that obtains preparation state from core without local guessing.
 pub trait CorePreparationBoundary {
+    /// Obtains the preparation state for one actor directly from core.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` when core cannot be reached and `Unverified` when the returned
+    /// state has not been verified.
     fn preparation_state(&mut self, actor: &Did) -> Result<CorePreparationState, CoreStateError>;
 }
 
@@ -104,6 +110,11 @@ pub enum PrepareError {
 }
 
 /// Decodes a structured disclosure from canonical prepared bytes.
+///
+/// # Errors
+///
+/// Returns the disclosure decode failure, or a mismatch when the decoded disclosure does not
+/// re-encode to the exact canonical bytes.
 pub fn disclose(
     canonical_bytes: &[u8],
     registry: &ModuleRegistry,
@@ -112,11 +123,21 @@ pub fn disclose(
 }
 
 /// Revalidates that a held preparation still matches its disclosure.
+///
+/// # Errors
+///
+/// Returns a decode or re-encoding mismatch, or a digest that no longer matches the recorded
+/// preparation and audit digests.
 pub fn verify_disclosure_binding(prepared: &Prepared) -> Result<(), DisclosureBindingError> {
     disclosure_binding::verify_binding(prepared)
 }
 
 /// Expires every elapsed unsubmitted preparation and releases its reservations.
+///
+/// # Errors
+///
+/// Returns `Unavailable` when the lifecycle records cannot be locked, or the reservation refusal
+/// that prevented a release.
 pub fn expire(
     lifecycle: &PreparationLifecycle,
     limiter: &crate::budget::BudgetLimiter,
@@ -126,6 +147,10 @@ pub fn expire(
 }
 
 /// Discards terminal signed bytes while preserving every unresolved submission.
+///
+/// # Errors
+///
+/// Returns `Unavailable` when the lifecycle records cannot be locked.
 pub fn retention_sweep(
     lifecycle: &PreparationLifecycle,
     current_sequence: u64,
@@ -135,6 +160,13 @@ pub fn retention_sweep(
 }
 
 /// Constructs and canonically encodes an unsigned activity from core state.
+///
+/// # Errors
+///
+/// Refuses zero-valued defaults, unavailable or unverified core state, a stale account sequence, a
+/// timestamp bound that excludes core time or widens past the configured span, and an oversized
+/// payload. Also returns the payload, envelope, wire, or disclosure failure raised while building
+/// the canonical form.
 pub fn prepare_activity(
     boundary: &mut dyn CorePreparationBoundary,
     defaults: PreparationDefaults,

@@ -26,6 +26,11 @@ pub struct CoreIdentity {
 /// The only seam from identity registration to core identity state.
 pub trait IdentityResolver {
     /// Resolves current identity state through the versioned node boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BoundaryUnavailable` when the node boundary cannot answer; a DID that
+    /// core does not hold is reported as `Ok(None)`.
     fn resolve(&mut self, did: &Did) -> Result<Option<CoreIdentity>, IdentityError>;
 }
 
@@ -104,6 +109,11 @@ impl From<StoreError> for IdentityError {
 }
 
 /// Registers a DID only after resolving and verifying it against current core state.
+///
+/// # Errors
+///
+/// Returns `UnknownDid` when core holds no binding, `Frozen` or `Unverified` when
+/// the observation cannot support use, and propagates resolver and store failures.
 pub fn register(
     store: &mut Store,
     tenant: TenantId,
@@ -130,6 +140,12 @@ pub fn register(
 }
 
 /// Re-resolves a restored binding before permitting its first use.
+///
+/// # Errors
+///
+/// Returns `UnknownDid` when core no longer holds the binding, `Frozen` or
+/// `Unverified` when the observation cannot support use, and propagates resolver
+/// and store failures.
 pub fn revalidate(
     store: &mut Store,
     restored: &IdentityRecord,

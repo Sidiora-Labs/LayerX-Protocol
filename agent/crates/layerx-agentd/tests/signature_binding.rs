@@ -157,12 +157,13 @@ fn verified_wrapper_preserves_the_exact_signed_input_and_activity_id() {
         &registry(),
     ))
     .unwrap_or_else(|error| panic!("sign: {error:?}"));
-    let signed = attach_external_signature(&prepared, *signature.as_bytes())
+    let signed_bytes = attach_external_signature(&prepared, *signature.as_bytes())
         .unwrap_or_else(|error| panic!("attach: {error:?}"));
-    let verified = verify_before_submit(&signed, &prepared, &signer.public_key(), &registry())
-        .unwrap_or_else(|error| panic!("verify: {error:?}"));
-    assert_eq!(verified.exact_bytes(), signed);
-    assert_eq!(verified.audit.signed_byte_length, signed.len());
+    let verified =
+        verify_before_submit(&signed_bytes, &prepared, &signer.public_key(), &registry())
+            .unwrap_or_else(|error| panic!("verify: {error:?}"));
+    assert_eq!(verified.exact_bytes(), signed_bytes);
+    assert_eq!(verified.audit.signed_byte_length, signed_bytes.len());
     assert_ne!(verified.audit.activity_id, [0; 32]);
 }
 
@@ -183,10 +184,10 @@ fn amount_recipient_and_fee_alterations_cannot_ride_an_old_signature() {
         prepared(25, [0x23; 32], 7),
         prepared(25, [0x22; 32], 8),
     ] {
-        let signed = attach_external_signature(&altered, *signature.as_bytes())
+        let signed_bytes = attach_external_signature(&altered, *signature.as_bytes())
             .unwrap_or_else(|error| panic!("attach: {error:?}"));
         assert_eq!(
-            verify_before_submit(&signed, &altered, &signer.public_key(), &registry()),
+            verify_before_submit(&signed_bytes, &altered, &signer.public_key(), &registry()),
             Err(SigningError::SignatureInvalid)
         );
     }

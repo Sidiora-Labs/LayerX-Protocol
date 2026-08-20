@@ -10,7 +10,8 @@ mod checkpoint_impl;
 mod historical;
 
 pub use available::{
-    availability, AvailabilityAudit, AvailabilityFailure, AvailabilityRead, ReplayFraming,
+    availability, AvailabilityAudit, AvailabilityFailure, AvailabilityRead, AvailabilityRequest,
+    ReplayFraming,
 };
 pub use balances::{balance, BalanceRead, Freshness};
 pub use checkpoint_impl::{
@@ -19,6 +20,12 @@ pub use checkpoint_impl::{
 };
 
 /// Verifies and serves one checkpoint certificate.
+///
+/// # Errors
+///
+/// Returns `AvailabilityUnavailable` when availability was not obtained, the certificate failure
+/// when the bonded set does not meet threshold, and `Header` when the batch header does not
+/// decode.
 pub fn checkpoint(
     certificate: &layerx_proof::checkpoint::Certificate,
     bonded_set: &[layerx_proof::checkpoint::GuarantorKey],

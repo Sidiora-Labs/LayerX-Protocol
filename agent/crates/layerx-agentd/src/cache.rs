@@ -129,6 +129,11 @@ pub struct EvidenceCache {
 }
 
 impl EvidenceCache {
+    /// Creates an empty cache with per-tenant entry and byte ceilings.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a zero entry ceiling or a zero byte ceiling.
     pub fn new(
         maximum_entries_per_tenant: usize,
         maximum_bytes_per_tenant: usize,
@@ -144,6 +149,12 @@ impl EvidenceCache {
         })
     }
 
+    /// Inserts a value whose evidence has already been verified.
+    ///
+    /// # Errors
+    ///
+    /// Refuses an empty key or an absent evidence identifier, and refuses a write that would
+    /// cross the tenant's entry or byte ceiling; overflowing totals return `Arithmetic`.
     pub fn insert(
         &mut self,
         tenant: TenantId,
@@ -206,6 +217,12 @@ pub enum CacheError {
 }
 
 /// Returns a cached value only at its held proof level, revalidating any stale entry.
+///
+/// # Errors
+///
+/// Returns `Missing` for an unknown key, `InsufficientEvidence` when the held or refreshed level
+/// is below the requested one, and `RevalidationMismatch` when a refresh does not observe the
+/// current head and checkpoint; a stale entry propagates the refusal raised by `fetch_verified`.
 pub fn revalidate<F>(
     cache: &mut EvidenceCache,
     tenant: TenantId,

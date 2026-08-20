@@ -79,6 +79,12 @@ impl std::fmt::Debug for ProvisionedSessionKey {
 
 impl ProvisionedSessionKey {
     /// Imports key material only when it matches an issued protocol session authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns `KeyMismatch` when the seed derives a different public key, and
+    /// `InvalidProvisioning` for an empty permitted activity set or a zero expiry or revocation
+    /// sequence.
     pub fn new(seed: [u8; 32], issued: IssuedSessionKey) -> Result<Self, SigningError> {
         let signer = LocalSigner::new(seed);
         if signer.public_key() != issued.session_public_key {
@@ -118,6 +124,11 @@ pub enum SigningError {
 }
 
 /// Returns the default key-free package for an external signer.
+///
+/// # Errors
+///
+/// Returns the disclosure binding failure when the preparation no longer re-encodes to its exact
+/// canonical bytes and digest.
 pub fn external(prepared: &Prepared) -> Result<ExternalSigningPackage, SigningError> {
     verify_disclosure_binding(prepared).map_err(SigningError::Disclosure)?;
     Ok(ExternalSigningPackage {
@@ -129,6 +140,12 @@ pub fn external(prepared: &Prepared) -> Result<ExternalSigningPackage, SigningEr
 }
 
 /// Signs only through an explicitly provisioned, unexpired protocol session key.
+///
+/// # Errors
+///
+/// Refuses an absent, expired, or revoked session key, an activity type outside its permitted set,
+/// and an authority other than the issued one. Also returns the disclosure, signing, encoding, and
+/// wire failures raised while producing the signed bytes.
 pub async fn self_sign(
     provisioned: Option<&ProvisionedSessionKey>,
     prepared: &Prepared,
@@ -185,6 +202,11 @@ pub async fn self_sign(
 }
 
 /// Attaches a returned external signature through the canonical wire encoder.
+///
+/// # Errors
+///
+/// Returns the disclosure binding failure, a signature the envelope rejects, or the wire failure
+/// raised while encoding the signed envelope.
 pub fn attach_external_signature(
     prepared: &Prepared,
     signature: [u8; 64],
@@ -194,6 +216,11 @@ pub fn attach_external_signature(
 }
 
 /// Verifies the exact signed bytes and returns the only submit-capable wrapper.
+///
+/// # Errors
+///
+/// Refuses bytes that do not decode, re-encode, or reduce to the exact prepared canonical form,
+/// and an absent, malformed, or invalid signature. Also returns the disclosure binding failure.
 pub fn verify_before_submit(
     signed_canonical_bytes: &[u8],
     prepared: &Prepared,

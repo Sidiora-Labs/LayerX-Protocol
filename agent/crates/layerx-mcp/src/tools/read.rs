@@ -119,6 +119,12 @@ pub enum ReadToolError {
 }
 
 /// Returns one verified balance with its exact freshness coordinates.
+///
+/// # Errors
+///
+/// Returns `Unverified` when the level is not fully verified, `Stale` when the
+/// freshness coordinates fall outside the accepted window, and `ResultTooLarge`
+/// when the encoded state exceeds `maximum_bytes`.
 pub fn balance(
     value: BalanceValue,
     verification_level: Level,
@@ -136,6 +142,12 @@ pub fn balance(
 }
 
 /// Returns verified receipt bytes; an evidence-free receipt is never surfaced as verified.
+///
+/// # Errors
+///
+/// Returns `MissingReceiptEvidence` for a receipt carrying no evidence identifiers,
+/// `Arithmetic` when the evidence and receipt byte counts overflow, and the
+/// `Unverified`, `Stale` and `ResultTooLarge` refusals shared by every read tool.
 pub fn receipt(
     value: ReceiptValue,
     verification_level: Level,
@@ -166,6 +178,12 @@ pub fn receipt(
 }
 
 /// Returns an exact checkpoint certificate, never a locally inferred checkpoint summary.
+///
+/// # Errors
+///
+/// Returns `Unverified` when the level is not fully verified, `Stale` for freshness
+/// outside the accepted window, and `ResultTooLarge` when the certificate exceeds
+/// `maximum_bytes`.
 pub fn checkpoint(
     value: CheckpointValue,
     verification_level: Level,
@@ -183,6 +201,12 @@ pub fn checkpoint(
 }
 
 /// Returns proof bytes and the exact target they verify.
+///
+/// # Errors
+///
+/// Returns `Arithmetic` when summing the target and proof byte lengths overflows,
+/// plus the `Unverified`, `Stale` and `ResultTooLarge` refusals shared by every
+/// read tool.
 pub fn proof(
     value: ProofBundle,
     verification_level: Level,
@@ -207,6 +231,12 @@ pub fn proof(
 }
 
 /// Returns attributed availability evidence with explicit size accounting.
+///
+/// # Errors
+///
+/// Returns `Arithmetic` when a class byte count does not fit `usize` or the running
+/// total overflows, plus the `Unverified`, `Stale` and `ResultTooLarge` refusals
+/// shared by every read tool.
 pub fn availability(
     value: AvailabilityReport,
     verification_level: Level,
@@ -227,8 +257,15 @@ pub fn availability(
 }
 
 /// Pages exact core history records without silently dropping a record or upstream continuation.
+///
+/// # Errors
+///
+/// Returns `Unverified` for a level below full verification, `CursorMismatch` when the
+/// cursor was issued for a different query digest or snapshot, `CursorOutOfRange` for an
+/// offset past the record set, `ResultTooLarge` when the first record alone exceeds
+/// `maximum_bytes`, and `Arithmetic` on byte-count or offset overflow.
 pub fn history(
-    value: HistoryValue,
+    value: &HistoryValue,
     verification_level: Level,
     freshness: Freshness,
     query_digest: [u8; 32],

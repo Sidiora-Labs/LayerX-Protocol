@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::os::unix::net::UnixListener;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
@@ -105,7 +105,7 @@ fn serve_handshake(path: &PathBuf, info: NodeInfo) -> thread::JoinHandle<()> {
     })
 }
 
-fn connect(path: &PathBuf) -> Uds {
+fn connect(path: &Path) -> Uds {
     Uds::connect(path, &ConnectionGate::new(1), limits())
         .unwrap_or_else(|error| panic!("connect handshake socket: {error:?}"))
 }

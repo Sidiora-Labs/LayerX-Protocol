@@ -36,6 +36,12 @@ pub fn normalize_error(
 }
 
 /// Deletes one tenant atomically under an explicit legal-retention policy.
+///
+/// # Errors
+///
+/// Returns `InvalidDeletionId` for an all-zero identifier, `InvalidRetention` when
+/// a named legal audit is absent or not local-only, and `CorruptLegalAudit` when a
+/// retained record cannot be decoded; store failures propagate.
 pub fn delete_tenant_data(
     store: &mut crate::store::Store,
     tenant: &TenantId,
@@ -194,6 +200,12 @@ impl TenantObservability {
 }
 
 /// Resolves the tenant and agent exclusively from the authenticated token.
+///
+/// # Errors
+///
+/// Returns `InvalidRequest` for an empty, oversized, or NUL-bearing operation,
+/// `ScopeDenied` or `Expired` from the token authorization, and `NotAuthorized`
+/// for any other session failure or a target owned by another principal.
 pub fn resolve(
     token: &Token,
     request: &RequestContext,
@@ -252,6 +264,11 @@ pub fn resolve(
 }
 
 /// Applies the same non-enumerating owner check to every target surface.
+///
+/// # Errors
+///
+/// Returns `NotAuthorized` when the owner tenant differs or a named owner agent is
+/// not the caller.
 pub fn require_owner(
     tenant: &TenantId,
     agent: &Did,

@@ -61,6 +61,12 @@ impl DaemonLifecycle {
         }
     }
 
+    /// Records one queued submission and its durable state as in-flight work.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotAccepting` once shutdown has begun, `EmptyInFlight` for empty
+    /// durable state, and `DuplicateInFlight` for a repeated submission identifier.
     pub fn begin_work(
         &mut self,
         submission_id: [u8; 32],
@@ -69,6 +75,12 @@ impl DaemonLifecycle {
         self.begin_stage(submission_id, WriteStage::Queued, durable_state)
     }
 
+    /// Records in-flight work at an explicit write stage with its durable state.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotAccepting` once shutdown has begun, `EmptyInFlight` for empty
+    /// durable state, and `DuplicateInFlight` for a repeated work identifier.
     pub fn begin_stage(
         &mut self,
         work_id: [u8; 32],
@@ -94,6 +106,11 @@ impl DaemonLifecycle {
         Ok(())
     }
 
+    /// Queues one audit record for the shutdown flush.
+    ///
+    /// # Errors
+    ///
+    /// Returns `EmptyAudit` when the record carries no bytes.
     pub fn append_audit(&mut self, record: Vec<u8>) -> Result<(), ShutdownError> {
         if record.is_empty() {
             return Err(ShutdownError::EmptyAudit);
@@ -140,6 +157,12 @@ impl From<StoreError> for ShutdownError {
 }
 
 /// Stops admission, durably records all in-flight work, and flushes audit entries.
+///
+/// # Errors
+///
+/// Returns `MissingOutboxRecord` or `OutboxStageMismatch` when the outbox does not
+/// confirm a recorded stage, `Arithmetic` when an audit index is not
+/// representable, and a store error when a key or durable write fails.
 pub fn graceful(
     store: &mut Store,
     tenant: TenantId,

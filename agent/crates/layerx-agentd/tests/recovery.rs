@@ -105,8 +105,8 @@ fn restart_at_every_write_stage_preserves_exactly_one_recovery_action() {
     let mut after = Store::open(&root).unwrap_or_else(|error| panic!("restart: {error}"));
     let recovered = recover(
         &mut after,
-        tenant(),
-        recovery_inputs(
+        &tenant(),
+        &recovery_inputs(
             &[[4; 32]],
             &[],
             &[UnknownCeilingReservation {
@@ -175,7 +175,7 @@ fn restart_resolution_uses_receipts_without_duplicate_delivery() {
     let _ = populate_every_stage(&mut store);
     drop(store);
     let mut reopened = Store::open(&root).unwrap_or_else(|error| panic!("reopen: {error}"));
-    let mut recovered = recover(&mut reopened, tenant(), recovery_inputs(&[], &[], &[]))
+    let mut recovered = recover(&mut reopened, &tenant(), &recovery_inputs(&[], &[], &[]))
         .unwrap_or_else(|error| panic!("recover: {error:?}"));
     let pending = recovered.awaiting_receipt_resolution.clone();
     let mut core = ExistingReceipts {
@@ -215,8 +215,8 @@ fn unreconciled_accounting_blocks_writes_after_outbox_recovery() {
         unknown_ceiling_reservations: &[],
         current_sequence: 1,
     };
-    let recovered =
-        recover(&mut store, tenant(), inputs).unwrap_or_else(|error| panic!("recover: {error:?}"));
+    let recovered = recover(&mut store, &tenant(), &inputs)
+        .unwrap_or_else(|error| panic!("recover: {error:?}"));
     assert!(matches!(
         recovered.require_write_ready(),
         Err(RecoveryError::WritesBlocked)
@@ -293,7 +293,7 @@ fn clock_regression_during_restarted_resolution_fails_closed() {
     drop(outbox);
     drop(store);
     let mut reopened = Store::open(&root).unwrap_or_else(|error| panic!("reopen: {error}"));
-    let mut recovered = recover(&mut reopened, tenant(), recovery_inputs(&[], &[], &[]))
+    let mut recovered = recover(&mut reopened, &tenant(), &recovery_inputs(&[], &[], &[]))
         .unwrap_or_else(|error| panic!("recover: {error:?}"));
     assert!(matches!(
         resolve_unknown(

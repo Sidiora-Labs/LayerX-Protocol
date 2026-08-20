@@ -2,7 +2,7 @@
 //!
 //! Configuration is loaded from one explicitly named UTF-8 file containing `key=value`
 //! declarations. Exact `LAYERX_*` environment keys override the corresponding file values.
-//! Duplicate file declarations, unknown LayerX settings, blank overrides, and incomplete
+//! Duplicate file declarations, unknown `LayerX` settings, blank overrides, and incomplete
 //! per-tenant maps are errors; no security-relevant value has a default.
 
 use std::collections::{BTreeMap, BTreeSet};

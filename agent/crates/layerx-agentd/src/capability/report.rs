@@ -1,5 +1,7 @@
 //! Honest capability enforcement reporting shared by every public surface.
 
+use std::fmt::Write as _;
+
 use crate::identity::ProtocolAuthority;
 
 use super::{Binding, CapabilityId, Dimension, Enforcement};
@@ -96,6 +98,11 @@ pub(crate) fn build_report(
 }
 
 /// Rejects wording that calls a daemon-only control a protocol guarantee.
+///
+/// # Errors
+///
+/// Returns `ReportError::MisleadingWording` when the text names a control as
+/// daemon-enforced and also calls it a protocol guarantee.
 pub fn check_guarantee_wording(text: &str) -> Result<(), ReportError> {
     let normalized = text.to_ascii_lowercase();
     if normalized.contains("daemon-enforced") && normalized.contains("protocol guarantee") {
@@ -124,10 +131,11 @@ fn render(report: &CapabilityReport) -> Vec<u8> {
         report.decision.allowed
     );
     for restriction in &report.restrictions {
-        text.push_str(&format!(
-            "{:?}|{:?}|{}\n",
+        let _ = writeln!(
+            text,
+            "{:?}|{:?}|{}",
             restriction.dimension, restriction.enforcement, restriction.statement
-        ));
+        );
     }
     text.into_bytes()
 }

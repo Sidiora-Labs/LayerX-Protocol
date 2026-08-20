@@ -6,7 +6,7 @@ use layerx_agent_api::prepare::{
 use layerx_agent_api::{Amount, TimestampSeconds};
 use layerx_agentd::approval::{
     ApprovalEnforcement, ApprovalExpiry, ApprovalOperationError, ApprovalOutcome, ApprovalService,
-    ApprovalSubmissionQueue, DecisionKey, APPROVAL_ENFORCEMENT_NOTICE,
+    ApprovalSubmissionQueue, DecisionKey, DecisionRequest, APPROVAL_ENFORCEMENT_NOTICE,
 };
 use layerx_agentd::budget::{
     reserve, BudgetLimiter, LimitConfig, LimitId, LimitScope, ReservationRequest,
@@ -175,17 +175,19 @@ fn approval_releases_only_the_exact_held_preparation_once() {
     hold(&registry, context(&tenant, 5), expected.clone(), 10, 100)
         .unwrap_or_else(|error| panic!("hold: {error:?}"));
     let service = ApprovalService::new(&registry, &limiter, &fixture.expiry);
-    let mut submissions = ApprovalSubmissionQueue::default();
+    let submissions = ApprovalSubmissionQueue::default();
 
     let granted = service
         .approve(
-            &tenant,
-            [5; 32],
-            &decision_key("approve-5"),
-            approver(),
-            11,
+            DecisionRequest {
+                tenant: &tenant,
+                approval_id: [5; 32],
+                idempotency_key: &decision_key("approve-5"),
+                approver: approver(),
+                current_sequence: 11,
+            },
             &expected,
-            &mut submissions,
+            &submissions,
         )
         .unwrap_or_else(|error| panic!("approve: {error:?}"));
     assert_eq!(granted.outcome, ApprovalOutcome::Granted);
@@ -199,13 +201,15 @@ fn approval_releases_only_the_exact_held_preparation_once() {
 
     let repeated = service
         .approve(
-            &tenant,
-            [5; 32],
-            &decision_key("approve-5"),
-            approver(),
-            12,
+            DecisionRequest {
+                tenant: &tenant,
+                approval_id: [5; 32],
+                idempotency_key: &decision_key("approve-5"),
+                approver: approver(),
+                current_sequence: 12,
+            },
             &expected,
-            &mut submissions,
+            &submissions,
         )
         .unwrap_or_else(|error| panic!("repeat: {error:?}"));
     assert_eq!(repeated.outcome, ApprovalOutcome::Granted);
@@ -235,12 +239,24 @@ fn rejection_is_final_and_releases_the_matching_reservation() {
 
     let service = ApprovalService::new(&registry, &limiter, &fixture.expiry);
     let rejected = service
-        .reject(&tenant, [6; 32], &decision_key("reject-6"), approver(), 11)
+        .reject(DecisionRequest {
+            tenant: &tenant,
+            approval_id: [6; 32],
+            idempotency_key: &decision_key("reject-6"),
+            approver: approver(),
+            current_sequence: 11,
+        })
         .unwrap_or_else(|error| panic!("reject: {error:?}"));
     assert_eq!(rejected.outcome, ApprovalOutcome::Rejected);
     assert_eq!(limiter.held_reservations(), Ok(0));
     let repeated = service
-        .reject(&tenant, [6; 32], &decision_key("reject-6"), approver(), 12)
+        .reject(DecisionRequest {
+            tenant: &tenant,
+            approval_id: [6; 32],
+            idempotency_key: &decision_key("reject-6"),
+            approver: approver(),
+            current_sequence: 12,
+        })
         .unwrap_or_else(|error| panic!("repeat: {error:?}"));
     assert_eq!(repeated.outcome, ApprovalOutcome::Rejected);
     assert_eq!(limiter.consumed(LimitId([9; 16])), Ok(0));
@@ -255,17 +271,19 @@ fn deterministic_expiry_returns_a_typed_non_success_outcome() {
     hold(&registry, context(&tenant, 7), prepared(7), 10, 20)
         .unwrap_or_else(|error| panic!("hold: {error:?}"));
     let service = ApprovalService::new(&registry, &limiter, &fixture.expiry);
-    let mut submissions = ApprovalSubmissionQueue::default();
+    let submissions = ApprovalSubmissionQueue::default();
     let current = prepared(7);
     let expired = service
         .approve(
-            &tenant,
-            [7; 32],
-            &decision_key("late-7"),
-            approver(),
-            20,
+            DecisionRequest {
+                tenant: &tenant,
+                approval_id: [7; 32],
+                idempotency_key: &decision_key("late-7"),
+                approver: approver(),
+                current_sequence: 20,
+            },
             &current,
-            &mut submissions,
+            &submissions,
         )
         .unwrap_or_else(|error| panic!("expiry: {error:?}"));
     assert_eq!(expired.outcome, ApprovalOutcome::Expired);
@@ -286,17 +304,19 @@ fn changed_underlying_activity_voids_the_hold_as_defective() {
     hold(&registry, context(&tenant, 8), held, 10, 100)
         .unwrap_or_else(|error| panic!("hold: {error:?}"));
     let service = ApprovalService::new(&registry, &limiter, &fixture.expiry);
-    let mut submissions = ApprovalSubmissionQueue::default();
+    let submissions = ApprovalSubmissionQueue::default();
 
     let defective = service
         .approve(
-            &tenant,
-            [8; 32],
-            &decision_key("approve-8"),
-            approver(),
-            11,
+            DecisionRequest {
+                tenant: &tenant,
+                approval_id: [8; 32],
+                idempotency_key: &decision_key("approve-8"),
+                approver: approver(),
+                current_sequence: 11,
+            },
             &prepared(9),
-            &mut submissions,
+            &submissions,
         )
         .unwrap_or_else(|error| panic!("changed preparation: {error:?}"));
     assert_eq!(defective.outcome, ApprovalOutcome::Defective);

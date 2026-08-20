@@ -36,6 +36,12 @@ pub enum HistoryReadError {
 }
 
 /// Serves one bounded page while preserving exact core bytes and cursor continuity.
+///
+/// # Errors
+///
+/// Refuses zero limits, a start before the oldest retained sequence, and a cursor whose range or
+/// observed head and checkpoint have moved; returns `ItemTooLarge` for an item beyond the byte
+/// limit, `Arithmetic` on a byte-total overflow, and the client read failure otherwise.
 pub fn history(
     transport: &mut dyn FrameTransport,
     start_sequence: u64,

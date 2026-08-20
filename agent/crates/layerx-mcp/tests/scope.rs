@@ -115,7 +115,7 @@ fn every_reachable_tool_is_an_audited_daemon_invocation_with_all_gates() {
     );
     let digest = invocation.arguments_digest();
     let record = server
-        .complete(invocation, InvocationOutcome::Completed)
+        .complete(&invocation, InvocationOutcome::Completed)
         .unwrap_or_else(|error| panic!("complete: {error:?}"));
     assert_eq!(record.arguments_digest, digest);
     assert_eq!(record.outcome, InvocationOutcome::Completed);

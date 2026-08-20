@@ -27,6 +27,12 @@ pub use reservations::{
 };
 
 /// Reconciles local budget cache state against verified protocol evidence.
+///
+/// # Errors
+///
+/// Returns `UnverifiedProtocolState` for unverified core state, `UnverifiedReceipt` or
+/// `ReceiptFromOtherWindow` for a receipt that is unverified or from another window, and
+/// `Arithmetic` when receipts overflow or sum above the protocol-reported consumption.
 pub fn reconcile(
     local: &mut LocalAccounting,
     protocol: ProtocolBudgetState,
@@ -36,6 +42,12 @@ pub fn reconcile(
 }
 
 /// Atomically reserves against every applicable scope.
+///
+/// # Errors
+///
+/// Returns `InvalidRequest` for a zero amount, an expiry at or before the current sequence or
+/// an empty limit list, `UnknownLimit` for an unconfigured scope, `Exceeded` when consumed plus
+/// held plus the request passes a ceiling, `Arithmetic` on overflow, or `Poisoned`.
 pub fn reserve(
     limiter: &BudgetLimiter,
     request: &ReservationRequest,
@@ -44,6 +56,11 @@ pub fn reserve(
 }
 
 /// Deterministically releases or consumes one reservation.
+///
+/// # Errors
+///
+/// Returns `Arithmetic` when an `Executed` release overflows a limit's consumed total, or
+/// `Poisoned` when the limiter lock is poisoned; a reservation no limit holds is `Ok(false)`.
 pub fn release(
     limiter: &BudgetLimiter,
     reservation_id: [u8; 32],
@@ -54,6 +71,11 @@ pub fn release(
 }
 
 /// Persists a reservation whose submission outcome is unknown.
+///
+/// # Errors
+///
+/// Returns `RestartError::Store` for the I/O or `SizeOverflow` failure raised while the store
+/// is written to disk; the in-memory entry is rolled back so nothing is half-persisted.
 pub fn hold_unknown(
     store: &mut crate::store::Store,
     reservation: &UnknownReservation,
@@ -62,9 +84,15 @@ pub fn hold_unknown(
 }
 
 /// Rebuilds held and consumed accounting before writes are admitted.
+///
+/// # Errors
+///
+/// Returns `UnverifiedProtocol` or `UnverifiedReceipt` for unverified inputs, `Corrupt` when an
+/// unknown reservation is absent from the store or decodes to the wrong length, `Arithmetic` on
+/// overflow, and `Store` when a reservation key cannot be built.
 pub fn rebuild(
     store: &crate::store::Store,
-    tenant: crate::store::TenantId,
+    tenant: &crate::store::TenantId,
     unknown_ids: &[[u8; 32]],
     receipts: &[PersistedReceipt],
     protocol: ProtocolBudgetState,
@@ -73,6 +101,7 @@ pub fn rebuild(
 }
 
 /// Raises an explicit alert for a local/protocol mismatch.
+#[must_use]
 pub fn divergence_alert(
     state: &ReconciliationState,
     local_ceiling: u128,

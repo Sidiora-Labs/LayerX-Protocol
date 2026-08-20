@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use layerx_agent_api::identity::{
@@ -14,7 +14,8 @@ use layerx_agent_api::subscription::{
 };
 use layerx_agent_api::Sequence;
 use layerx_agentd::approval::{
-    ApprovalEventKind, ApprovalEvents, ApprovalLifecycle, APPROVAL_ENFORCEMENT_NOTICE,
+    ApprovalEmission, ApprovalEventKind, ApprovalEvents, ApprovalLifecycle,
+    APPROVAL_ENFORCEMENT_NOTICE,
 };
 use layerx_agentd::audit::{
     export, Coverage, Decision, EventClass, EvidenceStore, Log, PayloadEvidence, Query,
@@ -134,46 +135,31 @@ fn config() -> Config {
         policy_version: "policy-v4".to_owned(),
         redaction: RedactionPolicy::Standard,
         retention: Retention {
-            event_sequences: 100,
-            audit_sequences: 100,
-            receipt_sequences: 100,
+            events: 100,
+            audit: 100,
+            receipts: 100,
         },
         verification_default: VerificationLevel::STATE_PROVEN,
         approval_required_for: BTreeSet::from([7]),
     }
 }
 
-#[test]
-fn approval_lifecycle_stream_resumes_after_gap_and_exports_digest_evidence() {
-    let root = directory();
-    fs::create_dir_all(&root).unwrap_or_else(|error| panic!("root: {error}"));
-    let durable = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
-    let mut ingestor = EventIngestor::open(durable, tenant(), 16, 0)
-        .unwrap_or_else(|error| panic!("ingestor: {error}"));
-    let mut audit = Log::open(&root, &tenant()).unwrap_or_else(|error| panic!("audit: {error}"));
-    let audit_path = audit.path().to_path_buf();
-    let mut coverage = Coverage::default();
-    let lifecycles = [
-        lifecycle(ApprovalEventKind::Created, 1, 100),
-        lifecycle(ApprovalEventKind::Granted, 1, 101),
-        lifecycle(ApprovalEventKind::Rejected, 2, 102),
-        lifecycle(ApprovalEventKind::Expired, 3, 103),
-    ];
-    let emissions = lifecycles
+fn emit_lifecycles(
+    ingestor: &mut EventIngestor,
+    audit: &mut Log,
+    coverage: &mut Coverage,
+    lifecycles: &[ApprovalLifecycle],
+) -> Vec<ApprovalEmission> {
+    lifecycles
         .iter()
         .map(|event| {
-            ApprovalEvents::emit(&mut ingestor, &mut audit, &mut coverage, event)
+            ApprovalEvents::emit(ingestor, audit, coverage, event)
                 .unwrap_or_else(|error| panic!("emit: {error}"))
         })
-        .collect::<Vec<_>>();
-    assert_eq!(ingestor.watermark().next_expected, 4);
-    assert_eq!(coverage.count(EventClass::PolicyDecision), 4);
-    assert!(emissions
-        .iter()
-        .all(|event| event.enforcement_notice == APPROVAL_ENFORCEMENT_NOTICE));
-    drop(audit);
+        .collect()
+}
 
-    let durable = ingestor.into_store();
+fn subscriptions_restored_after_gap(durable: Store, recovered_bytes: Vec<u8>) -> SubscriptionStore {
     let mut subscriptions = SubscriptionStore::open(durable, tenant())
         .unwrap_or_else(|error| panic!("subscriptions: {error}"));
     subscriptions
@@ -196,7 +182,7 @@ fn approval_lifecycle_stream_resumes_after_gap_and_exports_digest_evidence() {
         gap,
         events: vec![RecoveredEvent {
             global_sequence: 1,
-            canonical_bytes: emissions[1].canonical_event_bytes.clone(),
+            canonical_bytes: recovered_bytes,
         }],
     };
     assert!(matches!(
@@ -204,8 +190,11 @@ fn approval_lifecycle_stream_resumes_after_gap_and_exports_digest_evidence() {
         Ok(BackfillResolution::Restored)
     ));
     assert!(admit(&subscriptions, &target()).is_ok());
+    subscriptions
+}
 
-    let mut delivery = DeliveryEngine::open(
+fn delivery_engine(subscriptions: SubscriptionStore) -> DeliveryEngine {
+    DeliveryEngine::open(
         subscriptions,
         target(),
         4,
@@ -217,14 +206,21 @@ fn approval_lifecycle_stream_resumes_after_gap_and_exports_digest_evidence() {
             maximum_attempts: 3,
         },
     )
-    .unwrap_or_else(|error| panic!("delivery: {error}"));
-    match backfill(&mut delivery) {
+    .unwrap_or_else(|error| panic!("delivery: {error}"))
+}
+
+fn refill_backfill(delivery: &mut DeliveryEngine, label: &str) {
+    match backfill(delivery) {
         Ok(_) | Err(DeliveryError::Backpressure { .. }) => {}
-        Err(error) => panic!("backfill: {error}"),
+        Err(error) => panic!("{label}: {error}"),
     }
+}
+
+fn drain_delivered(delivery: &mut DeliveryEngine) -> Vec<Vec<u8>> {
     let mut delivered = Vec::new();
+    refill_backfill(delivery, "backfill");
     while let Some(item) =
-        deliver(&mut delivery).unwrap_or_else(|error| panic!("delivery attempt: {error}"))
+        deliver(delivery).unwrap_or_else(|error| panic!("delivery attempt: {error}"))
     {
         let accepted = delivery
             .accept_front(1_000)
@@ -240,21 +236,14 @@ fn approval_lifecycle_stream_resumes_after_gap_and_exports_digest_evidence() {
                 })
                 .unwrap_or_else(|error| panic!("acknowledge: {error}"));
         }
-        match backfill(&mut delivery) {
-            Ok(_) | Err(DeliveryError::Backpressure { .. }) => {}
-            Err(error) => panic!("continued backfill: {error}"),
-        }
+        refill_backfill(delivery, "continued backfill");
     }
-    assert_eq!(
-        delivered,
-        emissions
-            .iter()
-            .map(|event| event.canonical_event_bytes.clone())
-            .collect::<Vec<_>>()
-    );
+    delivered
+}
 
+fn assert_digest_evidence_exported(audit_path: &Path, lifecycles: &[ApprovalLifecycle]) {
     let exported = export(
-        &audit_path,
+        audit_path,
         &config(),
         Query {
             tenant: tenant(),
@@ -266,7 +255,7 @@ fn approval_lifecycle_stream_resumes_after_gap_and_exports_digest_evidence() {
     )
     .unwrap_or_else(|error| panic!("export: {error}"));
     assert_eq!(exported.entries.len(), 4);
-    for (entry, lifecycle) in exported.entries.iter().zip(&lifecycles) {
+    for (entry, lifecycle) in exported.entries.iter().zip(lifecycles) {
         assert_eq!(entry.entry.class, EventClass::PolicyDecision);
         assert_eq!(
             entry.entry.submitted_bytes,
@@ -293,5 +282,46 @@ fn approval_lifecycle_stream_resumes_after_gap_and_exports_digest_evidence() {
             Decision::Failed,
         ]
     );
+}
+
+#[test]
+fn approval_lifecycle_stream_resumes_after_gap_and_exports_digest_evidence() {
+    let root = directory();
+    fs::create_dir_all(&root).unwrap_or_else(|error| panic!("root: {error}"));
+    let durable = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
+    let mut ingestor = EventIngestor::open(durable, tenant(), 16, 0)
+        .unwrap_or_else(|error| panic!("ingestor: {error}"));
+    let mut audit = Log::open(&root, &tenant()).unwrap_or_else(|error| panic!("audit: {error}"));
+    let audit_path = audit.path().to_path_buf();
+    let mut coverage = Coverage::default();
+    let lifecycles = [
+        lifecycle(ApprovalEventKind::Created, 1, 100),
+        lifecycle(ApprovalEventKind::Granted, 1, 101),
+        lifecycle(ApprovalEventKind::Rejected, 2, 102),
+        lifecycle(ApprovalEventKind::Expired, 3, 103),
+    ];
+    let emissions = emit_lifecycles(&mut ingestor, &mut audit, &mut coverage, &lifecycles);
+    assert_eq!(ingestor.watermark().next_expected, 4);
+    assert_eq!(coverage.count(EventClass::PolicyDecision), 4);
+    assert!(emissions
+        .iter()
+        .all(|event| event.enforcement_notice == APPROVAL_ENFORCEMENT_NOTICE));
+    drop(audit);
+
+    let subscriptions = subscriptions_restored_after_gap(
+        ingestor.into_store(),
+        emissions[1].canonical_event_bytes.clone(),
+    );
+    let mut delivery = delivery_engine(subscriptions);
+    let delivered = drain_delivered(&mut delivery);
+    assert_eq!(
+        delivered,
+        emissions
+            .iter()
+            .map(|event| event.canonical_event_bytes.clone())
+            .collect::<Vec<_>>()
+    );
+
+    assert_digest_evidence_exported(&audit_path, &lifecycles);
     let _ = fs::remove_dir_all(root);
 }

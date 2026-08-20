@@ -53,6 +53,12 @@ pub struct PreparationLifecycle {
 }
 
 impl PreparationLifecycle {
+    /// Records one prepared activity with its expiry bound and its held reservations.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` when the record lock is poisoned, or `Duplicate` when the
+    /// preparation id is already registered.
     pub fn register(
         &self,
         preparation_id: [u8; 32],
@@ -81,6 +87,12 @@ impl PreparationLifecycle {
         Ok(())
     }
 
+    /// Advances one preparation along the permitted lifecycle edges only.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` when the record lock is poisoned, `NotFound` for an unregistered
+    /// preparation, or `InvalidTransition` carrying both states for a disallowed edge.
     pub fn transition(
         &self,
         preparation_id: [u8; 32],
@@ -107,6 +119,13 @@ impl PreparationLifecycle {
         Ok(())
     }
 
+    /// Attaches signed bytes and their activity id to a preparation being signed.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidSignedBytes` for empty bytes, `Unavailable` when the record lock is
+    /// poisoned, `NotFound` for an unregistered preparation, or `InvalidTransition` unless the
+    /// record is currently `Signing`.
     pub fn retain_signed_bytes(
         &self,
         preparation_id: [u8; 32],
@@ -135,6 +154,13 @@ impl PreparationLifecycle {
         Ok(())
     }
 
+    /// Admits a signed preparation for submission at the authoritative core batch time.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` when the record lock is poisoned, `NotFound` for an unregistered
+    /// preparation, `PreparationExpired` past `not_after` or once already `Expired`, or
+    /// `InvalidTransition` unless the record is `Signed`.
     pub fn admit_submission(
         &self,
         preparation_id: [u8; 32],
@@ -159,6 +185,12 @@ impl PreparationLifecycle {
         Ok(())
     }
 
+    /// Returns the current lifecycle state of one preparation.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` when the record lock is poisoned, or `NotFound` for an
+    /// unregistered preparation.
     pub fn state(&self, preparation_id: [u8; 32]) -> Result<LifecycleState, LifecycleError> {
         let records = self
             .records
@@ -170,6 +202,12 @@ impl PreparationLifecycle {
             .ok_or(LifecycleError::NotFound)
     }
 
+    /// Reports whether signed bytes are still retained for one preparation.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` when the record lock is poisoned, or `NotFound` for an
+    /// unregistered preparation.
     pub fn has_signed_bytes(&self, preparation_id: [u8; 32]) -> Result<bool, LifecycleError> {
         let records = self
             .records
@@ -181,6 +219,12 @@ impl PreparationLifecycle {
             .ok_or(LifecycleError::NotFound)
     }
 
+    /// Renders one log line carrying the activity id and never the payload bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` when the record lock is poisoned, `NotFound` for an unregistered
+    /// preparation, or `ActivityIdUnavailable` before signing assigned an activity id.
     pub fn redacted_log(
         &self,
         preparation_id: [u8; 32],
@@ -314,15 +358,21 @@ const fn valid_transition(from: LifecycleState, to: LifecycleState) -> bool {
         (LifecycleState::Prepared, LifecycleState::Signing)
             | (LifecycleState::Signing, LifecycleState::Signed)
             | (LifecycleState::Signed, LifecycleState::Submitted)
-            | (LifecycleState::Submitted, LifecycleState::Acknowledged)
-            | (LifecycleState::Submitted, LifecycleState::Unknown)
-            | (LifecycleState::Submitted, LifecycleState::Executed)
-            | (LifecycleState::Submitted, LifecycleState::Failed)
-            | (LifecycleState::Acknowledged, LifecycleState::Unknown)
-            | (LifecycleState::Acknowledged, LifecycleState::Executed)
-            | (LifecycleState::Acknowledged, LifecycleState::Failed)
-            | (LifecycleState::Unknown, LifecycleState::Executed)
-            | (LifecycleState::Unknown, LifecycleState::Failed)
+            | (
+                LifecycleState::Submitted,
+                LifecycleState::Acknowledged
+                    | LifecycleState::Unknown
+                    | LifecycleState::Executed
+                    | LifecycleState::Failed,
+            )
+            | (
+                LifecycleState::Acknowledged,
+                LifecycleState::Unknown | LifecycleState::Executed | LifecycleState::Failed,
+            )
+            | (
+                LifecycleState::Unknown,
+                LifecycleState::Executed | LifecycleState::Failed,
+            )
     )
 }
 

@@ -36,6 +36,12 @@ pub struct CoreBudgetReceipt {
 
 /// The mandatory prepare, sign, submit and verify seam.
 pub trait BudgetPipeline {
+    /// Prepares, signs, submits and verifies one budget creation activity.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Submission` when the signed canonical activity does not reach core and produce a
+    /// receipt.
     fn submit_budget(
         &mut self,
         request: &BudgetRequest,
@@ -102,6 +108,12 @@ impl From<StoreError> for BudgetCreationError {
 }
 
 /// Creates a protocol-enforced limit only through signed canonical bytes.
+///
+/// # Errors
+///
+/// Refuses a zero ceiling or expiry sequence and empty canonical activity bytes, returns
+/// `UnverifiedReceipt` or `CoreRejected` when the core receipt is unverified or unexecuted, and
+/// returns the store failure raised while caching the receipt.
 pub fn create_protocol_budget(
     store: &mut Store,
     request: &BudgetRequest,

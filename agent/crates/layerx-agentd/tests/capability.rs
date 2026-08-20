@@ -48,13 +48,27 @@ fn every_dimension_is_required_and_checked_in_stable_order() {
     let capability = capability();
     assert_eq!(evaluate(&capability, &intent()), Decision::Allow);
     let mut cases = Vec::new();
-    let mut value = intent(); value.core_sequence = 100; cases.push((value, Dimension::Expiry));
-    let mut value = intent(); value.activity_type = 8; cases.push((value, Dimension::ActivityType));
-    let mut value = intent(); value.counterparty = [9; 32]; cases.push((value, Dimension::Counterparty));
-    let mut value = intent(); value.asset = [9; 32]; cases.push((value, Dimension::Asset));
-    let mut value = intent(); value.amount = 501; cases.push((value, Dimension::Amount));
-    let mut value = intent(); value.uses_in_window = 4; cases.push((value, Dimension::Rate));
-    let mut value = intent(); value.purpose = "other".to_owned(); cases.push((value, Dimension::Purpose));
+    let mut value = intent();
+    value.core_sequence = 100;
+    cases.push((value, Dimension::Expiry));
+    let mut value = intent();
+    value.activity_type = 8;
+    cases.push((value, Dimension::ActivityType));
+    let mut value = intent();
+    value.counterparty = [9; 32];
+    cases.push((value, Dimension::Counterparty));
+    let mut value = intent();
+    value.asset = [9; 32];
+    cases.push((value, Dimension::Asset));
+    let mut value = intent();
+    value.amount = 501;
+    cases.push((value, Dimension::Amount));
+    let mut value = intent();
+    value.uses_in_window = 4;
+    cases.push((value, Dimension::Rate));
+    let mut value = intent();
+    value.purpose = "other".to_owned();
+    cases.push((value, Dimension::Purpose));
     for (value, dimension) in cases {
         assert_eq!(evaluate(&capability, &value), Decision::Refuse(dimension));
         assert_eq!(evaluate(&capability, &value), evaluate(&capability, &value));
@@ -71,7 +85,10 @@ fn bounds_accept_inside_and_at_limit_and_reject_outside() {
     assert_eq!(evaluate(&capability, &intent()), Decision::Allow);
     let mut above = intent();
     above.amount = 501;
-    assert_eq!(evaluate(&capability, &above), Decision::Refuse(Dimension::Amount));
+    assert_eq!(
+        evaluate(&capability, &above),
+        Decision::Refuse(Dimension::Amount)
+    );
 }
 
 #[test]
@@ -83,7 +100,9 @@ fn capability_restores_from_tenant_scoped_store() {
     ));
     let value = capability();
     let mut store = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
-    value.persist(&mut store).unwrap_or_else(|error| panic!("persist: {error:?}"));
+    value
+        .persist(&mut store)
+        .unwrap_or_else(|error| panic!("persist: {error:?}"));
     drop(store);
     let reopened = Store::open(&root).unwrap_or_else(|error| panic!("reopen: {error}"));
     let restored = Capability::restore(&reopened, value.tenant.clone(), value.id)

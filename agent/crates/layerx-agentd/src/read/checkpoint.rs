@@ -126,6 +126,12 @@ pub(crate) fn serve_checkpoint(
 }
 
 /// Verifies and serves one inclusion proof with its signed-header root provenance.
+///
+/// # Errors
+///
+/// Returns the inclusion failure when the proof or signed header does not verify, `RootMismatch`
+/// when the header commits a different root than the named one, and `Arithmetic` when the
+/// sibling count exceeds its encoded bound.
 pub fn proof_bundle(
     request: &ProofBundleRequest<'_>,
 ) -> Result<ServedProofBundle, CheckpointReadError> {

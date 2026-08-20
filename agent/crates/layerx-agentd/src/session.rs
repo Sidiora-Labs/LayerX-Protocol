@@ -36,7 +36,7 @@ pub struct OpenRequest {
 /// A daemon authenticator. It is never accepted as protocol authority.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Token {
-    token_id: [u8; 32],
+    id: [u8; 32],
     session_id: SessionId,
     tenant: TenantId,
     agent: Did,
@@ -46,6 +46,11 @@ pub struct Token {
 
 impl Token {
     /// Checks tenant, agent, scope and core-relative expiry.
+    ///
+    /// # Errors
+    ///
+    /// Returns `WrongPrincipal` for a mismatched tenant or agent, `Expired` once the core sequence
+    /// reaches the token's expiry, and `ScopeDenied` for a scope the token does not carry.
     pub fn authorize(
         &self,
         tenant: &TenantId,
@@ -68,7 +73,7 @@ impl Token {
     /// Returns the daemon token identifier for audit correlation.
     #[must_use]
     pub const fn token_id(&self) -> [u8; 32] {
-        self.token_id
+        self.id
     }
 
     pub(crate) const fn tenant(&self) -> &TenantId {
@@ -145,6 +150,12 @@ impl From<StoreError> for SessionError {
 }
 
 /// Opens and durably records one independently scoped session.
+///
+/// # Errors
+///
+/// Returns `IdentityMismatch`, `MissingField`, `Expired` or `AuthorityMissing` from request
+/// validation, or `Store` when the session record cannot be encoded or durably written; the
+/// registry is left untouched unless the record persisted.
 pub fn open(
     store: &mut Store,
     registry: &mut SessionRegistry,
@@ -154,7 +165,7 @@ pub fn open(
 ) -> Result<Token, SessionError> {
     validate_request(identity, &request, core_sequence)?;
     let token = Token {
-        token_id: request.token_id,
+        id: request.token_id,
         session_id: request.session_id,
         tenant: request.tenant.clone(),
         agent: request.agent.clone(),
@@ -174,6 +185,11 @@ pub fn open(
 }
 
 /// Closes exactly one session without disturbing any sibling state.
+///
+/// # Errors
+///
+/// Returns `NotFound` for a session the registry never held, `AlreadyClosed` for one already
+/// closed, or `Store` when the closed record cannot be persisted.
 pub fn close(
     store: &mut Store,
     registry: &mut SessionRegistry,
@@ -195,6 +211,11 @@ pub fn close(
 }
 
 /// Applies a core revocation event to sessions and unsubmitted preparations.
+///
+/// # Errors
+///
+/// Returns `Store` when a revoked session's closed record cannot be persisted, or `MissingField`
+/// when its opening client or policy version exceeds the `u16` length prefix.
 pub fn invalidate_on_revocation(
     store: &mut Store,
     registry: &mut SessionRegistry,

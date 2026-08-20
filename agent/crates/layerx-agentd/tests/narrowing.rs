@@ -16,7 +16,10 @@ fn capability() -> Capability {
             counterparties: BTreeSet::from([[2; 32]]),
             assets: BTreeSet::from([[3; 32]]),
             amount_ceiling: 500,
-            rate_ceiling: RateCeiling { maximum_uses: 5, window_sequences: 10 },
+            rate_ceiling: RateCeiling {
+                maximum_uses: 5,
+                window_sequences: 10,
+            },
             purposes: BTreeSet::from(["service".to_owned()]),
             expiry_sequence: 100,
         },
@@ -57,8 +60,14 @@ fn enforcement_is_reported_per_dimension_and_capability_never_becomes_authority(
     let binding = assert_narrowing(&capability(), authority.clone(), &scope())
         .unwrap_or_else(|error| panic!("narrow binding: {error:?}"));
     assert_eq!(binding.submission_authority(), &authority);
-    assert!(binding.report.dimensions.contains(&(Dimension::Amount, Enforcement::Protocol)));
-    assert!(binding.report.dimensions.contains(&(Dimension::Purpose, Enforcement::DaemonOnly)));
+    assert!(binding
+        .report
+        .dimensions
+        .contains(&(Dimension::Amount, Enforcement::Protocol)));
+    assert!(binding
+        .report
+        .dimensions
+        .contains(&(Dimension::Purpose, Enforcement::DaemonOnly)));
 }
 
 #[test]
@@ -71,6 +80,9 @@ fn later_protocol_narrowing_disables_existing_capability() {
     .unwrap_or_else(|error| panic!("narrow binding: {error:?}"));
     let mut narrowed = scope();
     narrowed.amount_ceiling = 100;
-    assert_eq!(binding.recheck(&narrowed), Err(NarrowingError::Wider(Dimension::Amount)));
+    assert_eq!(
+        binding.recheck(&narrowed),
+        Err(NarrowingError::Wider(Dimension::Amount))
+    );
     assert!(!binding.enabled);
 }

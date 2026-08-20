@@ -4,7 +4,7 @@ use layerx_agentd::limits::{
 };
 
 fn id(value: &str) -> LimitId {
-    LimitId::new(value).expect("test limit identifier must be valid")
+    LimitId::new(value).unwrap_or_else(|error| panic!("limit identifier {value}: {error:?}"))
 }
 
 fn request(at_ms: u64, cost: u64) -> RateRequest {
@@ -75,9 +75,11 @@ fn all_scope_configs() -> Vec<LimitConfig> {
 #[test]
 fn applies_every_matching_scope_and_refuses_atomically() {
     let limiter = RateLimiter::new(all_scope_configs(), CounterLedger::shared())
-        .expect("valid layered configuration");
+        .unwrap_or_else(|error| panic!("layered configuration: {error:?}"));
 
-    let admitted = limiter.admit(&request(100, 4)).expect("first burst fits");
+    let admitted = limiter
+        .admit(&request(100, 4))
+        .unwrap_or_else(|refusal| panic!("first burst: {refusal:?}"));
     assert_eq!(
         admitted
             .applied_limits
@@ -94,9 +96,9 @@ fn applies_every_matching_scope_and_refuses_atomically() {
     );
     assert_eq!(admitted.ledger_revision, 1);
 
-    let refusal = limiter
-        .admit(&request(100, 1))
-        .expect_err("operation-class ceiling must refuse immediately");
+    let Err(refusal) = limiter.admit(&request(100, 1)) else {
+        panic!("operation-class ceiling must refuse immediately");
+    };
     match refusal {
         Refusal::Exceeded {
             limit,
@@ -115,7 +117,7 @@ fn applies_every_matching_scope_and_refuses_atomically() {
 
     let utilization = limiter
         .utilization("tenant-a", 100)
-        .expect("utilization remains available");
+        .unwrap_or_else(|refusal| panic!("utilization: {refusal:?}"));
     assert_eq!(utilization.len(), 5);
     assert!(utilization.iter().all(|entry| entry.used == 4));
     assert!(utilization.iter().all(|entry| entry.ledger_revision == 1));
@@ -124,7 +126,7 @@ fn applies_every_matching_scope_and_refuses_atomically() {
 #[test]
 fn each_scope_is_independently_selected_by_authenticated_dimensions() {
     let limiter = RateLimiter::new(all_scope_configs(), CounterLedger::shared())
-        .expect("valid layered configuration");
+        .unwrap_or_else(|error| panic!("layered configuration: {error:?}"));
     let mut mismatched = request(10, 1);
     mismatched.agent = "agent-b".to_owned();
     mismatched.session = "session-b".to_owned();
@@ -133,7 +135,7 @@ fn each_scope_is_independently_selected_by_authenticated_dimensions() {
 
     let admitted = limiter
         .admit(&mismatched)
-        .expect("tenant limit still applies");
+        .unwrap_or_else(|refusal| panic!("tenant limit still applies: {refusal:?}"));
     assert_eq!(
         admitted
             .applied_limits
@@ -145,7 +147,7 @@ fn each_scope_is_independently_selected_by_authenticated_dimensions() {
 
     let utilization = limiter
         .utilization("tenant-a", 10)
-        .expect("tenant utilization is available");
+        .unwrap_or_else(|refusal| panic!("tenant utilization: {refusal:?}"));
     let used = utilization
         .iter()
         .map(|entry| (entry.config.id.as_str(), entry.used))
@@ -174,23 +176,23 @@ fn boundary_bursts_reset_only_at_the_next_logical_window() {
         )],
         CounterLedger::shared(),
     )
-    .expect("valid tenant limit");
+    .unwrap_or_else(|refusal| panic!("tenant limit: {refusal:?}"));
 
     for _ in 0..3 {
         limiter
             .admit(&request(999, 1))
-            .expect("burst remains within the first window");
+            .unwrap_or_else(|refusal| panic!("burst within the first window: {refusal:?}"));
     }
     assert_eq!(
         limiter.admit(&request(999, 1)),
         Err(Refusal::Exceeded {
-            limit: config(
+            limit: Box::new(config(
                 "tenant",
                 LimitScope::Tenant {
                     tenant: "tenant-a".to_owned(),
                 },
                 3,
-            ),
+            )),
             window: layerx_agentd::limits::Window {
                 start_ms: 0,
                 end_ms: 1_000,
@@ -202,10 +204,10 @@ fn boundary_bursts_reset_only_at_the_next_logical_window() {
 
     limiter
         .admit(&request(1_000, 1))
-        .expect("next logical window accepts immediately");
+        .unwrap_or_else(|refusal| panic!("next logical window: {refusal:?}"));
     let utilization = limiter
         .utilization("tenant-a", 1_000)
-        .expect("new-window utilization is available");
+        .unwrap_or_else(|refusal| panic!("new-window utilization: {refusal:?}"));
     assert_eq!(utilization[0].used, 1);
     assert_eq!(utilization[0].remaining, 2);
 }
@@ -221,20 +223,22 @@ fn shared_ledger_prevents_two_limiter_instances_from_diverging() {
         },
         3,
     )];
-    let first = RateLimiter::new(configs.clone(), ledger.clone()).expect("first instance");
-    let second = RateLimiter::new(configs, ledger).expect("second instance");
+    let first = RateLimiter::new(configs.clone(), ledger.clone())
+        .unwrap_or_else(|refusal| panic!("first instance: {refusal:?}"));
+    let second = RateLimiter::new(configs, ledger)
+        .unwrap_or_else(|refusal| panic!("second instance: {refusal:?}"));
 
     assert_eq!(
         first
             .admit(&request(500, 2))
-            .expect("first instance admits")
+            .unwrap_or_else(|refusal| panic!("first instance admits: {refusal:?}"))
             .ledger_revision,
         1
     );
     assert_eq!(
         second
             .admit(&request(500, 1))
-            .expect("second instance sees shared usage")
+            .unwrap_or_else(|refusal| panic!("second instance shared usage: {refusal:?}"))
             .ledger_revision,
         2
     );
@@ -245,10 +249,10 @@ fn shared_ledger_prevents_two_limiter_instances_from_diverging() {
 
     let first_view = first
         .utilization("tenant-a", 500)
-        .expect("first view is available");
+        .unwrap_or_else(|refusal| panic!("first view: {refusal:?}"));
     let second_view = second
         .utilization("tenant-a", 500)
-        .expect("second view is available");
+        .unwrap_or_else(|refusal| panic!("second view: {refusal:?}"));
     assert_eq!(first_view, second_view);
     assert_eq!(first_view[0].used, 3);
     assert_eq!(first_view[0].ledger_revision, 2);
@@ -271,7 +275,7 @@ fn invalid_and_unmatched_requests_return_typed_refusals() {
         )],
         CounterLedger::shared(),
     )
-    .expect("valid tenant limit");
+    .unwrap_or_else(|refusal| panic!("tenant limit: {refusal:?}"));
     assert_eq!(
         limiter.admit(&RateRequest {
             cost: 0,

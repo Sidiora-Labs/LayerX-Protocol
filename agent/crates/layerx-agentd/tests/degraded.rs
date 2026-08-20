@@ -180,7 +180,7 @@ fn core_loss_mid_stream_serves_only_verified_cache_with_explicit_staleness_every
     ));
     let status = controller.status();
     assert_eq!(status.mode, Mode::Unreachable);
-    assert!(!status.live_stream_ready);
+    assert!(!status.readiness.live_stream);
     assert_eq!(status.reference, Some(reference(100, 9)));
 
     let tenant = tenant();

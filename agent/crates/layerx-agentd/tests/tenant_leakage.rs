@@ -5,7 +5,7 @@ use layerx_agentd::tenant::{
 };
 
 fn tenant(value: &str) -> TenantId {
-    TenantId::new(value).expect("valid tenant")
+    TenantId::new(value).unwrap_or_else(|error| panic!("tenant id {value}: {error}"))
 }
 
 #[test]

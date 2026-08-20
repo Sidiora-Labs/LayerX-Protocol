@@ -10,6 +10,11 @@ pub const COUNTER_CONSISTENCY_MODEL: &str = "Every daemon limiter instance servi
 pub struct LimitId(String);
 
 impl LimitId {
+    /// Creates a bounded operator-facing limit identifier.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidConfiguration` for an empty, over-255-byte, or NUL-bearing value.
     pub fn new(value: impl Into<String>) -> Result<Self, Refusal> {
         let value = value.into();
         if value.is_empty() || value.len() > 255 || value.as_bytes().contains(&0) {
@@ -157,7 +162,7 @@ pub struct Utilization {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Refusal {
     Exceeded {
-        limit: LimitConfig,
+        limit: Box<LimitConfig>,
         window: Window,
         remaining: u64,
         retry_after_ms: u64,
@@ -226,6 +231,12 @@ pub struct RateLimiter {
 }
 
 impl RateLimiter {
+    /// Builds a limiter over an id-sorted configuration set sharing one ledger.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidConfiguration` for an empty set, a duplicate `LimitId`, a zero limit or
+    /// window, or a scope with an empty, oversized or NUL-bearing component.
     pub fn new(configs: Vec<LimitConfig>, ledger: CounterLedger) -> Result<Self, Refusal> {
         let mut configs = configs;
         configs.sort_by(|left, right| left.id.cmp(&right.id));
@@ -241,6 +252,12 @@ impl RateLimiter {
     }
 
     /// Atomically checks and increments every applicable scope counter.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidRequest` for zero cost or a malformed dimension, `NoApplicableLimits`
+    /// when no scope matches, `CounterUnavailable` on a poisoned ledger, `Exceeded` with the
+    /// window and `retry_after_ms`, or `Arithmetic` on revision, counter or window overflow.
     pub fn admit(&self, request: &RateRequest) -> Result<Admission, Refusal> {
         if !request.valid() {
             return Err(Refusal::InvalidRequest);
@@ -269,7 +286,7 @@ impl RateLimiter {
             let projected = used.checked_add(request.cost).ok_or(Refusal::Arithmetic)?;
             if projected > config.limit {
                 return Err(Refusal::Exceeded {
-                    limit: (*config).clone(),
+                    limit: Box::new((*config).clone()),
                     window,
                     remaining: config.limit.saturating_sub(used),
                     retry_after_ms: window.end_ms.saturating_sub(request.logical_time_ms),
@@ -299,6 +316,11 @@ impl RateLimiter {
     }
 
     /// Returns live per-limit configuration and current-window utilization for one tenant.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CounterUnavailable` when the shared ledger lock is poisoned, or `Arithmetic`
+    /// if a configured window end overflows `u64`.
     pub fn utilization(
         &self,
         tenant: &str,

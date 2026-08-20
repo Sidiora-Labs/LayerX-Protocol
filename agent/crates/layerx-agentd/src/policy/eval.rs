@@ -92,6 +92,12 @@ pub enum EvaluationFailure {
 
 /// Rule-matching boundary used by the fail-closed evaluator.
 pub trait RuleMatcher {
+    /// Reports whether one rule's constraints all admit the evaluation input.
+    ///
+    /// # Errors
+    ///
+    /// Returns `EvaluationFailure::InvalidRule` for a malformed rule such as one with an empty
+    /// identifier; every variant is caught by the evaluator and turned into a fail-closed deny.
     fn matches(&self, rule: &Rule, input: &EvaluationInput<'_>) -> Result<bool, EvaluationFailure>;
 }
 
@@ -161,7 +167,7 @@ fn evaluate_inner(
 
     let mut ordered: Vec<&Rule> = policy.rules.iter().collect();
     ordered.sort_by(|left, right| left.id.cmp(&right.id));
-    let mut matched = Vec::new();
+    let mut matched_rules = Vec::new();
     let mut permitted = Vec::new();
     let mut denied = Vec::new();
     let mut approval_missing = Vec::new();
@@ -173,7 +179,7 @@ fn evaluate_inner(
         if !matcher.matches(rule, input)? {
             continue;
         }
-        matched.push(rule.id.clone());
+        matched_rules.push(rule.id.clone());
         match rule.effect {
             RuleEffect::Deny => denied.push(rule.id.clone()),
             RuleEffect::Permit
@@ -209,7 +215,7 @@ fn evaluate_inner(
     Ok(Decision {
         outcome,
         policy_version: policy.version.clone(),
-        matched_rules: matched,
+        matched_rules,
         deciding_rule,
         reason,
     })

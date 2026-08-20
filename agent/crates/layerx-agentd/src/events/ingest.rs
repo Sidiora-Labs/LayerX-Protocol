@@ -3,7 +3,9 @@ use std::fmt::{Display, Formatter};
 
 use layerx_types::verify::VerificationLevel;
 
-use crate::store::{ObjectKind, StorageClass, Store, StoreError, TenantId, TenantKey};
+use crate::store::{
+    EventIngestion, ObjectKind, StorageClass, Store, StoreError, TenantId, TenantKey,
+};
 
 const WATERMARK_ID: &[u8] = b"event-ingestion-watermark";
 const WATERMARK_MAGIC: &[u8; 4] = b"LXEW";
@@ -111,6 +113,11 @@ pub struct EventIngestor {
 impl EventIngestor {
     /// Opens an ingestor at the durable watermark, or at `initial_sequence`
     /// when the tenant has never ingested an event.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a zero capacity, returns `CorruptWatermark` when the persisted watermark is not a
+    /// consistent 21-byte record, and returns the store failure otherwise.
     pub fn open(
         store: Store,
         tenant: TenantId,
@@ -227,23 +234,17 @@ fn ingest_with_class(
     let event_key = event_key(ingestor.tenant.clone(), expected)?;
     let metadata_key = metadata_key(ingestor.tenant.clone(), expected)?;
     let watermark_key = watermark_key(ingestor.tenant.clone())?;
+    let ingestion = EventIngestion {
+        event_key,
+        event_bytes: event.canonical_bytes.clone(),
+        metadata_key,
+        metadata: encode_metadata(&event),
+        watermark_key,
+        watermark: encode_watermark(next_watermark),
+    };
     match class {
-        StorageClass::CoreProducedCache => ingestor.store.record_event(
-            event_key,
-            event.canonical_bytes.clone(),
-            metadata_key,
-            encode_metadata(&event),
-            watermark_key,
-            encode_watermark(next_watermark),
-        )?,
-        StorageClass::LocalOnly => ingestor.store.record_local_event(
-            event_key,
-            event.canonical_bytes.clone(),
-            metadata_key,
-            encode_metadata(&event),
-            watermark_key,
-            encode_watermark(next_watermark),
-        )?,
+        StorageClass::CoreProducedCache => ingestor.store.record_event(ingestion)?,
+        StorageClass::LocalOnly => ingestor.store.record_local_event(ingestion)?,
     }
     ingestor.watermark = next_watermark;
     ingestor.buffered.push_back(event);

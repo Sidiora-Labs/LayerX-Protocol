@@ -78,10 +78,17 @@ pub struct ApprovalDecision {
     pub authority_notice: &'static str,
 }
 
+/// One preparation held under its owning tenant and approval identity.
+struct QueuedSubmission {
+    tenant: TenantId,
+    approval_id: [u8; 32],
+    prepared: Prepared,
+}
+
 /// A real pre-signing submission queue containing the exact approved preparation.
 #[derive(Default)]
 pub struct ApprovalSubmissionQueue {
-    queued: Mutex<BTreeMap<[u8; 32], (TenantId, [u8; 32], Prepared)>>,
+    queued: Mutex<BTreeMap<[u8; 32], QueuedSubmission>>,
 }
 
 impl ApprovalSubmissionQueue {
@@ -103,16 +110,23 @@ impl ApprovalSubmissionQueue {
         let submission_ref = Self::reference(&tenant, approval_id, &prepared);
         let mut queued = self.queued.lock().map_err(|_| ApprovalOutcome::Conflict)?;
         match queued.get(&submission_ref) {
-            Some((stored_tenant, stored_approval, stored))
-                if stored_tenant == &tenant
-                    && stored_approval == &approval_id
-                    && stored == &prepared =>
+            Some(stored)
+                if stored.tenant == tenant
+                    && stored.approval_id == approval_id
+                    && stored.prepared == prepared =>
             {
                 Ok(submission_ref)
             }
             Some(_) => Err(ApprovalOutcome::Conflict),
             None => {
-                queued.insert(submission_ref, (tenant, approval_id, prepared));
+                queued.insert(
+                    submission_ref,
+                    QueuedSubmission {
+                        tenant,
+                        approval_id,
+                        prepared,
+                    },
+                );
                 Ok(submission_ref)
             }
         }
@@ -124,7 +138,7 @@ impl ApprovalSubmissionQueue {
         self.queued.lock().ok().and_then(|queued| {
             queued
                 .get(&submission_ref)
-                .map(|(_, _, value)| value.clone())
+                .map(|stored| stored.prepared.clone())
         })
     }
 
@@ -139,6 +153,15 @@ impl ApprovalSubmissionQueue {
     pub fn is_empty(&self) -> bool {
         self.queued.lock().map_or(true, |queued| queued.is_empty())
     }
+}
+
+/// Authenticated identity of exactly one approve or reject decision.
+pub struct DecisionRequest<'a> {
+    pub tenant: &'a TenantId,
+    pub approval_id: [u8; 32],
+    pub idempotency_key: &'a DecisionKey,
+    pub approver: ApproverId,
+    pub current_sequence: u64,
 }
 
 /// Tenant-authenticated list/get/approve/reject service.
@@ -230,14 +253,17 @@ impl<'a> ApprovalService<'a> {
     /// Returns registry failures that cannot be represented by a typed decision outcome.
     pub fn approve(
         &self,
-        tenant: &TenantId,
-        approval_id: [u8; 32],
-        idempotency_key: &DecisionKey,
-        approver: ApproverId,
-        current_sequence: u64,
+        request: DecisionRequest<'_>,
         current_prepared: &Prepared,
         submissions: &ApprovalSubmissionQueue,
     ) -> Result<ApprovalDecision, ApprovalOperationError> {
+        let DecisionRequest {
+            tenant,
+            approval_id,
+            idempotency_key,
+            approver,
+            current_sequence,
+        } = request;
         let snapshot = self
             .registry
             .get_scoped(tenant, approval_id, current_sequence)
@@ -325,12 +351,15 @@ impl<'a> ApprovalService<'a> {
     /// Returns registry or reservation failures that prevent a final rejection.
     pub fn reject(
         &self,
-        tenant: &TenantId,
-        approval_id: [u8; 32],
-        idempotency_key: &DecisionKey,
-        approver: ApproverId,
-        current_sequence: u64,
+        request: DecisionRequest<'_>,
     ) -> Result<ApprovalDecision, ApprovalOperationError> {
+        let DecisionRequest {
+            tenant,
+            approval_id,
+            idempotency_key,
+            approver,
+            current_sequence,
+        } = request;
         let snapshot = self
             .registry
             .get_scoped(tenant, approval_id, current_sequence)

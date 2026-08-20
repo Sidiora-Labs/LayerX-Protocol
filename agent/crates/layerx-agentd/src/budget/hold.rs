@@ -41,6 +41,11 @@ pub struct RestartAccounting {
 
 impl RestartAccounting {
     /// Refuses write admission until protocol and receipt accounting reconcile.
+    ///
+    /// # Errors
+    ///
+    /// Returns `RestartError::Unreconciled` whenever rebuilt receipt consumption disagrees
+    /// with the protocol-reported consumed amount.
     pub fn require_write_ready(self) -> Result<(), RestartError> {
         if self.reconciled {
             Ok(())
@@ -77,7 +82,7 @@ pub(crate) fn persist_unknown(
 
 pub(crate) fn rebuild_accounting(
     store: &Store,
-    tenant: TenantId,
+    tenant: &TenantId,
     unknown_ids: &[[u8; 32]],
     receipts: &[PersistedReceipt],
     protocol: ProtocolBudgetState,
@@ -103,7 +108,7 @@ pub(crate) fn rebuild_accounting(
         let Some(value) = store.get(&storage_key) else {
             return Err(RestartError::Corrupt);
         };
-        let reservation = decode(&tenant, *id, value.bytes())?;
+        let reservation = decode(tenant, *id, value.bytes())?;
         if reservation.resolved.is_none() {
             held_unresolved = held_unresolved
                 .checked_add(reservation.amount)

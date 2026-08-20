@@ -471,7 +471,7 @@ impl Server {
     /// Refuses an invocation from a different server and fails on audit persistence errors.
     pub fn complete(
         &mut self,
-        invocation: DaemonInvocation,
+        invocation: &DaemonInvocation,
         outcome: InvocationOutcome,
     ) -> Result<InvocationRecord, ServerError> {
         if invocation.server_binding != self.binding_digest {

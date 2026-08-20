@@ -154,8 +154,8 @@ fn concurrent_approvals_have_exactly_one_winner() {
     }
     let accepted = workers
         .into_iter()
-        .map(|worker| worker.join())
-        .filter(|result| result.as_ref().is_ok_and(|decision| decision.is_ok()))
+        .map(thread::JoinHandle::join)
+        .filter(|result| result.as_ref().is_ok_and(Result::is_ok))
         .count();
     assert_eq!(accepted, 1);
     let audit = registry

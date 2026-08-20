@@ -1,6 +1,6 @@
 use layerx_agentd::store::{
-    migrate, MigrationError, ObjectKind, StorageClass, Store, StoreError, TenantId, TenantKey,
-    CURRENT_SCHEMA_VERSION,
+    migrate, MigrationError, ObjectKind, StorageClass, Store, StoreError, StoredValue, TenantId,
+    TenantKey, CURRENT_SCHEMA_VERSION,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -51,9 +51,8 @@ fn every_access_is_tenant_scoped_and_persists_exact_bytes() {
         Ok(value) => value,
         Err(error) => panic!("store reopen failed: {error}"),
     };
-    let stored = match reopened.get(&alpha_key) {
-        Some(value) => value,
-        None => panic!("persisted value missing"),
+    let Some(stored) = reopened.get(&alpha_key) else {
+        panic!("persisted value missing")
     };
     assert_eq!(stored.bytes(), b"alpha-policy");
     assert_eq!(stored.class(), StorageClass::LocalOnly);
@@ -126,9 +125,8 @@ fn deletion_loses_only_declared_local_artifacts_and_core_cache_rebuilds() {
     if let Err(error) = restarted.restore_core_cache([(receipt_key.clone(), core_receipt)]) {
         panic!("core reconstruction failed: {error}");
     }
-    let rebuilt = match restarted.get(&receipt_key) {
-        Some(value) => value,
-        None => panic!("core-produced receipt did not reconstruct"),
+    let Some(rebuilt) = restarted.get(&receipt_key) else {
+        panic!("core-produced receipt did not reconstruct")
     };
     assert_eq!(rebuilt.class(), StorageClass::CoreProducedCache);
     assert!(restarted.get(&policy_key).is_none());
@@ -145,10 +143,9 @@ fn migrates_every_supported_prior_version_and_refuses_newer() {
     v1.extend_from_slice(b"LXAS");
     v1.extend_from_slice(&1_u32.to_be_bytes());
     v1.extend_from_slice(&1_u32.to_be_bytes());
-    for bytes in [b"tenant-a".as_slice()] {
-        v1.extend_from_slice(&u32::try_from(bytes.len()).unwrap_or(0).to_be_bytes());
-        v1.extend_from_slice(bytes);
-    }
+    let tenant_bytes = b"tenant-a".as_slice();
+    v1.extend_from_slice(&u32::try_from(tenant_bytes.len()).unwrap_or(0).to_be_bytes());
+    v1.extend_from_slice(tenant_bytes);
     v1.push(ObjectKind::Receipt as u8);
     for bytes in [b"receipt-1".as_slice(), b"receipt-bytes".as_slice()] {
         v1.extend_from_slice(&u32::try_from(bytes.len()).unwrap_or(0).to_be_bytes());
@@ -171,7 +168,7 @@ fn migrates_every_supported_prior_version_and_refuses_newer() {
     };
     let receipt = tenant_key(&tenant("tenant-a"), ObjectKind::Receipt, b"receipt-1");
     assert_eq!(
-        opened.get(&receipt).map(|value| value.class()),
+        opened.get(&receipt).map(StoredValue::class),
         Some(StorageClass::CoreProducedCache)
     );
 
@@ -180,9 +177,8 @@ fn migrates_every_supported_prior_version_and_refuses_newer() {
     if let Err(error) = fs::write(root.join("store.bin"), newer) {
         panic!("newer store write failed: {error}");
     }
-    let error = match Store::open(&root) {
-        Ok(_) => panic!("newer schema was accepted"),
-        Err(error) => error,
+    let Err(error) = Store::open(&root) else {
+        panic!("newer schema was accepted")
     };
     assert!(matches!(
         error,

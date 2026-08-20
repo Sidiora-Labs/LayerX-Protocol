@@ -70,6 +70,13 @@ impl From<StoreError> for FinalityError {
 }
 
 /// Verifies and records only evidence-supported finality without modifying the receipt.
+///
+/// # Errors
+///
+/// Returns a receipt error when the receipt is absent or corrupt, `Inclusion` or
+/// `Checkpoint` when the supplied evidence fails verification, `Arithmetic` when a
+/// proof cannot be encoded, and `Corrupt` when the re-read receipt differs from
+/// the raised one.
 pub fn augment(
     durable: &mut Store,
     tenant: TenantId,
@@ -151,6 +158,12 @@ pub fn augment(
 
 /// Source of independently observed finality progress for deadline-bounded waits.
 pub trait VerificationProgress {
+    /// Returns the independently observed level for the submission at that instant.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ProgressUnavailable` when the source cannot observe the submission at
+    /// `observed_at_ms`.
     fn level_at(
         &mut self,
         idempotency_key: [u8; 32],
@@ -167,6 +180,12 @@ pub struct WaitResult {
 }
 
 /// Polls until the declared level is observed or the explicit deadline is reached.
+///
+/// # Errors
+///
+/// Returns `InvalidDeadline` when the deadline precedes the start or the poll
+/// interval is zero, `Arithmetic` when the next poll instant overflows, and
+/// propagates the progress-source failure.
 pub fn wait_for_level<P: VerificationProgress>(
     progress: &mut P,
     idempotency_key: [u8; 32],

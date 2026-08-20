@@ -15,7 +15,7 @@ fn directory(label: &str) -> PathBuf {
 }
 
 fn tenant(value: &str) -> TenantId {
-    TenantId::new(value).expect("valid test tenant")
+    TenantId::new(value).unwrap_or_else(|error| panic!("tenant {value}: {error}"))
 }
 
 #[test]
@@ -23,7 +23,7 @@ fn every_required_durable_object_is_structurally_tenant_scoped() {
     let root = directory("objects");
     let alpha = tenant("alpha");
     let beta = tenant("beta");
-    let mut store = Store::open(&root).expect("durable store opens");
+    let mut store = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
     let required = [
         ObjectKind::Identity,
         ObjectKind::Session,
@@ -38,20 +38,23 @@ fn every_required_durable_object_is_structurally_tenant_scoped() {
     ];
 
     for (index, kind) in required.into_iter().enumerate() {
-        let object_id = vec![index as u8 + 1];
-        let alpha_key = key(alpha.clone(), kind, object_id.clone()).expect("alpha key");
-        let beta_key = key(beta.clone(), kind, object_id).expect("beta key");
+        let marker =
+            u8::try_from(index).unwrap_or_else(|error| panic!("object index {index}: {error}"));
+        let alpha_key = key(alpha.clone(), kind, vec![marker + 1])
+            .unwrap_or_else(|error| panic!("alpha key {index}: {error}"));
+        let beta_key = key(beta.clone(), kind, vec![marker + 1])
+            .unwrap_or_else(|error| panic!("beta key {index}: {error}"));
         assert_ne!(alpha_key, beta_key);
         assert_eq!(alpha_key.tenant(), &alpha);
         assert_eq!(beta_key.tenant(), &beta);
         if kind == ObjectKind::Receipt {
             store
-                .put_core_cache(alpha_key.clone(), vec![index as u8])
-                .expect("receipt persists");
+                .put_core_cache(alpha_key.clone(), vec![marker])
+                .unwrap_or_else(|error| panic!("receipt persists: {error}"));
         } else {
             store
-                .put_local(alpha_key.clone(), vec![index as u8])
-                .expect("local object persists");
+                .put_local(alpha_key.clone(), vec![marker])
+                .unwrap_or_else(|error| panic!("local object persists: {error}"));
         }
         assert!(store.get(&alpha_key).is_some());
         assert!(store.get(&beta_key).is_none());
@@ -84,13 +87,13 @@ fn canonical_key_encoding_delimits_tenant_kind_and_object_without_collision() {
         ObjectKind::Capability,
         b"b:object".to_vec(),
     )
-    .expect("left key");
+    .unwrap_or_else(|error| panic!("left key: {error}"));
     let right = key(
         tenant("tenant"),
         ObjectKind::Capability,
         b"a:b:object".to_vec(),
     )
-    .expect("right key");
+    .unwrap_or_else(|error| panic!("right key: {error}"));
     assert_ne!(left.canonical_bytes(), right.canonical_bytes());
     assert_eq!(&left.canonical_bytes()[..2], &8_u16.to_be_bytes());
     assert_eq!(&right.canonical_bytes()[..2], &6_u16.to_be_bytes());
@@ -113,7 +116,7 @@ fn deterministic_key_fuzz_preserves_tenant_and_object_delimiters() {
             ObjectKind::PreparedActivity,
             object_id.clone(),
         )
-        .expect("fuzzed key remains valid");
+        .unwrap_or_else(|error| panic!("fuzzed key {case}: {error}"));
         let encoded = key.canonical_bytes();
         let tenant_length = usize::from(u16::from_be_bytes([encoded[0], encoded[1]]));
         assert_eq!(tenant_length, tenant_text.len());
@@ -126,7 +129,7 @@ fn deterministic_key_fuzz_preserves_tenant_and_object_delimiters() {
         let object_length = u32::from_be_bytes(
             encoded[length_offset..length_offset + 4]
                 .try_into()
-                .expect("four-byte object length"),
+                .unwrap_or_else(|error| panic!("four-byte object length: {error}")),
         ) as usize;
         assert_eq!(object_length, object_id.len());
         assert_eq!(&encoded[length_offset + 4..], object_id);

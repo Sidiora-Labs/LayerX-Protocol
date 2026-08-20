@@ -102,11 +102,11 @@ pub fn execute(
         .map_err(WriteToolError::Server)?;
     if !transcript_matches(&transcript.stages, &ORDINARY_WRITE_STAGES) {
         server
-            .complete(invocation, InvocationOutcome::Failed)
+            .complete(&invocation, InvocationOutcome::Failed)
             .map_err(WriteToolError::Server)?;
         return Err(WriteToolError::InvalidTranscript);
     }
-    finish(server, invocation, transcript, unknown_age_ms)
+    finish(server, &invocation, transcript, unknown_age_ms)
 }
 
 /// Resolves a prior honest non-terminal result through the same daemon tracking path.
@@ -125,17 +125,17 @@ pub fn track(
         .map_err(WriteToolError::Server)?;
     if transcript.stages != [WriteStage::Track] {
         server
-            .complete(invocation, InvocationOutcome::Failed)
+            .complete(&invocation, InvocationOutcome::Failed)
             .map_err(WriteToolError::Server)?;
         return Err(WriteToolError::InvalidTranscript);
     }
     transcript.stages = ORDINARY_WRITE_STAGES.to_vec();
-    finish(server, invocation, transcript, unknown_age_ms)
+    finish(server, &invocation, transcript, unknown_age_ms)
 }
 
 fn finish(
     server: &mut Server,
-    invocation: crate::server::DaemonInvocation,
+    invocation: &crate::server::DaemonInvocation,
     transcript: WriteTranscript,
     unknown_age_ms: u64,
 ) -> Result<WriteOutcome, WriteToolError> {

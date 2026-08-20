@@ -180,6 +180,12 @@ pub struct DeliveryEngine {
 impl DeliveryEngine {
     /// Opens delivery from the last acknowledged durable cursor. `live_start`
     /// is the boundary watermark observed when backfill begins.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a zero capacity and an invalid retry policy, then returns the subscription failure
+    /// raised while reading the record and its resume cursor, or `InvalidTenant` when the scope
+    /// names a tenant the daemon store rejects.
     pub fn open(
         subscriptions: SubscriptionStore,
         target: SubscriptionTarget,
@@ -238,6 +244,11 @@ impl DeliveryEngine {
 
     /// Records successful transport acceptance and removes exactly the front
     /// item. Event delivery state is persisted before removal.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NoPendingDelivery` for an empty buffer, and the continuity, subscription, or
+    /// durable history failure raised while recording the delivered cursor or refreshing health.
     pub fn accept_front(&mut self, delivered_at_ms: u64) -> Result<DeliveryItem, DeliveryError> {
         let item = self
             .buffer
@@ -262,6 +273,11 @@ impl DeliveryEngine {
 
     /// Leaves the current front item intact and returns a bounded jittered
     /// retry instruction.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NoPendingDelivery` for an empty buffer and `RetryExhausted` once the attempt count
+    /// passes the configured maximum.
     pub fn fail_front(
         &mut self,
         failed_at_ms: u64,
@@ -299,6 +315,11 @@ impl DeliveryEngine {
     }
 
     /// Durably acknowledges a cursor that this engine delivered previously.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a regressed, never-delivered, or unknown acknowledgement, and returns the continuity
+    /// or durable history failure raised while refreshing health.
     pub fn acknowledge(
         &mut self,
         acknowledgement: &CursorAcknowledgement,
@@ -315,6 +336,11 @@ impl DeliveryEngine {
     }
 
     /// Deletes the subscription durably and discards every buffered item.
+    ///
+    /// # Errors
+    ///
+    /// Returns the subscription failure raised while reading the terminal state or persisting the
+    /// deletion.
     pub fn stop_deleted(&mut self) -> Result<(), DeliveryError> {
         if self.subscriptions.termination(&self.target)? != Some(Termination::Deleted) {
             self.subscriptions.delete(&self.target)?;
@@ -324,6 +350,11 @@ impl DeliveryEngine {
     }
 
     /// Applies a durable owner revocation and discards every buffered item.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Corrupt` when the reason is a deletion rather than an owner revocation, and the
+    /// subscription failure raised while reading the terminal state or persisting the revocation.
     pub fn stop_revoked(&mut self, reason: Termination) -> Result<(), DeliveryError> {
         if self.subscriptions.termination(&self.target)? != Some(reason) {
             self.subscriptions.revoke(&self.target, reason)?;

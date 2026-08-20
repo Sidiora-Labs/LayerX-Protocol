@@ -97,9 +97,8 @@ fn exact_core_events_are_durable_and_buffer_backpressure_drops_nothing() {
     assert!(ingestor.take_next().is_none());
 
     let event_key = key(&tenant_id, ObjectKind::Event, 10_u64.to_be_bytes().to_vec());
-    let stored = match ingestor.store().get(&event_key) {
-        Some(value) => value,
-        None => panic!("exact event bytes were not persisted"),
+    let Some(stored) = ingestor.store().get(&event_key) else {
+        panic!("exact event bytes were not persisted")
     };
     assert_eq!(stored.class(), StorageClass::CoreProducedCache);
     assert_eq!(stored.bytes(), event(10, 0x10).canonical_bytes);
@@ -107,9 +106,8 @@ fn exact_core_events_are_durable_and_buffer_backpressure_drops_nothing() {
     let mut metadata_id = b"event-evidence:".to_vec();
     metadata_id.extend_from_slice(&10_u64.to_be_bytes());
     let metadata_key = key(&tenant_id, ObjectKind::Configuration, metadata_id);
-    let metadata = match ingestor.store().get(&metadata_key) {
-        Some(value) => value,
-        None => panic!("event receipt evidence was not persisted"),
+    let Some(metadata) = ingestor.store().get(&metadata_key) else {
+        panic!("event receipt evidence was not persisted")
     };
     let mut expected_metadata = b"LXEM".to_vec();
     expected_metadata.extend_from_slice(&[1, 1]);

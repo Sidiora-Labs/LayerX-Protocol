@@ -3,7 +3,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use layerx_agentd::identity::{register, CoreIdentity, IdentityError, IdentityResolver, ProtocolAuthority};
+use layerx_agentd::identity::{
+    register, CoreIdentity, IdentityError, IdentityResolver, ProtocolAuthority,
+};
 use layerx_agentd::session::{close, open, OpenRequest, SessionError, SessionId, SessionRegistry};
 use layerx_agentd::store::{Store, TenantId};
 use layerx_types::ids::Did;
@@ -35,7 +37,11 @@ fn did(value: &[u8]) -> Did {
     Did::new(value).unwrap_or_else(|error| panic!("DID invalid: {error:?}"))
 }
 
-fn identity(store: &mut Store, tenant_id: TenantId, agent: Did) -> layerx_agentd::identity::IdentityRecord {
+fn identity(
+    store: &mut Store,
+    tenant_id: TenantId,
+    agent: Did,
+) -> layerx_agentd::identity::IdentityRecord {
     let mut boundary = BoundaryIdentity(CoreIdentity {
         canonical_bytes: b"proven-identity".to_vec(),
         head_sequence: 10,
@@ -78,12 +84,29 @@ fn session_open_binds_every_dimension_and_token_is_daemon_only() {
         10,
     )
     .unwrap_or_else(|error| panic!("session open failed: {error:?}"));
-    assert_eq!(token.authorize(&tenant_id, &agent, "prepare", 11), Ok(SessionId([1; 32])));
-    assert_eq!(token.authorize(&tenant_id, &agent, "submit", 11), Err(SessionError::ScopeDenied));
-    assert_eq!(token.authorize(&tenant("tenant-b"), &agent, "prepare", 11), Err(SessionError::WrongPrincipal));
-    assert_eq!(token.authorize(&tenant_id, &agent, "prepare", 100), Err(SessionError::Expired));
-    let record = registry.get(SessionId([1; 32])).unwrap_or_else(|| panic!("session missing"));
-    assert_eq!(record.request.authority, ProtocolAuthority::SessionKey([4; 32]));
+    assert_eq!(
+        token.authorize(&tenant_id, &agent, "prepare", 11),
+        Ok(SessionId([1; 32]))
+    );
+    assert_eq!(
+        token.authorize(&tenant_id, &agent, "submit", 11),
+        Err(SessionError::ScopeDenied)
+    );
+    assert_eq!(
+        token.authorize(&tenant("tenant-b"), &agent, "prepare", 11),
+        Err(SessionError::WrongPrincipal)
+    );
+    assert_eq!(
+        token.authorize(&tenant_id, &agent, "prepare", 100),
+        Err(SessionError::Expired)
+    );
+    let record = registry
+        .get(SessionId([1; 32]))
+        .unwrap_or_else(|| panic!("session missing"));
+    assert_eq!(
+        record.request.authority,
+        ProtocolAuthority::SessionKey([4; 32])
+    );
     let _ = fs::remove_dir_all(root);
 }
 
@@ -132,8 +155,12 @@ fn closing_one_concurrent_session_leaves_sibling_state_untouched() {
     if let Err(error) = close(&mut store, &mut registry, SessionId([1; 32])) {
         panic!("close failed: {error:?}");
     }
-    assert!(!registry.get(SessionId([1; 32])).is_some_and(|record| record.open));
-    assert!(registry.get(SessionId([2; 32])).is_some_and(|record| record.open));
+    assert!(!registry
+        .get(SessionId([1; 32]))
+        .is_some_and(|record| record.open));
+    assert!(registry
+        .get(SessionId([2; 32]))
+        .is_some_and(|record| record.open));
     assert_eq!(registry.open_count(), 1);
     let _ = fs::remove_dir_all(root);
 }

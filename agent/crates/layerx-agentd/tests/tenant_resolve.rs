@@ -34,15 +34,15 @@ fn directory(label: &str) -> PathBuf {
 }
 
 fn tenant_id(value: &str) -> TenantId {
-    TenantId::new(value).expect("valid tenant")
+    TenantId::new(value).unwrap_or_else(|error| panic!("tenant id {value}: {error}"))
 }
 
 fn did(value: &[u8]) -> Did {
-    Did::new(value).expect("valid DID")
+    Did::new(value).unwrap_or_else(|error| panic!("did: {error:?}"))
 }
 
 fn token(root: &PathBuf) -> (Token, TenantId, Did) {
-    let mut store = Store::open(root).expect("store opens");
+    let mut store = Store::open(root).unwrap_or_else(|error| panic!("store: {error}"));
     let tenant = tenant_id("tenant-a");
     let agent = did(b"did:layerx:tenant-a:agent");
     let mut boundary = BoundaryIdentity(CoreIdentity {
@@ -53,7 +53,7 @@ fn token(root: &PathBuf) -> (Token, TenantId, Did) {
         authorities: vec![ProtocolAuthority::SessionKey([4; 32])],
     });
     let identity = register(&mut store, tenant.clone(), agent.clone(), &mut boundary)
-        .expect("identity registers");
+        .unwrap_or_else(|error| panic!("register identity: {error:?}"));
     let mut registry = SessionRegistry::default();
     let token = open(
         &mut store,
@@ -73,7 +73,7 @@ fn token(root: &PathBuf) -> (Token, TenantId, Did) {
         },
         10,
     )
-    .expect("session opens");
+    .unwrap_or_else(|error| panic!("open session: {error:?}"));
     (token, tenant, agent)
 }
 
@@ -114,7 +114,7 @@ fn spoofed_request_tenants_are_ignored_on_every_surface() {
             ),
             &mut observability,
         )
-        .expect("authenticated principal resolves");
+        .unwrap_or_else(|error| panic!("resolve {surface:?}: {error:?}"));
         assert_eq!(resolved.tenant, tenant);
         assert_eq!(resolved.agent, agent);
         assert_eq!(resolved.surface, surface);

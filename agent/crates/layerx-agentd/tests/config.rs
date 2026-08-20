@@ -43,10 +43,14 @@ fn values() -> BTreeMap<String, String> {
 }
 
 fn source(values: &BTreeMap<String, String>) -> String {
-    values
-        .iter()
-        .map(|(key, value)| format!("{key}={value}\n"))
-        .collect()
+    let mut rendered = String::new();
+    for (key, value) in values {
+        rendered.push_str(key);
+        rendered.push('=');
+        rendered.push_str(value);
+        rendered.push('\n');
+    }
+    rendered
 }
 
 #[test]

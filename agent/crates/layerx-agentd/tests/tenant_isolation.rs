@@ -4,7 +4,9 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use layerx_agentd::limits::admission::Priority;
-use layerx_agentd::limits::quota::{ClientActivity, Resource, SheddingPolicy, TenantQuota};
+use layerx_agentd::limits::quota::{
+    ClientActivity, Resource, ResourceWrite, SheddingPolicy, TenantQuota,
+};
 use layerx_agentd::limits::{shed, Quota};
 use layerx_agentd::store::{Store, TenantId};
 use layerx_agentd::tenant::{
@@ -24,7 +26,7 @@ fn directory(label: &str) -> PathBuf {
 }
 
 fn tenant(value: &str) -> TenantId {
-    TenantId::new(value).expect("valid tenant")
+    TenantId::new(value).unwrap_or_else(|error| panic!("tenant {value}: {error:?}"))
 }
 
 fn quota_config(tenant: TenantId, limit: usize) -> TenantQuota {
@@ -32,7 +34,7 @@ fn quota_config(tenant: TenantId, limit: usize) -> TenantQuota {
         tenant,
         Resource::ALL.into_iter().map(|resource| (resource, limit)),
     )
-    .expect("valid tenant quota")
+    .unwrap_or_else(|error| panic!("tenant quota: {error:?}"))
 }
 
 #[test]
@@ -47,9 +49,9 @@ fn signer_bindings_and_key_references_cannot_cross_tenants() {
                 "primary",
                 SignerMaterial::LocalEncryptedReference("keystore://alpha/primary".to_owned()),
             )
-            .expect("alpha binding is valid"),
+            .unwrap_or_else(|error| panic!("alpha binding is valid: {error:?}")),
         )
-        .expect("alpha signer binds");
+        .unwrap_or_else(|error| panic!("alpha signer binds: {error:?}"));
     isolation
         .bind_signer(
             SignerBinding::new(
@@ -60,9 +62,9 @@ fn signer_bindings_and_key_references_cannot_cross_tenants() {
                     public_key: [9; 32],
                 },
             )
-            .expect("beta binding is valid"),
+            .unwrap_or_else(|error| panic!("beta binding is valid: {error:?}")),
         )
-        .expect("beta signer binds");
+        .unwrap_or_else(|error| panic!("beta signer binds: {error:?}"));
     assert_eq!(
         isolation.bind_signer(
             SignerBinding::new(
@@ -73,7 +75,7 @@ fn signer_bindings_and_key_references_cannot_cross_tenants() {
                     public_key: [0xff; 32],
                 },
             )
-            .expect("replacement binding is structurally valid")
+            .unwrap_or_else(|error| panic!("replacement binding is structurally valid: {error:?}"))
         ),
         Err(IsolationError::Duplicate)
     );
@@ -95,17 +97,17 @@ fn signer_bindings_and_key_references_cannot_cross_tenants() {
     assert_ne!(
         isolation
             .signer(&alpha, "primary")
-            .expect("alpha signer")
+            .unwrap_or_else(|error| panic!("alpha signer: {error:?}"))
             .material(),
         isolation
             .signer(&beta, "primary")
-            .expect("beta signer")
+            .unwrap_or_else(|error| panic!("beta signer: {error:?}"))
             .material()
     );
     assert_eq!(
         isolation
             .signer(&alpha, "primary")
-            .expect("original alpha signer remains")
+            .unwrap_or_else(|error| panic!("original alpha signer remains: {error:?}"))
             .material(),
         &SignerMaterial::LocalEncryptedReference("keystore://alpha/primary".to_owned())
     );
@@ -116,7 +118,7 @@ fn quota_exhaustion_and_shedding_do_not_starve_another_tenant_or_critical_work()
     let root = directory("capacity");
     let alpha = tenant("alpha");
     let beta = tenant("beta");
-    let mut store = Store::open(&root).expect("store opens");
+    let mut store = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
     let mut quota = Quota::new(
         [
             quota_config(alpha.clone(), 1),
@@ -130,31 +132,33 @@ fn quota_exhaustion_and_shedding_do_not_starve_another_tenant_or_critical_work()
             shed_for_ms: 5_000,
         },
     )
-    .expect("quota config is valid");
+    .unwrap_or_else(|error| panic!("quota config is valid: {error:?}"));
     quota
         .create_resource(
             &mut store,
             &alpha,
             "alpha-client",
-            Resource::OutboxEntry,
-            b"alpha-outbox".to_vec(),
-            b"queued".to_vec(),
+            ResourceWrite {
+                resource: Resource::OutboxEntry,
+                object_id: b"alpha-outbox".to_vec(),
+                bytes: b"queued".to_vec(),
+            },
             10,
         )
-        .expect("alpha uses its quota");
-    for retry in 0..3_u64 {
+        .unwrap_or_else(|error| panic!("alpha uses its quota: {error:?}"));
+    for retry in 0..3_u8 {
         shed(
             &mut quota,
             &mut store,
             ClientActivity {
                 tenant: alpha.clone(),
                 client_id: "alpha-client".to_owned(),
-                operation_digest: [retry as u8; 32],
+                operation_digest: [retry; 32],
                 retry: true,
-                observed_at_ms: 20 + retry,
+                observed_at_ms: 20 + u64::from(retry),
             },
         )
-        .expect("alpha activity is observed");
+        .unwrap_or_else(|error| panic!("alpha activity {retry} is observed: {error:?}"));
     }
 
     quota
@@ -162,19 +166,23 @@ fn quota_exhaustion_and_shedding_do_not_starve_another_tenant_or_critical_work()
             &mut store,
             &beta,
             "beta-client",
-            Resource::OutboxEntry,
-            b"beta-outbox".to_vec(),
-            b"queued".to_vec(),
+            ResourceWrite {
+                resource: Resource::OutboxEntry,
+                object_id: b"beta-outbox".to_vec(),
+                bytes: b"queued".to_vec(),
+            },
             30,
         )
-        .expect("beta retains its own capacity");
+        .unwrap_or_else(|error| panic!("beta retains its own capacity: {error:?}"));
     quota
         .admit_work(&store, &beta, "beta-client", Priority::BulkRead, 30)
-        .expect("alpha shedding does not affect beta");
+        .unwrap_or_else(|error| panic!("alpha shedding does not affect beta: {error:?}"));
     for priority in [Priority::Submission, Priority::ReceiptResolution] {
         quota
             .admit_work(&store, &alpha, "alpha-client", priority, 30)
-            .expect("critical lane stays reserved for shed tenant");
+            .unwrap_or_else(|error| {
+                panic!("critical lane {priority:?} stays reserved for shed tenant: {error:?}")
+            });
     }
     let _ = fs::remove_dir_all(root);
 }
@@ -192,9 +200,9 @@ fn subscriptions_streams_and_mcp_bindings_hide_cross_tenant_existence() {
         isolation
             .bind_channel(
                 ChannelBinding::new(alpha.clone(), kind, "shared-opaque-id")
-                    .expect("binding is valid"),
+                    .unwrap_or_else(|error| panic!("binding {kind:?} is valid: {error:?}")),
             )
-            .expect("channel binds");
+            .unwrap_or_else(|error| panic!("channel {kind:?} binds: {error:?}"));
         assert_eq!(
             isolation.channel(&beta, kind, "shared-opaque-id"),
             Err(IsolationError::NotAuthorized)
@@ -226,31 +234,35 @@ fn policy_redaction_retention_verification_and_approvals_are_per_tenant() {
             policy_version: "alpha-policy".to_owned(),
             redaction: RedactionPolicy::Strict,
             retention: Retention {
-                event_sequences: 100,
-                audit_sequences: 200,
-                receipt_sequences: 300,
+                events: 100,
+                audit: 200,
+                receipts: 300,
             },
             verification_default: VerificationLevel::CHECKPOINT_FINALISED,
             approval_required_for: BTreeSet::from([7]),
         })
-        .expect("alpha config is valid");
+        .unwrap_or_else(|error| panic!("alpha config is valid: {error:?}"));
     isolation
         .set_config(Config {
             tenant: beta.clone(),
             policy_version: "beta-policy".to_owned(),
             redaction: RedactionPolicy::ReceiptOnly,
             retention: Retention {
-                event_sequences: 10,
-                audit_sequences: 20,
-                receipt_sequences: 30,
+                events: 10,
+                audit: 20,
+                receipts: 30,
             },
             verification_default: VerificationLevel::STATE_PROVEN,
             approval_required_for: BTreeSet::new(),
         })
-        .expect("beta config is valid");
+        .unwrap_or_else(|error| panic!("beta config is valid: {error:?}"));
 
-    let alpha_config = isolation.config(&alpha).expect("alpha config exists");
-    let beta_config = isolation.config(&beta).expect("beta config exists");
+    let alpha_config = isolation
+        .config(&alpha)
+        .unwrap_or_else(|error| panic!("alpha config exists: {error:?}"));
+    let beta_config = isolation
+        .config(&beta)
+        .unwrap_or_else(|error| panic!("beta config exists: {error:?}"));
     assert_eq!(alpha_config.policy_version, "alpha-policy");
     assert_eq!(beta_config.policy_version, "beta-policy");
     assert_eq!(alpha_config.redaction, RedactionPolicy::Strict);

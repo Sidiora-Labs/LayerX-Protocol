@@ -19,15 +19,15 @@ fn tenant(value: &str) -> TenantId {
     TenantId::new(value).unwrap_or_else(|error| panic!("tenant: {error}"))
 }
 
-fn config(value: &str, policy: RedactionPolicy, audit_sequences: u64) -> Config {
+fn config(value: &str, policy: RedactionPolicy, audit: u64) -> Config {
     Config {
         tenant: tenant(value),
         policy_version: format!("{value}-policy"),
         redaction: policy,
         retention: Retention {
-            event_sequences: 100,
-            audit_sequences,
-            receipt_sequences: 100,
+            events: 100,
+            audit,
+            receipts: 100,
         },
         verification_default: VerificationLevel::STATE_PROVEN,
         approval_required_for: BTreeSet::from([7]),
@@ -155,15 +155,16 @@ fn loaded_keys_and_redaction_errors_never_render_input_values() {
     assert_eq!(format!("{loaded:?}"), "[REDACTED]");
 
     let config = config("alpha", RedactionPolicy::Strict, 5);
-    let error = redact(
+    let Err(error) = redact(
         &config,
         &config.tenant,
         OutputSurface::Error,
         DataClass::PublicText,
         b"invalid\0secret-configuration-marker",
         1,
-    )
-    .unwrap_err();
+    ) else {
+        panic!("invalid configuration input must be refused")
+    };
     let output = format!("{error:?} {error}");
     assert!(!contains_marker(&output));
 }

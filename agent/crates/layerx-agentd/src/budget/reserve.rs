@@ -36,6 +36,12 @@ pub struct BudgetLimiter {
 }
 
 impl BudgetLimiter {
+    /// Builds a limiter from a complete set of limit configurations.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a zero ceiling, an already-consumed amount above its ceiling, and a repeated
+    /// limit identifier.
     pub fn new(configs: Vec<LimitConfig>) -> Result<Self, LimitRefusal> {
         let mut limits = BTreeMap::new();
         for config in configs {
@@ -60,11 +66,22 @@ impl BudgetLimiter {
         })
     }
 
+    /// Counts the reservations currently held across every limit.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Poisoned` when the limit state was left poisoned by a panicking holder.
     pub fn held_reservations(&self) -> Result<usize, LimitRefusal> {
         let limits = self.limits.lock().map_err(|_| LimitRefusal::Poisoned)?;
         Ok(limits.values().map(|limit| limit.held.len()).sum())
     }
 
+    /// Returns the amount already consumed against one limit.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnknownLimit` for an unconfigured identifier, or `Poisoned` when the limit state
+    /// was left poisoned by a panicking holder.
     pub fn consumed(&self, id: LimitId) -> Result<u128, LimitRefusal> {
         let limits = self.limits.lock().map_err(|_| LimitRefusal::Poisoned)?;
         limits

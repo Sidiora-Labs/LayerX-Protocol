@@ -28,7 +28,8 @@ fn divergence_is_audited_unhealthy_and_conservatively_enforced() {
     }];
     let state = reconcile(&mut local, protocol(350, 650, 128), &receipts)
         .unwrap_or_else(|error| panic!("reconcile: {error:?}"));
-    let alert = divergence_alert(&state, 1_000).expect("divergence alert");
+    let alert =
+        divergence_alert(&state, 1_000).unwrap_or_else(|| panic!("divergence alert is missing"));
 
     assert_eq!(alert.audit.local_consumed, 420);
     assert_eq!(alert.audit.protocol_consumed, 350);
@@ -72,7 +73,8 @@ fn protocol_overage_is_also_the_restrictive_figure() {
     };
     let state = reconcile(&mut local, protocol(700, 300, 130), &[])
         .unwrap_or_else(|error| panic!("reconcile: {error:?}"));
-    let alert = divergence_alert(&state, 1_000).expect("divergence alert");
+    let alert =
+        divergence_alert(&state, 1_000).unwrap_or_else(|| panic!("divergence alert is missing"));
     assert_eq!(alert.enforced_consumed, 700);
     assert_eq!(alert.enforced_remaining, 300);
 }

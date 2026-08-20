@@ -111,6 +111,12 @@ pub struct Outbox {
 
 impl Outbox {
     /// Durably queues exact verified bytes before they can be obtained for transport.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Duplicate` for an already-tracked submission identifier, `IdempotencyMismatch` when
+    /// the signed audit key differs from it, `Corrupt` when the record exceeds the `u32` length
+    /// prefixes, or `Store` when the three durable records cannot be written atomically.
     pub fn enqueue(
         &mut self,
         store: &mut Store,
@@ -164,6 +170,12 @@ impl Outbox {
     }
 
     /// Restores one durable record by its tenant-scoped idempotency key.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotFound` when no durable outbox record exists, `Corrupt` for a missing signed-bytes
+    /// record, undecodable state or a record naming a different submission, and `Store` when either
+    /// tenant key cannot be built.
     pub fn restore(
         &mut self,
         store: &Store,
@@ -190,6 +202,11 @@ impl Outbox {
     }
 
     /// Returns exact stored bytes only after the queued record is durable.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotFound` for a submission this outbox never enqueued or restored, and `NotQueued`
+    /// once it has left `Queued` for any later state.
     pub fn bytes_for_transmission(&self, submission_id: [u8; 32]) -> Result<&[u8], OutboxError> {
         let record = self
             .records
@@ -201,6 +218,14 @@ impl Outbox {
         Ok(&record.signed_canonical_bytes)
     }
 
+    /// Applies one legal state change and durably records it with its cause.
+    ///
+    /// # Errors
+    ///
+    /// Returns `EmptyCause` for a blank cause, `NotFound` for an untracked submission,
+    /// `InvalidTransition` for a move `legal_transition` forbids, `SuccessWithoutVerifiedReceipt`
+    /// for `Executed` without verified evidence, and `Corrupt` or `Store` when the updated record
+    /// cannot be encoded or persisted.
     pub fn transition(
         &mut self,
         store: &mut Store,
@@ -275,17 +300,19 @@ pub enum OutboxError {
 fn legal_transition(from: SubmissionState, to: SubmissionState) -> bool {
     matches!(
         (from, to),
-        (SubmissionState::Queued, SubmissionState::Submitted)
-            | (SubmissionState::Queued, SubmissionState::Expired)
-            | (SubmissionState::Queued, SubmissionState::Superseded)
-            | (SubmissionState::Submitted, SubmissionState::Acknowledged)
-            | (SubmissionState::Submitted, SubmissionState::Unknown)
-            | (SubmissionState::Acknowledged, SubmissionState::Unknown)
-            | (SubmissionState::Acknowledged, SubmissionState::Executed)
-            | (SubmissionState::Acknowledged, SubmissionState::Failed)
-            | (SubmissionState::Unknown, SubmissionState::Executed)
-            | (SubmissionState::Unknown, SubmissionState::Failed)
-            | (SubmissionState::Unknown, SubmissionState::Superseded)
+        (
+            SubmissionState::Queued,
+            SubmissionState::Submitted | SubmissionState::Expired | SubmissionState::Superseded,
+        ) | (
+            SubmissionState::Submitted,
+            SubmissionState::Acknowledged | SubmissionState::Unknown,
+        ) | (
+            SubmissionState::Acknowledged,
+            SubmissionState::Unknown | SubmissionState::Executed | SubmissionState::Failed,
+        ) | (
+            SubmissionState::Unknown,
+            SubmissionState::Executed | SubmissionState::Failed | SubmissionState::Superseded,
+        )
     )
 }
 

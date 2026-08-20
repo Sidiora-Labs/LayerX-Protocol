@@ -6,6 +6,13 @@ use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
 const SHED_PREFIX: &[u8] = b"quota-shed:";
 const SHED_MAGIC: &[u8; 4] = b"LXQS";
 
+/// One durable object write measured against its tenant resource quota.
+pub struct ResourceWrite {
+    pub resource: Resource,
+    pub object_id: Vec<u8>,
+    pub bytes: Vec<u8>,
+}
+
 /// Durable resource categories with independent per-tenant quotas.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Resource {
@@ -43,6 +50,12 @@ pub struct TenantQuota {
 }
 
 impl TenantQuota {
+    /// Builds one tenant quota that must price every durable resource category.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidConfiguration` unless all five `Resource` variants are present with a
+    /// non-zero limit.
     pub fn new(
         tenant: TenantId,
         limits: impl IntoIterator<Item = (Resource, usize)>,
@@ -176,6 +189,13 @@ pub struct Quota {
 }
 
 impl Quota {
+    /// Builds the quota enforcer from one quota per tenant plus a shedding policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidConfiguration` for a repeated tenant, an empty tenant set, or a
+    /// shedding policy whose window, request, retry, identical-operation or shed duration
+    /// bound is zero.
     pub fn new(
         tenants: impl IntoIterator<Item = TenantQuota>,
         shedding: SheddingPolicy,
@@ -197,16 +217,25 @@ impl Quota {
     }
 
     /// Creates one real durable resource only after checking its tenant quota.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnconfiguredTenant`, `InvalidClient` or `ClientShed` from admission, then
+    /// `Exhausted` when a new object would pass the resource limit, or `Store` for a rejected
+    /// object id or a failed durable write.
     pub fn create_resource(
         &self,
         store: &mut Store,
         tenant: &TenantId,
         client_id: &str,
-        resource: Resource,
-        object_id: Vec<u8>,
-        bytes: Vec<u8>,
+        write: ResourceWrite,
         observed_at_ms: u64,
     ) -> Result<(), QuotaError> {
+        let ResourceWrite {
+            resource,
+            object_id,
+            bytes,
+        } = write;
         self.admit_work(
             store,
             tenant,
@@ -235,6 +264,12 @@ impl Quota {
 
     /// Preserves submission and receipt-resolution capacity while shedding
     /// only non-critical work belonging to an actively shed client.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnconfiguredTenant` for an unknown tenant, `InvalidClient` for an empty,
+    /// oversized or NUL-bearing client id, `ClientShed` with `retry_after_ms` while a durable
+    /// shed is still active, or `CorruptDecision`/`TimeRegressed` from decoding that record.
     pub fn admit_work(
         &self,
         store: &Store,
@@ -260,6 +295,12 @@ impl Quota {
     }
 
     /// Updates exact per-client observations and records a newly detected shed durably.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnconfiguredTenant` or `InvalidClient` for a rejected caller, `TimeRegressed`
+    /// when the observation predates the window or an existing decision, `Arithmetic` on
+    /// counter or shed-deadline overflow, and `Store` if a new decision cannot be persisted.
     pub fn observe_activity(
         &mut self,
         store: &mut Store,
@@ -354,6 +395,12 @@ impl Quota {
         Ok(Some(decision))
     }
 
+    /// Reports per-resource utilization and the clients currently being shed.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnconfiguredTenant` for an unknown tenant, `Store` when a shed object id is
+    /// rejected, or `CorruptDecision` when a listed shed record is missing or malformed.
     pub fn health(
         &self,
         store: &Store,

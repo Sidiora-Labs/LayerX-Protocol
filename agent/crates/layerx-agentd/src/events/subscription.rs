@@ -135,6 +135,12 @@ pub struct Store {
 
 impl Store {
     /// Restores every subscription owned by `tenant` from local durable state.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Corrupt` for a missing or non-local stored value, a record whose
+    /// identifier, tenant, or encoding disagrees with its key, or a duplicate
+    /// identifier; `Durable` wraps a rejected object key.
     pub fn open(durable: DurableStore, tenant: TenantId) -> Result<Self, SubscriptionError> {
         let mut records = BTreeMap::new();
         for object_id in durable.list_object_ids(&tenant, ObjectKind::Subscription) {
@@ -161,6 +167,12 @@ impl Store {
 
     /// Creates one durable subscription after applying scope restrictions to
     /// every filter dimension.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidScope` for another tenant's scope, `InvalidFilter` when a filter
+    /// dimension escapes that scope, `Duplicate` for a known identifier, or the `Durable`
+    /// failure of the first persist.
     pub fn create(
         &mut self,
         subscription_id: SubscriptionId,
@@ -196,6 +208,7 @@ impl Store {
     }
 
     /// Lists only records owned by the exact tenant, agent and capability scope.
+    #[must_use]
     pub fn list(&self, scope: &SubscriptionScope) -> Vec<SubscriptionRecord> {
         if self.validate_scope(scope).is_err() {
             return Vec::new();
@@ -208,6 +221,11 @@ impl Store {
     }
 
     /// Reads one subscription without revealing cross-scope existence.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotFound` for an unknown identifier, a foreign scope, and a terminated
+    /// subscription alike.
     pub fn get(
         &self,
         target: &SubscriptionTarget,
@@ -217,6 +235,12 @@ impl Store {
 
     /// Records one strictly consecutive delivered cursor durably so a later
     /// acknowledgement cannot claim an unseen position.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Paused` while delivery is stopped, `CursorOutOfOrder` for a cursor that does
+    /// not immediately follow the last delivery, `SequenceExhausted` at the cursor ceiling,
+    /// `NotFound` outside the exact live scope, or the `Durable` persist failure.
     pub fn mark_delivered(
         &mut self,
         target: &SubscriptionTarget,
@@ -251,6 +275,12 @@ impl Store {
 
     /// Advances the durable acknowledged cursor only through positions that
     /// were previously delivered in strict order.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CursorRegressed` below the acknowledged cursor, `CursorNeverDelivered` for a
+    /// position never marked delivered, `NotFound` outside the exact live scope, or the
+    /// `Durable` persist failure.
     pub fn acknowledge(
         &mut self,
         acknowledgement: &CursorAcknowledgement,
@@ -283,6 +313,11 @@ impl Store {
     }
 
     /// Pauses delivery durably.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotFound` for an unknown, foreign-scope, or terminated subscription, or the
+    /// `Durable` failure of persisting the raised paused flag.
     pub fn pause(
         &mut self,
         target: &SubscriptionTarget,
@@ -291,6 +326,11 @@ impl Store {
     }
 
     /// Resumes delivery durably from the last acknowledged cursor.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotFound` for an unknown, foreign-scope, or terminated subscription, or the
+    /// `Durable` failure of persisting the cleared paused flag.
     pub fn resume(
         &mut self,
         target: &SubscriptionTarget,
@@ -299,12 +339,22 @@ impl Store {
     }
 
     /// Stops one exact-scope subscription while retaining its durable audit record.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotFound` for an unknown, foreign-scope, or already terminated subscription,
+    /// or the `Durable` failure of persisting the retained audit record.
     pub fn delete(&mut self, target: &SubscriptionTarget) -> Result<(), SubscriptionError> {
         self.terminate(target, Termination::Deleted)?;
         Ok(())
     }
 
     /// Stops a subscription immediately for an owner revocation reason.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Corrupt` when `reason` is `Deleted`, `NotFound` for an unknown, foreign-scope,
+    /// or already terminated subscription, or the `Durable` persist failure.
     pub fn revoke(
         &mut self,
         target: &SubscriptionTarget,
@@ -317,6 +367,11 @@ impl Store {
     }
 
     /// Returns the retained terminal audit state without exposing another scope.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotFound` for an unknown identifier or any scope other than the owning one;
+    /// terminated records remain readable here.
     pub fn termination(
         &self,
         target: &SubscriptionTarget,
@@ -325,16 +380,31 @@ impl Store {
     }
 
     /// Returns the cursor from which restart delivery must resume.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotFound` for an unknown identifier, a foreign scope, or a subscription
+    /// already terminated.
     pub fn resume_cursor(&self, target: &SubscriptionTarget) -> Result<Cursor, SubscriptionError> {
         Ok(Cursor::from(self.target(target)?.public.last_acknowledged))
     }
 
     /// Returns the durable continuity state for the exact subscription scope.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotFound` for an unknown identifier, a foreign scope, or a subscription
+    /// already terminated.
     pub fn continuity(&self, target: &SubscriptionTarget) -> Result<Continuity, SubscriptionError> {
         Ok(self.target(target)?.continuity)
     }
 
     /// Blocks delivery at an explicit missing global-sequence range.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotFound` outside the exact live scope, or the `Durable` failure of
+    /// persisting the gap-blocked continuity.
     pub fn block_gap(
         &mut self,
         target: &SubscriptionTarget,
@@ -355,6 +425,11 @@ impl Store {
     }
 
     /// Records exact backfill progress while leaving the gap blocked.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Corrupt` unless the subscription is currently gap-blocked, `NotFound` outside
+    /// the exact live scope, or the `Durable` persist failure.
     pub fn record_backfill(
         &mut self,
         target: &SubscriptionTarget,
@@ -382,6 +457,11 @@ impl Store {
     }
 
     /// Clears a gap only after complete contiguous backfill was verified.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Corrupt` unless a gap is currently blocked, `NotFound` outside the exact live
+    /// scope, or the `Durable` persist failure.
     pub fn clear_gap(&mut self, target: &SubscriptionTarget) -> Result<(), SubscriptionError> {
         let id = target.subscription_id.as_str().to_owned();
         let mut updated = self.target(target)?.clone();
@@ -395,6 +475,11 @@ impl Store {
     }
 
     /// Marks retention loss durably; truncated state is terminal.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NotFound` outside the exact live scope, or the `Durable` failure of
+    /// persisting the terminal truncated state.
     pub fn mark_truncated(
         &mut self,
         target: &SubscriptionTarget,

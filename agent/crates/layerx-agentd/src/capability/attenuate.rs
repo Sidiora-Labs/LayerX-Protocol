@@ -29,6 +29,11 @@ impl CapabilityGraph {
         }
     }
 
+    /// Installs a capability as an unparented root of this tenant's graph.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a capability owned by another tenant, or an identifier the graph already holds.
     pub fn add_root(&mut self, capability: Capability) -> Result<(), AttenuationError> {
         if capability.tenant != self.tenant {
             return Err(AttenuationError::Tenant);
@@ -75,6 +80,12 @@ impl CapabilityGraph {
         true
     }
 
+    /// Persists the derivation graph as one daemon-local object.
+    ///
+    /// # Errors
+    ///
+    /// Returns a size overflow when the node count or an encoded capability exceeds its length
+    /// bound, a capability encoding failure, or the store failure that prevented the write.
     pub fn persist(&self, store: &mut Store) -> Result<(), AttenuationError> {
         let key = TenantKey::new(
             self.tenant.clone(),
@@ -85,6 +96,12 @@ impl CapabilityGraph {
         Ok(())
     }
 
+    /// Restores a tenant's derivation graph, or `None` when none was ever persisted.
+    ///
+    /// # Errors
+    ///
+    /// Returns a corruption failure when the persisted graph is truncated, carries an invalid
+    /// parent or revocation tag, or has trailing bytes, and the store failure otherwise.
     pub fn restore(store: &Store, tenant: TenantId) -> Result<Option<Self>, AttenuationError> {
         let key = TenantKey::new(
             tenant.clone(),

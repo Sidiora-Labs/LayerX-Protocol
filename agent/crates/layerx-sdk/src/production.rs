@@ -586,7 +586,7 @@ pub fn verify_receipt(
 }
 
 /// Verifies one receipt from an untrusted mirror archive with no node, gateway,
-/// or hosted LayerX dependency. Signed-header trust is caller configuration and
+/// or hosted `LayerX` dependency. Signed-header trust is caller configuration and
 /// freshness is returned with the result rather than implied.
 ///
 /// # Errors

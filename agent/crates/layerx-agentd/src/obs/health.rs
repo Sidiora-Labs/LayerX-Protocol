@@ -67,6 +67,11 @@ pub struct WriteRefused {
 }
 
 impl Health {
+    /// Admits a write only while readiness carries no blockers.
+    ///
+    /// # Errors
+    ///
+    /// Returns the complete blocker set whenever write readiness is `NotReady`.
     pub fn require_write_ready(&self) -> Result<(), WriteRefused> {
         match &self.write_readiness {
             WriteReadiness::Ready => Ok(()),
@@ -124,6 +129,12 @@ pub fn evaluate(input: HealthInput) -> Health {
     }
 }
 
+/// Runs an operation only behind a passing write-readiness check.
+///
+/// # Errors
+///
+/// Returns the complete blocker set, without running the operation, whenever write readiness is
+/// `NotReady`.
 pub fn guard_write<T>(health: &Health, operation: impl FnOnce() -> T) -> Result<T, WriteRefused> {
     health.require_write_ready()?;
     Ok(operation())

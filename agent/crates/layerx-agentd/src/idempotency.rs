@@ -18,6 +18,11 @@ pub struct RetentionPolicy {
 }
 
 impl RetentionPolicy {
+    /// Creates a policy whose daemon window is never shorter than the protocol window.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidRetention` for a zero protocol window or a shorter daemon window.
     pub const fn new(
         daemon_sequences: u64,
         protocol_sequences: u64,
@@ -88,6 +93,11 @@ pub struct Store {
 }
 
 impl Store {
+    /// Opens the durable idempotency records owned by one tenant.
+    ///
+    /// # Errors
+    ///
+    /// Returns the store failure raised while creating, migrating, or decoding the root.
     pub fn open(
         root: impl AsRef<Path>,
         tenant: TenantId,
@@ -105,6 +115,11 @@ impl Store {
     }
 
     /// Restores known keys from durable storage after restart.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` for a poisoned lock, and `Corrupt` when a stored record does not
+    /// decode or carries a key other than the one requested.
     pub fn restore(&self, keys: &[[u8; 32]]) -> Result<usize, IdempotencyError> {
         let mut inner = self
             .inner
@@ -127,6 +142,12 @@ impl Store {
     }
 
     /// Executes at most one concurrent operation for one key and stores its original result.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a zero key, an empty or oversized request, a repeat whose digest differs from the
+    /// original, an oversized result, and a poisoned lock. Also returns the operation's own failure
+    /// and the store failure raised while persisting the pending or settled record.
     pub fn execute<F>(
         &self,
         key: [u8; 32],
@@ -195,6 +216,11 @@ impl Store {
     }
 
     /// Removes records only after daemon retention, which is never shorter than protocol retention.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unavailable` for a poisoned lock, and the store failure raised while removing an
+    /// expired record.
     pub fn sweep(&self, current_sequence: u64) -> Result<usize, IdempotencyError> {
         let mut inner = self
             .inner

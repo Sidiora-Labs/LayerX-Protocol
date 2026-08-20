@@ -40,6 +40,12 @@ impl Ceiling {
     }
 
     /// Rebuilds consumed value from persisted verified receipts only.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnverifiedReceipt` for any unverified receipt, `Overflow` when the
+    /// executed amounts do not sum, and `Exceeded` when the rebuilt total passes the
+    /// ceiling.
     pub fn rebuild(maximum: u128, receipts: &[VerifiedReceipt]) -> Result<Self, CeilingError> {
         let mut consumed = 0_u128;
         for receipt in receipts {
@@ -64,6 +70,13 @@ impl Ceiling {
     }
 
     /// Applies only a verified terminal receipt; failure consumes nothing.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnverifiedReceipt` for an unverified receipt, `MissingReservation`
+    /// when no held reservation matches, `AmountMismatch` when the executed amount
+    /// differs from the held amount, `Overflow` when consumption does not sum, and
+    /// `Poisoned` when the state lock is poisoned.
     pub fn apply_receipt(&self, receipt: &VerifiedReceipt) -> Result<(), CeilingError> {
         if !receipt.verified {
             return Err(CeilingError::UnverifiedReceipt);
@@ -90,6 +103,11 @@ impl Ceiling {
     }
 
     /// Marks an indeterminate outcome; it remains held across expiry.
+    ///
+    /// # Errors
+    ///
+    /// Returns `MissingReservation` when no reservation holds the identifier and
+    /// `Poisoned` when the state lock is poisoned.
     pub fn mark_unknown(&self, id: [u8; 32]) -> Result<(), CeilingError> {
         let mut state = self.state.lock().map_err(|_| CeilingError::Poisoned)?;
         let reservation = state
@@ -101,6 +119,10 @@ impl Ceiling {
     }
 
     /// Releases only expired reservations whose outcome is not unknown.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Poisoned` when the state lock is poisoned.
     pub fn release_expired(&self, current_sequence: u64) -> Result<usize, CeilingError> {
         let mut state = self.state.lock().map_err(|_| CeilingError::Poisoned)?;
         let before = state.reservations.len();
@@ -110,6 +132,12 @@ impl Ceiling {
         Ok(before - state.reservations.len())
     }
 
+    /// Returns the ceiling totals observed under one lock acquisition.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Overflow` when the held amounts do not sum and `Poisoned` when the
+    /// state lock is poisoned.
     pub fn snapshot(&self) -> Result<CeilingSnapshot, CeilingError> {
         let state = self.state.lock().map_err(|_| CeilingError::Poisoned)?;
         let held = state

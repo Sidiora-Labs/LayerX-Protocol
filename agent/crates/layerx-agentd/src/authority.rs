@@ -17,6 +17,11 @@ pub struct AuthorityState {
 
 /// Core boundary seam used for authority refreshes.
 pub trait AuthorityResolver {
+    /// Reads current core authority state, or `None` when core holds no such authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BoundaryUnavailable` when the node boundary cannot be consulted.
     fn authority_state(
         &mut self,
         authority: &ProtocolAuthority,
@@ -49,6 +54,11 @@ pub enum AuthorityError {
 }
 
 /// Resolves an authority, consulting a cache only inside an explicit sequence bound.
+///
+/// # Errors
+///
+/// Returns `Missing` when the boundary holds no state for the authority, and propagates the
+/// resolver's own refusal otherwise.
 pub fn resolve(
     cache: &mut AuthorityCache,
     resolver: &mut dyn AuthorityResolver,
@@ -70,6 +80,12 @@ pub fn resolve(
 }
 
 /// Requires current, unrevoked, unrotated protocol scope for one write.
+///
+/// # Errors
+///
+/// Returns `Rotated` when the authority or generation differs from the opened one, `Revoked` for
+/// a revoked authority, `Expired` past its valid-through sequence, and `Scope` when the activity
+/// type is not permitted.
 pub fn require_valid(
     expected: &ProtocolAuthority,
     opened_generation: u64,

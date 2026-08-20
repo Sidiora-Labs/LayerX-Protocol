@@ -24,14 +24,13 @@ fn label(kind: MetricKind) -> MetricLabel {
         MetricKind::UnknownPopulation => MetricLabel::Unknown,
         MetricKind::UnknownAge => MetricLabel::AgeAtLeastMinute,
         MetricKind::VerificationLevel => MetricLabel::StateProven,
-        MetricKind::BoundaryLatency => MetricLabel::BoundaryReady,
+        MetricKind::BoundaryLatency | MetricKind::DegradedState => MetricLabel::BoundaryReady,
         MetricKind::ErrorClass => MetricLabel::InternalFailure,
         MetricKind::PolicyDecision => MetricLabel::Allowed,
         MetricKind::CapabilityDecision => MetricLabel::Denied,
         MetricKind::BudgetUtilization => MetricLabel::UtilizationHigh,
         MetricKind::SubscriptionLag => MetricLabel::Lagging,
         MetricKind::RateLimitRefusal => MetricLabel::RateExceeded,
-        MetricKind::DegradedState => MetricLabel::BoundaryReady,
     }
 }
 
@@ -101,9 +100,9 @@ fn trace_spans_the_full_write_path_with_one_correlation_identifier() {
         policy_version: "policy-v1".to_owned(),
         redaction: RedactionPolicy::Strict,
         retention: Retention {
-            event_sequences: 10,
-            audit_sequences: 10,
-            receipt_sequences: 10,
+            events: 10,
+            audit: 10,
+            receipts: 10,
         },
         verification_default: VerificationLevel::STATE_PROVEN,
         approval_required_for: BTreeSet::new(),
@@ -233,8 +232,9 @@ fn every_delivery_blocker_reports_not_ready_and_refuses_the_write() {
     for (input, expected) in cases {
         let status = evaluate(input);
         let operation_ran = Cell::new(false);
-        let refusal = guard_write(&status, || operation_ran.set(true))
-            .expect_err("blocked health must refuse writes");
+        let Err(refusal) = guard_write(&status, || operation_ran.set(true)) else {
+            panic!("blocked health must refuse writes")
+        };
         assert!(refusal.blockers.contains(&expected));
         assert!(!operation_ran.get());
     }

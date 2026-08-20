@@ -8,6 +8,13 @@ use crate::audit::{self, DataClass, OutputSurface, RedactionError, RenderedOutpu
 use crate::store::TenantId;
 use crate::tenant::Config;
 
+/// Renders observability output through the same tenant redaction seam as audit.
+///
+/// # Errors
+///
+/// Returns `WrongTenant` when the configuration belongs to another tenant, and
+/// `InvalidPublicText` when public text is not UTF-8, is empty, exceeds 4096 bytes, or carries a
+/// control character other than tab or newline.
 pub fn redact(
     config: &Config,
     tenant: &TenantId,

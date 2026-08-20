@@ -31,7 +31,7 @@ fn settlement_domain_gate(
         ));
     }
     for (module, entries) in modules {
-        for (key, value) in entries.iter() {
+        for (key, value) in *entries {
             if key.ends_with(".settlement_domain") && value != "\"Paxeer\"" {
                 return Err(format!(
                     "{module} names a foreign settlement domain at {key}: {value}"

@@ -5,14 +5,21 @@ use layerx_agentd::limits::deadline::{
 };
 
 fn deadline() -> RequestDeadline {
-    RequestDeadline::new(1_000, 2_000).expect("finite request deadline")
+    RequestDeadline::new(1_000, 2_000)
+        .unwrap_or_else(|error| panic!("finite request deadline: {error:?}"))
+}
+
+fn submission_bytes(request_id: u64) -> [u8; 32] {
+    let marker = u8::try_from(request_id)
+        .unwrap_or_else(|error| panic!("request {request_id} must fit one byte: {error}"));
+    [marker; 32]
 }
 
 fn tracker_at(stage: WriteStage, request_id: u64) -> RequestTracker {
     let mut tracker = RequestTracker::default();
     tracker
-        .begin_write(request_id, [request_id as u8; 32], deadline())
-        .expect("write starts");
+        .begin_write(request_id, submission_bytes(request_id), deadline())
+        .unwrap_or_else(|error| panic!("write {request_id} starts: {error:?}"));
     for next in [
         WriteStage::Signing,
         WriteStage::DurableQueued,
@@ -25,7 +32,7 @@ fn tracker_at(stage: WriteStage, request_id: u64) -> RequestTracker {
         }
         tracker
             .advance_write(request_id, next, 1_100)
-            .expect("write stage advances in order");
+            .unwrap_or_else(|error| panic!("advance {request_id} to {next:?}: {error:?}"));
     }
     tracker
 }
@@ -57,14 +64,14 @@ fn every_request_and_boundary_call_has_a_finite_deadline() {
     assert_eq!(
         request
             .boundary_call(1_200, 250)
-            .expect("short call deadline")
+            .unwrap_or_else(|error| panic!("short call deadline: {error:?}"))
             .expires_at_ms,
         1_450
     );
     assert_eq!(
         request
             .boundary_call(1_900, 500)
-            .expect("request caps boundary call")
+            .unwrap_or_else(|error| panic!("capped boundary call: {error:?}"))
             .expires_at_ms,
         2_000
     );
@@ -85,7 +92,9 @@ fn disconnect_cancels_every_write_stage_before_transmission() {
         let mut tracker = tracker_at(stage, request_id);
         let token = tracker
             .begin_read(100 + request_id, deadline())
-            .expect("independent read supplies a cancellation token");
+            .unwrap_or_else(|error| {
+                panic!("independent read alongside {request_id} supplies a token: {error:?}")
+            });
         assert_eq!(
             cancel(&mut tracker, 100 + request_id, 1_200),
             Ok(DisconnectOutcome::Cancelled)
@@ -116,12 +125,12 @@ fn disconnect_mid_submission_transfers_ownership_to_receipt_resolution() {
         assert_eq!(
             cancel(&mut tracker, request_id, 1_300),
             Ok(DisconnectOutcome::ResolutionContinues {
-                submission_id: [request_id as u8; 32]
+                submission_id: submission_bytes(request_id)
             })
         );
         let view = tracker
             .view(request_id)
-            .expect("resolver retains ownership");
+            .unwrap_or_else(|| panic!("resolver retains ownership of {request_id}"));
         assert_eq!(view.owner, WorkOwner::DaemonResolver);
         assert!(!view.caller_connected);
         let expected_unknown_since = if stage == WriteStage::UnknownResolving {
@@ -141,7 +150,7 @@ fn disconnect_mid_submission_transfers_ownership_to_receipt_resolution() {
         assert_eq!(tracker.complete(request_id), Err(DeadlineError::OrphanRisk));
         tracker
             .resolved_by_receipt(request_id)
-            .expect("verified receipt resolution releases ownership");
+            .unwrap_or_else(|error| panic!("receipt resolution for {request_id}: {error:?}"));
         assert!(tracker.view(request_id).is_none());
     }
 }
@@ -149,7 +158,9 @@ fn disconnect_mid_submission_transfers_ownership_to_receipt_resolution() {
 #[test]
 fn request_deadline_reports_unknown_but_does_not_cancel_its_resolver() {
     let mut tracker = tracker_at(WriteStage::UnknownResolving, 42);
-    let outcomes = tracker.expire(2_000).expect("deadline processing succeeds");
+    let outcomes = tracker
+        .expire(2_000)
+        .unwrap_or_else(|error| panic!("deadline processing: {error:?}"));
     assert_eq!(
         outcomes,
         vec![DeadlineOutcome::ReportedUnknown {
@@ -157,7 +168,9 @@ fn request_deadline_reports_unknown_but_does_not_cancel_its_resolver() {
             submission_id: [42; 32],
         }]
     );
-    let view = tracker.view(42).expect("unknown resolver remains owned");
+    let view = tracker
+        .view(42)
+        .unwrap_or_else(|| panic!("unknown resolver remains owned"));
     assert_eq!(view.owner, WorkOwner::DaemonResolver);
     assert!(!view.cancelled);
     assert!(matches!(
@@ -175,16 +188,18 @@ fn in_flight_and_unresolved_population_expose_age_distribution() {
     tracker
         .begin_read(
             1,
-            RequestDeadline::new(70_000, 200_000).expect("read deadline"),
+            RequestDeadline::new(70_000, 200_000)
+                .unwrap_or_else(|error| panic!("read deadline: {error:?}")),
         )
-        .expect("read begins");
+        .unwrap_or_else(|error| panic!("read begins: {error:?}"));
     tracker
         .begin_write(
             2,
             [2; 32],
-            RequestDeadline::new(1_000, 200_000).expect("write deadline"),
+            RequestDeadline::new(1_000, 200_000)
+                .unwrap_or_else(|error| panic!("write deadline: {error:?}")),
         )
-        .expect("write begins");
+        .unwrap_or_else(|error| panic!("write begins: {error:?}"));
     for stage in [
         WriteStage::Signing,
         WriteStage::DurableQueued,
@@ -194,10 +209,12 @@ fn in_flight_and_unresolved_population_expose_age_distribution() {
     ] {
         tracker
             .advance_write(2, stage, 10_000)
-            .expect("write advances");
+            .unwrap_or_else(|error| panic!("advance to {stage:?}: {error:?}"));
     }
 
-    let metrics = tracker.metrics(70_500).expect("metrics are deterministic");
+    let metrics = tracker
+        .metrics(70_500)
+        .unwrap_or_else(|error| panic!("deterministic metrics: {error:?}"));
     assert_eq!(metrics.in_flight, 2);
     assert_eq!(metrics.unresolved, 1);
     assert_eq!(metrics.in_flight_age.under_one_second, 1);

@@ -10,6 +10,12 @@ pub struct RequestDeadline {
 }
 
 impl RequestDeadline {
+    /// Builds a request lifetime from absolute start and expiry milliseconds.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DeadlineError::InvalidDeadline` unless `expires_at_ms` is strictly after
+    /// `started_at_ms`; a zero-length lifetime is refused.
     pub fn new(started_at_ms: u64, expires_at_ms: u64) -> Result<Self, DeadlineError> {
         if expires_at_ms <= started_at_ms {
             Err(DeadlineError::InvalidDeadline)
@@ -22,6 +28,12 @@ impl RequestDeadline {
     }
 
     /// Bounds one downstream call by both its own timeout and the request lifetime.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidDeadline` for a zero `maximum_duration_ms` or an observation before the
+    /// request started, `Elapsed` once the request lifetime is already over, or `Arithmetic`
+    /// when the call expiry overflows.
     pub fn boundary_call(
         self,
         observed_at_ms: u64,
@@ -193,6 +205,11 @@ pub struct RequestTracker {
 }
 
 impl RequestTracker {
+    /// Tracks one cancellable read for the life of its request deadline.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DeadlineError::DuplicateRequest` when `request_id` is already tracked.
     pub fn begin_read(
         &mut self,
         request_id: u64,
@@ -201,6 +218,11 @@ impl RequestTracker {
         self.insert(request_id, deadline, TrackedWork::Read)
     }
 
+    /// Tracks one write from its preparing stage with the reservation held.
+    ///
+    /// # Errors
+    ///
+    /// Returns `DeadlineError::DuplicateRequest` when `request_id` is already tracked.
     pub fn begin_write(
         &mut self,
         request_id: u64,
@@ -218,6 +240,13 @@ impl RequestTracker {
         )
     }
 
+    /// Moves a tracked write to the stage exactly one ordinal ahead of its current one.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnknownRequest` for an untracked identifier, `TimeRegressed` when
+    /// `observed_at_ms` precedes the request start, or `InvalidTransition` for read work or
+    /// any stage that is not the immediate successor.
     pub fn advance_write(
         &mut self,
         request_id: u64,
@@ -246,6 +275,11 @@ impl RequestTracker {
     }
 
     /// Removes completed cancellable work. Unknown submissions require receipt resolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnknownRequest` for an untracked identifier, or `OrphanRisk` for a write
+    /// already transmitting, acknowledged, or resolving as unknown.
     pub fn complete(&mut self, request_id: u64) -> Result<(), DeadlineError> {
         let request = self
             .requests
@@ -267,6 +301,11 @@ impl RequestTracker {
     }
 
     /// Removes an unresolved write only after receipt-only resolution reaches terminal state.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnknownRequest` for an untracked identifier, or `InvalidTransition` unless the
+    /// work is a write in the `UnknownResolving` stage.
     pub fn resolved_by_receipt(&mut self, request_id: u64) -> Result<(), DeadlineError> {
         let request = self
             .requests
@@ -285,6 +324,12 @@ impl RequestTracker {
         Ok(())
     }
 
+    /// Disconnects every still-connected request whose deadline has passed.
+    ///
+    /// # Errors
+    ///
+    /// Returns `TimeRegressed` when `observed_at_ms` precedes the start of a request being
+    /// expired, abandoning the outcomes not yet collected.
     pub fn expire(&mut self, observed_at_ms: u64) -> Result<Vec<DeadlineOutcome>, DeadlineError> {
         let expired = self
             .requests
@@ -310,6 +355,12 @@ impl RequestTracker {
         Ok(outcomes)
     }
 
+    /// Summarizes in-flight and unresolved work with their age distributions.
+    ///
+    /// # Errors
+    ///
+    /// Returns `TimeRegressed` when `observed_at_ms` precedes any tracked request's start or
+    /// the instant its submission first became unknown.
     pub fn metrics(&self, observed_at_ms: u64) -> Result<WorkMetrics, DeadlineError> {
         let mut metrics = WorkMetrics {
             in_flight: self.requests.len(),
@@ -385,7 +436,6 @@ impl RequestTracker {
         }
         request.caller_connected = false;
         let submission = match &mut request.work {
-            TrackedWork::Read => None,
             TrackedWork::Write {
                 submission_id,
                 stage,
@@ -395,7 +445,7 @@ impl RequestTracker {
                 *reservation_held = true;
                 Some(*submission_id)
             }
-            TrackedWork::Write { .. } => None,
+            TrackedWork::Read | TrackedWork::Write { .. } => None,
         };
         if let Some(submission_id) = submission {
             request.owner = WorkOwner::DaemonResolver;
@@ -411,6 +461,11 @@ impl RequestTracker {
 
 /// Cancels caller-owned downstream work or transfers an indeterminate submission
 /// to the daemon's receipt resolver.
+///
+/// # Errors
+///
+/// Returns `UnknownRequest` for an untracked identifier, or `TimeRegressed` when
+/// `observed_at_ms` precedes that request's start.
 pub fn disconnect_request(
     tracker: &mut RequestTracker,
     request_id: u64,

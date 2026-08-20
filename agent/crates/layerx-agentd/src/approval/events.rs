@@ -73,10 +73,7 @@ impl ApprovalEvents {
             || !audit.owns_tenant(&lifecycle.tenant)
             || lifecycle.policy_version.is_empty()
             || lifecycle.asset.is_empty()
-            || lifecycle
-                .principal
-                .as_deref()
-                .is_some_and(|value| value.is_empty())
+            || lifecycle.principal.as_deref().is_some_and(str::is_empty)
         {
             return Err(ApprovalEventError::Invalid);
         }

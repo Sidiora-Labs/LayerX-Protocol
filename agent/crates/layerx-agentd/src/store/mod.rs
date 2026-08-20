@@ -22,6 +22,12 @@ const STORE_FILE: &str = "store.bin";
 const TEMP_FILE: &str = "store.bin.tmp";
 
 /// Migrates a store through every supported forward-only schema step.
+///
+/// # Errors
+///
+/// Returns `MigrationError::InvalidHeader` for a bad magic or short header,
+/// `NewerSchema` above version 3, `UnsupportedOldSchema` below version 1, `CorruptV1`
+/// for a truncated or unknown-kind entry, and `Io` from the rewrite, fsync or rename.
 pub fn migrate(root: &Path) -> Result<(), MigrationError> {
     forward_migration::migrate_forward(root).map(|_| ())
 }
@@ -32,6 +38,11 @@ pub struct TenantId(String);
 
 impl TenantId {
     /// Creates a non-empty bounded tenant identifier.
+    ///
+    /// # Errors
+    ///
+    /// Returns `StoreError::InvalidTenant` for an empty identifier, one longer than 255
+    /// bytes, or one carrying an interior NUL.
     pub fn new(value: impl Into<String>) -> Result<Self, StoreError> {
         let value = value.into();
         if value.is_empty() || value.len() > 255 || value.as_bytes().contains(&0) {
@@ -101,6 +112,11 @@ struct KeyParts {
 
 impl TenantKey {
     /// Creates a tenant-scoped key.
+    ///
+    /// # Errors
+    ///
+    /// Returns `StoreError::InvalidObjectId` when the object identifier is empty or longer
+    /// than 4096 bytes.
     pub fn new(
         tenant: TenantId,
         kind: ObjectKind,
@@ -139,16 +155,29 @@ impl TenantKey {
         let tenant = self.tenant().as_str().as_bytes();
         let object_id = self.object_id();
         let mut bytes = Vec::with_capacity(7 + tenant.len() + object_id.len());
-        bytes.extend_from_slice(&(tenant.len() as u16).to_be_bytes());
+        bytes.extend_from_slice(
+            &u16::try_from(tenant.len())
+                .unwrap_or(u16::MAX)
+                .to_be_bytes(),
+        );
         bytes.extend_from_slice(tenant);
         bytes.push(self.kind() as u8);
-        bytes.extend_from_slice(&(object_id.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(
+            &u32::try_from(object_id.len())
+                .unwrap_or(u32::MAX)
+                .to_be_bytes(),
+        );
         bytes.extend_from_slice(object_id);
         bytes
     }
 }
 
 /// Constructs the only storage key type; tenant scope cannot be omitted.
+///
+/// # Errors
+///
+/// Forwards the `TenantKey::new` refusal: `StoreError::InvalidObjectId` for an empty
+/// object identifier or one longer than 4096 bytes.
 pub fn key(
     tenant: TenantId,
     kind: ObjectKind,
@@ -234,6 +263,17 @@ impl From<MigrationError> for StoreError {
     }
 }
 
+/// One ordered event write: the exact event bytes, their local evidence
+/// metadata and the durable ingestion watermark that advances with them.
+pub struct EventIngestion {
+    pub event_key: TenantKey,
+    pub event_bytes: Vec<u8>,
+    pub metadata_key: TenantKey,
+    pub metadata: Vec<u8>,
+    pub watermark_key: TenantKey,
+    pub watermark: Vec<u8>,
+}
+
 /// File-backed daemon store. All access requires a [`TenantKey`].
 #[derive(Debug)]
 pub struct Store {
@@ -250,6 +290,12 @@ pub(crate) struct TenantRemoval {
 
 impl Store {
     /// Opens a store, migrating supported older schemas before decoding it.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Io` if the root cannot be created or the store file read, `Migration` when a
+    /// forward step refuses the on-disk schema, and `Corrupt` for a bad magic, an unmigrated
+    /// version, truncated or trailing bytes, an unknown kind or class, or a duplicate key.
     pub fn open(root: impl AsRef<Path>) -> Result<Self, StoreError> {
         let root = root.as_ref().to_path_buf();
         fs::create_dir_all(&root)?;
@@ -280,16 +326,32 @@ impl Store {
     }
 
     /// Persists daemon-local bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SizeOverflow` if an encoded length outgrows its `u32` field, or `Io` from the
+    /// temporary-file write, fsync or rename; the entry is rolled back on either failure.
     pub fn put_local(&mut self, key: TenantKey, bytes: Vec<u8>) -> Result<(), StoreError> {
         self.put(key, StorageClass::LocalOnly, bytes)
     }
 
     /// Persists exact bytes produced by the core as a rebuildable cache.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SizeOverflow` when an encoded length outgrows its `u32` field, or `Io` from
+    /// the temporary-file write, fsync or rename, with the cache entry rolled back.
     pub fn put_core_cache(&mut self, key: TenantKey, bytes: Vec<u8>) -> Result<(), StoreError> {
         self.put(key, StorageClass::CoreProducedCache, bytes)
     }
 
     /// Removes one daemon-local object with rollback on persistence failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Corrupt` when the key names a core-produced cache entry instead of a local
+    /// one, or the `Io`/`SizeOverflow` from persisting; the value is reinserted either way.
+    /// An absent key is `Ok(false)`, not an error.
     pub fn remove_local(&mut self, key: &TenantKey) -> Result<bool, StoreError> {
         let Some(previous) = self.entries.remove(key) else {
             return Ok(false);
@@ -308,6 +370,11 @@ impl Store {
     }
 
     /// Atomically records the three local records required before transmission.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidObjectId` when the idempotency key is empty or longer than 4096 bytes,
+    /// or the `Io`/`SizeOverflow` from persisting, after restoring every prior entry.
     pub fn record_submission(
         &mut self,
         tenant: TenantId,
@@ -354,6 +421,11 @@ impl Store {
     }
 
     /// Restores cache entries obtained again from the core after local deletion.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SizeOverflow` if the reassembled snapshot outgrows its `u32` length fields, or
+    /// `Io` from the write, fsync or rename; the previous map is restored wholesale.
     pub fn restore_core_cache<I>(&mut self, entries: I) -> Result<(), StoreError>
     where
         I: IntoIterator<Item = (TenantKey, Vec<u8>)>,
@@ -377,6 +449,12 @@ impl Store {
 
     /// Atomically records byte-identical core receipt indexes and local
     /// verification metadata, rejecting any conflicting existing index.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Corrupt` for an empty receipt key set, a key of the wrong `ObjectKind`, or an
+    /// existing index or metadata entry whose bytes differ from the supplied ones, plus the
+    /// `Io`/`SizeOverflow` from persisting, which rolls the whole map back.
     pub fn record_verified_receipt(
         &mut self,
         receipt_keys: &[TenantKey],
@@ -435,58 +513,40 @@ impl Store {
 
     /// Atomically records exact core event bytes, their local evidence
     /// metadata and the durable ingestion watermark.
-    pub fn record_event(
-        &mut self,
-        event_key: TenantKey,
-        event_bytes: Vec<u8>,
-        metadata_key: TenantKey,
-        metadata: Vec<u8>,
-        watermark_key: TenantKey,
-        watermark: Vec<u8>,
-    ) -> Result<(), StoreError> {
-        self.record_event_with_class(
-            event_key,
-            event_bytes,
-            StorageClass::CoreProducedCache,
-            metadata_key,
-            metadata,
-            watermark_key,
-            watermark,
-        )
+    ///
+    /// # Errors
+    ///
+    /// Returns `Corrupt` when the event key is not `ObjectKind::Event`, either companion key
+    /// is not `ObjectKind::Configuration`, or the event key is already stored, and the
+    /// `Io`/`SizeOverflow` from persisting, which restores the prior map.
+    pub fn record_event(&mut self, ingestion: EventIngestion) -> Result<(), StoreError> {
+        self.record_event_with_class(ingestion, StorageClass::CoreProducedCache)
     }
 
     /// Atomically records a daemon-local restriction event in the same ordered
     /// stream without misclassifying it as core-produced evidence.
-    pub fn record_local_event(
-        &mut self,
-        event_key: TenantKey,
-        event_bytes: Vec<u8>,
-        metadata_key: TenantKey,
-        metadata: Vec<u8>,
-        watermark_key: TenantKey,
-        watermark: Vec<u8>,
-    ) -> Result<(), StoreError> {
-        self.record_event_with_class(
-            event_key,
-            event_bytes,
-            StorageClass::LocalOnly,
-            metadata_key,
-            metadata,
-            watermark_key,
-            watermark,
-        )
+    ///
+    /// # Errors
+    ///
+    /// Returns `Corrupt` for the same shapes as `record_event`, wrong key kinds or a
+    /// replayed event key, and `Io` or `SizeOverflow` from persisting.
+    pub fn record_local_event(&mut self, ingestion: EventIngestion) -> Result<(), StoreError> {
+        self.record_event_with_class(ingestion, StorageClass::LocalOnly)
     }
 
     fn record_event_with_class(
         &mut self,
-        event_key: TenantKey,
-        event_bytes: Vec<u8>,
+        ingestion: EventIngestion,
         event_class: StorageClass,
-        metadata_key: TenantKey,
-        metadata: Vec<u8>,
-        watermark_key: TenantKey,
-        watermark: Vec<u8>,
     ) -> Result<(), StoreError> {
+        let EventIngestion {
+            event_key,
+            event_bytes,
+            metadata_key,
+            metadata,
+            watermark_key,
+            watermark,
+        } = ingestion;
         if event_key.kind() != ObjectKind::Event
             || metadata_key.kind() != ObjectKind::Configuration
             || watermark_key.kind() != ObjectKind::Configuration

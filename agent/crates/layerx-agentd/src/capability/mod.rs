@@ -56,6 +56,10 @@ pub struct Capability {
 
 impl Capability {
     /// Constructs a capability only when every dimension is explicit and bounded.
+    ///
+    /// # Errors
+    ///
+    /// Names the first dimension left empty, zero, or otherwise unbounded.
     pub fn new(
         id: CapabilityId,
         tenant: TenantId,
@@ -92,6 +96,11 @@ impl Capability {
     }
 
     /// Persists the capability under its inseparable tenant key.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SizeOverflow` when a dimension set or purpose exceeds its length prefix, and the
+    /// store failure raised while writing the encoded object durably.
     pub fn persist(&self, store: &mut Store) -> Result<(), CapabilityError> {
         let key = TenantKey::new(
             self.tenant.clone(),
@@ -103,6 +112,11 @@ impl Capability {
     }
 
     /// Restores a capability from the exact tenant-scoped key.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Corrupt` for truncated, trailing, or non-UTF-8 stored bytes, and names the rejected
+    /// tenant or unbounded dimension recovered from an otherwise decodable record.
     pub fn restore(
         store: &Store,
         tenant: TenantId,
@@ -191,6 +205,10 @@ pub fn evaluate(capability: &Capability, intent: &PreparedIntent) -> Decision {
 }
 
 /// Proves that a daemon capability is no wider than its protocol authority.
+///
+/// # Errors
+///
+/// Names the first dimension whose bound exceeds the granted protocol scope.
 pub fn assert_narrowing(
     capability: &Capability,
     authority: ProtocolAuthority,
@@ -200,6 +218,11 @@ pub fn assert_narrowing(
 }
 
 /// Derives a child capability while preserving its chain to the root.
+///
+/// # Errors
+///
+/// Refuses an unknown parent, a foreign tenant, and a duplicate child identifier, then names the
+/// first child dimension wider than the parent.
 pub fn attenuate(
     graph: &mut CapabilityGraph,
     parent: CapabilityId,
@@ -209,6 +232,10 @@ pub fn attenuate(
 }
 
 /// Revokes one capability and every descendant, cancelling only unsubmitted work.
+///
+/// # Errors
+///
+/// Returns `MissingParent` when the named root is absent from the graph.
 pub fn revoke_subtree(
     graph: &mut CapabilityGraph,
     root: CapabilityId,
@@ -218,6 +245,11 @@ pub fn revoke_subtree(
 }
 
 /// Serialises one reservation decision against a capability ceiling.
+///
+/// # Errors
+///
+/// Refuses a zero or already expired amount, an unreconciled or poisoned ceiling, a duplicate
+/// reservation identifier, an arithmetic overflow, and a total that would exceed the maximum.
 pub fn consume(
     ceiling: &Ceiling,
     reservation_id: [u8; 32],
@@ -235,6 +267,11 @@ pub fn consume(
 }
 
 /// Builds one byte-identical report for contract, CLI and audit surfaces.
+///
+/// # Errors
+///
+/// Returns `Incomplete` when a restriction is missing or the derivation chain does not end at the
+/// bound capability, and `MisleadingWording` when a statement overstates enforcement.
 pub fn enforcement_report(
     binding: &Binding,
     derivation_chain: Vec<CapabilityId>,

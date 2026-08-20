@@ -46,15 +46,22 @@ pub enum Observation {
     },
 }
 
+/// Which boundary paths the current mode still serves.
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Readiness {
+    pub preparation: bool,
+    pub submission_acknowledgement: bool,
+    pub live_stream: bool,
+    pub unknown_resolution: bool,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Status {
     pub mode: Mode,
     pub reference: Option<Reference>,
     pub maximum_verification: VerificationLevel,
-    pub preparation_ready: bool,
-    pub submission_acknowledgement_ready: bool,
-    pub live_stream_ready: bool,
-    pub unknown_resolution_ready: bool,
+    pub readiness: Readiness,
     pub transitions: BTreeMap<Mode, u64>,
 }
 
@@ -124,10 +131,12 @@ impl Controller {
             mode: self.mode,
             reference: self.reference,
             maximum_verification: self.maximum_verification,
-            preparation_ready: live,
-            submission_acknowledgement_ready: live,
-            live_stream_ready: live,
-            unknown_resolution_ready: self.mode != Mode::Unreachable,
+            readiness: Readiness {
+                preparation: live,
+                submission_acknowledgement: live,
+                live_stream: live,
+                unknown_resolution: self.mode != Mode::Unreachable,
+            },
             transitions: self.transitions.clone(),
         }
     }
@@ -148,6 +157,12 @@ impl Controller {
         evaluate(input)
     }
 
+    /// Records the controller's current mode as one degraded-state metric sample.
+    ///
+    /// # Errors
+    ///
+    /// Returns `MetricsError::UnknownTenant` when the tenant was never registered with the
+    /// registry; every mode maps to a label `MetricKind::DegradedState` already accepts.
     pub fn record_metric(
         &self,
         metrics: &mut Metrics,
@@ -210,6 +225,12 @@ impl Controller {
         })
     }
 
+    /// Runs a preparation only while the core is live.
+    ///
+    /// # Errors
+    ///
+    /// Returns `LiveCoreRequired` carrying the current `Mode` for every mode other than
+    /// `Healthy`, including `Behind`.
     pub fn guard_preparation<T>(&self, operation: impl FnOnce() -> T) -> Result<T, OperationError> {
         if self.mode == Mode::Healthy {
             Ok(operation())
@@ -218,6 +239,12 @@ impl Controller {
         }
     }
 
+    /// Acknowledges a submission only while the core is live.
+    ///
+    /// # Errors
+    ///
+    /// Returns `LiveCoreRequired` carrying the current `Mode` whenever the last observation
+    /// left the controller anywhere but `Healthy`.
     pub fn guard_submission_acknowledgement<T>(
         &self,
         operation: impl FnOnce() -> T,
@@ -229,6 +256,12 @@ impl Controller {
         }
     }
 
+    /// Serves a live stream only while the core is live.
+    ///
+    /// # Errors
+    ///
+    /// Returns `StreamUnavailable` carrying the current `Mode`, distinguishing a dropped stream
+    /// from a refused write in every non-`Healthy` mode.
     pub fn guard_live_stream<T>(&self, operation: impl FnOnce() -> T) -> Result<T, OperationError> {
         if self.mode == Mode::Healthy {
             Ok(operation())
@@ -237,6 +270,12 @@ impl Controller {
         }
     }
 
+    /// Resolves unknown submissions in every mode that still reaches the core.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ResolutionUnavailable` only in `Mode::Unreachable`; halted, emergency, behind and
+    /// data-unavailable modes all still resolve.
     pub fn resolve_unknown_when_reachable<T>(
         &self,
         operation: impl FnOnce() -> T,

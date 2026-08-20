@@ -113,6 +113,11 @@ pub struct Metrics {
 }
 
 impl Metrics {
+    /// Creates a metrics registry bounded to a finite tenant cardinality.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidCapacity` when the tenant maximum is zero.
     pub fn new(maximum_tenants: usize) -> Result<Self, MetricsError> {
         if maximum_tenants == 0 {
             return Err(MetricsError::InvalidCapacity);
@@ -124,6 +129,11 @@ impl Metrics {
         })
     }
 
+    /// Admits one tenant, accepting an already registered tenant unchanged.
+    ///
+    /// # Errors
+    ///
+    /// Returns `TenantCapacityExceeded` when a new tenant would pass the maximum.
     pub fn register_tenant(&mut self, tenant: TenantId) -> Result<(), MetricsError> {
         if self.tenants.contains(&tenant) {
             return Ok(());
@@ -135,6 +145,12 @@ impl Metrics {
         Ok(())
     }
 
+    /// Folds one sample into the tenant point for a metric and label.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnknownTenant` for an unregistered tenant and `InvalidLabel` when the
+    /// label does not belong to the metric.
     pub fn observe(
         &mut self,
         tenant: &TenantId,

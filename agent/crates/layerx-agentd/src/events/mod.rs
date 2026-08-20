@@ -16,12 +16,24 @@ pub use delivery::{
 pub use ingestion::{CoreEvent, EventAttributes, EventIngestor, IngestError, Watermark};
 
 /// Ingests one exact core-produced event through the bounded durable pipeline.
+///
+/// # Errors
+///
+/// Refuses an empty, malformed, or receipt-inconsistent event, a sequence that is
+/// not the next expected one, and a buffer already at capacity; durable write
+/// failures propagate.
 pub fn ingest(ingestor: &mut EventIngestor, event: CoreEvent) -> Result<(), IngestError> {
     ingestion::ingest_event(ingestor, event)
 }
 
 /// Ingests a daemon-enforced restriction event into the same ordered stream
 /// while retaining its local-only authority classification.
+///
+/// # Errors
+///
+/// Refuses an empty, malformed, or receipt-inconsistent event, a sequence that is
+/// not the next expected one, and a buffer already at capacity; durable write
+/// failures propagate.
 pub fn ingest_local_restriction(
     ingestor: &mut EventIngestor,
     event: CoreEvent,
@@ -30,11 +42,23 @@ pub fn ingest_local_restriction(
 }
 
 /// Loads durable history into the engine's explicitly bounded delivery buffer.
+///
+/// # Errors
+///
+/// Returns `ContinuityBlocked` while a gap or truncation stands and `Backpressure`
+/// when the buffer fills with source items still pending; durable read and
+/// subscription failures propagate.
 pub fn backfill(engine: &mut DeliveryEngine) -> Result<PumpReport, DeliveryError> {
     delivery::pump(engine)
 }
 
 /// Returns the current at-least-once delivery attempt without removing it.
+///
+/// # Errors
+///
+/// Returns `ContinuityBlocked` while a gap or truncation stands and propagates the
+/// durable read and subscription failures of a refill; backpressure alone is not
+/// an error.
 pub fn deliver(engine: &mut DeliveryEngine) -> Result<Option<DeliveryItem>, DeliveryError> {
     delivery::delivery_attempt(engine)
 }

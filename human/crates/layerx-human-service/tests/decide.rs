@@ -20,7 +20,7 @@ use layerx_agent_api::verify::Level;
 use layerx_agent_api::{Amount, TimestampSeconds};
 use layerx_agentd::approval::{
     ApprovalExpiry, ApprovalOutcome as AgentOutcome, ApprovalService, ApprovalSubmissionQueue,
-    DecisionKey,
+    DecisionKey, DecisionRequest,
 };
 use layerx_agentd::budget::BudgetLimiter;
 use layerx_agentd::capability::CapabilityId;
@@ -463,11 +463,15 @@ impl AgentDecisionBoundary for AgentdDecisions<'_> {
         let decision = self
             .service
             .approve(
-                &self.tenant,
-                approval_id,
-                &DecisionKey::new(idempotency_key).map_err(|_| ApprovalBoundaryError::Corrupt)?,
-                ApproverId::new("human:mara").map_err(|_| ApprovalBoundaryError::Corrupt)?,
-                current_sequence,
+                DecisionRequest {
+                    tenant: &self.tenant,
+                    approval_id,
+                    idempotency_key: &DecisionKey::new(idempotency_key)
+                        .map_err(|_| ApprovalBoundaryError::Corrupt)?,
+                    approver: ApproverId::new("human:mara")
+                        .map_err(|_| ApprovalBoundaryError::Corrupt)?,
+                    current_sequence,
+                },
                 &prepared,
                 self.queue,
             )
@@ -491,13 +495,15 @@ impl AgentDecisionBoundary for AgentdDecisions<'_> {
         }
         let decision = self
             .service
-            .reject(
-                &self.tenant,
+            .reject(DecisionRequest {
+                tenant: &self.tenant,
                 approval_id,
-                &DecisionKey::new(idempotency_key).map_err(|_| ApprovalBoundaryError::Corrupt)?,
-                ApproverId::new("human:mara").map_err(|_| ApprovalBoundaryError::Corrupt)?,
+                idempotency_key: &DecisionKey::new(idempotency_key)
+                    .map_err(|_| ApprovalBoundaryError::Corrupt)?,
+                approver: ApproverId::new("human:mara")
+                    .map_err(|_| ApprovalBoundaryError::Corrupt)?,
                 current_sequence,
-            )
+            })
             .map_err(|_| ApprovalBoundaryError::Unavailable)?;
         self.normalize(approval_id, idempotency_key, current_sequence, &decision)
     }

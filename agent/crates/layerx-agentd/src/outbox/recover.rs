@@ -33,6 +33,12 @@ pub struct RecoveredOutbox {
 }
 
 impl RecoveredOutbox {
+    /// Admits writes only once recovery and every spend control have reconciled.
+    ///
+    /// # Errors
+    ///
+    /// Returns `WritesBlocked` while recovery is incomplete or budget or ceiling accounting is
+    /// unreconciled, and `Ceiling` wrapping `Poisoned` or `Overflow` raised by the ceiling snapshot.
     pub fn require_write_ready(&self) -> Result<(), RecoveryError> {
         if !self.recovery_complete || !self.budget_accounting.reconciled {
             return Err(RecoveryError::WritesBlocked);
@@ -68,14 +74,20 @@ impl From<StoreError> for RecoveryError {
 }
 
 /// Restores every durable outbox record and reconstructs spend controls before writes.
+///
+/// # Errors
+///
+/// Returns `Budget` from restart accounting, `Ceiling` when the ceiling cannot be rebuilt or an
+/// unknown reservation cannot be re-held, `Corrupt` for an object identifier that is not 32 bytes
+/// or a record restored as `Prepared` or `Signed`, and `Outbox` or `Store` from each restore.
 pub fn recover(
     store: &mut Store,
-    tenant: TenantId,
-    inputs: RecoveryInputs<'_>,
+    tenant: &TenantId,
+    inputs: &RecoveryInputs<'_>,
 ) -> Result<RecoveredOutbox, RecoveryError> {
     let budget_accounting = budget::rebuild(
         store,
-        tenant.clone(),
+        tenant,
         inputs.unknown_budget_ids,
         inputs.budget_receipts,
         inputs.protocol_budget,
@@ -100,7 +112,7 @@ pub fn recover(
     let mut outbox = Outbox::default();
     let mut queued_for_transmission = Vec::new();
     let mut awaiting_receipt_resolution = Vec::new();
-    let identifiers = store.list_object_ids(&tenant, ObjectKind::Outbox);
+    let identifiers = store.list_object_ids(tenant, ObjectKind::Outbox);
     for identifier in identifiers {
         let submission_id: [u8; 32] = identifier
             .as_slice()

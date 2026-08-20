@@ -39,15 +39,15 @@ fn agent(value: &[u8]) -> Did {
     Did::new(value).unwrap_or_else(|error| panic!("agent DID: {error:?}"))
 }
 
-fn config(audit_sequences: u64) -> Config {
+fn config(audit: u64) -> Config {
     Config {
         tenant: tenant("tenant-a"),
         policy_version: "policy-v9".to_owned(),
         redaction: RedactionPolicy::Standard,
         retention: Retention {
-            event_sequences: 100,
-            audit_sequences,
-            receipt_sequences: 100,
+            events: 100,
+            audit,
+            receipts: 100,
         },
         verification_default: VerificationLevel::STATE_PROVEN,
         approval_required_for: BTreeSet::new(),

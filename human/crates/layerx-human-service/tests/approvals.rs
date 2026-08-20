@@ -14,7 +14,7 @@ use layerx_agent_api::verify::Level;
 use layerx_agent_api::{Amount, TimestampSeconds};
 use layerx_agentd::approval::{
     ApprovalEventKind as AgentEventKind, ApprovalEvents, ApprovalExpiry, ApprovalLifecycle,
-    ApprovalOutcome, ApprovalService, ApprovalSubmissionQueue, DecisionKey,
+    ApprovalOutcome, ApprovalService, ApprovalSubmissionQueue, DecisionKey, DecisionRequest,
 };
 use layerx_agentd::audit::{Coverage, Log};
 use layerx_agentd::budget::{reconcile, BudgetLimiter, LocalAccounting, ProtocolBudgetState};
@@ -314,12 +314,15 @@ fn real_agent_holds_drive_live_inbox_counts_notifications_and_honest_lifecycle()
     let decision = boundary
         .service
         .approve(
-            &tenant(),
-            [1; 32],
-            &DecisionKey::new("approve-one")
-                .unwrap_or_else(|error| panic!("decision key: {error:?}")),
-            ApproverId::new("human-alice").unwrap_or_else(|error| panic!("approver: {error:?}")),
-            11,
+            DecisionRequest {
+                tenant: &tenant(),
+                approval_id: [1; 32],
+                idempotency_key: &DecisionKey::new("approve-one")
+                    .unwrap_or_else(|error| panic!("decision key: {error:?}")),
+                approver: ApproverId::new("human-alice")
+                    .unwrap_or_else(|error| panic!("approver: {error:?}")),
+                current_sequence: 11,
+            },
             &held,
             &queue,
         )
@@ -379,14 +382,15 @@ fn real_agent_holds_drive_live_inbox_counts_notifications_and_honest_lifecycle()
     );
     let rejected = boundary
         .service
-        .reject(
-            &tenant(),
-            [2; 32],
-            &DecisionKey::new("reject-two")
+        .reject(DecisionRequest {
+            tenant: &tenant(),
+            approval_id: [2; 32],
+            idempotency_key: &DecisionKey::new("reject-two")
                 .unwrap_or_else(|error| panic!("decision key: {error:?}")),
-            ApproverId::new("human-alice").unwrap_or_else(|error| panic!("approver: {error:?}")),
-            13,
-        )
+            approver: ApproverId::new("human-alice")
+                .unwrap_or_else(|error| panic!("approver: {error:?}")),
+            current_sequence: 13,
+        })
         .unwrap_or_else(|error| panic!("agent reject: {error:?}"));
     assert_eq!(rejected.outcome, ApprovalOutcome::Rejected);
     inbox

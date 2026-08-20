@@ -10,6 +10,7 @@ use layerx_agent_api::prepare::{
 use layerx_agent_api::{Amount, TimestampSeconds};
 use layerx_agentd::approval::{
     ApprovalExpiry, ApprovalOutcome, ApprovalService, ApprovalSubmissionQueue, DecisionKey,
+    DecisionRequest,
 };
 use layerx_agentd::budget::{
     reserve, BudgetLimiter, LimitConfig, LimitId, LimitScope, ReservationRequest,
@@ -152,11 +153,13 @@ fn concurrent_conflicting_decisions_have_one_durable_winner() {
             let service = ApprovalService::new(&registry, &limiter, &expiry);
             barrier.wait();
             service.approve(
-                &tenant(),
-                [10; 32],
-                &key("approve-10"),
-                approver("human:approve"),
-                11,
+                DecisionRequest {
+                    tenant: &tenant(),
+                    approval_id: [10; 32],
+                    idempotency_key: &key("approve-10"),
+                    approver: approver("human:approve"),
+                    current_sequence: 11,
+                },
                 &held,
                 &queue,
             )
@@ -170,13 +173,13 @@ fn concurrent_conflicting_decisions_have_one_durable_winner() {
         thread::spawn(move || {
             let service = ApprovalService::new(&registry, &limiter, &expiry);
             barrier.wait();
-            service.reject(
-                &tenant(),
-                [10; 32],
-                &key("reject-10"),
-                approver("human:reject"),
-                11,
-            )
+            service.reject(DecisionRequest {
+                tenant: &tenant(),
+                approval_id: [10; 32],
+                idempotency_key: &key("reject-10"),
+                approver: approver("human:reject"),
+                current_sequence: 11,
+            })
         })
     };
 
@@ -224,11 +227,13 @@ fn decision_record_survives_process_restart_and_replays_original_outcome() {
         let service = ApprovalService::new(&registry, &limiter, &expiry);
         service
             .approve(
-                &tenant,
-                [11; 32],
-                &key("approve-11"),
-                approver("human:first"),
-                11,
+                DecisionRequest {
+                    tenant: &tenant,
+                    approval_id: [11; 32],
+                    idempotency_key: &key("approve-11"),
+                    approver: approver("human:first"),
+                    current_sequence: 11,
+                },
                 &held,
                 &ApprovalSubmissionQueue::default(),
             )
@@ -246,11 +251,13 @@ fn decision_record_survives_process_restart_and_replays_original_outcome() {
     let service = ApprovalService::new(&registry, &limiter, &expiry);
     let replay = service
         .approve(
-            &tenant,
-            [11; 32],
-            &key("approve-11"),
-            approver("human:retry"),
-            12,
+            DecisionRequest {
+                tenant: &tenant,
+                approval_id: [11; 32],
+                idempotency_key: &key("approve-11"),
+                approver: approver("human:retry"),
+                current_sequence: 12,
+            },
             &held,
             &queue,
         )

@@ -146,7 +146,7 @@ fn history_truncation_is_explicit_and_uses_snapshot_bound_stable_cursors() {
         next_cursor: None,
     };
     let first = history(
-        all.clone(),
+        &all.clone(),
         Level::BatchIncluded,
         freshness(),
         query,
@@ -165,7 +165,7 @@ fn history_truncation_is_explicit_and_uses_snapshot_bound_stable_cursors() {
     };
     assert_eq!(cursor.offset, 2);
     let second = history(
-        all,
+        &all,
         Level::BatchIncluded,
         freshness(),
         query,
@@ -183,7 +183,7 @@ fn history_truncation_is_explicit_and_uses_snapshot_bound_stable_cursors() {
     };
     assert!(matches!(
         history(
-            HistoryValue {
+            &HistoryValue {
                 records: vec![bytes(b"one")],
                 next_cursor: None,
             },
@@ -201,7 +201,7 @@ fn history_truncation_is_explicit_and_uses_snapshot_bound_stable_cursors() {
 #[test]
 fn upstream_core_pagination_is_never_misreported_as_complete() {
     let result = history(
-        HistoryValue {
+        &HistoryValue {
             records: vec![bytes(b"one")],
             next_cursor: Some(
                 HistoryCursor::new("core-cursor-2")

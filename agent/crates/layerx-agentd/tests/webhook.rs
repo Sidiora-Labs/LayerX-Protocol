@@ -273,7 +273,9 @@ fn slow_endpoint_receives_byte_identical_retry_and_bound_event_evidence() {
                 assert!(receipt_reference.is_some());
                 assert_eq!(event_bytes, b"exact-core-event-zero");
             }
-            other => panic!("unexpected outbound item: {other:?}"),
+            other @ VerifiedItem::BackfillComplete { .. } => {
+                panic!("unexpected outbound item: {other:?}")
+            }
         }
         thread::sleep(Duration::from_millis(90));
         drop(first);
@@ -316,7 +318,9 @@ fn slow_endpoint_receives_byte_identical_retry_and_bound_event_evidence() {
     assert!(server.join().is_ok(), "receiver server panicked");
     let cursor = match receipt.item {
         DeliveryItem::Event(event) => event.delivery.cursor,
-        other => panic!("unexpected receipt item: {other:?}"),
+        other @ DeliveryItem::BackfillComplete(_) => {
+            panic!("unexpected receipt item: {other:?}")
+        }
     };
     let acknowledgement = CursorAcknowledgement {
         scope: scope(),
@@ -358,9 +362,10 @@ fn capability_revocation_midflight_cancels_ack_wait_and_persists_stop() {
             Ok(value) => value,
             Err(error) => panic!("authentication failed: {error}"),
         };
-        if received_tx.send(()).is_err() {
-            panic!("revocation coordination failed");
-        }
+        assert!(
+            received_tx.send(()).is_ok(),
+            "revocation coordination failed"
+        );
         thread::sleep(Duration::from_millis(100));
         let acknowledgement = auth.acknowledgement(verified.binding);
         let _ = write_frame(&mut stream, &acknowledgement, 4096);
@@ -371,9 +376,10 @@ fn capability_revocation_midflight_cancels_ack_wait_and_persists_stop() {
     let stop = StopSignal::active();
     let stopper = stop.clone();
     let revoker = thread::spawn(move || {
-        if received_rx.recv().is_err() {
-            panic!("receiver never observed delivery");
-        }
+        assert!(
+            received_rx.recv().is_ok(),
+            "receiver never observed delivery"
+        );
         stopper.stop(Termination::CapabilityRevoked);
     });
     assert!(matches!(

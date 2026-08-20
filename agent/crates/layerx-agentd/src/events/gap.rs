@@ -141,6 +141,11 @@ impl From<SubscriptionError> for GapError {
 
 /// Detects a forward jump, persists the block and returns the exact missing
 /// interval for consumer disclosure.
+///
+/// # Errors
+///
+/// Returns `Regressed` when the observed sequence precedes the expected one, and
+/// propagates the subscription-store failure that prevented persisting the block.
 pub fn detect(
     subscriptions: &mut SubscriptionStore,
     target: &SubscriptionTarget,
@@ -239,6 +244,13 @@ pub fn attempt_backfill(
 
 /// Applies a backfill report only after every recovered event is present in
 /// durable history with the exact core bytes returned by the boundary.
+///
+/// # Errors
+///
+/// Returns `MismatchedReport` when continuity is not blocked on exactly this
+/// interval or the recovered sequences are not contiguous through its end, and
+/// `DurableEvent` when a recovered event is absent from durable history or its
+/// bytes differ from the core bytes.
 pub fn apply_backfill(
     subscriptions: &mut SubscriptionStore,
     target: &SubscriptionTarget,
@@ -297,6 +309,11 @@ pub fn apply_backfill(
 }
 
 /// Refuses any delivery while durable continuity is blocked or truncated.
+///
+/// # Errors
+///
+/// Returns `Blocked` with the missing interval or `Truncated` with the retention
+/// notice, and propagates the subscription-store read failure.
 pub fn admit(
     subscriptions: &SubscriptionStore,
     target: &SubscriptionTarget,
@@ -326,6 +343,12 @@ pub fn admit(
 
 /// Enforces the declared retention bound and persists terminal truncation when
 /// an unacknowledged cursor is older than the effective retained window.
+///
+/// # Errors
+///
+/// Returns `InvalidRetention` for a zero bound and propagates the
+/// subscription-store failure that prevented reading the cursor or persisting the
+/// notice.
 pub fn enforce_retention(
     subscriptions: &mut SubscriptionStore,
     target: &SubscriptionTarget,

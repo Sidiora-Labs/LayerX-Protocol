@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Write as _};
 use std::future::Future;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::pin;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -16,7 +16,7 @@ use layerx_agentd::idempotency::{
 };
 use layerx_agentd::limits::deadline::{RequestDeadline, RequestTracker, TrackedWork, WriteStage};
 use layerx_agentd::limits::quota::{
-    ClientActivity, QuotaError, Resource, SheddingPolicy, TenantQuota,
+    ClientActivity, QuotaError, Resource, ResourceWrite, SheddingPolicy, TenantQuota,
 };
 use layerx_agentd::limits::{
     cancel, shed, CounterLedger, LimitConfig, LimitId, LimitScope, Quota, RateLimiter, RateRequest,
@@ -40,6 +40,14 @@ use layerx_wire::encode::Encoder;
 static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(1);
 const INTENT: [u8; 32] = [0x17; 32];
 const RECEIPT: [u8; 32] = [0x91; 32];
+
+type AttemptRecord = ([u8; 32], Vec<u8>, bool);
+type AttemptHistory = Mutex<Vec<AttemptRecord>>;
+
+struct DuplicateConvergence {
+    attempts: usize,
+    unique_receipts: usize,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SuiteReport {
@@ -108,6 +116,19 @@ impl Drop for Workspace {
 }
 
 /// Runs the full limits, restart, duplicate, and receipt convergence scenario.
+///
+/// # Errors
+///
+/// Returns [`SuiteFailure`] when the scenario cannot be driven to convergence: a store,
+/// outbox, budget, rate-limit, quota, deadline, or idempotency call returns its own error; a
+/// duplicate worker thread panics or poisons an attempt-history mutex; the final outbox status
+/// is missing; or one of the invariants the suite exists to prove does not hold — the
+/// indeterminate first transport settling, a same-window retry escaping rate refusal, quota
+/// creation past the ceiling being accepted, a refusal releasing the unresolved reservation, a
+/// durable shedding decision disappearing across restart, concurrent duplicates producing more
+/// than one economic effect or more than one authoritative receipt, a post-restart resubmission
+/// re-executing, or the reservation and attempt accounting not converging. The failure carries
+/// the message together with the full recorded submission history.
 pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
     let workspace = Workspace::new();
     let tenant = tenant("tenant-a")?;
@@ -129,6 +150,86 @@ pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
     )?;
     history.extend(status_history(&outbox, INTENT));
 
+    let (budget, budget_id) = configure_reservation(&history)?;
+    let mut tracker = RequestTracker::default();
+    track_write_to_transmission(&mut tracker, &history)?;
+    record_indeterminate_transmission(&mut outbox, &mut durable, &mut tracker, &mut history)?;
+
+    let idempotency_root = workspace.path("idempotency");
+    let retention = step(
+        RetentionPolicy::new(1_000, 500),
+        "configure idempotency retention",
+        &history,
+    )?;
+    let limiter = rate_limiter(&history)?;
+    let (idempotency, initial_attempts) = refuse_duplicate_in_same_window(
+        &idempotency_root,
+        &tenant,
+        retention,
+        &limiter,
+        &outbox,
+        &exact_signed_bytes,
+        &history,
+    )?;
+
+    let quota_root = workspace.path("quota");
+    let mut quota_store = step(Store::open(&quota_root), "open quota store", &history)?;
+    let mut quota = quota(&tenant, &history)?;
+    exhaust_quota_and_shed(&mut quota, &mut quota_store, &tenant, &history)?;
+    hold_reservation_through_refusals(&budget, &tracker, &history)?;
+
+    drop(idempotency);
+    drop(outbox);
+    drop(durable);
+    drop(quota_store);
+    history.push("simulated daemon process loss after refusal and shedding".to_owned());
+
+    let (mut durable, mut outbox, idempotency) =
+        restore_after_process_loss(&workspace, &tenant, retention, &quota, &limiter, &history)?;
+
+    let economic_effects = Arc::new(AtomicUsize::new(0));
+    let convergence = converge_concurrent_duplicates(
+        &idempotency,
+        &exact_signed_bytes,
+        &economic_effects,
+        &initial_attempts,
+        &history,
+    )?;
+
+    settle_from_authoritative_receipt(&mut outbox, &mut durable, &mut history)?;
+
+    drop(idempotency);
+    refuse_post_restart_duplicate(
+        &idempotency_root,
+        &tenant,
+        retention,
+        &exact_signed_bytes,
+        &economic_effects,
+        &history,
+    )?;
+    converge_reservation_accounting(&budget, budget_id, &mut tracker, &history)?;
+
+    let final_state = outbox
+        .status(INTENT)
+        .map(|status| status.state)
+        .ok_or_else(|| failure("final outbox status is missing", &history))?;
+    ensure(
+        convergence.attempts == 2 && final_state == SubmissionState::Executed,
+        "attempt count or final outbox state did not converge",
+        &history,
+    )?;
+    Ok(SuiteReport {
+        attempts: convergence.attempts,
+        economic_effects: economic_effects.load(Ordering::SeqCst),
+        unique_receipts: convergence.unique_receipts,
+        final_state,
+        transition_history: history,
+    })
+}
+
+fn configure_reservation(
+    history: &[String],
+) -> Result<(BudgetLimiter, BudgetLimitId), SuiteFailure> {
     let budget_id = BudgetLimitId([1; 16]);
     let budget = step(
         BudgetLimiter::new(vec![BudgetLimitConfig {
@@ -139,7 +240,7 @@ pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
             consumed: 0,
         }]),
         "configure reservation accounting",
-        &history,
+        history,
     )?;
     step(
         reserve(
@@ -153,10 +254,15 @@ pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
             },
         ),
         "reserve spend before transmission",
-        &history,
+        history,
     )?;
+    Ok((budget, budget_id))
+}
 
-    let mut tracker = RequestTracker::default();
+fn track_write_to_transmission(
+    tracker: &mut RequestTracker,
+    history: &[String],
+) -> Result<(), SuiteFailure> {
     step(
         tracker.begin_write(
             1,
@@ -164,11 +270,11 @@ pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
             step(
                 RequestDeadline::new(1_000, 2_000),
                 "construct request deadline",
-                &history,
+                history,
             )?,
         ),
         "track write request",
-        &history,
+        history,
     )?;
     for stage in [
         WriteStage::Signing,
@@ -178,67 +284,79 @@ pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
         step(
             tracker.advance_write(1, stage, 1_100),
             "advance write ownership",
-            &history,
+            history,
         )?;
     }
+    Ok(())
+}
 
+fn record_indeterminate_transmission(
+    outbox: &mut Outbox,
+    durable: &mut Store,
+    tracker: &mut RequestTracker,
+    history: &mut Vec<String>,
+) -> Result<(), SuiteFailure> {
     step(
         outbox.transition(
-            &mut durable,
+            durable,
             INTENT,
             SubmissionState::Submitted,
             "first exact-byte transmission began",
             None,
         ),
         "record submitted state",
-        &history,
+        history,
     )?;
     step(
         outbox.transition(
-            &mut durable,
+            durable,
             INTENT,
             SubmissionState::Unknown,
             "transport response was indeterminate",
             None,
         ),
         "record unknown state",
-        &history,
+        history,
     )?;
     step(
-        cancel(&mut tracker, 1, 1_200),
+        cancel(tracker, 1, 1_200),
         "transfer disconnected submission to resolver",
-        &history,
+        history,
     )?;
-    history.extend(status_history(&outbox, INTENT));
+    history.extend(status_history(outbox, INTENT));
+    Ok(())
+}
 
-    let idempotency_root = workspace.path("idempotency");
-    let retention = step(
-        RetentionPolicy::new(1_000, 500),
-        "configure idempotency retention",
-        &history,
-    )?;
+fn refuse_duplicate_in_same_window(
+    idempotency_root: &Path,
+    tenant: &TenantId,
+    retention: RetentionPolicy,
+    limiter: &RateLimiter,
+    outbox: &Outbox,
+    exact_signed_bytes: &[u8],
+    history: &[String],
+) -> Result<(IdempotencyStore, Arc<AttemptHistory>), SuiteFailure> {
     let idempotency = step(
-        IdempotencyStore::open(&idempotency_root, tenant.clone(), retention),
+        IdempotencyStore::open(idempotency_root, tenant.clone(), retention),
         "open idempotency store",
-        &history,
+        history,
     )?;
-    let initial_attempts = Arc::new(Mutex::new(Vec::new()));
+    let initial_attempts: Arc<AttemptHistory> = Arc::new(Mutex::new(Vec::new()));
     let attempts_for_first = Arc::clone(&initial_attempts);
 
-    let limiter = rate_limiter(&history)?;
     step(
         limiter.admit(&rate_request(100)),
         "admit initial transmission",
-        &history,
+        history,
     )?;
-    let first_result = idempotency.execute(INTENT, &exact_signed_bytes, 1, |attempt| {
+    let first_result = idempotency.execute(INTENT, exact_signed_bytes, 1, |attempt| {
         record_attempt(&attempts_for_first, &attempt);
         Err("transport outcome indeterminate".to_owned())
     });
     ensure(
         first_result.is_err(),
         "the indeterminate first transport unexpectedly settled",
-        &history,
+        history,
     )?;
     ensure(
         matches!(
@@ -246,80 +364,97 @@ pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
             Err(Refusal::Exceeded { .. })
         ),
         "same-window retry was not rate-refused",
-        &history,
+        history,
     )?;
     ensure(
         outbox.status(INTENT).map(|status| status.state) == Some(SubmissionState::Unknown),
         "rate refusal changed the unknown outbox state",
-        &history,
+        history,
     )?;
+    Ok((idempotency, initial_attempts))
+}
 
-    let quota_root = workspace.path("quota");
-    let mut quota_store = step(Store::open(&quota_root), "open quota store", &history)?;
-    let mut quota = quota(&tenant, &history)?;
+fn exhaust_quota_and_shed(
+    quota: &mut Quota,
+    quota_store: &mut Store,
+    tenant: &TenantId,
+    history: &[String],
+) -> Result<(), SuiteFailure> {
     step(
         quota.create_resource(
-            &mut quota_store,
-            &tenant,
+            quota_store,
+            tenant,
             "storm-client",
-            Resource::Subscription,
-            b"subscription-1".to_vec(),
-            b"durable-subscription".to_vec(),
+            ResourceWrite {
+                resource: Resource::Subscription,
+                object_id: b"subscription-1".to_vec(),
+                bytes: b"durable-subscription".to_vec(),
+            },
             100,
         ),
         "consume subscription quota",
-        &history,
+        history,
     )?;
     ensure(
         matches!(
             quota.create_resource(
-                &mut quota_store,
-                &tenant,
+                quota_store,
+                tenant,
                 "storm-client",
-                Resource::Subscription,
-                b"subscription-2".to_vec(),
-                b"must-not-persist".to_vec(),
+                ResourceWrite {
+                    resource: Resource::Subscription,
+                    object_id: b"subscription-2".to_vec(),
+                    bytes: b"must-not-persist".to_vec(),
+                },
                 101,
             ),
             Err(QuotaError::Exhausted { .. })
         ),
         "creation past the subscription quota was accepted",
-        &history,
+        history,
     )?;
-    for retry in 0..3_u64 {
+    for retry in 0..3_u8 {
         step(
             shed(
-                &mut quota,
-                &mut quota_store,
+                quota,
+                quota_store,
                 ClientActivity {
                     tenant: tenant.clone(),
                     client_id: "storm-client".to_owned(),
-                    operation_digest: [retry as u8; 32],
+                    operation_digest: [retry; 32],
                     retry: true,
-                    observed_at_ms: 200 + retry,
+                    observed_at_ms: 200 + u64::from(retry),
                 },
             ),
             "record retry-storm observation",
-            &history,
+            history,
         )?;
     }
+    Ok(())
+}
+
+fn hold_reservation_through_refusals(
+    budget: &BudgetLimiter,
+    tracker: &RequestTracker,
+    history: &[String],
+) -> Result<(), SuiteFailure> {
     ensure(
         step(
             budget.held_reservations(),
             "read held reservations after limit refusals",
-            &history,
+            history,
         )? == 1,
         "rate, quota, or shedding released an unresolved reservation",
-        &history,
+        history,
     )?;
     ensure(
         !step(
-            release(&budget, INTENT, ReleaseKind::Unknown, 50),
+            release(budget, INTENT, ReleaseKind::Unknown, 50),
             "apply unknown reservation outcome",
-            &history,
+            history,
         )?,
         "unknown outcome released the reservation",
-        &history,
+        history,
     )?;
     ensure(
         matches!(
@@ -331,56 +466,76 @@ pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
             })
         ),
         "deadline cancellation orphaned the submission or released its reservation",
-        &history,
+        history,
     )?;
+    Ok(())
+}
 
-    drop(idempotency);
-    drop(outbox);
-    drop(durable);
-    drop(quota_store);
-    history.push("simulated daemon process loss after refusal and shedding".to_owned());
-
-    let mut durable = step(Store::open(&outbox_root), "reopen outbox store", &history)?;
+fn restore_after_process_loss(
+    workspace: &Workspace,
+    tenant: &TenantId,
+    retention: RetentionPolicy,
+    quota: &Quota,
+    limiter: &RateLimiter,
+    history: &[String],
+) -> Result<(Store, Outbox, Arc<IdempotencyStore>), SuiteFailure> {
+    let durable = step(
+        Store::open(workspace.path("outbox")),
+        "reopen outbox store",
+        history,
+    )?;
     let mut outbox = Outbox::default();
     step(
         outbox.restore(&durable, tenant.clone(), INTENT),
         "restore unknown outbox",
-        &history,
+        history,
     )?;
     let idempotency = Arc::new(step(
-        IdempotencyStore::open(&idempotency_root, tenant.clone(), retention),
+        IdempotencyStore::open(workspace.path("idempotency"), tenant.clone(), retention),
         "reopen idempotency store",
-        &history,
+        history,
     )?);
     step(
         idempotency.restore(&[INTENT]),
         "restore pending idempotency record",
-        &history,
+        history,
     )?;
-    let quota_store = step(Store::open(&quota_root), "reopen quota decisions", &history)?;
+    let quota_store = step(
+        Store::open(workspace.path("quota")),
+        "reopen quota decisions",
+        history,
+    )?;
     let quota_health = step(
-        quota.health(&quota_store, &tenant, 300),
+        quota.health(&quota_store, tenant, 300),
         "restore quota health",
-        &history,
+        history,
     )?;
     ensure(
         quota_health.actively_shed_clients == vec!["storm-client"],
         "durable shedding decision disappeared across restart",
-        &history,
+        history,
     )?;
     step(
         limiter.admit(&rate_request(1_000)),
         "admit retry in the next rate window",
-        &history,
+        history,
     )?;
+    Ok((durable, outbox, idempotency))
+}
 
-    let economic_effects = Arc::new(AtomicUsize::new(0));
-    let successful_attempts = Arc::new(Mutex::new(Vec::new()));
+fn converge_concurrent_duplicates(
+    idempotency: &Arc<IdempotencyStore>,
+    exact_signed_bytes: &[u8],
+    economic_effects: &Arc<AtomicUsize>,
+    initial_attempts: &Arc<AttemptHistory>,
+    history: &[String],
+) -> Result<DuplicateConvergence, SuiteFailure> {
+    let successful_attempts: Arc<AttemptHistory> = Arc::new(Mutex::new(Vec::new()));
     let mut workers = Vec::new();
     for _ in 0..16 {
-        let store = Arc::clone(&idempotency);
-        let bytes = exact_signed_bytes.clone();
-        let effects = Arc::clone(&economic_effects);
+        let store = Arc::clone(idempotency);
+        let bytes = exact_signed_bytes.to_vec();
+        let effects = Arc::clone(economic_effects);
         let attempts = Arc::clone(&successful_attempts);
         workers.push(std::thread::spawn(move || {
             store.execute(INTENT, &bytes, 2, |attempt| {
@@ -397,34 +552,34 @@ pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
     for worker in workers {
         let joined = worker
             .join()
-            .map_err(|_| failure("duplicate worker panicked", &history))?;
-        outcomes.push(step(joined, "execute concurrent duplicate", &history)?);
+            .map_err(|_| failure("duplicate worker panicked", history))?;
+        outcomes.push(step(joined, "execute concurrent duplicate", history)?);
     }
 
     let attempts = initial_attempts
         .lock()
-        .map_err(|_| failure("initial attempt history was poisoned", &history))?
+        .map_err(|_| failure("initial attempt history was poisoned", history))?
         .len()
         + successful_attempts
             .lock()
-            .map_err(|_| failure("successful attempt history was poisoned", &history))?
+            .map_err(|_| failure("successful attempt history was poisoned", history))?
             .len();
     let successful = successful_attempts
         .lock()
-        .map_err(|_| failure("successful attempt history was poisoned", &history))?
+        .map_err(|_| failure("successful attempt history was poisoned", history))?
         .clone();
     ensure(
         successful.len() == 1
             && successful[0].0 == INTENT
-            && successful[0].1.as_slice() == exact_signed_bytes.as_slice()
+            && successful[0].1.as_slice() == exact_signed_bytes
             && successful[0].2,
         "concurrent retry changed bytes/key or executed more than once",
-        &history,
+        history,
     )?;
     ensure(
         economic_effects.load(Ordering::SeqCst) == 1,
         "concurrent duplicates produced multiple economic effects",
-        &history,
+        history,
     )?;
 
     let receipts = outcomes
@@ -438,12 +593,22 @@ pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
     ensure(
         receipts == BTreeSet::from([RECEIPT]),
         "duplicates did not converge on one authoritative receipt",
-        &history,
+        history,
     )?;
+    Ok(DuplicateConvergence {
+        attempts,
+        unique_receipts: receipts.len(),
+    })
+}
 
+fn settle_from_authoritative_receipt(
+    outbox: &mut Outbox,
+    durable: &mut Store,
+    history: &mut Vec<String>,
+) -> Result<(), SuiteFailure> {
     step(
         outbox.transition(
-            &mut durable,
+            durable,
             INTENT,
             SubmissionState::Executed,
             "verified receipt returned for original idempotency key",
@@ -453,24 +618,33 @@ pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
             }),
         ),
         "settle outbox from authoritative receipt",
-        &history,
+        history,
     )?;
-    history.extend(status_history(&outbox, INTENT));
+    history.extend(status_history(outbox, INTENT));
+    Ok(())
+}
 
-    drop(idempotency);
+fn refuse_post_restart_duplicate(
+    idempotency_root: &Path,
+    tenant: &TenantId,
+    retention: RetentionPolicy,
+    exact_signed_bytes: &[u8],
+    economic_effects: &Arc<AtomicUsize>,
+    history: &[String],
+) -> Result<(), SuiteFailure> {
     let idempotency = step(
-        IdempotencyStore::open(&idempotency_root, tenant, retention),
+        IdempotencyStore::open(idempotency_root, tenant.clone(), retention),
         "reopen settled idempotency store",
-        &history,
+        history,
     )?;
     step(
         idempotency.restore(&[INTENT]),
         "restore settled idempotency record",
-        &history,
+        history,
     )?;
-    let effects = Arc::clone(&economic_effects);
+    let effects = Arc::clone(economic_effects);
     let post_restart = step(
-        idempotency.execute(INTENT, &exact_signed_bytes, 3, move |_| {
+        idempotency.execute(INTENT, exact_signed_bytes, 3, move |_| {
             effects.fetch_add(1, Ordering::SeqCst);
             Ok(EconomicResult {
                 response_bytes: b"duplicate-effect".to_vec(),
@@ -478,60 +652,52 @@ pub fn agent_limits_exactly_once_suite() -> Result<SuiteReport, SuiteFailure> {
             })
         }),
         "submit duplicate after settled restart",
-        &history,
+        history,
     )?;
     ensure(
         matches!(post_restart, IdempotencyOutcome::RepeatedOriginal(_))
             && economic_effects.load(Ordering::SeqCst) == 1,
         "post-restart resubmission produced a duplicate effect",
-        &history,
+        history,
     )?;
+    Ok(())
+}
 
+fn converge_reservation_accounting(
+    budget: &BudgetLimiter,
+    budget_id: BudgetLimitId,
+    tracker: &mut RequestTracker,
+    history: &[String],
+) -> Result<(), SuiteFailure> {
     step(
         tracker.resolved_by_receipt(1),
         "release resolver ownership after receipt",
-        &history,
+        history,
     )?;
     ensure(
         step(
-            release(&budget, INTENT, ReleaseKind::Executed, 60),
+            release(budget, INTENT, ReleaseKind::Executed, 60),
             "consume reservation after verified receipt",
-            &history,
+            history,
         )?,
         "verified receipt did not consume the reservation",
-        &history,
+        history,
     )?;
     ensure(
         step(
             budget.held_reservations(),
             "read final reservations",
-            &history,
+            history,
         )? == 0
             && step(
                 budget.consumed(budget_id),
                 "read final consumed budget",
-                &history,
+                history,
             )? == 100,
         "reservation accounting did not converge after the receipt",
-        &history,
+        history,
     )?;
-
-    let final_state = outbox
-        .status(INTENT)
-        .map(|status| status.state)
-        .ok_or_else(|| failure("final outbox status is missing", &history))?;
-    ensure(
-        attempts == 2 && final_state == SubmissionState::Executed,
-        "attempt count or final outbox state did not converge",
-        &history,
-    )?;
-    Ok(SuiteReport {
-        attempts,
-        economic_effects: economic_effects.load(Ordering::SeqCst),
-        unique_receipts: receipts.len(),
-        final_state,
-        transition_history: history,
-    })
+    Ok(())
 }
 
 #[test]
@@ -596,7 +762,7 @@ fn quota(tenant: &TenantId, history: &[String]) -> Result<Quota, SuiteFailure> {
 }
 
 fn record_attempt(
-    attempts: &Mutex<Vec<([u8; 32], Vec<u8>, bool)>>,
+    attempts: &AttemptHistory,
     attempt: &layerx_agentd::idempotency::ProtocolAttempt<'_>,
 ) {
     if let Ok(mut attempts) = attempts.lock() {
@@ -654,10 +820,10 @@ fn failure(message: impl Into<String>, history: &[String]) -> SuiteFailure {
 }
 
 fn hex_id(identifier: [u8; 32]) -> String {
-    identifier
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    identifier.iter().fold(String::new(), |mut rendered, byte| {
+        let _ = write!(rendered, "{byte:02x}");
+        rendered
+    })
 }
 
 fn ready<F: Future>(future: F) -> F::Output {
@@ -717,9 +883,9 @@ fn verified_submission() -> Result<VerifiedSubmission, SuiteFailure> {
         &registry,
     ))
     .map_err(|error| failure(format!("sign: {error:?}"), &[]))?;
-    let signed = attach_external_signature(&prepared, *signature.as_bytes())
+    let signed_bytes = attach_external_signature(&prepared, *signature.as_bytes())
         .map_err(|error| failure(format!("attach signature: {error:?}"), &[]))?;
-    verify_before_submit(&signed, &prepared, &signer.public_key(), &registry)
+    verify_before_submit(&signed_bytes, &prepared, &signer.public_key(), &registry)
         .map_err(|error| failure(format!("verify signature: {error:?}"), &[]))
 }
 

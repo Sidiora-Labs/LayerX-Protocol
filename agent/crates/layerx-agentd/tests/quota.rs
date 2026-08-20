@@ -4,7 +4,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use layerx_agentd::limits::admission::Priority;
 use layerx_agentd::limits::quota::{
-    ClientActivity, QuotaError, Resource, SheddingPolicy, SheddingReason, TenantQuota,
+    ClientActivity, QuotaError, Resource, ResourceWrite, SheddingPolicy, SheddingReason,
+    TenantQuota,
 };
 use layerx_agentd::limits::{shed, Quota};
 use layerx_agentd::store::{Store, TenantId};
@@ -20,7 +21,7 @@ fn directory(label: &str) -> PathBuf {
 }
 
 fn tenant(value: &str) -> TenantId {
-    TenantId::new(value).expect("valid test tenant")
+    TenantId::new(value).unwrap_or_else(|error| panic!("tenant {value}: {error}"))
 }
 
 fn tenant_quota(tenant: TenantId, limit: usize) -> TenantQuota {
@@ -28,7 +29,7 @@ fn tenant_quota(tenant: TenantId, limit: usize) -> TenantQuota {
         tenant,
         Resource::ALL.into_iter().map(|resource| (resource, limit)),
     )
-    .expect("complete tenant quota")
+    .unwrap_or_else(|error| panic!("tenant quota: {error:?}"))
 }
 
 fn policy() -> SheddingPolicy {
@@ -61,29 +62,36 @@ fn activity(
 fn every_durable_resource_refuses_creation_past_its_tenant_quota() {
     let root = directory("resources");
     let tenant = tenant("tenant-a");
-    let mut store = Store::open(&root).expect("durable store opens");
-    let quota = Quota::new([tenant_quota(tenant.clone(), 1)], policy()).expect("valid quota");
+    let mut store = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
+    let quota = Quota::new([tenant_quota(tenant.clone(), 1)], policy())
+        .unwrap_or_else(|error| panic!("quota: {error:?}"));
 
     for (index, resource) in Resource::ALL.into_iter().enumerate() {
+        let index =
+            u8::try_from(index).unwrap_or_else(|error| panic!("resource index {index}: {error}"));
         quota
             .create_resource(
                 &mut store,
                 &tenant,
                 "client-a",
-                resource,
-                vec![index as u8 + 1],
-                vec![0xa0 + index as u8],
+                ResourceWrite {
+                    resource,
+                    object_id: vec![index + 1],
+                    bytes: vec![0xa0 + index],
+                },
                 100,
             )
-            .expect("first durable object fits");
+            .unwrap_or_else(|error| panic!("first {resource:?} object: {error:?}"));
         assert!(matches!(
             quota.create_resource(
                 &mut store,
                 &tenant,
                 "client-a",
-                resource,
-                vec![index as u8 + 20],
-                vec![0xb0 + index as u8],
+                ResourceWrite {
+                    resource,
+                    object_id: vec![index + 20],
+                    bytes: vec![0xb0 + index],
+                },
                 100,
             ),
             Err(QuotaError::Exhausted {
@@ -96,10 +104,11 @@ fn every_durable_resource_refuses_creation_past_its_tenant_quota() {
     }
     drop(store);
 
-    let reopened = Store::open(&root).expect("durable objects survive restart");
+    let reopened =
+        Store::open(&root).unwrap_or_else(|error| panic!("reopen after restart: {error}"));
     let health = quota
         .health(&reopened, &tenant, 100)
-        .expect("tenant health is available");
+        .unwrap_or_else(|error| panic!("tenant health: {error:?}"));
     assert_eq!(health.resources.len(), 5);
     assert!(health
         .resources
@@ -112,8 +121,9 @@ fn every_durable_resource_refuses_creation_past_its_tenant_quota() {
 fn retry_storm_sheds_only_the_pathological_client_and_records_the_decision() {
     let root = directory("retry-storm");
     let tenant = tenant("tenant-a");
-    let mut store = Store::open(&root).expect("durable store opens");
-    let mut quota = Quota::new([tenant_quota(tenant.clone(), 10)], policy()).expect("valid quota");
+    let mut store = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
+    let mut quota = Quota::new([tenant_quota(tenant.clone(), 10)], policy())
+        .unwrap_or_else(|error| panic!("quota: {error:?}"));
 
     assert_eq!(
         shed(
@@ -121,7 +131,7 @@ fn retry_storm_sheds_only_the_pathological_client_and_records_the_decision() {
             &mut store,
             activity(tenant.clone(), "bad-client", 1, true, 100)
         )
-        .expect("first retry is observed"),
+        .unwrap_or_else(|error| panic!("first retry: {error:?}")),
         None
     );
     assert_eq!(
@@ -130,7 +140,7 @@ fn retry_storm_sheds_only_the_pathological_client_and_records_the_decision() {
             &mut store,
             activity(tenant.clone(), "bad-client", 2, true, 110)
         )
-        .expect("second retry is observed"),
+        .unwrap_or_else(|error| panic!("second retry: {error:?}")),
         None
     );
     let decision = shed(
@@ -138,8 +148,8 @@ fn retry_storm_sheds_only_the_pathological_client_and_records_the_decision() {
         &mut store,
         activity(tenant.clone(), "bad-client", 3, true, 120),
     )
-    .expect("third retry is observed")
-    .expect("retry threshold emits a decision");
+    .unwrap_or_else(|error| panic!("third retry: {error:?}"))
+    .unwrap_or_else(|| panic!("retry threshold emits no decision"));
     assert_eq!(decision.reason, SheddingReason::RetryStorm);
     assert_eq!(decision.shed_until_ms, 5_120);
 
@@ -152,17 +162,17 @@ fn retry_storm_sheds_only_the_pathological_client_and_records_the_decision() {
     ));
     quota
         .admit_work(&store, &tenant, "healthy-client", Priority::BulkRead, 121)
-        .expect("a sibling client is unaffected");
+        .unwrap_or_else(|error| panic!("sibling client admission: {error:?}"));
     drop(store);
 
-    let reopened = Store::open(&root).expect("store reopens");
+    let reopened = Store::open(&root).unwrap_or_else(|error| panic!("reopen: {error}"));
     assert!(matches!(
         quota.admit_work(&reopened, &tenant, "bad-client", Priority::BulkRead, 122),
         Err(QuotaError::ClientShed { .. })
     ));
     let health = quota
         .health(&reopened, &tenant, 122)
-        .expect("health reads durable shed state");
+        .unwrap_or_else(|error| panic!("shed-state health: {error:?}"));
     assert_eq!(health.actively_shed_clients, vec!["bad-client"]);
     let _ = fs::remove_dir_all(root);
 }
@@ -171,8 +181,9 @@ fn retry_storm_sheds_only_the_pathological_client_and_records_the_decision() {
 fn hot_loop_and_request_storm_have_distinct_recorded_reasons() {
     let root = directory("reasons");
     let tenant = tenant("tenant-a");
-    let mut store = Store::open(&root).expect("durable store opens");
-    let mut quota = Quota::new([tenant_quota(tenant.clone(), 10)], policy()).expect("valid quota");
+    let mut store = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
+    let mut quota = Quota::new([tenant_quota(tenant.clone(), 10)], policy())
+        .unwrap_or_else(|error| panic!("quota: {error:?}"));
 
     let mut hot_loop = None;
     for observed_at_ms in 100..104 {
@@ -181,30 +192,34 @@ fn hot_loop_and_request_storm_have_distinct_recorded_reasons() {
             &mut store,
             activity(tenant.clone(), "hot-client", 9, false, observed_at_ms),
         )
-        .expect("hot-loop observation succeeds");
+        .unwrap_or_else(|error| panic!("hot-loop observation: {error:?}"));
     }
     assert_eq!(
-        hot_loop.expect("hot loop is detected").reason,
+        hot_loop
+            .unwrap_or_else(|| panic!("hot loop is not detected"))
+            .reason,
         SheddingReason::HotLoop
     );
 
     let mut request_storm = None;
-    for index in 0..6_u64 {
+    for index in 0..6_u8 {
         request_storm = shed(
             &mut quota,
             &mut store,
             activity(
                 tenant.clone(),
                 "busy-client",
-                index as u8,
+                index,
                 false,
-                200 + index,
+                200 + u64::from(index),
             ),
         )
-        .expect("request observation succeeds");
+        .unwrap_or_else(|error| panic!("request observation {index}: {error:?}"));
     }
     assert_eq!(
-        request_storm.expect("request storm is detected").reason,
+        request_storm
+            .unwrap_or_else(|| panic!("request storm is not detected"))
+            .reason,
         SheddingReason::PathologicalClient
     );
     let _ = fs::remove_dir_all(root);
@@ -215,7 +230,7 @@ fn another_tenant_keeps_its_quota_and_capacity_during_shedding() {
     let root = directory("tenant-isolation");
     let alpha = tenant("alpha");
     let beta = tenant("beta");
-    let mut store = Store::open(&root).expect("durable store opens");
+    let mut store = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
     let mut quota = Quota::new(
         [
             tenant_quota(alpha.clone(), 1),
@@ -223,33 +238,37 @@ fn another_tenant_keeps_its_quota_and_capacity_during_shedding() {
         ],
         policy(),
     )
-    .expect("valid quotas");
+    .unwrap_or_else(|error| panic!("quotas: {error:?}"));
 
     quota
         .create_resource(
             &mut store,
             &alpha,
             "alpha-client",
-            Resource::Subscription,
-            b"alpha-1".to_vec(),
-            b"record".to_vec(),
+            ResourceWrite {
+                resource: Resource::Subscription,
+                object_id: b"alpha-1".to_vec(),
+                bytes: b"record".to_vec(),
+            },
             1,
         )
-        .expect("alpha consumes its own quota");
+        .unwrap_or_else(|error| panic!("alpha durable object: {error:?}"));
     assert!(matches!(
         quota.create_resource(
             &mut store,
             &alpha,
             "alpha-client",
-            Resource::Subscription,
-            b"alpha-2".to_vec(),
-            b"record".to_vec(),
+            ResourceWrite {
+                resource: Resource::Subscription,
+                object_id: b"alpha-2".to_vec(),
+                bytes: b"record".to_vec(),
+            },
             1,
         ),
         Err(QuotaError::Exhausted { .. })
     ));
 
-    for retry in 0..3 {
+    for retry in 0..3_u8 {
         shed(
             &mut quota,
             &mut store,
@@ -258,26 +277,30 @@ fn another_tenant_keeps_its_quota_and_capacity_during_shedding() {
                 "alpha-client",
                 retry,
                 true,
-                10 + retry as u64,
+                10 + u64::from(retry),
             ),
         )
-        .expect("alpha retry is observed");
+        .unwrap_or_else(|error| panic!("alpha retry {retry}: {error:?}"));
     }
     quota
         .create_resource(
             &mut store,
             &beta,
             "beta-client",
-            Resource::Subscription,
-            b"beta-1".to_vec(),
-            b"record".to_vec(),
+            ResourceWrite {
+                resource: Resource::Subscription,
+                object_id: b"beta-1".to_vec(),
+                bytes: b"record".to_vec(),
+            },
             20,
         )
-        .expect("beta keeps independent durable capacity");
+        .unwrap_or_else(|error| panic!("beta durable object: {error:?}"));
     quota
         .admit_work(&store, &beta, "beta-client", Priority::BulkRead, 20)
-        .expect("beta is not shed to compensate for alpha");
-    let health = quota.health(&store, &beta, 20).expect("beta health");
+        .unwrap_or_else(|error| panic!("beta admission: {error:?}"));
+    let health = quota
+        .health(&store, &beta, 20)
+        .unwrap_or_else(|error| panic!("beta health: {error:?}"));
     assert_eq!(health.resources[0].used, 1);
     assert!(health.actively_shed_clients.is_empty());
     let _ = fs::remove_dir_all(root);
@@ -287,21 +310,28 @@ fn another_tenant_keeps_its_quota_and_capacity_during_shedding() {
 fn critical_submission_and_receipt_work_remain_reserved_during_a_client_shed() {
     let root = directory("reserved");
     let tenant = tenant("tenant-a");
-    let mut store = Store::open(&root).expect("durable store opens");
-    let mut quota = Quota::new([tenant_quota(tenant.clone(), 10)], policy()).expect("valid quota");
-    for retry in 0..3 {
+    let mut store = Store::open(&root).unwrap_or_else(|error| panic!("store: {error}"));
+    let mut quota = Quota::new([tenant_quota(tenant.clone(), 10)], policy())
+        .unwrap_or_else(|error| panic!("quota: {error:?}"));
+    for retry in 0..3_u8 {
         shed(
             &mut quota,
             &mut store,
-            activity(tenant.clone(), "client-a", retry, true, 100 + retry as u64),
+            activity(
+                tenant.clone(),
+                "client-a",
+                retry,
+                true,
+                100 + u64::from(retry),
+            ),
         )
-        .expect("retry observation succeeds");
+        .unwrap_or_else(|error| panic!("retry {retry} observation: {error:?}"));
     }
 
     for priority in [Priority::Submission, Priority::ReceiptResolution] {
         quota
             .admit_work(&store, &tenant, "client-a", priority, 110)
-            .expect("critical resolution capacity is protected");
+            .unwrap_or_else(|error| panic!("{priority:?} admission: {error:?}"));
     }
     assert!(matches!(
         quota.admit_work(&store, &tenant, "client-a", Priority::Backfill, 110),

@@ -19,7 +19,7 @@ fn config(maximum_in_flight: usize, requests_per_lane: usize) -> AdmissionConfig
             )
         }),
     )
-    .expect("complete finite boundary configuration")
+    .unwrap_or_else(|error| panic!("complete finite boundary configuration: {error:?}"))
 }
 
 fn work(request_id: u64, priority: Priority) -> BoundaryWork {
@@ -40,7 +40,9 @@ fn submission_and_receipt_dispatch_before_a_synthetic_bulk_storm() {
                 work(request_id, Priority::BulkRead),
                 CoreAvailability::Ready,
             )
-            .expect("bounded bulk lane accepts up to its declared limit");
+            .unwrap_or_else(|error| {
+                panic!("bounded bulk lane accepts request {request_id}: {error:?}")
+            });
     }
     assert!(matches!(
         controller.admit(work(129, Priority::BulkRead), CoreAvailability::Ready),
@@ -57,19 +59,23 @@ fn submission_and_receipt_dispatch_before_a_synthetic_bulk_storm() {
             work(1_000, Priority::ReceiptResolution),
             CoreAvailability::Ready,
         )
-        .expect("receipt lane remains available during bulk saturation");
+        .unwrap_or_else(|error| {
+            panic!("receipt lane remains available during bulk saturation: {error:?}")
+        });
     controller
         .admit(work(1_001, Priority::Submission), CoreAvailability::Ready)
-        .expect("submission lane remains available during bulk saturation");
+        .unwrap_or_else(|error| {
+            panic!("submission lane remains available during bulk saturation: {error:?}")
+        });
 
     let first = controller
         .dispatch(CoreAvailability::Ready)
-        .expect("dispatch succeeds")
-        .expect("submission is queued");
+        .unwrap_or_else(|error| panic!("first dispatch: {error:?}"))
+        .unwrap_or_else(|| panic!("submission is queued"));
     let second = controller
         .dispatch(CoreAvailability::Ready)
-        .expect("dispatch succeeds")
-        .expect("receipt is queued");
+        .unwrap_or_else(|error| panic!("second dispatch: {error:?}"))
+        .unwrap_or_else(|| panic!("receipt is queued"));
     assert_eq!(first.work.priority, Priority::Submission);
     assert_eq!(second.work.priority, Priority::ReceiptResolution);
     assert_eq!(
@@ -83,15 +89,15 @@ fn a_slow_node_holds_only_the_explicit_in_flight_capacity() {
     let mut controller = BoundaryAdmission::new(config(1, 4));
     controller
         .admit(work(1, Priority::Submission), CoreAvailability::Ready)
-        .expect("submission admitted");
+        .unwrap_or_else(|error| panic!("submission admitted: {error:?}"));
     controller
         .admit(work(2, Priority::BulkRead), CoreAvailability::Ready)
-        .expect("bulk read admitted");
+        .unwrap_or_else(|error| panic!("bulk read admitted: {error:?}"));
 
     let dispatched = controller
         .dispatch(CoreAvailability::Ready)
-        .expect("first dispatch succeeds")
-        .expect("submission is queued");
+        .unwrap_or_else(|error| panic!("first dispatch: {error:?}"))
+        .unwrap_or_else(|| panic!("submission is queued"));
     assert_eq!(dispatched.work.request_id, 1);
     assert_eq!(controller.in_flight(), 1);
     assert!(matches!(
@@ -109,12 +115,12 @@ fn a_slow_node_holds_only_the_explicit_in_flight_capacity() {
 
     controller
         .finish(1, CoreOutcome::Completed)
-        .expect("slow call eventually completes");
+        .unwrap_or_else(|error| panic!("slow call eventually completes: {error:?}"));
     assert_eq!(
         controller
             .dispatch(CoreAvailability::Ready)
-            .expect("capacity is released")
-            .expect("bulk read remains queued")
+            .unwrap_or_else(|error| panic!("capacity is released: {error:?}"))
+            .unwrap_or_else(|| panic!("bulk read remains queued"))
             .work
             .request_id,
         2
@@ -139,7 +145,7 @@ fn core_backpressure_and_unavailability_are_returned_without_hidden_queues() {
 
     controller
         .admit(work(2, Priority::Submission), CoreAvailability::Ready)
-        .expect("work admitted while core is ready");
+        .unwrap_or_else(|error| panic!("work admitted while core is ready: {error:?}"));
     assert!(matches!(
         controller.dispatch(CoreAvailability::Unavailable { retry_after_ms: 80 }),
         Err(AdmissionError::Backpressure {
@@ -155,8 +161,8 @@ fn core_backpressure_and_unavailability_are_returned_without_hidden_queues() {
 
     let request_id = controller
         .dispatch(CoreAvailability::Ready)
-        .expect("dispatch resumes")
-        .expect("submission remains owned")
+        .unwrap_or_else(|error| panic!("dispatch resumes: {error:?}"))
+        .unwrap_or_else(|| panic!("submission remains owned"))
         .work
         .request_id;
     assert!(matches!(
@@ -198,7 +204,8 @@ fn reconnecting_subscription_burst_cannot_consume_other_lanes() {
             bytes: 16,
         },
     );
-    let configuration = AdmissionConfig::new(2, 64, lanes).expect("valid lane map");
+    let configuration = AdmissionConfig::new(2, 64, lanes)
+        .unwrap_or_else(|error| panic!("valid lane map: {error:?}"));
     let mut controller = BoundaryAdmission::new(configuration);
 
     controller
@@ -206,13 +213,13 @@ fn reconnecting_subscription_burst_cannot_consume_other_lanes() {
             work(1, Priority::SubscriptionCatchUp),
             CoreAvailability::Ready,
         )
-        .expect("first reconnect admitted");
+        .unwrap_or_else(|error| panic!("first reconnect admitted: {error:?}"));
     controller
         .admit(
             work(2, Priority::SubscriptionCatchUp),
             CoreAvailability::Ready,
         )
-        .expect("second reconnect admitted");
+        .unwrap_or_else(|error| panic!("second reconnect admitted: {error:?}"));
     assert!(matches!(
         controller.admit(
             work(3, Priority::SubscriptionCatchUp),
@@ -226,12 +233,14 @@ fn reconnecting_subscription_burst_cannot_consume_other_lanes() {
     ));
     controller
         .admit(work(4, Priority::Submission), CoreAvailability::Ready)
-        .expect("independently bounded submission lane remains available");
+        .unwrap_or_else(|error| {
+            panic!("independently bounded submission lane remains available: {error:?}")
+        });
     assert_eq!(
         controller
             .dispatch(CoreAvailability::Ready)
-            .expect("dispatch succeeds")
-            .expect("submission exists")
+            .unwrap_or_else(|error| panic!("dispatch succeeds: {error:?}"))
+            .unwrap_or_else(|| panic!("submission exists"))
             .work
             .priority,
         Priority::Submission
@@ -266,11 +275,11 @@ fn every_lane_and_message_has_an_explicit_finite_bound() {
                 )
             }),
         )
-        .expect("valid byte-bounded configuration"),
+        .unwrap_or_else(|error| panic!("valid byte-bounded configuration: {error:?}")),
     );
     byte_bounded
         .admit(work(1, Priority::Backfill), CoreAvailability::Ready)
-        .expect("first eight-byte record fits");
+        .unwrap_or_else(|error| panic!("first eight-byte record fits: {error:?}"));
     assert!(matches!(
         byte_bounded.admit(work(2, Priority::Backfill), CoreAvailability::Ready),
         Err(AdmissionError::Backpressure {

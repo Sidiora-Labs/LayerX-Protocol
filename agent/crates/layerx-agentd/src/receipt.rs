@@ -73,6 +73,12 @@ pub const fn classify(code: ResultCode) -> ResultClassification {
 
 /// Verifies through `layerx-proof`, then atomically stores exact bytes under
 /// activity, idempotency, and global-sequence indexes.
+///
+/// # Errors
+///
+/// Returns the failed `layerx-proof` check when verification refuses the receipt, `Corrupt` when
+/// the verified receipt carries no protocol section, and the store failure when an index key is
+/// invalid or a durable index already holds conflicting bytes.
 pub fn store(
     durable: &mut Store,
     tenant: TenantId,
@@ -118,6 +124,11 @@ pub fn store(
 }
 
 /// Serves the exact core-produced receipt bytes through any durable index.
+///
+/// # Errors
+///
+/// Returns `Missing` when the index holds no receipt, and `Corrupt` when the paired metadata
+/// record is absent or does not decode.
 pub fn serve(
     durable: &Store,
     tenant: TenantId,

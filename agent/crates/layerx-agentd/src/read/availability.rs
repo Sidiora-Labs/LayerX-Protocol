@@ -10,6 +10,15 @@ use layerx_proof::availability::{AvailabilityCheck, ClassReport, ReassemblyRepor
 
 use crate::store::{ObjectKind, Store, StoreError, TenantId, TenantKey};
 
+/// Exactly which availability slice to retrieve, under which checkpoint and
+/// which trusted commitments.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AvailabilityRequest {
+    pub selector: AvailabilitySelector,
+    pub checkpoint_id: [u8; 32],
+    pub context: FetchContext,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AvailabilityFailure {
     pub checkpoint_id: [u8; 32],
@@ -83,20 +92,29 @@ impl From<StoreError> for AvailabilityReadError {
 }
 
 /// Streams verified chunks, retains provider failure evidence, and emits replay framing.
+///
+/// # Errors
+///
+/// Returns `Fetch` for an empty provider set, an invalid selector or bounds, or
+/// correlation-id overflow, `Arithmetic` when a chunk count, chunk length or provider
+/// failure tally overflows its width, and `Store` if failure evidence cannot be persisted.
 pub fn availability<F>(
     store: &mut Store,
-    tenant: TenantId,
+    tenant: &TenantId,
     audit: &mut AvailabilityAudit,
     providers: &mut ProviderSet<'_>,
-    selector: AvailabilitySelector,
-    checkpoint_id: [u8; 32],
-    context: FetchContext,
-    mut on_chunk: F,
+    request: &AvailabilityRequest,
+    on_chunk: F,
 ) -> Result<AvailabilityRead, AvailabilityReadError>
 where
     F: FnMut(Progress<'_>),
 {
-    match fetch(providers, selector, context, |progress| on_chunk(progress))? {
+    let AvailabilityRequest {
+        selector,
+        checkpoint_id,
+        context,
+    } = *request;
+    match fetch(providers, selector, context, on_chunk)? {
         FetchOutcome::Complete(result) => Ok(AvailabilityRead::Complete {
             provider: result.provider,
             report: result.report,

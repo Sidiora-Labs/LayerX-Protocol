@@ -27,6 +27,11 @@ pub struct BalanceRead {
 }
 
 /// Serves a balance only when the LNI response locally proves the requested level.
+///
+/// # Errors
+///
+/// Returns the client read failure when the transport fails, the response does not match the
+/// request, or the response cannot locally prove the requested verification level.
 pub fn balance(
     transport: &mut dyn FrameTransport,
     account: [u8; 32],

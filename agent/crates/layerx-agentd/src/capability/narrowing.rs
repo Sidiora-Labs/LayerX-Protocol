@@ -41,6 +41,11 @@ pub struct Binding {
 
 impl Binding {
     /// Rechecks the current core scope and disables a now-wider capability.
+    ///
+    /// # Errors
+    ///
+    /// Names the first dimension wider than the current protocol scope, after disabling the
+    /// binding.
     pub fn recheck(&mut self, scope: &ProtocolScope) -> Result<(), NarrowingError> {
         match validate(&self.capability, scope) {
             Ok(()) => {

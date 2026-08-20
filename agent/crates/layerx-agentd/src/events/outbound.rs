@@ -41,6 +41,11 @@ pub struct Endpoint {
 
 impl Endpoint {
     /// Constructs a mutually authenticated local endpoint with finite bounds.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidConfiguration` for a relative path, a zero frame bound, or a
+    /// zero deadline or cancellation poll.
     pub fn new(
         path: impl Into<PathBuf>,
         expected_peer: PeerIdentity,
@@ -88,6 +93,11 @@ pub struct Authenticator {
 
 impl Authenticator {
     /// Imports a fixed binding key into redacted zeroing storage.
+    ///
+    /// # Errors
+    ///
+    /// Returns `InvalidConfiguration` for an empty, oversized, or NUL-bearing key
+    /// identifier.
     pub fn new(key_id: impl Into<String>, key: [u8; 32]) -> Result<Self, OutboundError> {
         let key_id = key_id.into();
         if key_id.is_empty() || key_id.len() > 255 || key_id.as_bytes().contains(&0) {
@@ -101,6 +111,13 @@ impl Authenticator {
 
     /// Verifies the receiver-bound frame after the caller authenticated the
     /// sender through operating-system peer credentials.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Binding` for a truncated frame, an unequal payload tag, or an event
+    /// identity that differs from its deduplication identifier, `Authentication` when
+    /// the encoded receiver or key identifier differs, and `Protocol` for a malformed,
+    /// unknown, or trailing-byte frame.
     pub fn verify(
         &self,
         frame: &[u8],
@@ -400,6 +417,13 @@ struct BoundFrame {
 
 /// Delivers exactly the current front item, waits for a bound acknowledgement,
 /// and only then advances the at-least-once delivery engine.
+///
+/// # Errors
+///
+/// Returns `Stopped` when the stop signal is set, `NoPendingDelivery` when the
+/// engine has nothing queued, and `RetryScheduled` when the frame exceeds the
+/// endpoint bound or the connect, peer authentication, bounded I/O, or
+/// acknowledgement step fails. Delivery-engine failures propagate unchanged.
 pub fn deliver(
     engine: &mut DeliveryEngine,
     endpoint: &Endpoint,
@@ -477,6 +501,11 @@ pub fn deliver(
 }
 
 /// Returns the ownership identity of the connected endpoint socket inode.
+///
+/// # Errors
+///
+/// Returns `Authentication` when the descriptor's `/proc/self/fd` metadata cannot
+/// be read.
 pub fn peer_identity(stream: &UnixStream) -> Result<PeerIdentity, OutboundError> {
     let descriptor = stream.as_raw_fd();
     let metadata = fs::metadata(format!("/proc/self/fd/{descriptor}"))

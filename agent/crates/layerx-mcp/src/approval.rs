@@ -18,7 +18,7 @@ pub enum Requirement {
         disclosure_digest: [u8; 32],
         disclosed_amount: u128,
     },
-    Required(ApprovalTicket),
+    Required(Box<ApprovalTicket>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -64,7 +64,7 @@ pub fn require(
         current_sequence,
         expires_at_sequence,
     )
-    .map(Requirement::Required)
+    .map(|ticket| Requirement::Required(Box::new(ticket)))
     .map_err(ApprovalError::Daemon)
 }
 

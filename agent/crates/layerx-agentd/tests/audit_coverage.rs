@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -34,12 +34,12 @@ fn config() -> Config {
         policy_version: "policy-v7".to_owned(),
         redaction: RedactionPolicy::Standard,
         retention: Retention {
-            event_sequences: 100,
-            audit_sequences: 100,
-            receipt_sequences: 100,
+            events: 100,
+            audit: 100,
+            receipts: 100,
         },
         verification_default: VerificationLevel::STATE_PROVEN,
-        approval_required_for: Default::default(),
+        approval_required_for: BTreeSet::default(),
     }
 }
 

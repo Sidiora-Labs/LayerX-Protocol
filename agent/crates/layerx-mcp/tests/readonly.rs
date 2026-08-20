@@ -130,7 +130,7 @@ fn full_mode_write_invocation_cannot_cross_the_read_only_mode_binding() {
     let mut read_only = ReadOnly::bind_records(&session, &capability, 50, &read_root)
         .unwrap_or_else(|error| panic!("read-only bind: {error:?}"));
     assert!(matches!(
-        read_only.complete(invocation, InvocationOutcome::Completed),
+        read_only.complete(&invocation, InvocationOutcome::Completed),
         Err(ServerError::ToolAbsent)
     ));
     assert_eq!(read_only.audit_entries(), 0);

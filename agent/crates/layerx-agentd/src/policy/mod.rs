@@ -95,11 +95,22 @@ pub fn evaluate_with_matcher(
 }
 
 /// Validates a policy set before it can become active.
+///
+/// # Errors
+///
+/// Returns the first violation: an empty version, a zero step limit, a step limit below the rule
+/// count, an empty or duplicated rule identifier, an empty purpose, or an inverted sequence
+/// window.
 pub fn validate(policy: &PolicySet) -> Result<(), PolicyValidationError> {
     versioning::validate_policy(policy)
 }
 
 /// Atomically activates a validated policy version for future requests.
+///
+/// # Errors
+///
+/// Returns the validation failure of the offered set, or `VersionAlreadyRetained` when the
+/// registry already holds that version.
 pub fn activate(
     registry: &mut PolicyRegistry,
     policy: PolicySet,
