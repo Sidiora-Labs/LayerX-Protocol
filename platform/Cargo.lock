@@ -1307,6 +1307,15 @@ name = "layerx-platform-kvx"
 version = "0.1.0"
 
 [[package]]
+name = "layerx-platform-registry"
+version = "0.1.0"
+dependencies = [
+ "layerx-programs-registry",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "layerx-platform-release"
 version = "0.1.0"
 dependencies = [
@@ -1344,6 +1353,13 @@ name = "layerx-platform-workspace-gate"
 version = "0.1.0"
 dependencies = [
  "layerx-platform-kvx",
+]
+
+[[package]]
+name = "layerx-programs-registry"
+version = "0.1.0"
+dependencies = [
+ "layerx-programs-runtime",
 ]
 
 [[package]]

@@ -1,11 +1,18 @@
 #![forbid(unsafe_code)]
 
+mod archive;
+mod authority;
 mod deprecate;
 mod hash;
+pub mod hex;
+mod pipeline;
 
+pub use archive::{ArchiveError, SourceArchive, SourceFile};
+pub use authority::{DeploymentJournal, DeploymentRecord, JournalReadAuthority, ObservedHead};
 pub use deprecate::{
     Deprecation, DeprecationRefusal, DeprecationRequest, ValueAccount, WindDownView,
 };
+pub use pipeline::{BuildAttempt, BuildPlan, BuildRefusal, BuildRunner, SourceVerifier};
 
 use core::fmt::{self, Display};
 use std::collections::BTreeMap;
@@ -28,7 +35,7 @@ pub struct BuildEnvironment {
 }
 
 impl BuildEnvironment {
-    fn validate(&self) -> Result<(), RegistryError> {
+    pub(crate) fn validate(&self) -> Result<(), RegistryError> {
         if self.builder_image_digest == [0; 32]
             || self.toolchain_digest == [0; 32]
             || self.dependency_lock_digest == [0; 32]
@@ -87,6 +94,36 @@ impl ReproducibleBuild {
             environment,
             environment_digest,
             artifact_digest: sha256(wasm),
+        })
+    }
+
+    /// Reconstructs recorded build evidence from a durable verification
+    /// record so a verified-source status survives a restart without
+    /// rebuilding, while the artifact digest is still compared with protocol
+    /// state before any status is published.
+    ///
+    /// # Errors
+    ///
+    /// Refuses invalid source locations, absent digests and unpinned build
+    /// environments.
+    pub fn from_record(
+        source_uri: String,
+        source_digest: [u8; 32],
+        environment: BuildEnvironment,
+        artifact_digest: [u8; 32],
+    ) -> Result<Self, RegistryError> {
+        validate_uri(&source_uri)?;
+        if source_digest == [0; 32] || artifact_digest == [0; 32] {
+            return Err(RegistryError::EmptyArtifact);
+        }
+        environment.validate()?;
+        let environment_digest = environment_hash(&environment);
+        Ok(Self {
+            source_uri,
+            source_digest,
+            environment,
+            environment_digest,
+            artifact_digest,
         })
     }
 }
@@ -245,6 +282,41 @@ impl Registry {
         Ok(())
     }
 
+    /// Rebuilds the registry projection from the durable canonical deployment
+    /// journal, in protocol order, verifying each record before it is applied.
+    ///
+    /// # Errors
+    ///
+    /// Refuses corrupt records, code that does not hash to its recorded code
+    /// hash, and non-contiguous version history.
+    pub fn replay_journal(&mut self, records: &[DeploymentRecord]) -> Result<(), RegistryError> {
+        let mut ordered: Vec<&DeploymentRecord> = records.iter().collect();
+        ordered.sort_by_key(|record| (record.program.bytes(), record.version));
+        for record in ordered {
+            record.validate()?;
+            self.record_deployment(
+                &record.deployment_receipt(),
+                &record.program_version(),
+                record.upgrade_policy,
+                record.digest(),
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Returns the highest recorded version number of a registered program.
+    ///
+    /// # Errors
+    ///
+    /// Refuses unknown programs.
+    pub fn latest_version(&self, program: ProgramId) -> Result<u32, RegistryError> {
+        self.entries
+            .get(&program)
+            .and_then(|entry| entry.versions.last())
+            .map(|version| version.number)
+            .ok_or(RegistryError::UnknownProgram)
+    }
+
     /// Compares a hermetic rebuild with the registered on-chain code hash and
     /// stores either verified or visibly mismatched status.
     ///
@@ -389,6 +461,10 @@ pub enum RegistryError {
     DeploymentMismatch,
     VersionHistoryMismatch,
     UnverifiedRead,
+    StaleRead,
+    CorruptRecord,
+    JournalUnavailable,
+    InvalidDigestEncoding,
     InvalidLifecycleTransition,
     LifecycleConflict,
 }
@@ -404,6 +480,10 @@ impl Display for RegistryError {
             Self::DeploymentMismatch => "deployment receipt and program version do not match",
             Self::VersionHistoryMismatch => "program version history is not contiguous",
             Self::UnverifiedRead => "registry read lacks matching receipt evidence",
+            Self::StaleRead => "registry read is older than the declared freshness bound",
+            Self::CorruptRecord => "canonical deployment record is corrupt",
+            Self::JournalUnavailable => "canonical deployment journal is unavailable",
+            Self::InvalidDigestEncoding => "digest is not thirty-two hexadecimal-encoded bytes",
             Self::InvalidLifecycleTransition => "program lifecycle transition is invalid",
             Self::LifecycleConflict => "program lifecycle state changed before transition",
         };
@@ -413,7 +493,7 @@ impl Display for RegistryError {
 
 impl std::error::Error for RegistryError {}
 
-fn validate_uri(uri: &str) -> Result<(), RegistryError> {
+pub(crate) fn validate_uri(uri: &str) -> Result<(), RegistryError> {
     if uri.len() > TEXT_LIMIT
         || !(uri.starts_with("https://") || uri.starts_with("ipfs://"))
         || uri

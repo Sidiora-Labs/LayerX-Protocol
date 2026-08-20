@@ -6,6 +6,7 @@ members = [
     "emulator",
     "hosted/faucet",
     "hosted/gateway",
+    "hosted/registry",
     "hosted/webhooks",
     "hosted/dashboard",
     "hosted/testnet",

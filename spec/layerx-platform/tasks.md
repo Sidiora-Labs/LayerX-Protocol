@@ -856,7 +856,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Refuse unknown programs, incompatible ABI versions and failed validations with typed results, preserving artifacts for diagnosis.
     - Test deploy, call, upgrade and migration end to end against a real node.
     - _Requirements: 29.1, 29.4, 29.7_
-  - [ ] 20.2 Implement the program registry with source verification
+  - [x] 20.2 Implement the program registry with source verification
     - Record identifier, code hash, ABI version, upgrade policy and version history as protocol state with receipt-verified reads through the agent layer.
     - Build the reproducible-build pipeline mapping published source to on-chain code hash.
     - Surface verified-source status in the registry, the explorer and the CLI.

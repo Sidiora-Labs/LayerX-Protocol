@@ -1,0 +1,22 @@
+[package]
+name = "layerx-platform-registry"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "layerx_platform_registry"
+path = "src/lib.rs"
+
+[[bin]]
+name = "layerx-program-registry"
+path = "src/main.rs"
+
+[dependencies]
+layerx-programs = { package = "layerx-programs-registry", path = "../../../programs/crates/layerx-programs-registry" }
+serde_json.workspace = true
+sha2.workspace = true
+
+[lints]
+workspace = true

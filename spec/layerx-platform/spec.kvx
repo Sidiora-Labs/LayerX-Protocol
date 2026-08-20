@@ -2138,7 +2138,7 @@ reqs = ["29.1","29.4","29.7"]
 
 [task.20.2]
 title = "Implement the program registry with source verification"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["20.1"]
 do_1 = "Record identifier, code hash, ABI version, upgrade policy and version history as protocol state with receipt-verified reads through the agent layer."
