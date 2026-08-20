@@ -351,7 +351,7 @@ impl Executor {
         let meter = Meter::new(self.budget, self.prices);
         let mut instance = module
             .instantiate_metered(meter)
-            .map_err(|fault| self.classify_fault(fault, None))?;
+            .map_err(|(fault, exhausted)| self.classify_fault(fault, exhausted))?;
         let outputs = match instance.call(export, args) {
             Ok(outputs) => outputs,
             Err(fault) => {
@@ -395,7 +395,7 @@ impl Executor {
         let mut instance = request
             .module
             .instantiate_authorized(meter, abi)
-            .map_err(|fault| self.classify_fault(fault, None))?;
+            .map_err(|(fault, exhausted)| self.classify_fault(fault, exhausted))?;
         let outputs = match instance.call(request.export, request.args) {
             Ok(outputs) => outputs,
             Err(fault) => {

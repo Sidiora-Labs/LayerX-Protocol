@@ -128,12 +128,13 @@ impl ValidatedModule {
     /// module's start function traps.
     pub fn instantiate(&self) -> Result<ProgramInstance, ExecutionFault> {
         self.instantiate_metered(Meter::declared())
+            .map_err(|(fault, _)| fault)
     }
 
     pub(crate) fn instantiate_metered(
         &self,
         meter: Meter,
-    ) -> Result<ProgramInstance, ExecutionFault> {
+    ) -> Result<ProgramInstance, (ExecutionFault, Option<crate::meter::MeterRefusal>)> {
         self.instantiate_state(RuntimeState::isolated(meter))
     }
 
@@ -141,25 +142,33 @@ impl ValidatedModule {
         &self,
         meter: Meter,
         abi: Abi,
-    ) -> Result<ProgramInstance, ExecutionFault> {
+    ) -> Result<ProgramInstance, (ExecutionFault, Option<crate::meter::MeterRefusal>)> {
         self.instantiate_state(RuntimeState::authorized(meter, abi))
     }
 
-    fn instantiate_state(&self, state: RuntimeState) -> Result<ProgramInstance, ExecutionFault> {
+    fn instantiate_state(
+        &self,
+        state: RuntimeState,
+    ) -> Result<ProgramInstance, (ExecutionFault, Option<crate::meter::MeterRefusal>)> {
         let fuel = state.meter().cpu_budget();
         let mut store = wasmi::Store::new(self.module.engine(), state);
         store.limiter(|state| state.meter_mut() as &mut dyn wasmi::ResourceLimiter);
-        store
-            .add_fuel(fuel)
-            .map_err(|error| ExecutionFault::EngineFault {
-                reason: error.to_string(),
-            })?;
-        let linker = host::linker(self.module.engine())?;
-        let instance = linker
+        store.add_fuel(fuel).map_err(|error| {
+            (
+                ExecutionFault::EngineFault {
+                    reason: error.to_string(),
+                },
+                store.data().meter().exhaustion(),
+            )
+        })?;
+        let linker = host::linker(self.module.engine())
+            .map_err(|fault| (fault, store.data().meter().exhaustion()))?;
+        let pre = linker
             .instantiate(&mut store, &self.module)
-            .map_err(|error| fault_from_error(&error))?
+            .map_err(|error| (fault_from_error(&error), store.data().meter().exhaustion()))?;
+        let instance = pre
             .start(&mut store)
-            .map_err(|error| fault_from_error(&error))?;
+            .map_err(|error| (fault_from_error(&error), store.data().meter().exhaustion()))?;
         Ok(ProgramInstance::new(store, instance))
     }
 }

@@ -1,0 +1,56 @@
+name: Programs Conformance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "programs/**"
+      - ".github/workflows/programs-conformance.yml"
+  pull_request:
+    paths:
+      - "programs/**"
+      - ".github/workflows/programs-conformance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: programs-conformance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic-execution:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64 debug
+            os: ubuntu-24.04
+            cargo_args: ""
+          - name: Linux x86_64 release
+            os: ubuntu-24.04
+            cargo_args: --release
+          - name: Linux arm64 release
+            os: ubuntu-24.04-arm
+            cargo_args: --release
+          - name: macOS arm64 release
+            os: macos-14
+            cargo_args: --release
+          - name: Windows x86_64 release
+            os: windows-2022
+            cargo_args: --release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.91.1 --profile minimal --no-self-update
+      - name: Run deterministic execution vectors
+        run: >-
+          cargo +1.91.1 test --manifest-path programs/Cargo.toml --locked
+          -p layerx-programs-runtime --test determinism ${{ matrix.cargo_args }}
