@@ -98,6 +98,16 @@ fn repo_fixture(label: &str) -> PathBuf {
         "human/apps/web/src/api/generated/index.ts",
         "export const humanApi = true;\n",
     );
+    place(&root, "platform/sdk/go/generated.go", "package layerx\n");
+    for relative in pipeline::JVM_FILES {
+        place(&root, &format!("platform/sdk/jvm/{relative}"), "jvm\n");
+    }
+    place(
+        &root,
+        "platform/sdk/conformance/jvm.kvx",
+        "[sdk]\nname = \"jvm\"\n",
+    );
+    place(&root, "platform/sdk/conformance/run-jvm.sh", "#!/bin/sh\n");
     root
 }
 
@@ -229,7 +239,7 @@ fn lock_missing_an_output_fails_the_gate() {
     generate(&root);
     let path = lock_path(&root);
     let text = fs::read_to_string(&path).unwrap_or_else(|error| panic!("read lock: {error}"));
-    let tampered = text.replace(", \"human-typescript\"]", "]");
+    let tampered = text.replace(", \"platform-conformance\"]", "]");
     assert_ne!(tampered, text);
     fs::write(&path, tampered).unwrap_or_else(|error| panic!("tamper lock: {error}"));
     expect_failure(&root, "does not match the wired pipeline");

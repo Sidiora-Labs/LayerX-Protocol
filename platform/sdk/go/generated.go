@@ -171,6 +171,12 @@ const (
 	HumanOperationStepupFinish               HumanOperation = "stepup.finish"
 	HumanOperationStreamNext                 HumanOperation = "stream.next"
 	HumanOperationStreamOpen                 HumanOperation = "stream.open"
+	HumanOperationSupportCreate              HumanOperation = "support.create"
+	HumanOperationSupportFeedback            HumanOperation = "support.feedback"
+	HumanOperationSupportList                HumanOperation = "support.list"
+	HumanOperationSupportRead                HumanOperation = "support.read"
+	HumanOperationSupportReply               HumanOperation = "support.reply"
+	HumanOperationSupportStatus              HumanOperation = "support.status"
 	HumanOperationVersion                    HumanOperation = "version"
 	HumanOperationWithdrawClaim              HumanOperation = "withdraw.claim"
 	HumanOperationWithdrawStart              HumanOperation = "withdraw.start"
@@ -231,6 +237,12 @@ func AllHumanOperations() []HumanOperation {
 		HumanOperationStepupFinish,
 		HumanOperationStreamNext,
 		HumanOperationStreamOpen,
+		HumanOperationSupportCreate,
+		HumanOperationSupportFeedback,
+		HumanOperationSupportList,
+		HumanOperationSupportRead,
+		HumanOperationSupportReply,
+		HumanOperationSupportStatus,
 		HumanOperationVersion,
 		HumanOperationWithdrawClaim,
 		HumanOperationWithdrawStart,
@@ -239,7 +251,7 @@ func AllHumanOperations() []HumanOperation {
 
 func (operation HumanOperation) Valid() bool {
 	switch operation {
-	case HumanOperationAccountCreate, HumanOperationActivityEntry, HumanOperationActivityExportEvidence, HumanOperationActivityExportStatement, HumanOperationActivityQuery, HumanOperationAgentArchive, HumanOperationAgentCreate, HumanOperationAgentGet, HumanOperationAgentLimit, HumanOperationAgentList, HumanOperationAgentPause, HumanOperationAgentReclaim, HumanOperationAgentRecover, HumanOperationAgentResume, HumanOperationAgentRotate, HumanOperationApprovalApprove, HumanOperationApprovalGet, HumanOperationApprovalList, HumanOperationApprovalReject, HumanOperationBindingRebind, HumanOperationBindingStatement, HumanOperationBindingStatus, HumanOperationBindingSubmit, HumanOperationDepositConfirm, HumanOperationDepositStart, HumanOperationEvidenceGet, HumanOperationExitEligibility, HumanOperationExitStart, HumanOperationJourneyGet, HumanOperationJourneyList, HumanOperationMoveCommit, HumanOperationMoveQuote, HumanOperationNotificationList, HumanOperationNotificationPreferencesGet, HumanOperationNotificationPreferencesSet, HumanOperationNotificationRead, HumanOperationOnboardingResume, HumanOperationOnboardingStatus, HumanOperationPasskeyAssertBegin, HumanOperationPasskeyAssertFinish, HumanOperationPasskeyRegisterBegin, HumanOperationPasskeyRegisterFinish, HumanOperationProfileGet, HumanOperationProfileUpdate, HumanOperationSessionList, HumanOperationSessionOpen, HumanOperationSessionRefresh, HumanOperationSessionRevoke, HumanOperationSessionRevokeAll, HumanOperationStepupBegin, HumanOperationStepupFinish, HumanOperationStreamNext, HumanOperationStreamOpen, HumanOperationVersion, HumanOperationWithdrawClaim, HumanOperationWithdrawStart:
+	case HumanOperationAccountCreate, HumanOperationActivityEntry, HumanOperationActivityExportEvidence, HumanOperationActivityExportStatement, HumanOperationActivityQuery, HumanOperationAgentArchive, HumanOperationAgentCreate, HumanOperationAgentGet, HumanOperationAgentLimit, HumanOperationAgentList, HumanOperationAgentPause, HumanOperationAgentReclaim, HumanOperationAgentRecover, HumanOperationAgentResume, HumanOperationAgentRotate, HumanOperationApprovalApprove, HumanOperationApprovalGet, HumanOperationApprovalList, HumanOperationApprovalReject, HumanOperationBindingRebind, HumanOperationBindingStatement, HumanOperationBindingStatus, HumanOperationBindingSubmit, HumanOperationDepositConfirm, HumanOperationDepositStart, HumanOperationEvidenceGet, HumanOperationExitEligibility, HumanOperationExitStart, HumanOperationJourneyGet, HumanOperationJourneyList, HumanOperationMoveCommit, HumanOperationMoveQuote, HumanOperationNotificationList, HumanOperationNotificationPreferencesGet, HumanOperationNotificationPreferencesSet, HumanOperationNotificationRead, HumanOperationOnboardingResume, HumanOperationOnboardingStatus, HumanOperationPasskeyAssertBegin, HumanOperationPasskeyAssertFinish, HumanOperationPasskeyRegisterBegin, HumanOperationPasskeyRegisterFinish, HumanOperationProfileGet, HumanOperationProfileUpdate, HumanOperationSessionList, HumanOperationSessionOpen, HumanOperationSessionRefresh, HumanOperationSessionRevoke, HumanOperationSessionRevokeAll, HumanOperationStepupBegin, HumanOperationStepupFinish, HumanOperationStreamNext, HumanOperationStreamOpen, HumanOperationSupportCreate, HumanOperationSupportFeedback, HumanOperationSupportList, HumanOperationSupportRead, HumanOperationSupportReply, HumanOperationSupportStatus, HumanOperationVersion, HumanOperationWithdrawClaim, HumanOperationWithdrawStart:
 		return true
 	default:
 		return false
@@ -248,7 +260,7 @@ func (operation HumanOperation) Valid() bool {
 
 func (operation HumanOperation) RequiresIdempotency() bool {
 	switch operation {
-	case HumanOperationAccountCreate, HumanOperationActivityExportEvidence, HumanOperationActivityExportStatement, HumanOperationAgentArchive, HumanOperationAgentCreate, HumanOperationAgentLimit, HumanOperationAgentPause, HumanOperationAgentReclaim, HumanOperationAgentRecover, HumanOperationAgentResume, HumanOperationAgentRotate, HumanOperationApprovalApprove, HumanOperationApprovalReject, HumanOperationBindingRebind, HumanOperationBindingSubmit, HumanOperationDepositStart, HumanOperationExitStart, HumanOperationMoveCommit, HumanOperationWithdrawStart:
+	case HumanOperationAccountCreate, HumanOperationActivityExportEvidence, HumanOperationActivityExportStatement, HumanOperationAgentArchive, HumanOperationAgentCreate, HumanOperationAgentLimit, HumanOperationAgentPause, HumanOperationAgentReclaim, HumanOperationAgentRecover, HumanOperationAgentResume, HumanOperationAgentRotate, HumanOperationApprovalApprove, HumanOperationApprovalReject, HumanOperationBindingRebind, HumanOperationBindingSubmit, HumanOperationDepositStart, HumanOperationExitStart, HumanOperationMoveCommit, HumanOperationSupportCreate, HumanOperationSupportReply, HumanOperationWithdrawStart:
 		return true
 	default:
 		return false
@@ -370,6 +382,18 @@ func (operation HumanOperation) Metadata() (HumanOperationMetadata, bool) {
 		return HumanOperationMetadata{Method: "GET", Path: "/v1/stream/{cursor}", Request: "Empty", Response: "StreamPage"}, true
 	case HumanOperationStreamOpen:
 		return HumanOperationMetadata{Method: "POST", Path: "/v1/stream", Request: "Empty", Response: "StreamPosition"}, true
+	case HumanOperationSupportCreate:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/support/conversations", Request: "SupportCreateRequest", Response: "SupportConversation"}, true
+	case HumanOperationSupportFeedback:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/support/conversations/{conversation_id}/feedback", Request: "SupportFeedbackRequest", Response: "SupportConversation"}, true
+	case HumanOperationSupportList:
+		return HumanOperationMetadata{Method: "GET", Path: "/v1/support/conversations", Request: "Empty", Response: "SupportConversationPage"}, true
+	case HumanOperationSupportRead:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/support/conversations/{conversation_id}/read", Request: "SupportReadRequest", Response: "SupportConversationStatus"}, true
+	case HumanOperationSupportReply:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/support/conversations/{conversation_id}/replies", Request: "SupportReplyRequest", Response: "SupportConversation"}, true
+	case HumanOperationSupportStatus:
+		return HumanOperationMetadata{Method: "GET", Path: "/v1/support/conversations/{conversation_id}/status", Request: "Empty", Response: "SupportConversationStatus"}, true
 	case HumanOperationVersion:
 		return HumanOperationMetadata{Method: "GET", Path: "/v1/version", Request: "Empty", Response: "VersionInfo"}, true
 	case HumanOperationWithdrawClaim:

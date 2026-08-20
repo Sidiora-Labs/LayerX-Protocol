@@ -45,6 +45,7 @@ platform-sdk-generate:
 
 platform-test-sdks: platform-sdk-check
 	sh platform/sdk/conformance/run-go.sh $(CURDIR)
+	sh platform/sdk/conformance/run-jvm.sh $(CURDIR)
 
 platform-release-check:
 	$(PLATFORM_CARGO) run --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-release -- --check platform/release/registries.kvx

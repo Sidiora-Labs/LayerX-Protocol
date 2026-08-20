@@ -10,13 +10,34 @@ use sha2::{Digest, Sha256};
 
 const LOCK_PATH: &str = "platform/sdk/pipeline.kvx";
 const GO_GENERATED_PATH: &str = "platform/sdk/go/generated.go";
+const JVM_GENERATED_PATH: &str =
+    "platform/sdk/jvm/src/main/java/com/sidiora/layerx/sdk/GeneratedContract.java";
+const JVM_CONFORMANCE_PATH: &str = "platform/sdk/conformance/jvm.kvx";
 
 const SOURCES: [(&str, &str); 2] = [
     ("agent-api", "agent/schema/agent-api"),
     ("human-api", "human/schema/human-api"),
 ];
 
-const OUTPUTS: [(&str, &str, &str, Option<&[&str]>); 5] = [
+pub const JVM_FILES: &[&str] = &[
+    "pom.xml",
+    "src/main/java/com/sidiora/layerx/sdk/HttpProductionTransport.java",
+    "src/main/java/com/sidiora/layerx/sdk/GeneratedContract.java",
+    "src/main/java/com/sidiora/layerx/sdk/IdempotencyKey.java",
+    "src/main/java/com/sidiora/layerx/sdk/OperationCatalog.java",
+    "src/main/java/com/sidiora/layerx/sdk/PlatformSdk.java",
+    "src/main/java/com/sidiora/layerx/sdk/PlatformSdkException.java",
+    "src/main/java/com/sidiora/layerx/sdk/ProductionClient.java",
+    "src/main/java/com/sidiora/layerx/sdk/ProductionTransport.java",
+    "src/main/java/com/sidiora/layerx/sdk/ProtocolAmount.java",
+    "src/main/java/com/sidiora/layerx/sdk/ResumableStream.java",
+    "src/main/java/com/sidiora/layerx/sdk/SecretBytes.java",
+    "src/main/java/com/sidiora/layerx/sdk/verify/LocalVerifier.java",
+    "src/conformance/java/com/sidiora/layerx/sdk/ConformanceMain.java",
+    "src/main/kotlin/com/sidiora/layerx/sdk/LayerX.kt",
+];
+
+const OUTPUTS: [(&str, &str, &str, Option<&[&str]>); 7] = [
     (
         "agent-typescript",
         "typescript",
@@ -46,6 +67,13 @@ const OUTPUTS: [(&str, &str, &str, Option<&[&str]>); 5] = [
         "go",
         "platform/sdk/go",
         Some(&["generated.go"]),
+    ),
+    ("platform-jvm", "jvm", "platform/sdk/jvm", Some(JVM_FILES)),
+    (
+        "platform-conformance",
+        "kvx",
+        "platform/sdk/conformance",
+        Some(&["jvm.kvx", "run-jvm.sh"]),
     ),
 ];
 
@@ -557,6 +585,196 @@ fn write_go(repo_root: &Path) -> Result<(), String> {
         .map_err(|error| format!("write {}: {error}", path.display()))
 }
 
+fn generate_jvm_contract(repo_root: &Path) -> Result<String, String> {
+    let agent = schema_sections(&repo_root.join(SOURCES[0].1))?;
+    let human = schema_sections(&repo_root.join(SOURCES[1].1))?;
+    let operations = |sections: &Sections| {
+        sections
+            .keys()
+            .filter_map(|section| section.strip_prefix("operation.").map(str::to_owned))
+            .collect::<Vec<_>>()
+    };
+    let agent_operations = operations(&agent);
+    let human_operations = operations(&human);
+    if agent_operations.is_empty() || human_operations.is_empty() {
+        return Err("JVM SDK generation found an empty operation catalogue".to_owned());
+    }
+    let mut agent_mutations = agent
+        .keys()
+        .filter_map(|section| section.strip_prefix("mutation.").map(str::to_owned))
+        .collect::<BTreeSet<_>>();
+    for operation in &agent_operations {
+        if agent
+            .get(&format!("operation.{operation}"))
+            .and_then(|entries| entries.get("required"))
+            .is_some_and(|value| value.contains("idempotency_key"))
+        {
+            agent_mutations.insert(operation.clone());
+        }
+    }
+    let mut output = String::from(
+        "// Code generated from the LayerX Agent API and Human API schemas. DO NOT EDIT.\n\npackage com.sidiora.layerx.sdk;\n\nimport java.util.List;\nimport java.util.Map;\nimport java.util.Set;\n\nfinal class GeneratedContract {\n    private GeneratedContract() {}\n",
+    );
+    let render_set = |output: &mut String, name: &str, values: &[String]| -> Result<(), String> {
+        writeln!(output, "    static final Set<String> {name} = Set.of(")
+            .map_err(|error| error.to_string())?;
+        for (index, value) in values.iter().enumerate() {
+            writeln!(
+                output,
+                "        {}{}",
+                quoted(value),
+                if index + 1 == values.len() { ");" } else { "," }
+            )
+            .map_err(|error| error.to_string())?;
+        }
+        Ok(())
+    };
+    render_set(&mut output, "AGENT_OPERATIONS", &agent_operations)?;
+    render_set(
+        &mut output,
+        "AGENT_IDEMPOTENT",
+        &agent_mutations.into_iter().collect::<Vec<_>>(),
+    )?;
+    render_set(
+        &mut output,
+        "HUMAN_ERROR_CODES",
+        &variants(&human, "type.ErrorCode")?,
+    )?;
+    writeln!(
+        output,
+        "    static final Map<String, OperationCatalog.Route> HUMAN_ROUTES = Map.ofEntries("
+    )
+    .map_err(|error| error.to_string())?;
+    for (index, operation) in human_operations.iter().enumerate() {
+        let entries = human
+            .get(&format!("operation.{operation}"))
+            .ok_or_else(|| format!("missing operation.{operation}"))?;
+        let field = |name: &str| -> Result<String, String> {
+            entries
+                .get(name)
+                .ok_or_else(|| format!("missing operation.{operation}.{name}"))
+                .and_then(|value| layerx_platform_kvx::unquote(value))
+        };
+        let path = field("path")?;
+        let mut path_parameters = Vec::new();
+        let mut rest = path.as_str();
+        while let Some(open) = rest.find('{') {
+            let after = &rest[open + 1..];
+            let close = after
+                .find('}')
+                .ok_or_else(|| format!("unclosed path parameter in operation.{operation}.path"))?;
+            path_parameters.push(after[..close].to_owned());
+            rest = &after[close + 1..];
+        }
+        let params = path_parameters
+            .iter()
+            .map(|value| quoted(value))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let idempotency = entries
+            .get("idempotency")
+            .is_some_and(|value| value == "true");
+        let bodyless = field("request")? == "Empty";
+        writeln!(
+            output,
+            "        Map.entry({}, new OperationCatalog.Route({}, {}, List.of({params}), {idempotency}, {bodyless})){}",
+            quoted(operation), quoted(&field("method")?), quoted(&path),
+            if index + 1 == human_operations.len() { ");" } else { "," },
+        )
+        .map_err(|error| error.to_string())?;
+    }
+    output.push_str("}\n");
+    Ok(output)
+}
+
+fn check_jvm_contract(repo_root: &Path) -> Result<(), String> {
+    let path = repo_root.join(JVM_GENERATED_PATH);
+    let actual = fs::read_to_string(&path)
+        .map_err(|error| format!("generated JVM file missing {}: {error}", path.display()))?;
+    if actual != generate_jvm_contract(repo_root)? {
+        return Err(format!(
+            "generated JVM file {} is stale or hand-edited; run make platform-sdk-generate",
+            path.display()
+        ));
+    }
+    Ok(())
+}
+
+fn write_jvm_contract(repo_root: &Path) -> Result<(), String> {
+    let path = repo_root.join(JVM_GENERATED_PATH);
+    let parent = path
+        .parent()
+        .ok_or_else(|| format!("generated path has no parent: {}", path.display()))?;
+    fs::create_dir_all(parent).map_err(|error| format!("create {}: {error}", parent.display()))?;
+    fs::write(&path, generate_jvm_contract(repo_root)?)
+        .map_err(|error| format!("write {}: {error}", path.display()))
+}
+
+fn generate_jvm_conformance(repo_root: &Path) -> Result<String, String> {
+    let operation_count = |root: &Path| -> Result<usize, String> {
+        Ok(schema_sections(root)?
+            .keys()
+            .filter(|section| section.starts_with("operation."))
+            .count())
+    };
+    let agent_operations = operation_count(&repo_root.join(SOURCES[0].1))?;
+    let human_operations = operation_count(&repo_root.join(SOURCES[1].1))?;
+    Ok(format!(
+        "# GENERATED by layerx-platform-sdkgen from the Agent API and Human API schemas.\n\
+[sdk]\n\
+name = \"jvm\"\n\
+artifact = \"com.sidiora.layerx:layerx-sdk\"\n\
+root = \"platform/sdk/jvm\"\n\
+agent_schema = \"agent/schema/agent-api\"\n\
+human_schema = \"human/schema/human-api\"\n\
+protocol_version = 1\n\
+agent_operations = {agent_operations}\n\
+human_operations = {human_operations}\n\
+money_type = \"java.math.BigInteger\"\n\
+stream = \"atomic cursor chain with duplicate rejection\"\n\
+\n\
+[verification]\n\
+receipt = \"com.sidiora.layerx.sdk.verify.LocalVerifier.verifyReceipt\"\n\
+receipt_outcome = \"com.sidiora.layerx.sdk.verify.LocalVerifier.verifyReceiptOutcome\"\n\
+batch_inclusion = \"com.sidiora.layerx.sdk.verify.LocalVerifier.verifyBatchInclusion\"\n\
+checkpoint = \"com.sidiora.layerx.sdk.verify.LocalVerifier.verifyCheckpoint\"\n\
+merkle = \"com.sidiora.layerx.sdk.verify.LocalVerifier.verifyMerkleInclusion\"\n\
+\n\
+[golden]\n\
+agent_request = \"agent/schema/agent-api/golden/version-request.hex\"\n\
+agent_response = \"agent/schema/agent-api/golden/version-response.hex\"\n\
+codec_valid = \"tests/vectors/codec/valid.lxv\"\n\
+codec_adversarial = \"tests/vectors/codec/adversarial.lxv\"\n"
+    ))
+}
+
+fn check_jvm_conformance(repo_root: &Path) -> Result<(), String> {
+    let path = repo_root.join(JVM_CONFORMANCE_PATH);
+    let actual = fs::read_to_string(&path).map_err(|error| {
+        format!(
+            "generated JVM conformance file missing {}: {error}",
+            path.display()
+        )
+    })?;
+    if actual != generate_jvm_conformance(repo_root)? {
+        return Err(format!(
+            "generated JVM conformance file {} is stale or hand-edited; run make platform-sdk-generate",
+            path.display()
+        ));
+    }
+    Ok(())
+}
+
+fn write_jvm_conformance(repo_root: &Path) -> Result<(), String> {
+    let path = repo_root.join(JVM_CONFORMANCE_PATH);
+    let parent = path
+        .parent()
+        .ok_or_else(|| format!("generated path has no parent: {}", path.display()))?;
+    fs::create_dir_all(parent).map_err(|error| format!("create {}: {error}", parent.display()))?;
+    fs::write(&path, generate_jvm_conformance(repo_root)?)
+        .map_err(|error| format!("write {}: {error}", path.display()))
+}
+
 /// Hashes both schema sources and every generated SDK tree as they exist on disk.
 ///
 /// # Errors
@@ -784,7 +1002,9 @@ pub fn check(repo_root: &Path, lock_path: &Path) -> Result<(), String> {
     let committed = parse_lock(&committed)?;
     let live = capture(repo_root)?;
     drift_gate(&committed, &live)?;
-    check_go(repo_root)
+    check_go(repo_root)?;
+    check_jvm_contract(repo_root)?;
+    check_jvm_conformance(repo_root)
 }
 
 /// Captures the live schema and generated-tree state into the lock.
@@ -794,6 +1014,8 @@ pub fn check(repo_root: &Path, lock_path: &Path) -> Result<(), String> {
 /// Fails when a tree is unreadable or the lock cannot be written.
 pub fn write_lock(repo_root: &Path, lock_path: &Path) -> Result<(), String> {
     write_go(repo_root)?;
+    write_jvm_contract(repo_root)?;
+    write_jvm_conformance(repo_root)?;
     let pipeline = capture(repo_root)?;
     let text = render(&pipeline)?;
     if let Some(parent) = lock_path.parent() {
