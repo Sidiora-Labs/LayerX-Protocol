@@ -114,6 +114,14 @@ export {
 export { TextField, type TextFieldProps } from "./field";
 export { DeviceSessionList, type DeviceListItem } from "./device-list";
 export {
+  ActivityEvidenceBadge,
+  DesktopActivityFeed,
+  MobileActivityFeed,
+  type ActivityFeedGroup,
+  type ActivityFeedProps,
+  type ActivityFeedRow,
+} from "./activity";
+export {
   ActionGrid,
   BalanceSummary,
   CountBadge,
