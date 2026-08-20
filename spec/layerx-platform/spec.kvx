@@ -1315,7 +1315,7 @@ reqs = ["14.1","14.2","14.6"]
 
 [task.10.3]
 title = "Serve entry detail with evidence"
-status = "pending"
+status = "done"
 wave = 5
 requires = ["10.2"]
 do_1 = "Serve entry detail: the one-sentence plain description, the staged timeline, receipt-backed amounts and fees, and the Technical details evidence references."
@@ -1330,7 +1330,7 @@ reqs = ["14.3","14.8"]
 
 [task.10.4]
 title = "Implement statement and evidence exports"
-status = "pending"
+status = "in_progress"
 wave = 5
 requires = ["10.2","5.6"]
 do_1 = "Implement the statement export over the feed's filters."

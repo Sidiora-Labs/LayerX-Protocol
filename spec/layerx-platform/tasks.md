@@ -462,14 +462,14 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Reflect a new verified receipt within the declared freshness bound.
     - Serve deferred-apply filters by type, agent and date, echoing applied filters in the result.
     - _Requirements: 14.1, 14.2, 14.6_
-  - [ ] 10.3 Serve entry detail with evidence
+  - [x] 10.3 Serve entry detail with evidence
     - Serve entry detail: the one-sentence plain description, the staged timeline, receipt-backed amounts and fees, and the Technical details evidence references.
     - Upgrade shown verification status as receipts gain batch inclusion and checkpoint finality, changing the user-facing state only from Done to Done, finalised.
     - Reference the explorer for every receipt and checkpoint so Technical details links resolve signed-out.
     - State refusals with whether money left the account.
     - Test detail assembly for every journey class.
     - _Requirements: 14.3, 14.8_
-  - [ ] 10.4 Implement statement and evidence exports
+  - [-] 10.4 Implement statement and evidence exports
     - Implement the statement export over the feed's filters.
     - Implement the evidence bundle: referenced receipts and proofs in canonical bytes, verifiable independently of this plane.
     - Prove bundle verifiability with the agent layer's offline verification tooling in a test.
