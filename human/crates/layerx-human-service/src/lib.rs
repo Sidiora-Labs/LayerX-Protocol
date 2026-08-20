@@ -12,6 +12,7 @@ pub mod journeys;
 pub mod notify;
 pub mod onboarding;
 pub mod redaction;
+pub mod security;
 pub mod store;
 pub mod support;
 pub mod trace;

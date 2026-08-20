@@ -674,6 +674,125 @@ impl Passkeys {
         Ok(record)
     }
 
+    /// Lists safe passkey metadata for the authenticated principal.
+    pub fn list_passkeys(
+        &self,
+        scope: &mut PrincipalScope<'_>,
+        access_token: &str,
+        now: u64,
+    ) -> Result<Vec<PasskeyRecord>, AuthError> {
+        let decision = self.authorize(
+            scope,
+            access_token,
+            None,
+            &AuthorizationRequest {
+                operation: OperationClass::Read,
+                digest: None,
+                step_up: None,
+                intended_destination: "/app/settings/security",
+            },
+            now,
+        )?;
+        if matches!(decision, AccessDecision::Reauthenticate { .. }) {
+            return Err(AuthError::SessionExpired);
+        }
+        let mut passkeys = load_passkeys(scope)?
+            .into_iter()
+            .map(|(_, stored)| stored.record)
+            .collect::<Vec<_>>();
+        passkeys.sort_by(|left, right| left.passkey_id.cmp(&right.passkey_id));
+        Ok(passkeys)
+    }
+
+    /// Starts an additional-passkey registration only after a fresh ceremony
+    /// confirms this exact security mutation.
+    #[allow(clippy::too_many_arguments)]
+    pub fn begin_security_registration(
+        &self,
+        scope: &mut PrincipalScope<'_>,
+        access_token: &str,
+        csrf_token: &str,
+        operation_digest: OperationDigest,
+        step_up: &StepUpEvidence,
+        account: &AccountIdentity,
+        label: &str,
+        now: u64,
+    ) -> Result<RegistrationChallenge, AuthError> {
+        self.require_security_step_up(
+            scope,
+            access_token,
+            csrf_token,
+            operation_digest,
+            step_up,
+            now,
+        )?;
+        self.begin_registration(scope, account, label, now)
+    }
+
+    /// Finishes an additional-passkey registration under the same fresh,
+    /// operation-bound evidence used to begin it.
+    #[allow(clippy::too_many_arguments)]
+    pub fn finish_security_registration(
+        &self,
+        scope: &mut PrincipalScope<'_>,
+        access_token: &str,
+        csrf_token: &str,
+        operation_digest: OperationDigest,
+        step_up: &StepUpEvidence,
+        registration_id: &str,
+        credential: &str,
+        now: u64,
+    ) -> Result<PasskeyRecord, AuthError> {
+        self.require_security_step_up(
+            scope,
+            access_token,
+            csrf_token,
+            operation_digest,
+            step_up,
+            now,
+        )?;
+        self.finish_registration(scope, registration_id, credential, now)
+    }
+
+    /// Revokes one passkey after fresh confirmation while refusing to remove
+    /// the final credential that can perform future step-up ceremonies.
+    #[allow(clippy::too_many_arguments)]
+    pub fn revoke_passkey(
+        &self,
+        scope: &mut PrincipalScope<'_>,
+        access_token: &str,
+        csrf_token: &str,
+        operation_digest: OperationDigest,
+        step_up: &StepUpEvidence,
+        passkey_id: &str,
+        now: u64,
+    ) -> Result<Vec<PasskeyRecord>, AuthError> {
+        self.require_security_step_up(
+            scope,
+            access_token,
+            csrf_token,
+            operation_digest,
+            step_up,
+            now,
+        )?;
+        let passkeys = load_passkeys(scope)?;
+        if passkeys.len() <= 1 {
+            return Err(AuthError::LastPasskey);
+        }
+        let key = row_key(PASSKEY_ROW_PREFIX, passkey_id)?;
+        if !passkeys.iter().any(|(candidate, _)| candidate == &key) {
+            return Err(AuthError::CredentialNotFound);
+        }
+        scope.remove(Table::Cache, &key)?;
+        let mut remaining = passkeys
+            .into_iter()
+            .filter(|(candidate, _)| candidate != &key)
+            .map(|(_, stored)| stored.record)
+            .collect::<Vec<_>>();
+        remaining.sort_by(|left, right| left.passkey_id.cmp(&right.passkey_id));
+        Ok(remaining)
+    }
+
     /// Starts a username-resolved assertion scoped to this principal's
     /// registered passkeys.
     pub fn begin_assertion(
@@ -978,6 +1097,53 @@ impl Passkeys {
         })
     }
 
+    /// Revokes one browser session only after a fresh passkey ceremony bound
+    /// to the exact target session.
+    #[allow(clippy::too_many_arguments)]
+    pub fn revoke_session_with_step_up(
+        &self,
+        scope: &mut PrincipalScope<'_>,
+        access_token: &str,
+        csrf_token: &str,
+        operation_digest: OperationDigest,
+        step_up: &StepUpEvidence,
+        target_session_id: &str,
+        now: u64,
+    ) -> Result<SessionRevocation, AuthError> {
+        self.require_security_step_up(
+            scope,
+            access_token,
+            csrf_token,
+            operation_digest,
+            step_up,
+            now,
+        )?;
+        self.revoke_session(scope, access_token, csrf_token, target_session_id, now)
+    }
+
+    /// Invalidates every access and refresh path after fresh confirmation of
+    /// the sign-out-everywhere operation.
+    #[allow(clippy::too_many_arguments)]
+    pub fn sign_out_everywhere_with_step_up(
+        &self,
+        scope: &mut PrincipalScope<'_>,
+        access_token: &str,
+        csrf_token: &str,
+        operation_digest: OperationDigest,
+        step_up: &StepUpEvidence,
+        now: u64,
+    ) -> Result<SessionRevocation, AuthError> {
+        self.require_security_step_up(
+            scope,
+            access_token,
+            csrf_token,
+            operation_digest,
+            step_up,
+            now,
+        )?;
+        self.sign_out_everywhere(scope, access_token, csrf_token, now)
+    }
+
     /// Replaces the one-time fallback credential. A passkey-authenticated
     /// session and fresh step-up evidence for this exact security mutation
     /// are both required.
@@ -1092,6 +1258,33 @@ impl Passkeys {
         put_json(scope, Table::Cache, key, now, &record)?;
         touch_device(scope, &record.device, now)?;
         Ok(context)
+    }
+
+    fn require_security_step_up(
+        &self,
+        scope: &mut PrincipalScope<'_>,
+        access_token: &str,
+        csrf_token: &str,
+        operation_digest: OperationDigest,
+        step_up: &StepUpEvidence,
+        now: u64,
+    ) -> Result<(), AuthError> {
+        let decision = self.authorize(
+            scope,
+            access_token,
+            Some(csrf_token),
+            &AuthorizationRequest {
+                operation: OperationClass::SecuritySettings,
+                digest: Some(operation_digest),
+                step_up: Some(step_up),
+                intended_destination: "/app/settings/security",
+            },
+            now,
+        )?;
+        if matches!(decision, AccessDecision::Reauthenticate { .. }) {
+            return Err(AuthError::SessionExpired);
+        }
+        Ok(())
     }
 
     fn issue_session(
@@ -1449,6 +1642,7 @@ pub enum AuthError {
     CredentialConflict,
     CredentialNotFound,
     NoPasskeys,
+    LastPasskey,
     AssertionNotVerified,
     AssertionSpent,
     Unauthenticated,
@@ -1497,6 +1691,7 @@ impl Display for AuthError {
                 formatter.write_str("passkey does not belong to this principal")
             }
             Self::NoPasskeys => formatter.write_str("principal has no registered passkey"),
+            Self::LastPasskey => formatter.write_str("the final passkey cannot be removed"),
             Self::AssertionNotVerified => formatter.write_str("assertion has not been verified"),
             Self::AssertionSpent => formatter.write_str("assertion already opened a session"),
             Self::Unauthenticated => formatter.write_str("session is not authenticated"),

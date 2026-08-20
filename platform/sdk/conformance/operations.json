@@ -593,6 +593,56 @@
     },
     {
       "plane": "human",
+      "name": "authenticator.backup.rotate",
+      "method": "POST",
+      "path": "/v1/security/authenticators/backup-codes",
+      "request": "BackupCodeRotation",
+      "response": "BackupCodeSet",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
+      "name": "authenticator.disable",
+      "method": "POST",
+      "path": "/v1/security/authenticators/{authenticator_id}/disable",
+      "request": "AuthenticatorDisable",
+      "response": "AuthenticatorStatus",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
+      "name": "authenticator.setup.begin",
+      "method": "POST",
+      "path": "/v1/security/authenticators/setups",
+      "request": "AuthenticatorSetupBegin",
+      "response": "AuthenticatorSetupChallenge",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
+      "name": "authenticator.setup.finish",
+      "method": "POST",
+      "path": "/v1/security/authenticators/setups/{setup_id}",
+      "request": "AuthenticatorSetupFinish",
+      "response": "AuthenticatorSetupResult",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
+      "name": "authenticator.status",
+      "method": "GET",
+      "path": "/v1/security/authenticators",
+      "request": "Empty",
+      "response": "AuthenticatorStatus",
+      "idempotency": false,
+      "bodyless": true
+    },
+    {
+      "plane": "human",
       "name": "binding.rebind",
       "method": "POST",
       "path": "/v1/wallet-binding/rebind",
@@ -838,6 +888,86 @@
       "path": "/v1/profile",
       "request": "ProfileUpdate",
       "response": "Profile",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
+      "name": "security.action",
+      "method": "POST",
+      "path": "/v1/security/actions",
+      "request": "SecurityActionRequest",
+      "response": "SecurityAction",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
+      "name": "security.passkey.list",
+      "method": "GET",
+      "path": "/v1/security/passkeys",
+      "request": "Empty",
+      "response": "PasskeyList",
+      "idempotency": false,
+      "bodyless": true
+    },
+    {
+      "plane": "human",
+      "name": "security.passkey.register.begin",
+      "method": "POST",
+      "path": "/v1/security/passkeys/registrations",
+      "request": "SecurityPasskeyRegistrationBegin",
+      "response": "PasskeyRegistrationChallenge",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
+      "name": "security.passkey.register.finish",
+      "method": "POST",
+      "path": "/v1/security/passkeys/registrations/{registration_id}",
+      "request": "SecurityPasskeyRegistrationFinish",
+      "response": "Passkey",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
+      "name": "security.passkey.revoke",
+      "method": "POST",
+      "path": "/v1/security/passkeys/{passkey_id}/revoke",
+      "request": "SecurityPasskeyRevocation",
+      "response": "PasskeyList",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
+      "name": "security.recovery.reveal",
+      "method": "POST",
+      "path": "/v1/security/recovery/evidence",
+      "request": "SecurityRecoveryReveal",
+      "response": "TimedSecret",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
+      "name": "security.session.revoke",
+      "method": "POST",
+      "path": "/v1/security/sessions/{session_id}/revoke",
+      "request": "SecuritySessionRevocation",
+      "response": "SessionRevocation",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
+      "name": "security.session.revoke-all",
+      "method": "POST",
+      "path": "/v1/security/sessions/revoke-all",
+      "request": "SecuritySessionRevocation",
+      "response": "SessionRevocation",
       "idempotency": false,
       "bodyless": false
     },

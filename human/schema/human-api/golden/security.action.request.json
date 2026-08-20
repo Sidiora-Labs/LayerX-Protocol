@@ -1,0 +1,5 @@
+{
+  "method": "POST",
+  "path": "/v1/security/actions",
+  "body": { "action": "revoke-session", "target_id": "ses_01j2h5r8ad4e6f8g0h2j4k6m8n" }
+}

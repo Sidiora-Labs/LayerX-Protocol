@@ -9,6 +9,10 @@ import {
   decodeAgentLimitRequest,
   decodeAgentReclaimRequest,
   decodeApprovalApproveRequest,
+  decodeAuthenticatorDisable,
+  decodeAuthenticatorSetupBegin,
+  decodeAuthenticatorSetupFinish,
+  decodeBackupCodeRotation,
   decodeBindingStatementRequest,
   decodeBindingSubmission,
   decodeDepositConfirmRequest,
@@ -25,6 +29,12 @@ import {
   decodePasskeyRegistrationFinish,
   decodeProfileUpdate,
   decodeRebindingSubmission,
+  decodeSecurityActionRequest,
+  decodeSecurityPasskeyRegistrationBegin,
+  decodeSecurityPasskeyRegistrationFinish,
+  decodeSecurityPasskeyRevocation,
+  decodeSecurityRecoveryReveal,
+  decodeSecuritySessionRevocation,
   decodeSessionOpenRequest,
   decodeStepUpFinish,
   decodeStepUpRequest,
@@ -42,6 +52,10 @@ import {
   encodeApprovalDecision,
   encodeApprovalDetail,
   encodeApprovalPage,
+  encodeAuthenticatorSetupChallenge,
+  encodeAuthenticatorSetupResult,
+  encodeAuthenticatorStatus,
+  encodeBackupCodeSet,
   encodeBindingStatement,
   encodeEvidenceMaterial,
   encodeExitEligibility,
@@ -56,8 +70,10 @@ import {
   encodePasskey,
   encodePasskeyAssertion,
   encodePasskeyAssertionChallenge,
+  encodePasskeyList,
   encodePasskeyRegistrationChallenge,
   encodeProfile,
+  encodeSecurityAction,
   encodeSession,
   encodeSessionList,
   encodeSessionRevocation,
@@ -68,6 +84,7 @@ import {
   encodeSupportConversation,
   encodeSupportConversationPage,
   encodeSupportConversationStatus,
+  encodeTimedSecret,
   encodeVersionInfo,
   encodeWalletBinding,
   type HumanApiClient,
@@ -143,6 +160,16 @@ export const conformance: { readonly [name in OperationName]: (run: ConformanceR
     encodeApprovalPage(await run.client.approvalList()),
   "approval.reject": async (run) =>
     encodeApprovalDecision(await run.client.approvalReject(runParam(run, "approval_id"), runKey(run))),
+  "authenticator.backup.rotate": async (run) =>
+    encodeBackupCodeSet(await run.client.authenticatorBackupRotate(decodeBackupCodeRotation(runBody(run), "golden request body"))),
+  "authenticator.disable": async (run) =>
+    encodeAuthenticatorStatus(await run.client.authenticatorDisable(runParam(run, "authenticator_id"), decodeAuthenticatorDisable(runBody(run), "golden request body"))),
+  "authenticator.setup.begin": async (run) =>
+    encodeAuthenticatorSetupChallenge(await run.client.authenticatorSetupBegin(decodeAuthenticatorSetupBegin(runBody(run), "golden request body"))),
+  "authenticator.setup.finish": async (run) =>
+    encodeAuthenticatorSetupResult(await run.client.authenticatorSetupFinish(runParam(run, "setup_id"), decodeAuthenticatorSetupFinish(runBody(run), "golden request body"))),
+  "authenticator.status": async (run) =>
+    encodeAuthenticatorStatus(await run.client.authenticatorStatus()),
   "binding.rebind": async (run) =>
     encodeJourney(await run.client.bindingRebind(decodeRebindingSubmission(runBody(run), "golden request body"), runKey(run))),
   "binding.statement": async (run) =>
@@ -193,6 +220,22 @@ export const conformance: { readonly [name in OperationName]: (run: ConformanceR
     encodeProfile(await run.client.profileGet()),
   "profile.update": async (run) =>
     encodeProfile(await run.client.profileUpdate(decodeProfileUpdate(runBody(run), "golden request body"))),
+  "security.action": async (run) =>
+    encodeSecurityAction(await run.client.securityAction(decodeSecurityActionRequest(runBody(run), "golden request body"))),
+  "security.passkey.list": async (run) =>
+    encodePasskeyList(await run.client.securityPasskeyList()),
+  "security.passkey.register.begin": async (run) =>
+    encodePasskeyRegistrationChallenge(await run.client.securityPasskeyRegisterBegin(decodeSecurityPasskeyRegistrationBegin(runBody(run), "golden request body"))),
+  "security.passkey.register.finish": async (run) =>
+    encodePasskey(await run.client.securityPasskeyRegisterFinish(runParam(run, "registration_id"), decodeSecurityPasskeyRegistrationFinish(runBody(run), "golden request body"))),
+  "security.passkey.revoke": async (run) =>
+    encodePasskeyList(await run.client.securityPasskeyRevoke(runParam(run, "passkey_id"), decodeSecurityPasskeyRevocation(runBody(run), "golden request body"))),
+  "security.recovery.reveal": async (run) =>
+    encodeTimedSecret(await run.client.securityRecoveryReveal(decodeSecurityRecoveryReveal(runBody(run), "golden request body"))),
+  "security.session.revoke": async (run) =>
+    encodeSessionRevocation(await run.client.securitySessionRevoke(runParam(run, "session_id"), decodeSecuritySessionRevocation(runBody(run), "golden request body"))),
+  "security.session.revoke-all": async (run) =>
+    encodeSessionRevocation(await run.client.securitySessionRevokeAll(decodeSecuritySessionRevocation(runBody(run), "golden request body"))),
   "session.list": async (run) =>
     encodeSessionList(await run.client.sessionList()),
   "session.open": async (run) =>

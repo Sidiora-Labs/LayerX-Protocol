@@ -7,7 +7,7 @@ agent_schema = "agent/schema/agent-api"
 human_schema = "human/schema/human-api"
 protocol_version = 1
 agent_operations = 40
-human_operations = 62
+human_operations = 75
 money_type = "java.math.BigInteger"
 stream = "atomic cursor chain with duplicate rejection"
 

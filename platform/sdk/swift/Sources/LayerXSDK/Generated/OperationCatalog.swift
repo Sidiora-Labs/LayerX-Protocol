@@ -60,6 +60,11 @@ public enum PlatformOperation: String, CaseIterable, Sendable {
     case humanApprovalGet = "human:approval.get"
     case humanApprovalList = "human:approval.list"
     case humanApprovalReject = "human:approval.reject"
+    case humanAuthenticatorBackupRotate = "human:authenticator.backup.rotate"
+    case humanAuthenticatorDisable = "human:authenticator.disable"
+    case humanAuthenticatorSetupBegin = "human:authenticator.setup.begin"
+    case humanAuthenticatorSetupFinish = "human:authenticator.setup.finish"
+    case humanAuthenticatorStatus = "human:authenticator.status"
     case humanBindingRebind = "human:binding.rebind"
     case humanBindingStatement = "human:binding.statement"
     case humanBindingStatus = "human:binding.status"
@@ -85,6 +90,14 @@ public enum PlatformOperation: String, CaseIterable, Sendable {
     case humanPasskeyRegisterFinish = "human:passkey.register.finish"
     case humanProfileGet = "human:profile.get"
     case humanProfileUpdate = "human:profile.update"
+    case humanSecurityAction = "human:security.action"
+    case humanSecurityPasskeyList = "human:security.passkey.list"
+    case humanSecurityPasskeyRegisterBegin = "human:security.passkey.register.begin"
+    case humanSecurityPasskeyRegisterFinish = "human:security.passkey.register.finish"
+    case humanSecurityPasskeyRevoke = "human:security.passkey.revoke"
+    case humanSecurityRecoveryReveal = "human:security.recovery.reveal"
+    case humanSecuritySessionRevoke = "human:security.session.revoke"
+    case humanSecuritySessionRevokeAll = "human:security.session.revoke-all"
     case humanSessionList = "human:session.list"
     case humanSessionOpen = "human:session.open"
     case humanSessionRefresh = "human:session.refresh"
@@ -165,6 +178,11 @@ public enum PlatformOperation: String, CaseIterable, Sendable {
         case .humanApprovalGet: return OperationDescriptor(plane: .human, name: "approval.get", method: .get, path: "/v1/approvals/{approval_id}", requestType: "Empty", responseType: "ApprovalDetail", requiresIdempotency: false, bodyless: true)
         case .humanApprovalList: return OperationDescriptor(plane: .human, name: "approval.list", method: .get, path: "/v1/approvals", requestType: "Empty", responseType: "ApprovalPage", requiresIdempotency: false, bodyless: true)
         case .humanApprovalReject: return OperationDescriptor(plane: .human, name: "approval.reject", method: .post, path: "/v1/approvals/{approval_id}/reject", requestType: "Empty", responseType: "ApprovalDecision", requiresIdempotency: true, bodyless: true)
+        case .humanAuthenticatorBackupRotate: return OperationDescriptor(plane: .human, name: "authenticator.backup.rotate", method: .post, path: "/v1/security/authenticators/backup-codes", requestType: "BackupCodeRotation", responseType: "BackupCodeSet", requiresIdempotency: false, bodyless: false)
+        case .humanAuthenticatorDisable: return OperationDescriptor(plane: .human, name: "authenticator.disable", method: .post, path: "/v1/security/authenticators/{authenticator_id}/disable", requestType: "AuthenticatorDisable", responseType: "AuthenticatorStatus", requiresIdempotency: false, bodyless: false)
+        case .humanAuthenticatorSetupBegin: return OperationDescriptor(plane: .human, name: "authenticator.setup.begin", method: .post, path: "/v1/security/authenticators/setups", requestType: "AuthenticatorSetupBegin", responseType: "AuthenticatorSetupChallenge", requiresIdempotency: false, bodyless: false)
+        case .humanAuthenticatorSetupFinish: return OperationDescriptor(plane: .human, name: "authenticator.setup.finish", method: .post, path: "/v1/security/authenticators/setups/{setup_id}", requestType: "AuthenticatorSetupFinish", responseType: "AuthenticatorSetupResult", requiresIdempotency: false, bodyless: false)
+        case .humanAuthenticatorStatus: return OperationDescriptor(plane: .human, name: "authenticator.status", method: .get, path: "/v1/security/authenticators", requestType: "Empty", responseType: "AuthenticatorStatus", requiresIdempotency: false, bodyless: true)
         case .humanBindingRebind: return OperationDescriptor(plane: .human, name: "binding.rebind", method: .post, path: "/v1/wallet-binding/rebind", requestType: "RebindingSubmission", responseType: "Journey", requiresIdempotency: true, bodyless: false)
         case .humanBindingStatement: return OperationDescriptor(plane: .human, name: "binding.statement", method: .post, path: "/v1/wallet-binding/statement", requestType: "BindingStatementRequest", responseType: "BindingStatement", requiresIdempotency: false, bodyless: false)
         case .humanBindingStatus: return OperationDescriptor(plane: .human, name: "binding.status", method: .get, path: "/v1/wallet-binding", requestType: "Empty", responseType: "WalletBinding", requiresIdempotency: false, bodyless: true)
@@ -190,6 +208,14 @@ public enum PlatformOperation: String, CaseIterable, Sendable {
         case .humanPasskeyRegisterFinish: return OperationDescriptor(plane: .human, name: "passkey.register.finish", method: .post, path: "/v1/passkeys/registrations/{registration_id}", requestType: "PasskeyRegistrationFinish", responseType: "Passkey", requiresIdempotency: false, bodyless: false)
         case .humanProfileGet: return OperationDescriptor(plane: .human, name: "profile.get", method: .get, path: "/v1/profile", requestType: "Empty", responseType: "Profile", requiresIdempotency: false, bodyless: true)
         case .humanProfileUpdate: return OperationDescriptor(plane: .human, name: "profile.update", method: .patch, path: "/v1/profile", requestType: "ProfileUpdate", responseType: "Profile", requiresIdempotency: false, bodyless: false)
+        case .humanSecurityAction: return OperationDescriptor(plane: .human, name: "security.action", method: .post, path: "/v1/security/actions", requestType: "SecurityActionRequest", responseType: "SecurityAction", requiresIdempotency: false, bodyless: false)
+        case .humanSecurityPasskeyList: return OperationDescriptor(plane: .human, name: "security.passkey.list", method: .get, path: "/v1/security/passkeys", requestType: "Empty", responseType: "PasskeyList", requiresIdempotency: false, bodyless: true)
+        case .humanSecurityPasskeyRegisterBegin: return OperationDescriptor(plane: .human, name: "security.passkey.register.begin", method: .post, path: "/v1/security/passkeys/registrations", requestType: "SecurityPasskeyRegistrationBegin", responseType: "PasskeyRegistrationChallenge", requiresIdempotency: false, bodyless: false)
+        case .humanSecurityPasskeyRegisterFinish: return OperationDescriptor(plane: .human, name: "security.passkey.register.finish", method: .post, path: "/v1/security/passkeys/registrations/{registration_id}", requestType: "SecurityPasskeyRegistrationFinish", responseType: "Passkey", requiresIdempotency: false, bodyless: false)
+        case .humanSecurityPasskeyRevoke: return OperationDescriptor(plane: .human, name: "security.passkey.revoke", method: .post, path: "/v1/security/passkeys/{passkey_id}/revoke", requestType: "SecurityPasskeyRevocation", responseType: "PasskeyList", requiresIdempotency: false, bodyless: false)
+        case .humanSecurityRecoveryReveal: return OperationDescriptor(plane: .human, name: "security.recovery.reveal", method: .post, path: "/v1/security/recovery/evidence", requestType: "SecurityRecoveryReveal", responseType: "TimedSecret", requiresIdempotency: false, bodyless: false)
+        case .humanSecuritySessionRevoke: return OperationDescriptor(plane: .human, name: "security.session.revoke", method: .post, path: "/v1/security/sessions/{session_id}/revoke", requestType: "SecuritySessionRevocation", responseType: "SessionRevocation", requiresIdempotency: false, bodyless: false)
+        case .humanSecuritySessionRevokeAll: return OperationDescriptor(plane: .human, name: "security.session.revoke-all", method: .post, path: "/v1/security/sessions/revoke-all", requestType: "SecuritySessionRevocation", responseType: "SessionRevocation", requiresIdempotency: false, bodyless: false)
         case .humanSessionList: return OperationDescriptor(plane: .human, name: "session.list", method: .get, path: "/v1/sessions", requestType: "Empty", responseType: "SessionList", requiresIdempotency: false, bodyless: true)
         case .humanSessionOpen: return OperationDescriptor(plane: .human, name: "session.open", method: .post, path: "/v1/sessions", requestType: "SessionOpenRequest", responseType: "Session", requiresIdempotency: false, bodyless: false)
         case .humanSessionRefresh: return OperationDescriptor(plane: .human, name: "session.refresh", method: .post, path: "/v1/sessions/refresh", requestType: "Empty", responseType: "Session", requiresIdempotency: false, bodyless: true)
@@ -390,6 +416,21 @@ public extension PlatformClient {
     func humanApprovalReject(idempotencyKey: IdempotencyKey, pathParameters: [String: String] = [:]) async throws -> JSONValue {
         try await mutate(.humanApprovalReject, request: .emptyObject, idempotencyKey: idempotencyKey, pathParameters: pathParameters)
     }
+    func humanAuthenticatorBackupRotate(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanAuthenticatorBackupRotate, request: request, pathParameters: pathParameters)
+    }
+    func humanAuthenticatorDisable(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanAuthenticatorDisable, request: request, pathParameters: pathParameters)
+    }
+    func humanAuthenticatorSetupBegin(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanAuthenticatorSetupBegin, request: request, pathParameters: pathParameters)
+    }
+    func humanAuthenticatorSetupFinish(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanAuthenticatorSetupFinish, request: request, pathParameters: pathParameters)
+    }
+    func humanAuthenticatorStatus(_ request: JSONValue = .object([:]), pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanAuthenticatorStatus, request: request, pathParameters: pathParameters)
+    }
     func humanBindingRebind(_ request: JSONValue, idempotencyKey: IdempotencyKey, pathParameters: [String: String] = [:]) async throws -> JSONValue {
         try await mutate(.humanBindingRebind, request: request, idempotencyKey: idempotencyKey, pathParameters: pathParameters)
     }
@@ -465,6 +506,30 @@ public extension PlatformClient {
     func humanProfileUpdate(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
         try await read(.humanProfileUpdate, request: request, pathParameters: pathParameters)
     }
+    func humanSecurityAction(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanSecurityAction, request: request, pathParameters: pathParameters)
+    }
+    func humanSecurityPasskeyList(_ request: JSONValue = .object([:]), pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanSecurityPasskeyList, request: request, pathParameters: pathParameters)
+    }
+    func humanSecurityPasskeyRegisterBegin(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanSecurityPasskeyRegisterBegin, request: request, pathParameters: pathParameters)
+    }
+    func humanSecurityPasskeyRegisterFinish(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanSecurityPasskeyRegisterFinish, request: request, pathParameters: pathParameters)
+    }
+    func humanSecurityPasskeyRevoke(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanSecurityPasskeyRevoke, request: request, pathParameters: pathParameters)
+    }
+    func humanSecurityRecoveryReveal(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanSecurityRecoveryReveal, request: request, pathParameters: pathParameters)
+    }
+    func humanSecuritySessionRevoke(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanSecuritySessionRevoke, request: request, pathParameters: pathParameters)
+    }
+    func humanSecuritySessionRevokeAll(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanSecuritySessionRevokeAll, request: request, pathParameters: pathParameters)
+    }
     func humanSessionList(_ request: JSONValue = .object([:]), pathParameters: [String: String] = [:]) async throws -> JSONValue {
         try await read(.humanSessionList, request: request, pathParameters: pathParameters)
     }
@@ -521,6 +586,6 @@ public extension PlatformClient {
     }
 }
 
-private let sdkMetadata = SDKMetadata(name: "LayerXSDK", version: "0.1.0", agentOperations: 40, humanOperations: 62)
+private let sdkMetadata = SDKMetadata(name: "LayerXSDK", version: "0.1.0", agentOperations: 40, humanOperations: 75)
 
 public func platform_sdk_swift() -> SDKMetadata { sdkMetadata }

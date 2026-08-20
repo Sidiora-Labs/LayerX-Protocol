@@ -1,0 +1,19 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "result": {
+      "method": {
+        "authenticator_id": "mfa_01j2h721aa1b2c3d4e5f6g7h8j",
+        "label": "Phone authenticator",
+        "enabled_at": "2026-08-20T09:38:00Z"
+      },
+      "backup_codes": {
+        "codes": ["4WPK-7NQ2", "CJ8M-3RXT", "KV6D-9HLA", "Q2ZN-5TBG"],
+        "remask_at": "2026-08-20T09:43:00Z",
+        "copyable": true
+      }
+    },
+    "trace": "trc_01j2h727gg1b2c3d4e5f6g7h8j"
+  }
+}

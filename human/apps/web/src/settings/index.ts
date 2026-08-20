@@ -13,6 +13,7 @@ export {
   type NotificationChannel,
 } from "./model";
 export { SettingsScreen } from "./settings-screen";
+export { human_web_security, security, SecurityScreen } from "./security";
 export {
   PrivateFigure,
   PrivacyModeProvider,

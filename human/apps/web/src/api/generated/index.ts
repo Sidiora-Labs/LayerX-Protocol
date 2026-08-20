@@ -100,6 +100,10 @@ export type ApprovalId = string;
 
 export type AssertionId = string;
 
+export type AuthenticatorId = string;
+
+export type AuthenticatorSetupId = string;
+
 export type CopyKey = string;
 
 export type CurrencyCode = string;
@@ -402,6 +406,20 @@ export function decodeRetriability(value: JsonValue | undefined, at: string): Re
     }
   }
   throw new HumanApiDecodeError(at + " must be a declared Retriability variant");
+}
+
+export type SecurityActionKind = "add-passkey" | "revoke-passkey" | "revoke-session" | "revoke-all-sessions" | "add-authenticator" | "disable-authenticator" | "rotate-backup-codes" | "reveal-recovery-evidence";
+
+export const securityActionKindVariants: readonly SecurityActionKind[] = ["add-passkey", "revoke-passkey", "revoke-session", "revoke-all-sessions", "add-authenticator", "disable-authenticator", "rotate-backup-codes", "reveal-recovery-evidence"];
+
+export function decodeSecurityActionKind(value: JsonValue | undefined, at: string): SecurityActionKind {
+  const text = expectString(value, at);
+  for (const variant of securityActionKindVariants) {
+    if (variant === text) {
+      return variant;
+    }
+  }
+  throw new HumanApiDecodeError(at + " must be a declared SecurityActionKind variant");
 }
 
 export type SettlementDomain = "paxeer";
@@ -1252,6 +1270,217 @@ export function encodeApprovalSummary(value: ApprovalSummary): JsonValue {
     expires_at: value.expires_at,
     state: value.state,
     budget_remaining_after: encodeVerifiedMoney(value.budget_remaining_after),
+  };
+  return result;
+}
+
+export interface AuthenticatorDisable {
+  step_up: StepUpEvidence;
+}
+
+export function decodeAuthenticatorDisable(value: JsonValue | undefined, at: string): AuthenticatorDisable {
+  const object = expectObject(value, at);
+  const result: AuthenticatorDisable = {
+    step_up: decodeStepUpEvidence(object["step_up"], at + ".step_up"),
+  };
+  return result;
+}
+
+export function encodeAuthenticatorDisable(value: AuthenticatorDisable): JsonValue {
+  const result: JsonObject = {
+    step_up: encodeStepUpEvidence(value.step_up),
+  };
+  return result;
+}
+
+export interface AuthenticatorMethod {
+  authenticator_id: AuthenticatorId;
+  label: string;
+  enabled_at: Timestamp;
+  last_used_at?: Timestamp;
+}
+
+export function decodeAuthenticatorMethod(value: JsonValue | undefined, at: string): AuthenticatorMethod {
+  const object = expectObject(value, at);
+  const result: AuthenticatorMethod = {
+    authenticator_id: expectString(object["authenticator_id"], at + ".authenticator_id"),
+    label: expectString(object["label"], at + ".label"),
+    enabled_at: expectString(object["enabled_at"], at + ".enabled_at"),
+  };
+  if (object["last_used_at"] !== undefined) {
+    result.last_used_at = expectString(object["last_used_at"], at + ".last_used_at");
+  }
+  return result;
+}
+
+export function encodeAuthenticatorMethod(value: AuthenticatorMethod): JsonValue {
+  const result: JsonObject = {
+    authenticator_id: value.authenticator_id,
+    label: value.label,
+    enabled_at: value.enabled_at,
+  };
+  if (value.last_used_at !== undefined) {
+    result["last_used_at"] = value.last_used_at;
+  }
+  return result;
+}
+
+export interface AuthenticatorSetupBegin {
+  label: string;
+  step_up: StepUpEvidence;
+}
+
+export function decodeAuthenticatorSetupBegin(value: JsonValue | undefined, at: string): AuthenticatorSetupBegin {
+  const object = expectObject(value, at);
+  const result: AuthenticatorSetupBegin = {
+    label: expectString(object["label"], at + ".label"),
+    step_up: decodeStepUpEvidence(object["step_up"], at + ".step_up"),
+  };
+  return result;
+}
+
+export function encodeAuthenticatorSetupBegin(value: AuthenticatorSetupBegin): JsonValue {
+  const result: JsonObject = {
+    label: value.label,
+    step_up: encodeStepUpEvidence(value.step_up),
+  };
+  return result;
+}
+
+export interface AuthenticatorSetupChallenge {
+  setup_id: AuthenticatorSetupId;
+  secret: TimedSecret;
+  otpauth_uri: TimedSecret;
+  expires_at: Timestamp;
+}
+
+export function decodeAuthenticatorSetupChallenge(value: JsonValue | undefined, at: string): AuthenticatorSetupChallenge {
+  const object = expectObject(value, at);
+  const result: AuthenticatorSetupChallenge = {
+    setup_id: expectString(object["setup_id"], at + ".setup_id"),
+    secret: decodeTimedSecret(object["secret"], at + ".secret"),
+    otpauth_uri: decodeTimedSecret(object["otpauth_uri"], at + ".otpauth_uri"),
+    expires_at: expectString(object["expires_at"], at + ".expires_at"),
+  };
+  return result;
+}
+
+export function encodeAuthenticatorSetupChallenge(value: AuthenticatorSetupChallenge): JsonValue {
+  const result: JsonObject = {
+    setup_id: value.setup_id,
+    secret: encodeTimedSecret(value.secret),
+    otpauth_uri: encodeTimedSecret(value.otpauth_uri),
+    expires_at: value.expires_at,
+  };
+  return result;
+}
+
+export interface AuthenticatorSetupFinish {
+  code: string;
+  step_up: StepUpEvidence;
+}
+
+export function decodeAuthenticatorSetupFinish(value: JsonValue | undefined, at: string): AuthenticatorSetupFinish {
+  const object = expectObject(value, at);
+  const result: AuthenticatorSetupFinish = {
+    code: expectString(object["code"], at + ".code"),
+    step_up: decodeStepUpEvidence(object["step_up"], at + ".step_up"),
+  };
+  return result;
+}
+
+export function encodeAuthenticatorSetupFinish(value: AuthenticatorSetupFinish): JsonValue {
+  const result: JsonObject = {
+    code: value.code,
+    step_up: encodeStepUpEvidence(value.step_up),
+  };
+  return result;
+}
+
+export interface AuthenticatorSetupResult {
+  method: AuthenticatorMethod;
+  backup_codes: BackupCodeSet;
+}
+
+export function decodeAuthenticatorSetupResult(value: JsonValue | undefined, at: string): AuthenticatorSetupResult {
+  const object = expectObject(value, at);
+  const result: AuthenticatorSetupResult = {
+    method: decodeAuthenticatorMethod(object["method"], at + ".method"),
+    backup_codes: decodeBackupCodeSet(object["backup_codes"], at + ".backup_codes"),
+  };
+  return result;
+}
+
+export function encodeAuthenticatorSetupResult(value: AuthenticatorSetupResult): JsonValue {
+  const result: JsonObject = {
+    method: encodeAuthenticatorMethod(value.method),
+    backup_codes: encodeBackupCodeSet(value.backup_codes),
+  };
+  return result;
+}
+
+export interface AuthenticatorStatus {
+  methods: AuthenticatorMethod[];
+  backup_codes_remaining: number;
+}
+
+export function decodeAuthenticatorStatus(value: JsonValue | undefined, at: string): AuthenticatorStatus {
+  const object = expectObject(value, at);
+  const result: AuthenticatorStatus = {
+    methods: decodeArray(object["methods"], at + ".methods", decodeAuthenticatorMethod),
+    backup_codes_remaining: expectInteger(object["backup_codes_remaining"], at + ".backup_codes_remaining"),
+  };
+  return result;
+}
+
+export function encodeAuthenticatorStatus(value: AuthenticatorStatus): JsonValue {
+  const result: JsonObject = {
+    methods: value.methods.map(encodeAuthenticatorMethod),
+    backup_codes_remaining: value.backup_codes_remaining,
+  };
+  return result;
+}
+
+export interface BackupCodeRotation {
+  step_up: StepUpEvidence;
+}
+
+export function decodeBackupCodeRotation(value: JsonValue | undefined, at: string): BackupCodeRotation {
+  const object = expectObject(value, at);
+  const result: BackupCodeRotation = {
+    step_up: decodeStepUpEvidence(object["step_up"], at + ".step_up"),
+  };
+  return result;
+}
+
+export function encodeBackupCodeRotation(value: BackupCodeRotation): JsonValue {
+  const result: JsonObject = {
+    step_up: encodeStepUpEvidence(value.step_up),
+  };
+  return result;
+}
+
+export interface BackupCodeSet {
+  codes: string[];
+  remask_at: Timestamp;
+  copyable: boolean;
+}
+
+export function decodeBackupCodeSet(value: JsonValue | undefined, at: string): BackupCodeSet {
+  const object = expectObject(value, at);
+  const result: BackupCodeSet = {
+    codes: decodeArray(object["codes"], at + ".codes", expectString),
+    remask_at: expectString(object["remask_at"], at + ".remask_at"),
+    copyable: expectBoolean(object["copyable"], at + ".copyable"),
+  };
+  return result;
+}
+
+export function encodeBackupCodeSet(value: BackupCodeSet): JsonValue {
+  const result: JsonObject = {
+    codes: value.codes,
+    remask_at: value.remask_at,
+    copyable: value.copyable,
   };
   return result;
 }
@@ -2195,6 +2424,25 @@ export function encodePasskeyAssertionFinish(value: PasskeyAssertionFinish): Jso
   return result;
 }
 
+export interface PasskeyList {
+  passkeys: Passkey[];
+}
+
+export function decodePasskeyList(value: JsonValue | undefined, at: string): PasskeyList {
+  const object = expectObject(value, at);
+  const result: PasskeyList = {
+    passkeys: decodeArray(object["passkeys"], at + ".passkeys", decodePasskey),
+  };
+  return result;
+}
+
+export function encodePasskeyList(value: PasskeyList): JsonValue {
+  const result: JsonObject = {
+    passkeys: value.passkeys.map(encodePasskey),
+  };
+  return result;
+}
+
 export interface PasskeyRegistrationBegin {
   account_id: AccountId;
 }
@@ -2415,6 +2663,155 @@ export function encodeSchemaVersion(value: SchemaVersion): JsonValue {
   const result: JsonObject = {
     major: value.major,
     minor: value.minor,
+  };
+  return result;
+}
+
+export interface SecurityAction {
+  confirms: OperationDigest;
+}
+
+export function decodeSecurityAction(value: JsonValue | undefined, at: string): SecurityAction {
+  const object = expectObject(value, at);
+  const result: SecurityAction = {
+    confirms: expectString(object["confirms"], at + ".confirms"),
+  };
+  return result;
+}
+
+export function encodeSecurityAction(value: SecurityAction): JsonValue {
+  const result: JsonObject = {
+    confirms: value.confirms,
+  };
+  return result;
+}
+
+export interface SecurityActionRequest {
+  action: SecurityActionKind;
+  target_id?: string;
+}
+
+export function decodeSecurityActionRequest(value: JsonValue | undefined, at: string): SecurityActionRequest {
+  const object = expectObject(value, at);
+  const result: SecurityActionRequest = {
+    action: decodeSecurityActionKind(object["action"], at + ".action"),
+  };
+  if (object["target_id"] !== undefined) {
+    result.target_id = expectString(object["target_id"], at + ".target_id");
+  }
+  return result;
+}
+
+export function encodeSecurityActionRequest(value: SecurityActionRequest): JsonValue {
+  const result: JsonObject = {
+    action: value.action,
+  };
+  if (value.target_id !== undefined) {
+    result["target_id"] = value.target_id;
+  }
+  return result;
+}
+
+export interface SecurityPasskeyRegistrationBegin {
+  label: string;
+  step_up: StepUpEvidence;
+}
+
+export function decodeSecurityPasskeyRegistrationBegin(value: JsonValue | undefined, at: string): SecurityPasskeyRegistrationBegin {
+  const object = expectObject(value, at);
+  const result: SecurityPasskeyRegistrationBegin = {
+    label: expectString(object["label"], at + ".label"),
+    step_up: decodeStepUpEvidence(object["step_up"], at + ".step_up"),
+  };
+  return result;
+}
+
+export function encodeSecurityPasskeyRegistrationBegin(value: SecurityPasskeyRegistrationBegin): JsonValue {
+  const result: JsonObject = {
+    label: value.label,
+    step_up: encodeStepUpEvidence(value.step_up),
+  };
+  return result;
+}
+
+export interface SecurityPasskeyRegistrationFinish {
+  credential: OpaqueCredential;
+  step_up: StepUpEvidence;
+}
+
+export function decodeSecurityPasskeyRegistrationFinish(value: JsonValue | undefined, at: string): SecurityPasskeyRegistrationFinish {
+  const object = expectObject(value, at);
+  const result: SecurityPasskeyRegistrationFinish = {
+    credential: expectString(object["credential"], at + ".credential"),
+    step_up: decodeStepUpEvidence(object["step_up"], at + ".step_up"),
+  };
+  return result;
+}
+
+export function encodeSecurityPasskeyRegistrationFinish(value: SecurityPasskeyRegistrationFinish): JsonValue {
+  const result: JsonObject = {
+    credential: value.credential,
+    step_up: encodeStepUpEvidence(value.step_up),
+  };
+  return result;
+}
+
+export interface SecurityPasskeyRevocation {
+  step_up: StepUpEvidence;
+}
+
+export function decodeSecurityPasskeyRevocation(value: JsonValue | undefined, at: string): SecurityPasskeyRevocation {
+  const object = expectObject(value, at);
+  const result: SecurityPasskeyRevocation = {
+    step_up: decodeStepUpEvidence(object["step_up"], at + ".step_up"),
+  };
+  return result;
+}
+
+export function encodeSecurityPasskeyRevocation(value: SecurityPasskeyRevocation): JsonValue {
+  const result: JsonObject = {
+    step_up: encodeStepUpEvidence(value.step_up),
+  };
+  return result;
+}
+
+export interface SecurityRecoveryReveal {
+  evidence_id: EvidenceId;
+  step_up: StepUpEvidence;
+}
+
+export function decodeSecurityRecoveryReveal(value: JsonValue | undefined, at: string): SecurityRecoveryReveal {
+  const object = expectObject(value, at);
+  const result: SecurityRecoveryReveal = {
+    evidence_id: expectString(object["evidence_id"], at + ".evidence_id"),
+    step_up: decodeStepUpEvidence(object["step_up"], at + ".step_up"),
+  };
+  return result;
+}
+
+export function encodeSecurityRecoveryReveal(value: SecurityRecoveryReveal): JsonValue {
+  const result: JsonObject = {
+    evidence_id: value.evidence_id,
+    step_up: encodeStepUpEvidence(value.step_up),
+  };
+  return result;
+}
+
+export interface SecuritySessionRevocation {
+  step_up: StepUpEvidence;
+}
+
+export function decodeSecuritySessionRevocation(value: JsonValue | undefined, at: string): SecuritySessionRevocation {
+  const object = expectObject(value, at);
+  const result: SecuritySessionRevocation = {
+    step_up: decodeStepUpEvidence(object["step_up"], at + ".step_up"),
+  };
+  return result;
+}
+
+export function encodeSecuritySessionRevocation(value: SecuritySessionRevocation): JsonValue {
+  const result: JsonObject = {
+    step_up: encodeStepUpEvidence(value.step_up),
   };
   return result;
 }
@@ -2969,6 +3366,31 @@ export function encodeSupportReplyRequest(value: SupportReplyRequest): JsonValue
   return result;
 }
 
+export interface TimedSecret {
+  value: string;
+  remask_at: Timestamp;
+  copyable: boolean;
+}
+
+export function decodeTimedSecret(value: JsonValue | undefined, at: string): TimedSecret {
+  const object = expectObject(value, at);
+  const result: TimedSecret = {
+    value: expectString(object["value"], at + ".value"),
+    remask_at: expectString(object["remask_at"], at + ".remask_at"),
+    copyable: expectBoolean(object["copyable"], at + ".copyable"),
+  };
+  return result;
+}
+
+export function encodeTimedSecret(value: TimedSecret): JsonValue {
+  const result: JsonObject = {
+    value: value.value,
+    remask_at: value.remask_at,
+    copyable: value.copyable,
+  };
+  return result;
+}
+
 export interface VerifiedMoney {
   money: Money;
   verification: VerificationLevel;
@@ -3189,6 +3611,11 @@ export const operationNames = [
   "approval.get",
   "approval.list",
   "approval.reject",
+  "authenticator.backup.rotate",
+  "authenticator.disable",
+  "authenticator.setup.begin",
+  "authenticator.setup.finish",
+  "authenticator.status",
   "binding.rebind",
   "binding.statement",
   "binding.status",
@@ -3214,6 +3641,14 @@ export const operationNames = [
   "passkey.register.finish",
   "profile.get",
   "profile.update",
+  "security.action",
+  "security.passkey.list",
+  "security.passkey.register.begin",
+  "security.passkey.register.finish",
+  "security.passkey.revoke",
+  "security.recovery.reveal",
+  "security.session.revoke",
+  "security.session.revoke-all",
   "session.list",
   "session.open",
   "session.refresh",
@@ -3256,6 +3691,11 @@ export const operations: { readonly [name in OperationName]: OperationShape } = 
   "approval.get": { method: "GET", path: "/v1/approvals/{approval_id}", pathParams: ["approval_id"], request: "Empty", response: "ApprovalDetail", idempotency: false, bodyless: true },
   "approval.list": { method: "GET", path: "/v1/approvals", pathParams: [], request: "Empty", response: "ApprovalPage", idempotency: false, bodyless: true },
   "approval.reject": { method: "POST", path: "/v1/approvals/{approval_id}/reject", pathParams: ["approval_id"], request: "Empty", response: "ApprovalDecision", idempotency: true, bodyless: true },
+  "authenticator.backup.rotate": { method: "POST", path: "/v1/security/authenticators/backup-codes", pathParams: [], request: "BackupCodeRotation", response: "BackupCodeSet", idempotency: false, bodyless: false },
+  "authenticator.disable": { method: "POST", path: "/v1/security/authenticators/{authenticator_id}/disable", pathParams: ["authenticator_id"], request: "AuthenticatorDisable", response: "AuthenticatorStatus", idempotency: false, bodyless: false },
+  "authenticator.setup.begin": { method: "POST", path: "/v1/security/authenticators/setups", pathParams: [], request: "AuthenticatorSetupBegin", response: "AuthenticatorSetupChallenge", idempotency: false, bodyless: false },
+  "authenticator.setup.finish": { method: "POST", path: "/v1/security/authenticators/setups/{setup_id}", pathParams: ["setup_id"], request: "AuthenticatorSetupFinish", response: "AuthenticatorSetupResult", idempotency: false, bodyless: false },
+  "authenticator.status": { method: "GET", path: "/v1/security/authenticators", pathParams: [], request: "Empty", response: "AuthenticatorStatus", idempotency: false, bodyless: true },
   "binding.rebind": { method: "POST", path: "/v1/wallet-binding/rebind", pathParams: [], request: "RebindingSubmission", response: "Journey", idempotency: true, bodyless: false },
   "binding.statement": { method: "POST", path: "/v1/wallet-binding/statement", pathParams: [], request: "BindingStatementRequest", response: "BindingStatement", idempotency: false, bodyless: false },
   "binding.status": { method: "GET", path: "/v1/wallet-binding", pathParams: [], request: "Empty", response: "WalletBinding", idempotency: false, bodyless: true },
@@ -3281,6 +3721,14 @@ export const operations: { readonly [name in OperationName]: OperationShape } = 
   "passkey.register.finish": { method: "POST", path: "/v1/passkeys/registrations/{registration_id}", pathParams: ["registration_id"], request: "PasskeyRegistrationFinish", response: "Passkey", idempotency: false, bodyless: false },
   "profile.get": { method: "GET", path: "/v1/profile", pathParams: [], request: "Empty", response: "Profile", idempotency: false, bodyless: true },
   "profile.update": { method: "PATCH", path: "/v1/profile", pathParams: [], request: "ProfileUpdate", response: "Profile", idempotency: false, bodyless: false },
+  "security.action": { method: "POST", path: "/v1/security/actions", pathParams: [], request: "SecurityActionRequest", response: "SecurityAction", idempotency: false, bodyless: false },
+  "security.passkey.list": { method: "GET", path: "/v1/security/passkeys", pathParams: [], request: "Empty", response: "PasskeyList", idempotency: false, bodyless: true },
+  "security.passkey.register.begin": { method: "POST", path: "/v1/security/passkeys/registrations", pathParams: [], request: "SecurityPasskeyRegistrationBegin", response: "PasskeyRegistrationChallenge", idempotency: false, bodyless: false },
+  "security.passkey.register.finish": { method: "POST", path: "/v1/security/passkeys/registrations/{registration_id}", pathParams: ["registration_id"], request: "SecurityPasskeyRegistrationFinish", response: "Passkey", idempotency: false, bodyless: false },
+  "security.passkey.revoke": { method: "POST", path: "/v1/security/passkeys/{passkey_id}/revoke", pathParams: ["passkey_id"], request: "SecurityPasskeyRevocation", response: "PasskeyList", idempotency: false, bodyless: false },
+  "security.recovery.reveal": { method: "POST", path: "/v1/security/recovery/evidence", pathParams: [], request: "SecurityRecoveryReveal", response: "TimedSecret", idempotency: false, bodyless: false },
+  "security.session.revoke": { method: "POST", path: "/v1/security/sessions/{session_id}/revoke", pathParams: ["session_id"], request: "SecuritySessionRevocation", response: "SessionRevocation", idempotency: false, bodyless: false },
+  "security.session.revoke-all": { method: "POST", path: "/v1/security/sessions/revoke-all", pathParams: [], request: "SecuritySessionRevocation", response: "SessionRevocation", idempotency: false, bodyless: false },
   "session.list": { method: "GET", path: "/v1/sessions", pathParams: [], request: "Empty", response: "SessionList", idempotency: false, bodyless: true },
   "session.open": { method: "POST", path: "/v1/sessions", pathParams: [], request: "SessionOpenRequest", response: "Session", idempotency: false, bodyless: false },
   "session.refresh": { method: "POST", path: "/v1/sessions/refresh", pathParams: [], request: "Empty", response: "Session", idempotency: false, bodyless: true },
@@ -3329,6 +3777,11 @@ export interface HumanApiClient {
   approvalGet(approval_id: string): Promise<ApprovalDetail>;
   approvalList(): Promise<ApprovalPage>;
   approvalReject(approval_id: string, idempotencyKey: string): Promise<ApprovalDecision>;
+  authenticatorBackupRotate(request: BackupCodeRotation): Promise<BackupCodeSet>;
+  authenticatorDisable(authenticator_id: string, request: AuthenticatorDisable): Promise<AuthenticatorStatus>;
+  authenticatorSetupBegin(request: AuthenticatorSetupBegin): Promise<AuthenticatorSetupChallenge>;
+  authenticatorSetupFinish(setup_id: string, request: AuthenticatorSetupFinish): Promise<AuthenticatorSetupResult>;
+  authenticatorStatus(): Promise<AuthenticatorStatus>;
   bindingRebind(request: RebindingSubmission, idempotencyKey: string): Promise<Journey>;
   bindingStatement(request: BindingStatementRequest): Promise<BindingStatement>;
   bindingStatus(): Promise<WalletBinding>;
@@ -3354,6 +3807,14 @@ export interface HumanApiClient {
   passkeyRegisterFinish(registration_id: string, request: PasskeyRegistrationFinish): Promise<Passkey>;
   profileGet(): Promise<Profile>;
   profileUpdate(request: ProfileUpdate): Promise<Profile>;
+  securityAction(request: SecurityActionRequest): Promise<SecurityAction>;
+  securityPasskeyList(): Promise<PasskeyList>;
+  securityPasskeyRegisterBegin(request: SecurityPasskeyRegistrationBegin): Promise<PasskeyRegistrationChallenge>;
+  securityPasskeyRegisterFinish(registration_id: string, request: SecurityPasskeyRegistrationFinish): Promise<Passkey>;
+  securityPasskeyRevoke(passkey_id: string, request: SecurityPasskeyRevocation): Promise<PasskeyList>;
+  securityRecoveryReveal(request: SecurityRecoveryReveal): Promise<TimedSecret>;
+  securitySessionRevoke(session_id: string, request: SecuritySessionRevocation): Promise<SessionRevocation>;
+  securitySessionRevokeAll(request: SecuritySessionRevocation): Promise<SessionRevocation>;
   sessionList(): Promise<SessionList>;
   sessionOpen(request: SessionOpenRequest): Promise<Session>;
   sessionRefresh(): Promise<Session>;
@@ -3449,6 +3910,16 @@ export function createHumanApiClient(options: HumanApiClientOptions = {}): Human
       decodeApprovalPage(await execute("GET", "/v1/approvals", undefined, undefined), "approval.list result"),
     approvalReject: async (approval_id, idempotencyKey) =>
       decodeApprovalDecision(await execute("POST", "/v1/approvals/" + encodeURIComponent(approval_id) + "/reject", undefined, idempotencyKey), "approval.reject result"),
+    authenticatorBackupRotate: async (request) =>
+      decodeBackupCodeSet(await execute("POST", "/v1/security/authenticators/backup-codes", encodeBackupCodeRotation(request), undefined), "authenticator.backup.rotate result"),
+    authenticatorDisable: async (authenticator_id, request) =>
+      decodeAuthenticatorStatus(await execute("POST", "/v1/security/authenticators/" + encodeURIComponent(authenticator_id) + "/disable", encodeAuthenticatorDisable(request), undefined), "authenticator.disable result"),
+    authenticatorSetupBegin: async (request) =>
+      decodeAuthenticatorSetupChallenge(await execute("POST", "/v1/security/authenticators/setups", encodeAuthenticatorSetupBegin(request), undefined), "authenticator.setup.begin result"),
+    authenticatorSetupFinish: async (setup_id, request) =>
+      decodeAuthenticatorSetupResult(await execute("POST", "/v1/security/authenticators/setups/" + encodeURIComponent(setup_id), encodeAuthenticatorSetupFinish(request), undefined), "authenticator.setup.finish result"),
+    authenticatorStatus: async () =>
+      decodeAuthenticatorStatus(await execute("GET", "/v1/security/authenticators", undefined, undefined), "authenticator.status result"),
     bindingRebind: async (request, idempotencyKey) =>
       decodeJourney(await execute("POST", "/v1/wallet-binding/rebind", encodeRebindingSubmission(request), idempotencyKey), "binding.rebind result"),
     bindingStatement: async (request) =>
@@ -3499,6 +3970,22 @@ export function createHumanApiClient(options: HumanApiClientOptions = {}): Human
       decodeProfile(await execute("GET", "/v1/profile", undefined, undefined), "profile.get result"),
     profileUpdate: async (request) =>
       decodeProfile(await execute("PATCH", "/v1/profile", encodeProfileUpdate(request), undefined), "profile.update result"),
+    securityAction: async (request) =>
+      decodeSecurityAction(await execute("POST", "/v1/security/actions", encodeSecurityActionRequest(request), undefined), "security.action result"),
+    securityPasskeyList: async () =>
+      decodePasskeyList(await execute("GET", "/v1/security/passkeys", undefined, undefined), "security.passkey.list result"),
+    securityPasskeyRegisterBegin: async (request) =>
+      decodePasskeyRegistrationChallenge(await execute("POST", "/v1/security/passkeys/registrations", encodeSecurityPasskeyRegistrationBegin(request), undefined), "security.passkey.register.begin result"),
+    securityPasskeyRegisterFinish: async (registration_id, request) =>
+      decodePasskey(await execute("POST", "/v1/security/passkeys/registrations/" + encodeURIComponent(registration_id), encodeSecurityPasskeyRegistrationFinish(request), undefined), "security.passkey.register.finish result"),
+    securityPasskeyRevoke: async (passkey_id, request) =>
+      decodePasskeyList(await execute("POST", "/v1/security/passkeys/" + encodeURIComponent(passkey_id) + "/revoke", encodeSecurityPasskeyRevocation(request), undefined), "security.passkey.revoke result"),
+    securityRecoveryReveal: async (request) =>
+      decodeTimedSecret(await execute("POST", "/v1/security/recovery/evidence", encodeSecurityRecoveryReveal(request), undefined), "security.recovery.reveal result"),
+    securitySessionRevoke: async (session_id, request) =>
+      decodeSessionRevocation(await execute("POST", "/v1/security/sessions/" + encodeURIComponent(session_id) + "/revoke", encodeSecuritySessionRevocation(request), undefined), "security.session.revoke result"),
+    securitySessionRevokeAll: async (request) =>
+      decodeSessionRevocation(await execute("POST", "/v1/security/sessions/revoke-all", encodeSecuritySessionRevocation(request), undefined), "security.session.revoke-all result"),
     sessionList: async () =>
       decodeSessionList(await execute("GET", "/v1/sessions", undefined, undefined), "session.list result"),
     sessionOpen: async (request) =>

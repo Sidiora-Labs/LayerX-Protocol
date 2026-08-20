@@ -118,68 +118,81 @@ func (operation AgentOperation) RequiresIdempotency() bool {
 type HumanOperation string
 
 const (
-	HumanOperationAccountCreate              HumanOperation = "account.create"
-	HumanOperationActivityEntry              HumanOperation = "activity.entry"
-	HumanOperationActivityExportEvidence     HumanOperation = "activity.export.evidence"
-	HumanOperationActivityExportStatement    HumanOperation = "activity.export.statement"
-	HumanOperationActivityQuery              HumanOperation = "activity.query"
-	HumanOperationAgentArchive               HumanOperation = "agent.archive"
-	HumanOperationAgentCreate                HumanOperation = "agent.create"
-	HumanOperationAgentGet                   HumanOperation = "agent.get"
-	HumanOperationAgentLimit                 HumanOperation = "agent.limit"
-	HumanOperationAgentList                  HumanOperation = "agent.list"
-	HumanOperationAgentPause                 HumanOperation = "agent.pause"
-	HumanOperationAgentReclaim               HumanOperation = "agent.reclaim"
-	HumanOperationAgentRecover               HumanOperation = "agent.recover"
-	HumanOperationAgentResume                HumanOperation = "agent.resume"
-	HumanOperationAgentRotate                HumanOperation = "agent.rotate"
-	HumanOperationApprovalApprove            HumanOperation = "approval.approve"
-	HumanOperationApprovalGet                HumanOperation = "approval.get"
-	HumanOperationApprovalList               HumanOperation = "approval.list"
-	HumanOperationApprovalReject             HumanOperation = "approval.reject"
-	HumanOperationBindingRebind              HumanOperation = "binding.rebind"
-	HumanOperationBindingStatement           HumanOperation = "binding.statement"
-	HumanOperationBindingStatus              HumanOperation = "binding.status"
-	HumanOperationBindingSubmit              HumanOperation = "binding.submit"
-	HumanOperationDepositConfirm             HumanOperation = "deposit.confirm"
-	HumanOperationDepositStart               HumanOperation = "deposit.start"
-	HumanOperationEvidenceGet                HumanOperation = "evidence.get"
-	HumanOperationExitEligibility            HumanOperation = "exit.eligibility"
-	HumanOperationExitStart                  HumanOperation = "exit.start"
-	HumanOperationJourneyGet                 HumanOperation = "journey.get"
-	HumanOperationJourneyList                HumanOperation = "journey.list"
-	HumanOperationMoveCommit                 HumanOperation = "move.commit"
-	HumanOperationMoveQuote                  HumanOperation = "move.quote"
-	HumanOperationNotificationList           HumanOperation = "notification.list"
-	HumanOperationNotificationPreferencesGet HumanOperation = "notification.preferences.get"
-	HumanOperationNotificationPreferencesSet HumanOperation = "notification.preferences.set"
-	HumanOperationNotificationRead           HumanOperation = "notification.read"
-	HumanOperationOnboardingResume           HumanOperation = "onboarding.resume"
-	HumanOperationOnboardingStatus           HumanOperation = "onboarding.status"
-	HumanOperationPasskeyAssertBegin         HumanOperation = "passkey.assert.begin"
-	HumanOperationPasskeyAssertFinish        HumanOperation = "passkey.assert.finish"
-	HumanOperationPasskeyRegisterBegin       HumanOperation = "passkey.register.begin"
-	HumanOperationPasskeyRegisterFinish      HumanOperation = "passkey.register.finish"
-	HumanOperationProfileGet                 HumanOperation = "profile.get"
-	HumanOperationProfileUpdate              HumanOperation = "profile.update"
-	HumanOperationSessionList                HumanOperation = "session.list"
-	HumanOperationSessionOpen                HumanOperation = "session.open"
-	HumanOperationSessionRefresh             HumanOperation = "session.refresh"
-	HumanOperationSessionRevoke              HumanOperation = "session.revoke"
-	HumanOperationSessionRevokeAll           HumanOperation = "session.revoke-all"
-	HumanOperationStepupBegin                HumanOperation = "stepup.begin"
-	HumanOperationStepupFinish               HumanOperation = "stepup.finish"
-	HumanOperationStreamNext                 HumanOperation = "stream.next"
-	HumanOperationStreamOpen                 HumanOperation = "stream.open"
-	HumanOperationSupportCreate              HumanOperation = "support.create"
-	HumanOperationSupportFeedback            HumanOperation = "support.feedback"
-	HumanOperationSupportList                HumanOperation = "support.list"
-	HumanOperationSupportRead                HumanOperation = "support.read"
-	HumanOperationSupportReply               HumanOperation = "support.reply"
-	HumanOperationSupportStatus              HumanOperation = "support.status"
-	HumanOperationVersion                    HumanOperation = "version"
-	HumanOperationWithdrawClaim              HumanOperation = "withdraw.claim"
-	HumanOperationWithdrawStart              HumanOperation = "withdraw.start"
+	HumanOperationAccountCreate                 HumanOperation = "account.create"
+	HumanOperationActivityEntry                 HumanOperation = "activity.entry"
+	HumanOperationActivityExportEvidence        HumanOperation = "activity.export.evidence"
+	HumanOperationActivityExportStatement       HumanOperation = "activity.export.statement"
+	HumanOperationActivityQuery                 HumanOperation = "activity.query"
+	HumanOperationAgentArchive                  HumanOperation = "agent.archive"
+	HumanOperationAgentCreate                   HumanOperation = "agent.create"
+	HumanOperationAgentGet                      HumanOperation = "agent.get"
+	HumanOperationAgentLimit                    HumanOperation = "agent.limit"
+	HumanOperationAgentList                     HumanOperation = "agent.list"
+	HumanOperationAgentPause                    HumanOperation = "agent.pause"
+	HumanOperationAgentReclaim                  HumanOperation = "agent.reclaim"
+	HumanOperationAgentRecover                  HumanOperation = "agent.recover"
+	HumanOperationAgentResume                   HumanOperation = "agent.resume"
+	HumanOperationAgentRotate                   HumanOperation = "agent.rotate"
+	HumanOperationApprovalApprove               HumanOperation = "approval.approve"
+	HumanOperationApprovalGet                   HumanOperation = "approval.get"
+	HumanOperationApprovalList                  HumanOperation = "approval.list"
+	HumanOperationApprovalReject                HumanOperation = "approval.reject"
+	HumanOperationAuthenticatorBackupRotate     HumanOperation = "authenticator.backup.rotate"
+	HumanOperationAuthenticatorDisable          HumanOperation = "authenticator.disable"
+	HumanOperationAuthenticatorSetupBegin       HumanOperation = "authenticator.setup.begin"
+	HumanOperationAuthenticatorSetupFinish      HumanOperation = "authenticator.setup.finish"
+	HumanOperationAuthenticatorStatus           HumanOperation = "authenticator.status"
+	HumanOperationBindingRebind                 HumanOperation = "binding.rebind"
+	HumanOperationBindingStatement              HumanOperation = "binding.statement"
+	HumanOperationBindingStatus                 HumanOperation = "binding.status"
+	HumanOperationBindingSubmit                 HumanOperation = "binding.submit"
+	HumanOperationDepositConfirm                HumanOperation = "deposit.confirm"
+	HumanOperationDepositStart                  HumanOperation = "deposit.start"
+	HumanOperationEvidenceGet                   HumanOperation = "evidence.get"
+	HumanOperationExitEligibility               HumanOperation = "exit.eligibility"
+	HumanOperationExitStart                     HumanOperation = "exit.start"
+	HumanOperationJourneyGet                    HumanOperation = "journey.get"
+	HumanOperationJourneyList                   HumanOperation = "journey.list"
+	HumanOperationMoveCommit                    HumanOperation = "move.commit"
+	HumanOperationMoveQuote                     HumanOperation = "move.quote"
+	HumanOperationNotificationList              HumanOperation = "notification.list"
+	HumanOperationNotificationPreferencesGet    HumanOperation = "notification.preferences.get"
+	HumanOperationNotificationPreferencesSet    HumanOperation = "notification.preferences.set"
+	HumanOperationNotificationRead              HumanOperation = "notification.read"
+	HumanOperationOnboardingResume              HumanOperation = "onboarding.resume"
+	HumanOperationOnboardingStatus              HumanOperation = "onboarding.status"
+	HumanOperationPasskeyAssertBegin            HumanOperation = "passkey.assert.begin"
+	HumanOperationPasskeyAssertFinish           HumanOperation = "passkey.assert.finish"
+	HumanOperationPasskeyRegisterBegin          HumanOperation = "passkey.register.begin"
+	HumanOperationPasskeyRegisterFinish         HumanOperation = "passkey.register.finish"
+	HumanOperationProfileGet                    HumanOperation = "profile.get"
+	HumanOperationProfileUpdate                 HumanOperation = "profile.update"
+	HumanOperationSecurityAction                HumanOperation = "security.action"
+	HumanOperationSecurityPasskeyList           HumanOperation = "security.passkey.list"
+	HumanOperationSecurityPasskeyRegisterBegin  HumanOperation = "security.passkey.register.begin"
+	HumanOperationSecurityPasskeyRegisterFinish HumanOperation = "security.passkey.register.finish"
+	HumanOperationSecurityPasskeyRevoke         HumanOperation = "security.passkey.revoke"
+	HumanOperationSecurityRecoveryReveal        HumanOperation = "security.recovery.reveal"
+	HumanOperationSecuritySessionRevoke         HumanOperation = "security.session.revoke"
+	HumanOperationSecuritySessionRevokeAll      HumanOperation = "security.session.revoke-all"
+	HumanOperationSessionList                   HumanOperation = "session.list"
+	HumanOperationSessionOpen                   HumanOperation = "session.open"
+	HumanOperationSessionRefresh                HumanOperation = "session.refresh"
+	HumanOperationSessionRevoke                 HumanOperation = "session.revoke"
+	HumanOperationSessionRevokeAll              HumanOperation = "session.revoke-all"
+	HumanOperationStepupBegin                   HumanOperation = "stepup.begin"
+	HumanOperationStepupFinish                  HumanOperation = "stepup.finish"
+	HumanOperationStreamNext                    HumanOperation = "stream.next"
+	HumanOperationStreamOpen                    HumanOperation = "stream.open"
+	HumanOperationSupportCreate                 HumanOperation = "support.create"
+	HumanOperationSupportFeedback               HumanOperation = "support.feedback"
+	HumanOperationSupportList                   HumanOperation = "support.list"
+	HumanOperationSupportRead                   HumanOperation = "support.read"
+	HumanOperationSupportReply                  HumanOperation = "support.reply"
+	HumanOperationSupportStatus                 HumanOperation = "support.status"
+	HumanOperationVersion                       HumanOperation = "version"
+	HumanOperationWithdrawClaim                 HumanOperation = "withdraw.claim"
+	HumanOperationWithdrawStart                 HumanOperation = "withdraw.start"
 )
 
 func AllHumanOperations() []HumanOperation {
@@ -203,6 +216,11 @@ func AllHumanOperations() []HumanOperation {
 		HumanOperationApprovalGet,
 		HumanOperationApprovalList,
 		HumanOperationApprovalReject,
+		HumanOperationAuthenticatorBackupRotate,
+		HumanOperationAuthenticatorDisable,
+		HumanOperationAuthenticatorSetupBegin,
+		HumanOperationAuthenticatorSetupFinish,
+		HumanOperationAuthenticatorStatus,
 		HumanOperationBindingRebind,
 		HumanOperationBindingStatement,
 		HumanOperationBindingStatus,
@@ -228,6 +246,14 @@ func AllHumanOperations() []HumanOperation {
 		HumanOperationPasskeyRegisterFinish,
 		HumanOperationProfileGet,
 		HumanOperationProfileUpdate,
+		HumanOperationSecurityAction,
+		HumanOperationSecurityPasskeyList,
+		HumanOperationSecurityPasskeyRegisterBegin,
+		HumanOperationSecurityPasskeyRegisterFinish,
+		HumanOperationSecurityPasskeyRevoke,
+		HumanOperationSecurityRecoveryReveal,
+		HumanOperationSecuritySessionRevoke,
+		HumanOperationSecuritySessionRevokeAll,
 		HumanOperationSessionList,
 		HumanOperationSessionOpen,
 		HumanOperationSessionRefresh,
@@ -251,7 +277,7 @@ func AllHumanOperations() []HumanOperation {
 
 func (operation HumanOperation) Valid() bool {
 	switch operation {
-	case HumanOperationAccountCreate, HumanOperationActivityEntry, HumanOperationActivityExportEvidence, HumanOperationActivityExportStatement, HumanOperationActivityQuery, HumanOperationAgentArchive, HumanOperationAgentCreate, HumanOperationAgentGet, HumanOperationAgentLimit, HumanOperationAgentList, HumanOperationAgentPause, HumanOperationAgentReclaim, HumanOperationAgentRecover, HumanOperationAgentResume, HumanOperationAgentRotate, HumanOperationApprovalApprove, HumanOperationApprovalGet, HumanOperationApprovalList, HumanOperationApprovalReject, HumanOperationBindingRebind, HumanOperationBindingStatement, HumanOperationBindingStatus, HumanOperationBindingSubmit, HumanOperationDepositConfirm, HumanOperationDepositStart, HumanOperationEvidenceGet, HumanOperationExitEligibility, HumanOperationExitStart, HumanOperationJourneyGet, HumanOperationJourneyList, HumanOperationMoveCommit, HumanOperationMoveQuote, HumanOperationNotificationList, HumanOperationNotificationPreferencesGet, HumanOperationNotificationPreferencesSet, HumanOperationNotificationRead, HumanOperationOnboardingResume, HumanOperationOnboardingStatus, HumanOperationPasskeyAssertBegin, HumanOperationPasskeyAssertFinish, HumanOperationPasskeyRegisterBegin, HumanOperationPasskeyRegisterFinish, HumanOperationProfileGet, HumanOperationProfileUpdate, HumanOperationSessionList, HumanOperationSessionOpen, HumanOperationSessionRefresh, HumanOperationSessionRevoke, HumanOperationSessionRevokeAll, HumanOperationStepupBegin, HumanOperationStepupFinish, HumanOperationStreamNext, HumanOperationStreamOpen, HumanOperationSupportCreate, HumanOperationSupportFeedback, HumanOperationSupportList, HumanOperationSupportRead, HumanOperationSupportReply, HumanOperationSupportStatus, HumanOperationVersion, HumanOperationWithdrawClaim, HumanOperationWithdrawStart:
+	case HumanOperationAccountCreate, HumanOperationActivityEntry, HumanOperationActivityExportEvidence, HumanOperationActivityExportStatement, HumanOperationActivityQuery, HumanOperationAgentArchive, HumanOperationAgentCreate, HumanOperationAgentGet, HumanOperationAgentLimit, HumanOperationAgentList, HumanOperationAgentPause, HumanOperationAgentReclaim, HumanOperationAgentRecover, HumanOperationAgentResume, HumanOperationAgentRotate, HumanOperationApprovalApprove, HumanOperationApprovalGet, HumanOperationApprovalList, HumanOperationApprovalReject, HumanOperationAuthenticatorBackupRotate, HumanOperationAuthenticatorDisable, HumanOperationAuthenticatorSetupBegin, HumanOperationAuthenticatorSetupFinish, HumanOperationAuthenticatorStatus, HumanOperationBindingRebind, HumanOperationBindingStatement, HumanOperationBindingStatus, HumanOperationBindingSubmit, HumanOperationDepositConfirm, HumanOperationDepositStart, HumanOperationEvidenceGet, HumanOperationExitEligibility, HumanOperationExitStart, HumanOperationJourneyGet, HumanOperationJourneyList, HumanOperationMoveCommit, HumanOperationMoveQuote, HumanOperationNotificationList, HumanOperationNotificationPreferencesGet, HumanOperationNotificationPreferencesSet, HumanOperationNotificationRead, HumanOperationOnboardingResume, HumanOperationOnboardingStatus, HumanOperationPasskeyAssertBegin, HumanOperationPasskeyAssertFinish, HumanOperationPasskeyRegisterBegin, HumanOperationPasskeyRegisterFinish, HumanOperationProfileGet, HumanOperationProfileUpdate, HumanOperationSecurityAction, HumanOperationSecurityPasskeyList, HumanOperationSecurityPasskeyRegisterBegin, HumanOperationSecurityPasskeyRegisterFinish, HumanOperationSecurityPasskeyRevoke, HumanOperationSecurityRecoveryReveal, HumanOperationSecuritySessionRevoke, HumanOperationSecuritySessionRevokeAll, HumanOperationSessionList, HumanOperationSessionOpen, HumanOperationSessionRefresh, HumanOperationSessionRevoke, HumanOperationSessionRevokeAll, HumanOperationStepupBegin, HumanOperationStepupFinish, HumanOperationStreamNext, HumanOperationStreamOpen, HumanOperationSupportCreate, HumanOperationSupportFeedback, HumanOperationSupportList, HumanOperationSupportRead, HumanOperationSupportReply, HumanOperationSupportStatus, HumanOperationVersion, HumanOperationWithdrawClaim, HumanOperationWithdrawStart:
 		return true
 	default:
 		return false
@@ -314,6 +340,16 @@ func (operation HumanOperation) Metadata() (HumanOperationMetadata, bool) {
 		return HumanOperationMetadata{Method: "GET", Path: "/v1/approvals", Request: "Empty", Response: "ApprovalPage"}, true
 	case HumanOperationApprovalReject:
 		return HumanOperationMetadata{Method: "POST", Path: "/v1/approvals/{approval_id}/reject", Request: "Empty", Response: "ApprovalDecision"}, true
+	case HumanOperationAuthenticatorBackupRotate:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/security/authenticators/backup-codes", Request: "BackupCodeRotation", Response: "BackupCodeSet"}, true
+	case HumanOperationAuthenticatorDisable:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/security/authenticators/{authenticator_id}/disable", Request: "AuthenticatorDisable", Response: "AuthenticatorStatus"}, true
+	case HumanOperationAuthenticatorSetupBegin:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/security/authenticators/setups", Request: "AuthenticatorSetupBegin", Response: "AuthenticatorSetupChallenge"}, true
+	case HumanOperationAuthenticatorSetupFinish:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/security/authenticators/setups/{setup_id}", Request: "AuthenticatorSetupFinish", Response: "AuthenticatorSetupResult"}, true
+	case HumanOperationAuthenticatorStatus:
+		return HumanOperationMetadata{Method: "GET", Path: "/v1/security/authenticators", Request: "Empty", Response: "AuthenticatorStatus"}, true
 	case HumanOperationBindingRebind:
 		return HumanOperationMetadata{Method: "POST", Path: "/v1/wallet-binding/rebind", Request: "RebindingSubmission", Response: "Journey"}, true
 	case HumanOperationBindingStatement:
@@ -364,6 +400,22 @@ func (operation HumanOperation) Metadata() (HumanOperationMetadata, bool) {
 		return HumanOperationMetadata{Method: "GET", Path: "/v1/profile", Request: "Empty", Response: "Profile"}, true
 	case HumanOperationProfileUpdate:
 		return HumanOperationMetadata{Method: "PATCH", Path: "/v1/profile", Request: "ProfileUpdate", Response: "Profile"}, true
+	case HumanOperationSecurityAction:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/security/actions", Request: "SecurityActionRequest", Response: "SecurityAction"}, true
+	case HumanOperationSecurityPasskeyList:
+		return HumanOperationMetadata{Method: "GET", Path: "/v1/security/passkeys", Request: "Empty", Response: "PasskeyList"}, true
+	case HumanOperationSecurityPasskeyRegisterBegin:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/security/passkeys/registrations", Request: "SecurityPasskeyRegistrationBegin", Response: "PasskeyRegistrationChallenge"}, true
+	case HumanOperationSecurityPasskeyRegisterFinish:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/security/passkeys/registrations/{registration_id}", Request: "SecurityPasskeyRegistrationFinish", Response: "Passkey"}, true
+	case HumanOperationSecurityPasskeyRevoke:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/security/passkeys/{passkey_id}/revoke", Request: "SecurityPasskeyRevocation", Response: "PasskeyList"}, true
+	case HumanOperationSecurityRecoveryReveal:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/security/recovery/evidence", Request: "SecurityRecoveryReveal", Response: "TimedSecret"}, true
+	case HumanOperationSecuritySessionRevoke:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/security/sessions/{session_id}/revoke", Request: "SecuritySessionRevocation", Response: "SessionRevocation"}, true
+	case HumanOperationSecuritySessionRevokeAll:
+		return HumanOperationMetadata{Method: "POST", Path: "/v1/security/sessions/revoke-all", Request: "SecuritySessionRevocation", Response: "SessionRevocation"}, true
 	case HumanOperationSessionList:
 		return HumanOperationMetadata{Method: "GET", Path: "/v1/sessions", Request: "Empty", Response: "SessionList"}, true
 	case HumanOperationSessionOpen:

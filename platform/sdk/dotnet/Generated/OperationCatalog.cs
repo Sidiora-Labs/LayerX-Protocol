@@ -64,6 +64,11 @@ public enum PlatformOperation
     HumanApprovalGet,
     HumanApprovalList,
     HumanApprovalReject,
+    HumanAuthenticatorBackupRotate,
+    HumanAuthenticatorDisable,
+    HumanAuthenticatorSetupBegin,
+    HumanAuthenticatorSetupFinish,
+    HumanAuthenticatorStatus,
     HumanBindingRebind,
     HumanBindingStatement,
     HumanBindingStatus,
@@ -89,6 +94,14 @@ public enum PlatformOperation
     HumanPasskeyRegisterFinish,
     HumanProfileGet,
     HumanProfileUpdate,
+    HumanSecurityAction,
+    HumanSecurityPasskeyList,
+    HumanSecurityPasskeyRegisterBegin,
+    HumanSecurityPasskeyRegisterFinish,
+    HumanSecurityPasskeyRevoke,
+    HumanSecurityRecoveryReveal,
+    HumanSecuritySessionRevoke,
+    HumanSecuritySessionRevokeAll,
     HumanSessionList,
     HumanSessionOpen,
     HumanSessionRefresh,
@@ -172,6 +185,11 @@ public static class GeneratedOperationCatalog
             PlatformOperation.HumanApprovalGet => new(PlatformPlane.Human, "approval.get", SdkHttpMethod.Get, "/v1/approvals/{approval_id}", "Empty", "ApprovalDetail", false, true),
             PlatformOperation.HumanApprovalList => new(PlatformPlane.Human, "approval.list", SdkHttpMethod.Get, "/v1/approvals", "Empty", "ApprovalPage", false, true),
             PlatformOperation.HumanApprovalReject => new(PlatformPlane.Human, "approval.reject", SdkHttpMethod.Post, "/v1/approvals/{approval_id}/reject", "Empty", "ApprovalDecision", true, true),
+            PlatformOperation.HumanAuthenticatorBackupRotate => new(PlatformPlane.Human, "authenticator.backup.rotate", SdkHttpMethod.Post, "/v1/security/authenticators/backup-codes", "BackupCodeRotation", "BackupCodeSet", false, false),
+            PlatformOperation.HumanAuthenticatorDisable => new(PlatformPlane.Human, "authenticator.disable", SdkHttpMethod.Post, "/v1/security/authenticators/{authenticator_id}/disable", "AuthenticatorDisable", "AuthenticatorStatus", false, false),
+            PlatformOperation.HumanAuthenticatorSetupBegin => new(PlatformPlane.Human, "authenticator.setup.begin", SdkHttpMethod.Post, "/v1/security/authenticators/setups", "AuthenticatorSetupBegin", "AuthenticatorSetupChallenge", false, false),
+            PlatformOperation.HumanAuthenticatorSetupFinish => new(PlatformPlane.Human, "authenticator.setup.finish", SdkHttpMethod.Post, "/v1/security/authenticators/setups/{setup_id}", "AuthenticatorSetupFinish", "AuthenticatorSetupResult", false, false),
+            PlatformOperation.HumanAuthenticatorStatus => new(PlatformPlane.Human, "authenticator.status", SdkHttpMethod.Get, "/v1/security/authenticators", "Empty", "AuthenticatorStatus", false, true),
             PlatformOperation.HumanBindingRebind => new(PlatformPlane.Human, "binding.rebind", SdkHttpMethod.Post, "/v1/wallet-binding/rebind", "RebindingSubmission", "Journey", true, false),
             PlatformOperation.HumanBindingStatement => new(PlatformPlane.Human, "binding.statement", SdkHttpMethod.Post, "/v1/wallet-binding/statement", "BindingStatementRequest", "BindingStatement", false, false),
             PlatformOperation.HumanBindingStatus => new(PlatformPlane.Human, "binding.status", SdkHttpMethod.Get, "/v1/wallet-binding", "Empty", "WalletBinding", false, true),
@@ -197,6 +215,14 @@ public static class GeneratedOperationCatalog
             PlatformOperation.HumanPasskeyRegisterFinish => new(PlatformPlane.Human, "passkey.register.finish", SdkHttpMethod.Post, "/v1/passkeys/registrations/{registration_id}", "PasskeyRegistrationFinish", "Passkey", false, false),
             PlatformOperation.HumanProfileGet => new(PlatformPlane.Human, "profile.get", SdkHttpMethod.Get, "/v1/profile", "Empty", "Profile", false, true),
             PlatformOperation.HumanProfileUpdate => new(PlatformPlane.Human, "profile.update", SdkHttpMethod.Patch, "/v1/profile", "ProfileUpdate", "Profile", false, false),
+            PlatformOperation.HumanSecurityAction => new(PlatformPlane.Human, "security.action", SdkHttpMethod.Post, "/v1/security/actions", "SecurityActionRequest", "SecurityAction", false, false),
+            PlatformOperation.HumanSecurityPasskeyList => new(PlatformPlane.Human, "security.passkey.list", SdkHttpMethod.Get, "/v1/security/passkeys", "Empty", "PasskeyList", false, true),
+            PlatformOperation.HumanSecurityPasskeyRegisterBegin => new(PlatformPlane.Human, "security.passkey.register.begin", SdkHttpMethod.Post, "/v1/security/passkeys/registrations", "SecurityPasskeyRegistrationBegin", "PasskeyRegistrationChallenge", false, false),
+            PlatformOperation.HumanSecurityPasskeyRegisterFinish => new(PlatformPlane.Human, "security.passkey.register.finish", SdkHttpMethod.Post, "/v1/security/passkeys/registrations/{registration_id}", "SecurityPasskeyRegistrationFinish", "Passkey", false, false),
+            PlatformOperation.HumanSecurityPasskeyRevoke => new(PlatformPlane.Human, "security.passkey.revoke", SdkHttpMethod.Post, "/v1/security/passkeys/{passkey_id}/revoke", "SecurityPasskeyRevocation", "PasskeyList", false, false),
+            PlatformOperation.HumanSecurityRecoveryReveal => new(PlatformPlane.Human, "security.recovery.reveal", SdkHttpMethod.Post, "/v1/security/recovery/evidence", "SecurityRecoveryReveal", "TimedSecret", false, false),
+            PlatformOperation.HumanSecuritySessionRevoke => new(PlatformPlane.Human, "security.session.revoke", SdkHttpMethod.Post, "/v1/security/sessions/{session_id}/revoke", "SecuritySessionRevocation", "SessionRevocation", false, false),
+            PlatformOperation.HumanSecuritySessionRevokeAll => new(PlatformPlane.Human, "security.session.revoke-all", SdkHttpMethod.Post, "/v1/security/sessions/revoke-all", "SecuritySessionRevocation", "SessionRevocation", false, false),
             PlatformOperation.HumanSessionList => new(PlatformPlane.Human, "session.list", SdkHttpMethod.Get, "/v1/sessions", "Empty", "SessionList", false, true),
             PlatformOperation.HumanSessionOpen => new(PlatformPlane.Human, "session.open", SdkHttpMethod.Post, "/v1/sessions", "SessionOpenRequest", "Session", false, false),
             PlatformOperation.HumanSessionRefresh => new(PlatformPlane.Human, "session.refresh", SdkHttpMethod.Post, "/v1/sessions/refresh", "Empty", "Session", false, true),
@@ -220,7 +246,7 @@ public static class GeneratedOperationCatalog
 
     public static SdkMetadata platform_sdk_dotnet()
     {
-        return new("LayerX.Sdk", "0.1.0", 40, 62);
+        return new("LayerX.Sdk", "0.1.0", 40, 75);
     }
 }
 
@@ -344,6 +370,16 @@ public static class GeneratedPlatformClientExtensions
         client.ReadAsync(PlatformOperation.HumanApprovalList, request ?? JsonValue.EmptyObject, pathParameters, cancellationToken);
     public static Task<JsonValue> HumanApprovalRejectAsync(this PlatformClient client, IdempotencyKey idempotencyKey, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
         client.MutateAsync(PlatformOperation.HumanApprovalReject, JsonValue.EmptyObject, idempotencyKey, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanAuthenticatorBackupRotateAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanAuthenticatorBackupRotate, request, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanAuthenticatorDisableAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanAuthenticatorDisable, request, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanAuthenticatorSetupBeginAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanAuthenticatorSetupBegin, request, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanAuthenticatorSetupFinishAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanAuthenticatorSetupFinish, request, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanAuthenticatorStatusAsync(this PlatformClient client, JsonValue? request = null, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanAuthenticatorStatus, request ?? JsonValue.EmptyObject, pathParameters, cancellationToken);
     public static Task<JsonValue> HumanBindingRebindAsync(this PlatformClient client, JsonValue request, IdempotencyKey idempotencyKey, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
         client.MutateAsync(PlatformOperation.HumanBindingRebind, request, idempotencyKey, pathParameters, cancellationToken);
     public static Task<JsonValue> HumanBindingStatementAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
@@ -394,6 +430,22 @@ public static class GeneratedPlatformClientExtensions
         client.ReadAsync(PlatformOperation.HumanProfileGet, request ?? JsonValue.EmptyObject, pathParameters, cancellationToken);
     public static Task<JsonValue> HumanProfileUpdateAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
         client.ReadAsync(PlatformOperation.HumanProfileUpdate, request, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanSecurityActionAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanSecurityAction, request, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanSecurityPasskeyListAsync(this PlatformClient client, JsonValue? request = null, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanSecurityPasskeyList, request ?? JsonValue.EmptyObject, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanSecurityPasskeyRegisterBeginAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanSecurityPasskeyRegisterBegin, request, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanSecurityPasskeyRegisterFinishAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanSecurityPasskeyRegisterFinish, request, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanSecurityPasskeyRevokeAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanSecurityPasskeyRevoke, request, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanSecurityRecoveryRevealAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanSecurityRecoveryReveal, request, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanSecuritySessionRevokeAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanSecuritySessionRevoke, request, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanSecuritySessionRevokeAllAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanSecuritySessionRevokeAll, request, pathParameters, cancellationToken);
     public static Task<JsonValue> HumanSessionListAsync(this PlatformClient client, JsonValue? request = null, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
         client.ReadAsync(PlatformOperation.HumanSessionList, request ?? JsonValue.EmptyObject, pathParameters, cancellationToken);
     public static Task<JsonValue> HumanSessionOpenAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>

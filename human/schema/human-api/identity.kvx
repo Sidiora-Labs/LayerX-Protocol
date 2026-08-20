@@ -48,6 +48,18 @@ prefix = "chg_"
 rust = "String"
 typescript = "string"
 
+[scalar.AuthenticatorId]
+json = "string"
+prefix = "mfa_"
+rust = "String"
+typescript = "string"
+
+[scalar.AuthenticatorSetupId]
+json = "string"
+prefix = "mfs_"
+rust = "String"
+typescript = "string"
+
 [scalar.OperationDigest]
 json = "string"
 prefix = "opd_"
@@ -220,6 +232,150 @@ method = "POST"
 path = "/v1/step-up/{challenge_id}"
 request = "StepUpFinish"
 response = "StepUpEvidence"
+
+[type.SecurityActionKind]
+variants = ["add-passkey","revoke-passkey","revoke-session","revoke-all-sessions","add-authenticator","disable-authenticator","rotate-backup-codes","reveal-recovery-evidence"]
+
+[type.SecurityActionRequest]
+required = ["action:SecurityActionKind"]
+optional = ["target_id:string"]
+binding = "The service derives the operation digest from the authenticated principal, action, target and current security state. The browser never invents a digest for a security mutation."
+
+[type.SecurityAction]
+required = ["confirms:OperationDigest"]
+
+[operation.security.action]
+method = "POST"
+path = "/v1/security/actions"
+request = "SecurityActionRequest"
+response = "SecurityAction"
+
+[type.PasskeyList]
+required = ["passkeys:Passkey[]"]
+
+[type.SecurityPasskeyRegistrationBegin]
+required = ["label:string","step_up:StepUpEvidence"]
+
+[type.SecurityPasskeyRegistrationFinish]
+required = ["credential:OpaqueCredential","step_up:StepUpEvidence"]
+
+[type.SecurityPasskeyRevocation]
+required = ["step_up:StepUpEvidence"]
+
+[operation.security.passkey.list]
+method = "GET"
+path = "/v1/security/passkeys"
+request = "Empty"
+response = "PasskeyList"
+
+[operation.security.passkey.register.begin]
+method = "POST"
+path = "/v1/security/passkeys/registrations"
+request = "SecurityPasskeyRegistrationBegin"
+response = "PasskeyRegistrationChallenge"
+
+[operation.security.passkey.register.finish]
+method = "POST"
+path = "/v1/security/passkeys/registrations/{registration_id}"
+request = "SecurityPasskeyRegistrationFinish"
+response = "Passkey"
+
+[operation.security.passkey.revoke]
+method = "POST"
+path = "/v1/security/passkeys/{passkey_id}/revoke"
+request = "SecurityPasskeyRevocation"
+response = "PasskeyList"
+lockout = "The service refuses removal of the final passkey."
+
+[type.SecuritySessionRevocation]
+required = ["step_up:StepUpEvidence"]
+
+[operation.security.session.revoke]
+method = "POST"
+path = "/v1/security/sessions/{session_id}/revoke"
+request = "SecuritySessionRevocation"
+response = "SessionRevocation"
+
+[operation.security.session.revoke-all]
+method = "POST"
+path = "/v1/security/sessions/revoke-all"
+request = "SecuritySessionRevocation"
+response = "SessionRevocation"
+everywhere = "Invalidates active sessions and every refresh path, including the caller."
+
+[type.TimedSecret]
+required = ["value:string","remask_at:Timestamp","copyable:boolean"]
+handling = "The value is returned only after fresh operation-bound step-up. The client masks it by default, clears it at remask_at, and writes it to the clipboard only after a separate explicit action when copyable is true."
+
+[type.AuthenticatorMethod]
+required = ["authenticator_id:AuthenticatorId","label:string","enabled_at:Timestamp"]
+optional = ["last_used_at:Timestamp"]
+
+[type.AuthenticatorStatus]
+required = ["methods:AuthenticatorMethod[]","backup_codes_remaining:integer"]
+
+[type.AuthenticatorSetupBegin]
+required = ["label:string","step_up:StepUpEvidence"]
+
+[type.AuthenticatorSetupChallenge]
+required = ["setup_id:AuthenticatorSetupId","secret:TimedSecret","otpauth_uri:TimedSecret","expires_at:Timestamp"]
+
+[type.AuthenticatorSetupFinish]
+required = ["code:string","step_up:StepUpEvidence"]
+
+[type.BackupCodeSet]
+required = ["codes:string[]","remask_at:Timestamp","copyable:boolean"]
+one_time = "Codes are issued once at setup or explicit rotation. The service stores only provider-verifiable digests and never returns the set again."
+
+[type.AuthenticatorSetupResult]
+required = ["method:AuthenticatorMethod","backup_codes:BackupCodeSet"]
+
+[type.AuthenticatorDisable]
+required = ["step_up:StepUpEvidence"]
+
+[type.BackupCodeRotation]
+required = ["step_up:StepUpEvidence"]
+
+[operation.authenticator.status]
+method = "GET"
+path = "/v1/security/authenticators"
+request = "Empty"
+response = "AuthenticatorStatus"
+
+[operation.authenticator.setup.begin]
+method = "POST"
+path = "/v1/security/authenticators/setups"
+request = "AuthenticatorSetupBegin"
+response = "AuthenticatorSetupChallenge"
+
+[operation.authenticator.setup.finish]
+method = "POST"
+path = "/v1/security/authenticators/setups/{setup_id}"
+request = "AuthenticatorSetupFinish"
+response = "AuthenticatorSetupResult"
+
+[operation.authenticator.disable]
+method = "POST"
+path = "/v1/security/authenticators/{authenticator_id}/disable"
+request = "AuthenticatorDisable"
+response = "AuthenticatorStatus"
+warning = "The client presents explicit consequence copy before requesting step-up."
+
+[operation.authenticator.backup.rotate]
+method = "POST"
+path = "/v1/security/authenticators/backup-codes"
+request = "BackupCodeRotation"
+response = "BackupCodeSet"
+
+[type.SecurityRecoveryReveal]
+required = ["evidence_id:EvidenceId","step_up:StepUpEvidence"]
+
+[operation.security.recovery.reveal]
+method = "POST"
+path = "/v1/security/recovery/evidence"
+request = "SecurityRecoveryReveal"
+response = "TimedSecret"
+receipt = "The revealed bytes are the exact recovery registration receipt already referenced by onboarding status, never a client-authored representation."
 
 [operation.onboarding.status]
 method = "GET"
