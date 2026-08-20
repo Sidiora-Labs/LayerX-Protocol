@@ -1,0 +1,290 @@
+[site]
+name = "LayerX Developer Documentation"
+tagline = "Machine-speed money with evidence you can check yourself."
+output = "site"
+content = "content"
+
+[section.start]
+title = "Start here"
+order = 1
+
+[section.concepts]
+title = "Concepts"
+order = 2
+
+[section.languages]
+title = "Language quickstarts"
+order = 3
+
+[section.frameworks]
+title = "Framework quickstarts"
+order = 4
+
+[section.guides]
+title = "Guides"
+order = 5
+
+[section.reference]
+title = "Reference"
+order = 6
+
+[section.environments]
+title = "Environments"
+order = 7
+
+[page.index]
+section = "start"
+title = "LayerX for developers"
+summary = "One protocol for machine-speed money, and the shortest path from an empty directory to a verified payment."
+file = "content/index.md"
+order = 1
+
+[page.install]
+section = "start"
+title = "Install the tools"
+summary = "The SDK, the CLI, the local emulator and the credentials each of them needs."
+file = "content/install.md"
+order = 2
+
+[page.concepts/money]
+section = "concepts"
+title = "Money and accounts"
+summary = "What a balance is, what an amount looks like on the wire, and who is allowed to move one."
+file = "content/concepts/money.md"
+order = 1
+
+[page.concepts/paying]
+section = "concepts"
+title = "Paying for things"
+summary = "Quote, commit, journey: the three steps behind every payment on every surface."
+file = "content/concepts/paying.md"
+order = 2
+
+[page.concepts/receipts]
+section = "concepts"
+title = "Receipts and verification"
+summary = "The evidence a payment produces, and how to check it without trusting anyone."
+file = "content/concepts/receipts.md"
+order = 3
+
+[page.concepts/agents]
+section = "concepts"
+title = "Agents and budgets"
+summary = "Letting software spend money with a ceiling that survives a compromised agent."
+file = "content/concepts/agents.md"
+order = 4
+
+[page.concepts/idempotency]
+section = "concepts"
+title = "Retries and unknown outcomes"
+summary = "Why every money-moving call carries a key, and what to do when the answer is Unknown."
+file = "content/concepts/idempotency.md"
+order = 5
+
+[page.concepts/enforcement]
+section = "concepts"
+title = "Who enforces what"
+summary = "The four enforcement layers, and why a lower one never implies a higher one."
+file = "content/concepts/enforcement.md"
+order = 6
+
+[page.quickstart/typescript]
+section = "languages"
+title = "TypeScript"
+summary = "Add payments to a Node.js application in eight lines."
+file = "content/quickstart/typescript.md"
+order = 1
+
+[page.quickstart/python]
+section = "languages"
+title = "Python"
+summary = "Add payments to a Python application in seven lines."
+file = "content/quickstart/python.md"
+order = 2
+
+[page.quickstart/go]
+section = "languages"
+title = "Go"
+summary = "Add payments to a Go application in nine lines."
+file = "content/quickstart/go.md"
+order = 3
+
+[page.quickstart/jvm]
+section = "languages"
+title = "Java and Kotlin"
+summary = "Add payments to a JVM application in six lines."
+file = "content/quickstart/jvm.md"
+order = 4
+
+[page.quickstart/swift]
+section = "languages"
+title = "Swift"
+summary = "Add payments to a Swift application in five lines."
+file = "content/quickstart/swift.md"
+order = 5
+
+[page.quickstart/csharp]
+section = "languages"
+title = "C#"
+summary = "Add payments to a .NET application in four lines."
+file = "content/quickstart/csharp.md"
+order = 6
+
+[page.quickstart/rust]
+section = "languages"
+title = "Rust"
+summary = "Pay from the command line, then verify the receipt yourself in eight lines of Rust."
+file = "content/quickstart/rust.md"
+order = 7
+
+[page.framework/express]
+section = "frameworks"
+title = "Express"
+summary = "Charge for an existing Express route in eight lines."
+file = "content/framework/express.md"
+order = 1
+
+[page.framework/next]
+section = "frameworks"
+title = "Next.js"
+summary = "Charge for a Next.js route handler in eight lines, with a bundle scanner that refuses to ship a secret."
+file = "content/framework/next.md"
+order = 2
+
+[page.framework/fastapi]
+section = "frameworks"
+title = "FastAPI"
+summary = "Charge for a FastAPI route in seven lines."
+file = "content/framework/fastapi.md"
+order = 3
+
+[page.framework/spring]
+section = "frameworks"
+title = "Spring Boot"
+summary = "Charge for a Spring Boot endpoint with two beans and no filter wiring."
+file = "content/framework/spring.md"
+order = 4
+
+[page.framework/ios]
+section = "frameworks"
+title = "iOS"
+summary = "Pay from an iOS app that holds no long-lived credential."
+file = "content/framework/ios.md"
+order = 5
+
+[page.framework/android]
+section = "frameworks"
+title = "Android"
+summary = "Pay from an Android app that holds no long-lived credential."
+file = "content/framework/android.md"
+order = 6
+
+[page.guide/seller-middleware]
+section = "guides"
+title = "Seller middleware"
+summary = "Sell an HTTP resource for money and release it only against a verified receipt."
+file = "content/guide/seller-middleware.md"
+order = 1
+
+[page.guide/buyer-middleware]
+section = "guides"
+title = "Buyer middleware"
+summary = "Buy a paid resource automatically, inside a budget you set."
+file = "content/guide/buyer-middleware.md"
+order = 2
+
+[page.guide/merchant-middleware]
+section = "guides"
+title = "Merchant checkout"
+summary = "Carts, quotes and orders whose paid state is backed by receipts."
+file = "content/guide/merchant-middleware.md"
+order = 3
+
+[page.guide/agent-middleware]
+section = "guides"
+title = "Agent middleware"
+summary = "Give an autonomous agent a spending ceiling and an approval path."
+file = "content/guide/agent-middleware.md"
+order = 4
+
+[page.guide/webhooks]
+section = "guides"
+title = "Webhooks"
+summary = "Receive settlement events with signature verification and replay protection."
+file = "content/guide/webhooks.md"
+order = 5
+
+[page.guide/receipts]
+section = "guides"
+title = "Verifying receipts"
+summary = "Check a settlement claim yourself, with no LayerX component in the path."
+file = "content/guide/receipts.md"
+order = 6
+
+[page.guide/programs]
+section = "guides"
+title = "LayerX Programs"
+summary = "Deploy deterministic economic logic that can never write a balance."
+file = "content/guide/programs.md"
+order = 7
+
+[page.guide/interop]
+section = "guides"
+title = "Interoperability adapters"
+summary = "x402, AP2, UCP, A2A, MCP and the fiat rails, translated at the edge."
+file = "content/guide/interop.md"
+order = 8
+
+[page.reference/human-api]
+section = "reference"
+title = "Human API"
+summary = "Every operation on the human plane, generated from the schema."
+file = "content/reference/human-api.md"
+order = 1
+generated = true
+
+[page.reference/agent-api]
+section = "reference"
+title = "Agent API"
+summary = "Every operation on the agent plane, generated from the schema."
+file = "content/reference/agent-api.md"
+order = 2
+generated = true
+
+[page.reference/errors]
+section = "reference"
+title = "Errors"
+summary = "The typed refusal shapes of both contracts, generated from the schemas."
+file = "content/reference/errors.md"
+order = 3
+generated = true
+
+[page.reference/enforcement]
+section = "reference"
+title = "Enforcement"
+summary = "Every documented capability and the layer that enforces it."
+file = "content/reference/enforcement.md"
+order = 4
+generated = true
+
+[page.reference/samples]
+section = "reference"
+title = "Samples"
+summary = "Every runnable sample, how to run it, and its measured integration size."
+file = "content/reference/samples.md"
+order = 5
+generated = true
+
+[page.environments/testnet]
+section = "environments"
+title = "Hosted testnet"
+summary = "The public testnet, its faucet, its limits and its reset schedule."
+file = "testnet.md"
+order = 1
+
+[page.environments/emulator]
+section = "environments"
+title = "Local emulator"
+summary = "Run the real transition function on your own machine before you touch a network."
+file = "content/environments/emulator.md"
+order = 2

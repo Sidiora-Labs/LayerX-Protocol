@@ -1,0 +1,173 @@
+[manifest]
+name = "LayerX documentation samples"
+rule = "Every sample directory is a complete, runnable project. The site build extracts each documented code block from the file and region named here, so a sample that drifts from the page fails the build."
+counting = "The measured region is the LayerX integration a developer adds to an application they already have. It excludes the application's own error-handling idiom, its own data model, its own durable storage adapter and its own reporting, because none of those are LayerX code."
+
+[sample.first-payment-typescript]
+title = "First payment in TypeScript"
+language = "typescript"
+fence = "js"
+comment = "//"
+path = "samples/first-payment-typescript"
+entry = "index.mjs"
+install = "npm install"
+run = "node index.mjs"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "Node.js 22 or newer, plus LAYERX_API_URL, LAYERX_API_TOKEN, LAYERX_SOURCE, LAYERX_DESTINATION, LAYERX_AMOUNT, LAYERX_CURRENCY and LAYERX_PAYMENT_KEY in the environment."
+
+[sample.first-payment-python]
+title = "First payment in Python"
+language = "python"
+fence = "python"
+comment = "#"
+path = "samples/first-payment-python"
+entry = "main.py"
+install = "python3 -m pip install -r requirements.txt"
+run = "python3 main.py"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "Python 3.11 or newer, plus LAYERX_API_URL, LAYERX_API_TOKEN, LAYERX_SOURCE, LAYERX_DESTINATION, LAYERX_AMOUNT, LAYERX_CURRENCY and LAYERX_PAYMENT_KEY in the environment."
+
+[sample.first-payment-go]
+title = "First payment in Go"
+language = "go"
+fence = "go"
+comment = "//"
+path = "samples/first-payment-go"
+entry = "main.go"
+install = "go mod download"
+run = "go run ."
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "Go 1.21 or newer, plus LAYERX_API_URL, LAYERX_API_TOKEN, LAYERX_SOURCE, LAYERX_DESTINATION, LAYERX_AMOUNT, LAYERX_CURRENCY and LAYERX_PAYMENT_KEY in the environment."
+
+[sample.first-payment-jvm]
+title = "First payment in Java"
+language = "java"
+fence = "java"
+comment = "//"
+path = "samples/first-payment-jvm"
+entry = "src/main/java/com/sidiora/layerx/docs/FirstPayment.java"
+build = "mvn -q package"
+run = "mvn -q exec:java"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "JDK 21 and Maven, plus LAYERX_API_URL, LAYERX_API_TOKEN, LAYERX_SOURCE, LAYERX_DESTINATION, LAYERX_AMOUNT, LAYERX_CURRENCY and LAYERX_PAYMENT_KEY in the environment."
+
+[sample.first-payment-swift]
+title = "First payment in Swift"
+language = "swift"
+fence = "swift"
+comment = "//"
+path = "samples/first-payment-swift"
+entry = "Sources/FirstPayment/FirstPayment.swift"
+build = "swift build"
+run = "swift run FirstPayment"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "Swift 5.9 or newer, plus LAYERX_API_URL, LAYERX_API_TOKEN, LAYERX_SOURCE, LAYERX_DESTINATION, LAYERX_AMOUNT, LAYERX_CURRENCY and LAYERX_PAYMENT_KEY in the environment."
+
+[sample.first-payment-csharp]
+title = "First payment in C#"
+language = "csharp"
+fence = "csharp"
+comment = "//"
+path = "samples/first-payment-csharp"
+entry = "Program.cs"
+build = "dotnet build --configuration Release"
+run = "dotnet run --configuration Release"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = ".NET 8 or newer, plus LAYERX_API_URL, LAYERX_API_TOKEN, LAYERX_SOURCE, LAYERX_DESTINATION, LAYERX_AMOUNT, LAYERX_CURRENCY and LAYERX_PAYMENT_KEY in the environment."
+
+[sample.verify-receipt-rust]
+title = "Independent receipt verification in Rust"
+language = "rust"
+fence = "rust"
+comment = "//"
+path = "samples/verify-receipt-rust"
+build = "cargo build --release"
+entry = "src/main.rs"
+run = "cargo run --release"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "A Rust toolchain, a receipt file named by LAYERX_RECEIPT_FILE, and the batch facts LAYERX_BATCH_ID, LAYERX_BATCH_ASSET, LAYERX_PREVIOUS_STATE_ROOT, LAYERX_RESULTING_STATE_ROOT and LAYERX_SEQUENCER_PUBLIC_KEY as 32-byte hex."
+
+[sample.paid-endpoint-express]
+title = "Paid endpoint on Express"
+language = "typescript"
+fence = "js"
+comment = "//"
+path = "samples/paid-endpoint-express"
+entry = "index.mjs"
+install = "npm install"
+run = "node index.mjs"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "Node.js 22 or newer and the twenty declared seller keys the integration reads from the environment: LAYERX_PRINCIPAL, LAYERX_PROTECTED_PATH, the LAYERX_RESOURCE_* fields, LAYERX_X402_SCHEME, LAYERX_X402_NETWORK, LAYERX_PRICE, LAYERX_ASSET, LAYERX_PAY_TO, LAYERX_PAYMENT_TIMEOUT_SECONDS, LAYERX_AUTHORIZED_BATCH_JSON, LAYERX_WEBHOOK_PATH, LAYERX_WEBHOOK_PUBLIC_KEYS_JSON, LAYERX_WEBHOOK_MAX_AGE_MS and LAYERX_WEBHOOK_LEASE_MS."
+
+[sample.paid-route-next]
+title = "Paid route on Next.js"
+language = "typescript"
+fence = "js"
+comment = "//"
+path = "samples/paid-route-next"
+entry = "lib/layerx.js"
+install = "npm install"
+run = "npm run dev"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "Node.js 22 or newer and the same declared seller keys as the Express sample. LAYERX_TOKEN is the one declared secret; the bundle scanner fails a build whose client bundle carries it or any NEXT_PUBLIC_ variable holding the same value."
+
+[sample.paid-endpoint-fastapi]
+title = "Paid endpoint on FastAPI"
+language = "python"
+fence = "python"
+comment = "#"
+path = "samples/paid-endpoint-fastapi"
+entry = "app.py"
+install = "python3 -m pip install -r requirements.txt"
+run = "uvicorn app:app --host 127.0.0.1 --port 8080"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "Python 3.11 or newer, uvicorn, and the same twenty declared seller keys as the Express sample."
+
+[sample.paid-endpoint-spring]
+title = "Paid endpoint on Spring Boot"
+language = "java"
+fence = "java"
+comment = "//"
+path = "samples/paid-endpoint-spring"
+entry = "src/main/java/com/sidiora/layerx/docs/PaidApiApplication.java"
+build = "mvn -q package"
+run = "mvn -q spring-boot:run"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "JDK 21 and Maven. The bundled application.yaml binds the layerx.* properties from LAYERX_PRINCIPAL, LAYERX_PROTECTED_PATH, the LAYERX_RESOURCE_* fields, the payment fields, the five LAYERX_*_STATE_ROOT and batch facts, and the webhook key material."
+
+[sample.mobile-payment-ios]
+title = "First payment on iOS"
+language = "swift"
+fence = "swift"
+comment = "//"
+path = "samples/mobile-payment-ios"
+entry = "Sources/MobilePayment/MobilePayment.swift"
+build = "swift build"
+run = "swift run MobilePayment"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "Swift 5.9 or newer, LAYERX_SERVICE_URL and LAYERX_SESSION_BROKER_URL, at least one LAYERX_EVENT_PUBLIC_KEY_<key-id>, and the move inputs LAYERX_SOURCE, LAYERX_DESTINATION, LAYERX_AMOUNT, LAYERX_CURRENCY and LAYERX_PAYMENT_KEY. The app holds no long-lived credential."
+
+[sample.mobile-payment-android]
+title = "First payment on Android"
+language = "java"
+fence = "java"
+comment = "//"
+path = "samples/mobile-payment-android"
+entry = "src/main/java/com/sidiora/layerx/docs/MobilePayment.java"
+build = "mvn -q package"
+run = "mvn -q exec:java"
+measured_region = "integration"
+maximum_integration_lines = 9
+requires = "JDK 21 and Maven, the same publishable configuration as the iOS sample, and the move inputs LAYERX_SOURCE, LAYERX_DESTINATION, LAYERX_AMOUNT, LAYERX_CURRENCY and LAYERX_PAYMENT_KEY. The app holds no long-lived credential."

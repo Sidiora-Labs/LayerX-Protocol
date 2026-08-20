@@ -3,7 +3,8 @@ PLATFORM_MANIFEST := platform/Cargo.toml
 
 .PHONY: platform-build platform-lint platform-test platform-sdk-check \
 	platform-sdk-generate platform-test-sdks platform-release-check platform-release-plan \
-	platform-test-tooling platform-emulator-conformance platform-test-middleware
+	platform-test-tooling platform-emulator-conformance platform-test-middleware \
+	platform-test-docs
 
 platform-build:
 	$(PLATFORM_CARGO) build --manifest-path $(PLATFORM_MANIFEST) --locked --workspace
@@ -86,3 +87,24 @@ platform-test-middleware:
 	mvn -q -f platform/integrations/android/pom.xml -DskipTests verify
 	command -v swift >/dev/null
 	swift build --package-path platform/integrations/ios
+
+platform-test-docs:
+	sh platform/tools/docs-gate $(CURDIR)
+	command -v node >/dev/null
+	npm --prefix platform/docs/samples/first-payment-typescript install --no-audit --no-fund
+	npm --prefix platform/docs/samples/paid-endpoint-express install --no-audit --no-fund
+	npm --prefix platform/docs/samples/paid-route-next install --no-audit --no-fund
+	python3 -m pip install --quiet -r platform/docs/samples/first-payment-python/requirements.txt
+	python3 -m pip install --quiet -r platform/docs/samples/paid-endpoint-fastapi/requirements.txt
+	python3 -m compileall -q platform/docs/samples/first-payment-python platform/docs/samples/paid-endpoint-fastapi
+	cd platform/docs/samples/first-payment-go && go build ./...
+	cargo build --manifest-path platform/docs/samples/verify-receipt-rust/Cargo.toml --release
+	command -v mvn >/dev/null
+	mvn -q -f platform/docs/samples/first-payment-jvm/pom.xml package
+	mvn -q -f platform/docs/samples/paid-endpoint-spring/pom.xml package
+	mvn -q -f platform/docs/samples/mobile-payment-android/pom.xml package
+	command -v swift >/dev/null
+	swift build --package-path platform/docs/samples/first-payment-swift
+	swift build --package-path platform/docs/samples/mobile-payment-ios
+	command -v dotnet >/dev/null
+	dotnet build platform/docs/samples/first-payment-csharp/FirstPayment.csproj --configuration Release --nologo

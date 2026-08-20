@@ -1,0 +1,88 @@
+# Install the tools
+
+Three things get you to a verified payment: an SDK for your language, the `layerx` command line tool, and an environment to talk to. Nothing here asks you to generate signing material by hand, encode a payload or handle a byte.
+
+## Install the command line tool
+
+```text
+cargo install --path platform/cli
+```
+
+The binary is called `layerx`. Every subcommand accepts `--json` and will then emit exactly one JSON object, which is what you want in a script.
+
+## Pick an environment
+
+| Environment | What it is | Money |
+|---|---|---|
+| Local emulator | The real transition function running on your machine | Freely prefunded, worthless |
+| Hosted testnet | A shared network reset on a published schedule | Faucet-issued, worthless |
+| Production | The live network | Real |
+
+Start on the emulator. It runs the same transition function as production, so a payment it accepts is a payment production would accept, and a refusal it gives you is a real refusal rather than a stub.
+
+```text
+layerx emulator up --listen 127.0.0.1:9402
+layerx environment use local --endpoint http://127.0.0.1:9402
+```
+
+`layerx environment current` shows the active profile, and `layerx environment list` shows every profile you have configured.
+
+## Get credentials
+
+For the hosted testnet and for production you authenticate with a bearer token. The CLI reads it from standard input and stores it in your operating system credential store, so it never lands in your shell history or a dotfile:
+
+```text
+layerx auth set --environment testnet
+layerx auth status --environment testnet
+```
+
+For the emulator you create a local account keyed by an Ed25519 seed the CLI generates from operating-system randomness. You never type key material:
+
+```text
+layerx key create dev
+layerx account create --key dev --initial-amount 1000000
+```
+
+## Confirm it works before you write code
+
+```text
+layerx payment test --from "$LAYERX_SOURCE" --to "$LAYERX_DESTINATION" \
+  --currency "$LAYERX_CURRENCY" --amount "$LAYERX_AMOUNT" \
+  --idempotency-key "$LAYERX_PAYMENT_KEY" --json
+```
+
+That performs a real quote and a real commit against the active endpoint and prints the journey. If it works, your language quickstart will work.
+
+## Install an SDK
+
+| Language | Install |
+|---|---|
+| TypeScript | `npm install @sidiora/layerx-sdk` |
+| Python | `python3 -m pip install layerx-sdk` |
+| Go | `go get github.com/Sidiora-Labs/LayerX-Protocol/platform/sdk/go` |
+| Java and Kotlin | Add `com.sidiora.layerx:layerx-sdk:0.1.0` to your build |
+| Swift | Add the `LayerXSDK` package to `Package.swift` |
+| C# | `dotnet add package LayerX.Sdk` |
+| Rust | `cargo add layerx-sdk` |
+
+## What your application reads from the environment
+
+A server-side integration needs exactly two values, both supplied to you:
+
+| Variable | What it is |
+|---|---|
+| `LAYERX_API_URL` | The base URL of the environment you chose |
+| `LAYERX_API_TOKEN` | A bearer token identifying your account |
+
+Every SDK wraps the token in a secret container that redacts itself in logs and zeroes its storage when destroyed. No quickstart on this site asks you to construct signing material.
+
+A mobile or browser application gets a different arrangement entirely: it holds no long-lived credential and exchanges a publishable configuration for short-lived session tokens through a broker you run. See [iOS](framework-ios.html) and [Android](framework-android.html).
+
+## Enforced by
+
+| Capability | Layer | What that means here |
+|---|---|---|
+| Atomic settlement | `protocol` | True on the emulator, the testnet and production alike, because it is the same transition function. |
+| Refusal to publish a secret | `service` | The mobile configuration accepts publishable values only, and the Next.js bundle scanner fails a build whose client bundle contains a declared secret. |
+| Testnet faucet funding | `hosted-surface` | Faucet eligibility is a hosted control. Once issued, test funds are ordinary protocol balances. |
+| Scheduled testnet resets | `hosted-surface` | Nothing on the testnet is durable, and no protocol rule promises otherwise. |

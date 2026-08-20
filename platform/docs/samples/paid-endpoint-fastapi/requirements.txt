@@ -1,0 +1,4 @@
+fastapi==0.115.6
+layerx-fastapi==0.1.0
+layerx-sdk==0.1.0
+uvicorn==0.32.1

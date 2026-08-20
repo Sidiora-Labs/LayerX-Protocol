@@ -1,0 +1,5 @@
+{
+  "report": "layerx-paid-endpoint",
+  "generated": "on-settlement",
+  "note": "This body is released only after a verified LayerX receipt covers the request."
+}

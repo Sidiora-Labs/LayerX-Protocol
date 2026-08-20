@@ -1995,7 +1995,7 @@ status = "pending"
 
 [task.18.1]
 title = "Build the documentation site with executable samples"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["16.1","17.1"]
 do_1 = "Build the docs site: concepts, per-language and per-framework quickstarts, schema-generated API references, middleware, programs and interop guides."

@@ -787,7 +787,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - _Requirements: 26.8, 26.1_
 
 - [ ] 18. Ship documentation, reference apps and the five-minute gate
-  - [ ] 18.1 Build the documentation site with executable samples
+  - [x] 18.1 Build the documentation site with executable samples
     - Build the docs site: concepts, per-language and per-framework quickstarts, schema-generated API references, middleware, programs and interop guides.
     - Compile and execute every code sample in CI so a stale sample fails the build.
     - Label every documented capability with its enforcement layer: protocol, agent-layer, service or hosted surface.
