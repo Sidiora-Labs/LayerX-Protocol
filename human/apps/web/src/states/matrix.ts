@@ -22,6 +22,9 @@ export const CURRENT_ROUTES = [
   "/explorer/receipts/[receiptId]",
   "/explorer/accounts/[accountId]",
   "/explorer/verify",
+  "/app/agents",
+  "/app/agents/new",
+  "/app/agents/[agentId]",
 ] as const;
 export const CURRENT_SHELLS = ["authenticated"] as const;
 
@@ -94,6 +97,9 @@ const currentTargets: readonly ScreenStateEntry[] = Object.freeze([
   Object.freeze({ id: "route.explorer.receipt", kind: "route", route: "/explorer/receipts/[receiptId]", shells: BOTH_SHELLS, states: completeStates() }),
   Object.freeze({ id: "route.explorer.account", kind: "route", route: "/explorer/accounts/[accountId]", shells: BOTH_SHELLS, states: completeStates() }),
   Object.freeze({ id: "route.explorer.verify", kind: "route", route: "/explorer/verify", shells: BOTH_SHELLS, states: completeStates() }),
+  Object.freeze({ id: "route.app.agents", kind: "route", route: "/app/agents", shells: BOTH_SHELLS, states: completeStates() }),
+  Object.freeze({ id: "route.app.agents.new", kind: "route", route: "/app/agents/new", shells: BOTH_SHELLS, states: completeStates() }),
+  Object.freeze({ id: "route.app.agents.detail", kind: "route", route: "/app/agents/[agentId]", shells: BOTH_SHELLS, states: completeStates() }),
   Object.freeze({ id: "shell.authenticated", kind: "shell", route: "/app", shells: BOTH_SHELLS, states: completeStates() }),
 ]);
 

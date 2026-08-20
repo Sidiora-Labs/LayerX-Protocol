@@ -132,3 +132,8 @@ export {
   type KitTextFieldProps,
   type OptionListItem,
 } from "./display";
+export {
+  Badge,
+  StatPair,
+  type BadgeProps,
+} from "@layerx/ui";

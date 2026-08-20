@@ -9,6 +9,7 @@ import { KitButton } from "./control";
 import { confirmationVariant, typedConfirmationReady } from "./model";
 
 interface ConfirmationBase {
+  readonly children?: ReactNode;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly title: ReactNode;
@@ -82,6 +83,7 @@ function Confirmation({ platform, ...props }: ConfirmationProps & Readonly<{ pla
         </>
       }
     >
+      {props.children}
       {typed === undefined ? null : (
         <label className="flex flex-col gap-2 text-sm font-semibold text-foreground">
           {typed.label ?? formatCopy("confirmation.type_to_confirm", { expectedValue: typed.expectedValue })}
