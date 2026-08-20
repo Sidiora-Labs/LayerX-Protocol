@@ -1,0 +1,309 @@
+//! Persistent program storage whose address space is structurally scoped by
+//! both program and invoking principal. Guest-facing APIs never accept an
+//! arbitrary namespace, so neither adjacent programs nor adjacent principals
+//! can be reached by choosing a key.
+
+use core::fmt::{self, Display};
+use std::collections::BTreeMap;
+
+/// Maximum key length admitted by the version-one storage ABI.
+pub const MAX_STORAGE_KEY_BYTES: usize = 256;
+/// Maximum value length admitted by the version-one storage ABI.
+pub const MAX_STORAGE_VALUE_BYTES: usize = 1_048_576;
+
+/// Stable identifier of a deployed program.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ProgramId([u8; 32]);
+
+impl ProgramId {
+    /// Constructs a nonzero program identifier.
+    ///
+    /// # Errors
+    ///
+    /// Refuses the all-zero identifier reserved for absence.
+    pub fn new(bytes: [u8; 32]) -> Result<Self, StorageError> {
+        if bytes == [0; 32] {
+            return Err(StorageError::InvalidProgram);
+        }
+        Ok(Self(bytes))
+    }
+
+    /// Returns the canonical identifier bytes.
+    #[must_use]
+    pub const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+/// Stable identifier of the principal whose authority invoked a program.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct PrincipalId([u8; 32]);
+
+impl PrincipalId {
+    /// Constructs a nonzero principal identifier.
+    ///
+    /// # Errors
+    ///
+    /// Refuses the all-zero identifier reserved for absence.
+    pub fn new(bytes: [u8; 32]) -> Result<Self, StorageError> {
+        if bytes == [0; 32] {
+            return Err(StorageError::InvalidPrincipal);
+        }
+        Ok(Self(bytes))
+    }
+
+    /// Returns the canonical identifier bytes.
+    #[must_use]
+    pub const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+/// One storage namespace, fixed before guest code begins.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct StorageNamespace {
+    program: ProgramId,
+    principal: PrincipalId,
+}
+
+impl StorageNamespace {
+    /// Constructs the exact program/principal namespace.
+    #[must_use]
+    pub const fn new(program: ProgramId, principal: PrincipalId) -> Self {
+        Self { program, principal }
+    }
+
+    /// Returns the program owning this namespace.
+    #[must_use]
+    pub const fn program(self) -> ProgramId {
+        self.program
+    }
+
+    /// Returns the principal owning this namespace.
+    #[must_use]
+    pub const fn principal(self) -> PrincipalId {
+        self.principal
+    }
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct StorageAddress {
+    namespace: StorageNamespace,
+    key: Vec<u8>,
+}
+
+/// Typed namespaced-storage refusal.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StorageError {
+    InvalidProgram,
+    InvalidPrincipal,
+    EmptyKey,
+    KeyTooLarge,
+    ValueTooLarge,
+    SizeOverflow,
+}
+
+impl Display for StorageError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidProgram => formatter.write_str("program identifier is reserved"),
+            Self::InvalidPrincipal => formatter.write_str("principal identifier is reserved"),
+            Self::EmptyKey => formatter.write_str("storage key is empty"),
+            Self::KeyTooLarge => formatter.write_str("storage key exceeds the ABI bound"),
+            Self::ValueTooLarge => formatter.write_str("storage value exceeds the ABI bound"),
+            Self::SizeOverflow => formatter.write_str("storage accounting overflowed"),
+        }
+    }
+}
+
+impl std::error::Error for StorageError {}
+
+/// Durable storage shared by program executions. Its map key always includes
+/// both owning program and invoking principal.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Storage {
+    cells: BTreeMap<StorageAddress, Vec<u8>>,
+}
+
+impl Storage {
+    /// Creates an empty storage plane.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            cells: BTreeMap::new(),
+        }
+    }
+
+    /// Begins an isolated write transaction. Dropping it without commit leaves
+    /// durable storage byte-identical.
+    #[must_use]
+    pub fn transaction(&mut self, namespace: StorageNamespace) -> StorageTransaction<'_> {
+        StorageTransaction {
+            owner: self,
+            namespace,
+            writes: BTreeMap::new(),
+        }
+    }
+
+    /// Returns the number of cells visible in exactly one namespace.
+    #[must_use]
+    pub fn namespace_cell_count(&self, namespace: StorageNamespace) -> usize {
+        self.cells
+            .keys()
+            .filter(|address| address.namespace == namespace)
+            .count()
+    }
+
+    pub(crate) fn read(
+        &self,
+        namespace: StorageNamespace,
+        key: &[u8],
+    ) -> Result<Option<Vec<u8>>, StorageError> {
+        validate_key(key)?;
+        Ok(self
+            .cells
+            .get(&StorageAddress {
+                namespace,
+                key: key.to_vec(),
+            })
+            .cloned())
+    }
+
+    pub(crate) fn write(
+        &mut self,
+        namespace: StorageNamespace,
+        key: &[u8],
+        value: &[u8],
+    ) -> Result<(), StorageError> {
+        validate_key(key)?;
+        if value.len() > MAX_STORAGE_VALUE_BYTES {
+            return Err(StorageError::ValueTooLarge);
+        }
+        self.cells.insert(
+            StorageAddress {
+                namespace,
+                key: key.to_vec(),
+            },
+            value.to_vec(),
+        );
+        Ok(())
+    }
+
+    pub(crate) fn delete(
+        &mut self,
+        namespace: StorageNamespace,
+        key: &[u8],
+    ) -> Result<(), StorageError> {
+        validate_key(key)?;
+        self.cells.remove(&StorageAddress {
+            namespace,
+            key: key.to_vec(),
+        });
+        Ok(())
+    }
+}
+
+/// An atomic transaction fixed to one namespace at construction.
+#[derive(Debug)]
+pub struct StorageTransaction<'a> {
+    owner: &'a mut Storage,
+    namespace: StorageNamespace,
+    writes: BTreeMap<Vec<u8>, Option<Vec<u8>>>,
+}
+
+impl StorageTransaction<'_> {
+    /// Reads only from the transaction's fixed namespace.
+    ///
+    /// # Errors
+    ///
+    /// Refuses empty and oversized keys.
+    pub fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError> {
+        validate_key(key)?;
+        if let Some(value) = self.writes.get(key) {
+            return Ok(value.clone());
+        }
+        Ok(self
+            .owner
+            .cells
+            .get(&StorageAddress {
+                namespace: self.namespace,
+                key: key.to_vec(),
+            })
+            .cloned())
+    }
+
+    /// Stages a bounded value in the fixed namespace.
+    ///
+    /// # Errors
+    ///
+    /// Refuses empty or oversized keys and oversized values.
+    pub fn write(&mut self, key: &[u8], value: &[u8]) -> Result<(), StorageError> {
+        validate_key(key)?;
+        if value.len() > MAX_STORAGE_VALUE_BYTES {
+            return Err(StorageError::ValueTooLarge);
+        }
+        self.writes.insert(key.to_vec(), Some(value.to_vec()));
+        Ok(())
+    }
+
+    /// Stages deletion of a key in the fixed namespace.
+    ///
+    /// # Errors
+    ///
+    /// Refuses empty and oversized keys.
+    pub fn delete(&mut self, key: &[u8]) -> Result<(), StorageError> {
+        validate_key(key)?;
+        self.writes.insert(key.to_vec(), None);
+        Ok(())
+    }
+
+    /// Atomically applies all staged writes and returns the number of changed
+    /// cells. No guest-visible operation can alter the transaction namespace.
+    #[must_use]
+    pub fn commit(self) -> usize {
+        let mut changed = 0usize;
+        for (key, value) in self.writes {
+            let address = StorageAddress {
+                namespace: self.namespace,
+                key,
+            };
+            match value {
+                Some(value) => {
+                    if self.owner.cells.get(&address) != Some(&value) {
+                        self.owner.cells.insert(address, value);
+                        changed = changed.saturating_add(1);
+                    }
+                }
+                None => {
+                    if self.owner.cells.remove(&address).is_some() {
+                        changed = changed.saturating_add(1);
+                    }
+                }
+            }
+        }
+        changed
+    }
+}
+
+fn validate_key(key: &[u8]) -> Result<(), StorageError> {
+    if key.is_empty() {
+        return Err(StorageError::EmptyKey);
+    }
+    if key.len() > MAX_STORAGE_KEY_BYTES {
+        return Err(StorageError::KeyTooLarge);
+    }
+    Ok(())
+}
+
+/// Computes exact storage metering bytes for a key and optional value.
+///
+/// # Errors
+///
+/// Refuses lengths that cannot fit the runtime's `u64` meter.
+pub fn metered_bytes(key: &[u8], value: Option<&[u8]>) -> Result<u64, StorageError> {
+    let bytes = key
+        .len()
+        .checked_add(value.map_or(0, <[u8]>::len))
+        .ok_or(StorageError::SizeOverflow)?;
+    u64::try_from(bytes).map_err(|_| StorageError::SizeOverflow)
+}

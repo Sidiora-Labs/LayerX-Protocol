@@ -4,11 +4,21 @@ use core::fmt::{self, Display};
 
 use wasmparser_nostd::{BlockType, FunctionBody, Import, Operator, Parser, Payload, Type, ValType};
 
+use crate::abi::Abi;
 use crate::engine::WasmEngine;
 use crate::execute::{fault_from_error, ExecutionFault, ProgramInstance};
+use crate::host::{self, RuntimeState};
 use crate::meter::Meter;
 
-const PERMITTED_IMPORTS: &[(&str, &str)] = &[];
+const PERMITTED_IMPORTS: &[(&str, &str)] = &[
+    ("layerx_v1", "storage_read"),
+    ("layerx_v1", "storage_write"),
+    ("layerx_v1", "storage_delete"),
+    ("layerx_v1", "event_emit"),
+    ("layerx_v1", "program_call"),
+    ("layerx_v1", "transfer_402"),
+    ("layerx_v1", "receipt_read"),
+];
 
 /// A typed refusal produced while validating a module.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -124,15 +134,27 @@ impl ValidatedModule {
         &self,
         meter: Meter,
     ) -> Result<ProgramInstance, ExecutionFault> {
-        let fuel = meter.cpu_budget();
-        let mut store = wasmi::Store::new(self.module.engine(), meter);
-        store.limiter(|meter| meter);
+        self.instantiate_state(RuntimeState::isolated(meter))
+    }
+
+    pub(crate) fn instantiate_authorized(
+        &self,
+        meter: Meter,
+        abi: Abi,
+    ) -> Result<ProgramInstance, ExecutionFault> {
+        self.instantiate_state(RuntimeState::authorized(meter, abi))
+    }
+
+    fn instantiate_state(&self, state: RuntimeState) -> Result<ProgramInstance, ExecutionFault> {
+        let fuel = state.meter().cpu_budget();
+        let mut store = wasmi::Store::new(self.module.engine(), state);
+        store.limiter(|state| state.meter_mut() as &mut dyn wasmi::ResourceLimiter);
         store
             .add_fuel(fuel)
             .map_err(|error| ExecutionFault::EngineFault {
                 reason: error.to_string(),
             })?;
-        let linker: wasmi::Linker<Meter> = wasmi::Linker::new(self.module.engine());
+        let linker = host::linker(self.module.engine())?;
         let instance = linker
             .instantiate(&mut store, &self.module)
             .map_err(|error| fault_from_error(&error))?

@@ -5,7 +5,10 @@ use core::fmt::{self, Display};
 use wasmi::core::TrapCode;
 use wasmi::{Instance, Store, Value};
 
+use crate::abi::{Abi, AbiEffects, AbiError, AuthorizationContext, ReceiptOracle};
+use crate::host::RuntimeState;
 use crate::meter::{FeeSchedule, Meter, MeterRefusal, MeteredUsage, ResourceBudget, ResourceKind};
+use crate::storage::{ProgramId, Storage};
 use crate::validate::ValidatedModule;
 
 /// Runtime version recorded for versioned replay of every execution.
@@ -135,12 +138,12 @@ const fn fault_from_trap_code(code: TrapCode) -> ExecutionFault {
 /// An instantiated program isolated inside its own store.
 #[derive(Debug)]
 pub struct ProgramInstance {
-    store: Store<Meter>,
+    store: Store<RuntimeState>,
     instance: Instance,
 }
 
 impl ProgramInstance {
-    pub(crate) const fn new(store: Store<Meter>, instance: Instance) -> Self {
+    pub(crate) const fn new(store: Store<RuntimeState>, instance: Instance) -> Self {
         Self { store, instance }
     }
 
@@ -169,6 +172,7 @@ impl ProgramInstance {
         let result_count = func.ty(&self.store).results().len();
         self.store
             .data_mut()
+            .meter_mut()
             .charge_output(result_count)
             .map_err(|refusal| ExecutionFault::Resource { refusal })?;
         let inputs: Vec<Value> = args.iter().copied().map(Value::from).collect();
@@ -179,11 +183,11 @@ impl ProgramInstance {
                 reason: "fuel metering disabled".to_string(),
             });
         };
-        self.store.data_mut().record_cpu(consumed);
+        self.store.data_mut().meter_mut().record_cpu(consumed);
         if let Err(error) = result {
             let fault = fault_from_error(&error);
             if fault == ExecutionFault::OutOfFuel {
-                self.store.data_mut().mark_cpu_exhausted();
+                self.store.data_mut().meter_mut().mark_cpu_exhausted();
             }
             return Err(fault);
         }
@@ -202,7 +206,11 @@ impl ProgramInstance {
     /// Borrows the exact meter state for this isolated execution.
     #[must_use]
     pub fn meter(&self) -> &Meter {
-        self.store.data()
+        self.store.data().meter()
+    }
+
+    pub(crate) fn into_state(self) -> RuntimeState {
+        self.store.into_data()
     }
 }
 
@@ -217,6 +225,24 @@ pub struct ExecutionRecord {
     pub outputs: Vec<WasmValue>,
     /// Exact deterministic resource use and fee units.
     pub usage: MeteredUsage,
+}
+
+/// Successful authorized execution plus effects awaiting the kernel's atomic
+/// application boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthorizedExecutionRecord {
+    pub execution: ExecutionRecord,
+    pub effects: AbiEffects,
+}
+
+/// Complete immutable input to one authorized guest execution.
+pub struct AuthorizedExecutionRequest<'a> {
+    pub module: &'a ValidatedModule,
+    pub program: ProgramId,
+    pub authorization: AuthorizationContext,
+    pub receipts: &'a dyn ReceiptOracle,
+    pub export: &'a str,
+    pub args: &'a [WasmValue],
 }
 
 impl ExecutionRecord {
@@ -265,6 +291,8 @@ pub enum ExecutionError {
     Fault(ExecutionFault),
     /// Typed resource-budget refusal.
     Resource(MeterRefusal),
+    /// Capability ABI refusal before or during execution.
+    Abi(AbiError),
 }
 
 impl Display for ExecutionError {
@@ -272,6 +300,7 @@ impl Display for ExecutionError {
         match self {
             Self::Fault(fault) => write!(formatter, "execution fault: {fault}"),
             Self::Resource(refusal) => write!(formatter, "resource refusal: {refusal}"),
+            Self::Abi(error) => write!(formatter, "ABI refusal: {error}"),
         }
     }
 }
@@ -338,6 +367,58 @@ impl Executor {
             abi_version: self.abi_version,
             outputs,
             usage,
+        })
+    }
+
+    /// Executes a program with an explicit authorization context and atomic
+    /// namespaced storage. Durable storage changes only after guest success and
+    /// successful resource finalization.
+    ///
+    /// # Errors
+    ///
+    /// Returns typed ABI, guest, or resource refusals without committing
+    /// storage or exposing partial effects.
+    pub fn execute_authorized(
+        &self,
+        storage: &mut Storage,
+        request: AuthorizedExecutionRequest<'_>,
+    ) -> Result<AuthorizedExecutionRecord, ExecutionError> {
+        let meter = Meter::new(self.budget, self.prices);
+        let abi = Abi::new(
+            self.abi_version,
+            request.program,
+            request.authorization,
+            storage.clone(),
+            request.receipts,
+        )
+        .map_err(ExecutionError::Abi)?;
+        let mut instance = request
+            .module
+            .instantiate_authorized(meter, abi)
+            .map_err(|fault| self.classify_fault(fault, None))?;
+        let outputs = match instance.call(request.export, request.args) {
+            Ok(outputs) => outputs,
+            Err(fault) => {
+                return Err(self.classify_fault(fault, instance.meter().exhaustion()));
+            }
+        };
+        let usage = instance
+            .meter()
+            .finish()
+            .map_err(ExecutionError::Resource)?;
+        let (_, abi) = instance.into_state().into_parts();
+        let committed = abi
+            .ok_or(ExecutionError::Abi(AbiError::CapabilityDenied))?
+            .commit();
+        *storage = committed.storage;
+        Ok(AuthorizedExecutionRecord {
+            execution: ExecutionRecord {
+                runtime_version: self.runtime_version,
+                abi_version: self.abi_version,
+                outputs,
+                usage,
+            },
+            effects: committed.effects,
         })
     }
 
