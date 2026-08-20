@@ -114,6 +114,45 @@ pub struct FacilitatorPaymentRequest {
     pub settlement_step: SettlementStep,
 }
 
+/// Stable state-changing identity shared by HTTP, MCP and A2A bindings. The
+/// transport is intentionally absent: identical x402 semantics retry under
+/// one economic identity regardless of delivery channel.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SettlementIdentity {
+    pub idempotency_key: [u8; 32],
+    pub request_digest: [u8; 32],
+}
+
+impl SettlementIdentity {
+    /// Derives the facilitator's stable economic identity from canonical x402
+    /// request semantics, principal, caller identity and settlement step.
+    ///
+    /// # Errors
+    ///
+    /// Refuses zero caller identity, invalid x402 values and serialization
+    /// failures. No transport label participates in either digest.
+    pub fn derive(
+        principal: &PrincipalId,
+        request: &FacilitatorRequest,
+        stable_identity: [u8; 32],
+        step: SettlementStep,
+    ) -> Result<Self, X402Error> {
+        if stable_identity == [0; 32] {
+            return Err(X402Error::InvalidPayload);
+        }
+        request.validate()?;
+        let canonical = serde_json::to_vec(request).map_err(|_| X402Error::Encode)?;
+        let step_code = [step.code()];
+        Ok(Self {
+            request_digest: digest(SETTLE_DIGEST_DOMAIN, &[&step_code, &canonical]),
+            idempotency_key: digest(
+                SETTLE_KEY_DOMAIN,
+                &[principal.as_str().as_bytes(), &stable_identity, &step_code],
+            ),
+        })
+    }
+}
+
 /// Honest result of a read-only plane verification.
 #[derive(Clone, Debug, PartialEq)]
 pub enum PlaneVerifyOutcome {
@@ -257,19 +296,13 @@ impl Facilitator {
         now: u64,
     ) -> Result<SettlementResponse, Traced<X402Error>> {
         let fail = |error| trace.wrap(error);
-        if stable_identity == [0; 32] {
-            return Err(fail(X402Error::InvalidPayload));
-        }
         request.validate().map_err(fail)?;
         self.require_supported(&request.payment_requirements)
             .map_err(fail)?;
-        let canonical = serde_json::to_vec(request).map_err(|_| fail(X402Error::Encode))?;
-        let step_code = [step.code()];
-        let request_digest = digest(SETTLE_DIGEST_DOMAIN, &[&step_code, &canonical]);
-        let idempotency_key = digest(
-            SETTLE_KEY_DOMAIN,
-            &[principal.as_str().as_bytes(), &stable_identity, &step_code],
-        );
+        let identity =
+            SettlementIdentity::derive(principal, request, stable_identity, step).map_err(fail)?;
+        let request_digest = identity.request_digest;
+        let idempotency_key = identity.idempotency_key;
         let translation = translation(
             TranslationKind::StateChanging,
             idempotency_key,
