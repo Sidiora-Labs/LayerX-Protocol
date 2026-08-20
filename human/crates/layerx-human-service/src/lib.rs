@@ -4,6 +4,7 @@ pub mod auth;
 pub mod audit;
 pub mod custody;
 pub mod health;
+pub mod notify;
 pub mod redaction;
 pub mod store;
 pub mod trace;

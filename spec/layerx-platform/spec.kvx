@@ -918,7 +918,7 @@ reqs = ["22.2","22.4","22.5","22.6"]
 
 [task.5.7]
 title = "Implement the wallet-binding journey"
-status = "pending"
+status = "in_progress"
 wave = 3
 requires = ["5.3","3.2"]
 do_1 = "Issue the domain-separated binding statement naming the DID and network_id for the wallet to sign, and verify the returned EVM signature before anything is submitted."
@@ -1250,7 +1250,7 @@ reqs = ["13.3","13.4","13.6","13.8"]
 
 [task.9.4]
 title = "Implement the notification service"
-status = "in_progress"
+status = "done"
 wave = 4
 requires = ["5.1"]
 do_1 = "Implement dispatch for the notification classes: approval waiting, money arrived, journey completed or failed, claim ready, security events and degradation notices, each carrying a deep link."

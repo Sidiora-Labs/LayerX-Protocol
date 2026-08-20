@@ -273,7 +273,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Propagate the trace identifier from human-api requests through the service into agent-layer calls and back onto error responses, and instrument the journey funnels - onboarding, deposit, move, create-agent, approval, withdrawal - with stage-level outcomes under the redaction rules.
     - Implement the user's own audit export with referenced receipts and proofs as an independently verifiable evidence bundle.
     - _Requirements: 22.2, 22.4, 22.5, 22.6_
-  - [ ] 5.7 Implement the wallet-binding journey
+  - [-] 5.7 Implement the wallet-binding journey
     - Issue the domain-separated binding statement naming the DID and network_id for the wallet to sign, and verify the returned EVM signature before anything is submitted.
     - Submit the binding as a typed intent through the agent layer and treat the binding as active only when its receipt verifies.
     - Verify the address that signed the statement matches the address recorded in the receipt before presenting the binding as active, surfacing a mismatch as a verification failure.
@@ -430,7 +430,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Converge concurrent decisions from multiple devices on one outcome with the honest already-decided presentation for the second.
     - Audit every decision with digest, step-up evidence and outcome, exportable with receipts.
     - _Requirements: 13.3, 13.4, 13.6, 13.8_
-  - [-] 9.4 Implement the notification service
+  - [x] 9.4 Implement the notification service
     - Implement dispatch for the notification classes: approval waiting, money arrived, journey completed or failed, claim ready, security events and degradation notices, each carrying a deep link.
     - Implement push, email and in-app channels with per-event-class preferences nested under channel toggles, applied immediately.
     - Make security-critical classes - recovery initiation, wallet rebinding - non-suppressible.
