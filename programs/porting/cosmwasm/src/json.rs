@@ -462,7 +462,7 @@ impl<'text> Scanner<'text> {
     }
 
     fn continuation(&mut self, lead: u8, text: &mut String) -> Result<(), PortRefusal> {
-        let extra = match lead {
+        let extra: usize = match lead {
             0x00..=0x7f => 0,
             0xc2..=0xdf => 1,
             0xe0..=0xef => 2,

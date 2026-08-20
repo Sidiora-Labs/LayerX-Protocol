@@ -5,6 +5,7 @@
     "agent/sdk/typescript",
     "platform/middleware/agent",
     "platform/middleware/buyer",
+    "platform/middleware/merchant",
     "platform/middleware/seller",
     "platform/integrations/agents",
     "platform/integrations/express",

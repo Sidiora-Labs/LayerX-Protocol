@@ -133,6 +133,8 @@ pub fn read_request(stream: &mut TcpStream) -> Result<Request, WebhookError> {
         .to_ascii_uppercase();
     let target = first.next().ok_or(WebhookError::InvalidRequest)?;
     let (path, query) = target.split_once('?').unwrap_or((target, ""));
+    let path = path.to_owned();
+    let query = query.to_owned();
     let mut headers = BTreeMap::new();
     let mut content_length = 0_usize;
     for line in lines.filter(|line| !line.is_empty()) {
@@ -157,8 +159,8 @@ pub fn read_request(stream: &mut TcpStream) -> Result<Request, WebhookError> {
     }
     Ok(Request {
         method,
-        path: path.to_owned(),
-        query: query.to_owned(),
+        path,
+        query,
         headers,
         body: bytes
             .get(header_end..total)

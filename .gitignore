@@ -25,7 +25,7 @@ core
 core.*
 crash-*
 !programs/vendor/**
-
+node_modules/
 # Runtime state and logs
 /.logs/
 *.log
@@ -66,3 +66,6 @@ crash-*
 Thumbs.db
 tmp/*
 .claude/worktrees/
+agent/target/
+platform/docs/samples/*/first-payment-go
+spec/specgen/specgen

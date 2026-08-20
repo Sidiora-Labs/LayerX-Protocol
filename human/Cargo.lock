@@ -783,7 +783,6 @@ name = "layerx-programs-registry"
 version = "0.1.0"
 dependencies = [
  "layerx-programs-runtime",
- "sha2",
 ]
 
 [[package]]
