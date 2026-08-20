@@ -1,13 +1,14 @@
 [package]
 name = "layerx-platform-emulator"
+autobins = false
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 build = "build.rs"
 
-[[bin]]
-name = "layerx"
+[lib]
+name = "layerx_platform_emulator"
 path = "src/main.rs"
 
 [dependencies]

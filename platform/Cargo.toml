@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "cli",
     "emulator",
     "sdk/generators",
     "release",
@@ -15,8 +16,16 @@ version = "0.1.0"
 license = "LicenseRef-Centra-ai-Protocol"
 
 [workspace.dependencies]
+clap = { version = "=4.6.6", features = ["derive"] }
+ed25519-dalek = "=2.2.0"
+getrandom = "=0.3.4"
+keyring = "=4.1.6"
 layerx-platform-kvx = { path = "tools/kvx", version = "=0.1.0" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.149"
 sha2 = "=0.10.9"
+ureq = { version = "=3.4.0", default-features = false, features = ["json", "native-tls-no-default"] }
+zeroize = "=1.9.0"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

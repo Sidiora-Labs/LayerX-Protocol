@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::env;
 use std::ffi::{c_char, c_int, c_uchar, c_uint, c_ulonglong, c_void, CStr};
 use std::fmt::Write as _;
 use std::io::{Read, Write};
@@ -604,10 +603,9 @@ fn parse_prefund(value: &str) -> Result<Prefund, String> {
     })
 }
 
-fn parse_config() -> Result<Config, String> {
-    let mut arguments = env::args().skip(1);
-    if arguments.next().as_deref() != Some("emulator") || arguments.next().as_deref() != Some("up")
-    {
+fn parse_config(arguments: impl IntoIterator<Item = String>) -> Result<Config, String> {
+    let mut arguments = arguments.into_iter();
+    if arguments.next().as_deref() != Some("up") {
         return Err("usage: layerx emulator up [--listen ADDRESS] [--network-id ID] [--time-ms MS] [--prefund DID,PUBLIC_KEY,AMOUNT]".into());
     }
     let mut config = Config {
@@ -689,10 +687,12 @@ fn platform_emulator(config: Config) -> Result<(), String> {
     Ok(())
 }
 
-fn main() {
-    let result = parse_config().and_then(platform_emulator);
-    if let Err(error) = result {
-        eprintln!("layerx: {error}");
-        std::process::exit(2);
-    }
+/// Runs the emulator subcommand behind the unified `layerx` CLI dispatcher.
+///
+/// # Errors
+///
+/// Returns configuration, core-initialisation, or listener failures without
+/// terminating the owning CLI process.
+pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<(), String> {
+    parse_config(arguments).and_then(platform_emulator)
 }

@@ -69,9 +69,9 @@ LICENSE_ALTERNATIVES
 done <"$license_file"
 
 if command -v rg >/dev/null 2>&1; then
-    unsafe_hits=$(rg -n --glob '*.rs' '\bunsafe\s+(fn|trait|impl|extern)|\bunsafe\s*\{' "$repo_root/platform/sdk" "$repo_root/platform/release" "$repo_root/platform/tools" || true)
+    unsafe_hits=$(rg -n --glob '*.rs' '\bunsafe\s+(fn|trait|impl|extern)|\bunsafe\s*\{' "$repo_root/platform/cli" "$repo_root/platform/sdk" "$repo_root/platform/release" "$repo_root/platform/tools" || true)
 else
-    unsafe_hits=$(grep -rEn --include='*.rs' '\bunsafe[[:space:]]+(fn|trait|impl|extern)|\bunsafe[[:space:]]*\{' "$repo_root/platform/sdk" "$repo_root/platform/release" "$repo_root/platform/tools" || true)
+    unsafe_hits=$(grep -rEn --include='*.rs' '\bunsafe[[:space:]]+(fn|trait|impl|extern)|\bunsafe[[:space:]]*\{' "$repo_root/platform/cli" "$repo_root/platform/sdk" "$repo_root/platform/release" "$repo_root/platform/tools" || true)
 fi
 if [ -n "$unsafe_hits" ]; then
     printf '%s\n' "$unsafe_hits" >&2

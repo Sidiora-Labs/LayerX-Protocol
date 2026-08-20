@@ -1,0 +1,27 @@
+[package]
+name = "layerx-platform-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "layerx"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+ed25519-dalek.workspace = true
+getrandom.workspace = true
+keyring.workspace = true
+layerx-platform-emulator = { path = "../emulator" }
+layerx-programs-runtime = { path = "../../programs/crates/layerx-programs-runtime" }
+layerx-proof = { path = "../../agent/crates/layerx-proof" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+ureq.workspace = true
+zeroize.workspace = true
+
+[lints]
+workspace = true
