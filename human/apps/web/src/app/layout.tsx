@@ -1,6 +1,19 @@
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
+import { copyEntry } from "../../copy/catalog";
+
 import "./globals.css";
+
+export const metadata: Metadata = {
+  title: copyEntry("application.name").message,
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (

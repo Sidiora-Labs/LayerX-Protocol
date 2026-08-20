@@ -1709,6 +1709,11 @@ human-test-component:
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) run test:component
 
+human-e2e-foundation:
+	$(HUMAN_NPM) ci
+	$(HUMAN_NPM) run test:foundation
+	$(HUMAN_NPM) run build
+
 human-test-journey:
 	$(HUMAN_NPM) ci
 	$(HUMAN_NPM) run test:journey

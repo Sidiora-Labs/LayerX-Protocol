@@ -13,4 +13,9 @@
     color: var(--foreground);
     font-family: var(--font-sans);
   }
+
+  [data-touch-targets="true"] :where(a, button, [role="button"]) {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

@@ -30,6 +30,13 @@ export interface CopyEntry {
 
 export const copyEntries = [
   { key: "application.name", message: "LayerX Human Interface", context: "Accessible product name and application metadata.", surface: "default", kind: "body", moneyAdjacent: false },
+  { key: "navigation.home", message: "Home", context: "Authenticated application home navigation and heading.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "navigation.agents", message: "Agents", context: "Managed agents navigation.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "navigation.activity", message: "Activity", context: "Account activity navigation.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "navigation.more", message: "More", context: "Additional application destinations navigation.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "app.home.summary", message: "Your account tools and recent activity are available here.", context: "Authenticated plane home introduction.", surface: "default", kind: "body", moneyAdjacent: false },
+  { key: "explorer.title", message: "LayerX Explorer", context: "Public explorer page heading.", surface: "explorer", kind: "body", moneyAdjacent: false },
+  { key: "explorer.summary", message: "Look up public LayerX activity and verify its records.", context: "Public explorer introduction.", surface: "explorer", kind: "body", moneyAdjacent: false },
   { key: "status.getting_ready", message: "Getting ready", context: "Prepared activity that has not been signed.", surface: "default", kind: "status", moneyAdjacent: true },
   { key: "status.sending", message: "Sending", context: "Submitted activity without a receipt yet.", surface: "default", kind: "status", moneyAdjacent: true },
   { key: "status.processing", message: "Processing", context: "Executed activity awaiting final settlement.", surface: "default", kind: "status", moneyAdjacent: true },
