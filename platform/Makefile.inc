@@ -2,7 +2,8 @@ PLATFORM_CARGO ?= cargo
 PLATFORM_MANIFEST := platform/Cargo.toml
 
 .PHONY: platform-build platform-lint platform-test platform-sdk-check \
-	platform-sdk-generate platform-test-sdks platform-release-check platform-release-plan
+	platform-sdk-generate platform-test-sdks platform-release-check platform-release-plan \
+	platform-test-tooling platform-emulator-conformance
 
 platform-build:
 	$(PLATFORM_CARGO) build --manifest-path $(PLATFORM_MANIFEST) --locked --workspace
@@ -17,6 +18,22 @@ platform-lint:
 
 platform-test:
 	$(PLATFORM_CARGO) test --manifest-path $(PLATFORM_MANIFEST) --locked --workspace
+
+platform-test-tooling:
+	$(PLATFORM_CARGO) check --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-emulator
+	@if test -n "$${LAYERX_TESTNET_URL:-}" && test -n "$${LAYERX_CONFORMANCE_ACTIVITIES:-}"; then \
+		sh platform/emulator/tests/conformance.sh \
+			"$${LAYERX_EMULATOR_URL:-http://127.0.0.1:9402}" \
+			"$$LAYERX_TESTNET_URL" "$${LAYERX_CONFORMANCE_ACTIVITIES}"; \
+	else \
+		echo "emulator/testnet differential skipped: set LAYERX_TESTNET_URL and LAYERX_CONFORMANCE_ACTIVITIES"; \
+	fi
+
+platform-emulator-conformance:
+	@test -n "$${LAYERX_TESTNET_URL:-}" && test -n "$${LAYERX_CONFORMANCE_ACTIVITIES:-}"
+	sh platform/emulator/tests/conformance.sh \
+		"$${LAYERX_EMULATOR_URL:-http://127.0.0.1:9402}" \
+		"$$LAYERX_TESTNET_URL" "$${LAYERX_CONFORMANCE_ACTIVITIES}"
 
 platform-sdk-check:
 	$(PLATFORM_CARGO) run --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-sdkgen -- --check

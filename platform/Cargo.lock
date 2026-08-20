@@ -57,6 +57,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "layerx-platform-emulator"
+version = "0.1.0"
+
+[[package]]
 name = "layerx-platform-kvx"
 version = "0.1.0"
 

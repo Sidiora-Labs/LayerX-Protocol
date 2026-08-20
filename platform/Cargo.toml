@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "emulator",
     "sdk/generators",
     "release",
     "tools/kvx",
