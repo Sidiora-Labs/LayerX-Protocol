@@ -5,6 +5,8 @@ mod compiler;
 mod disclosure;
 pub mod golden;
 mod reject;
+#[cfg(feature = "test-vectors")]
+pub mod vectors;
 mod vocabulary;
 
 pub use compiler::{compile, CompileError, CompileErrorReason, CompileField, CompiledIntent};

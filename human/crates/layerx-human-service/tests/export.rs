@@ -16,6 +16,9 @@ use layerx_human_service::audit::{
     verify_export as verify_audit_export, AuditChain, AuditEvent, SecurityChangeKind,
     StepUpEvidence,
 };
+use layerx_intents::vectors::{
+    batch_header, batch_header_signing_digest, receipt as receipt_vector, receipt_signing_digest,
+};
 use layerx_human_service::notify::ActivityEntryId;
 use layerx_human_service::store::{EvidenceRef, PrincipalScope, Table};
 use layerx_human_service::trace::TraceId;
@@ -23,84 +26,20 @@ use layerx_proof::export::{InclusionFact, InclusionKind, OfflineExport, ReceiptF
 use layerx_proof::inclusion::SequencerAuthorization;
 use layerx_proof::merkle::{build_proof, encode_proof};
 use layerx_proof::receipt::{verify_outcome, AuthorizedBatch};
-use layerx_wire::encode::Encoder;
-use layerx_wire::hash::{batch_header_digest, receipt_digest};
 use sha2::{Digest as _, Sha256};
 
 fn result<T, E: std::fmt::Debug>(value: Result<T, E>, label: &str) -> T {
     value.unwrap_or_else(|error| panic!("{label}: {error:?}"))
 }
 
-fn receipt_bytes(signature: Option<[u8; 64]>) -> Vec<u8> {
-    let mut encoder = Encoder::new(4096);
-    assert_eq!(encoder.structure_header(0x5201), Ok(()));
-    assert_eq!(encoder.u16(1), Ok(()));
-    assert_eq!(encoder.bytes(&[1; 32], 32), Ok(()));
-    assert_eq!(encoder.u64(9), Ok(()));
-    assert_eq!(encoder.bytes(&[2; 32], 32), Ok(()));
-    assert_eq!(encoder.bytes(&[3; 32], 32), Ok(()));
-    assert_eq!(encoder.bytes(&[8; 32], 32), Ok(()));
-    assert_eq!(encoder.i32(0), Ok(()));
-    assert_eq!(encoder.sequence_length(0, 512), Ok(()));
-    assert_eq!(encoder.u128(1), Ok(()));
-    assert_eq!(encoder.bytes(&[4; 32], 32), Ok(()));
-    assert_eq!(encoder.u16(1), Ok(()));
-    assert_eq!(encoder.u32(1), Ok(()));
-    assert_eq!(encoder.u32(1), Ok(()));
-    assert_eq!(encoder.u8(1), Ok(()));
-    assert_eq!(encoder.bytes(&[5; 32], 32), Ok(()));
-    assert_eq!(encoder.u128(25), Ok(()));
-    assert_eq!(encoder.bytes(&[6; 32], 32), Ok(()));
-    assert_eq!(encoder.u128(100), Ok(()));
-    assert_eq!(encoder.u128(75), Ok(()));
-    assert_eq!(encoder.u64(1), Ok(()));
-    assert_eq!(encoder.bytes(&[7; 32], 32), Ok(()));
-    assert_eq!(encoder.u128(10), Ok(()));
-    assert_eq!(encoder.u128(35), Ok(()));
-    assert_eq!(encoder.bytes(&[9; 32], 32), Ok(()));
-    assert_eq!(encoder.bytes(&[10; 32], 32), Ok(()));
-    assert_eq!(encoder.bytes(&[11; 32], 32), Ok(()));
-    assert_eq!(encoder.u64(1_000), Ok(()));
-    assert_eq!(encoder.u8(u8::from(signature.is_some())), Ok(()));
-    if let Some(value) = signature {
-        assert_eq!(encoder.bytes(&value, 64), Ok(()));
-    }
-    encoder.finish()
-}
-
-fn header_bytes(state_root: [u8; 32], activity_root: [u8; 32], sequencer_id: [u8; 32]) -> Vec<u8> {
-    let mut encoder = Encoder::new(354);
-    assert_eq!(encoder.structure_header(0x1701), Ok(()));
-    assert_eq!(encoder.u8(15), Ok(()));
-    for field in 1..=15 {
-        assert_eq!(encoder.tag(field, 15), Ok(()));
-        match field {
-            1 => assert_eq!(encoder.u16(1), Ok(())),
-            2 => assert_eq!(encoder.u32(42), Ok(())),
-            3 => assert_eq!(encoder.u64(7), Ok(())),
-            4 => assert_eq!(encoder.u64(8), Ok(())),
-            5 => assert_eq!(encoder.u64(11), Ok(())),
-            6 => assert_eq!(encoder.u64(19), Ok(())),
-            7 => assert_eq!(encoder.bytes(&[7; 32], 32), Ok(())),
-            8 => assert_eq!(encoder.bytes(&state_root, 32), Ok(())),
-            9 => assert_eq!(encoder.bytes(&activity_root, 32), Ok(())),
-            10 => assert_eq!(encoder.bytes(&[10; 32], 32), Ok(())),
-            11 => assert_eq!(encoder.bytes(&[11; 32], 32), Ok(())),
-            12 => assert_eq!(encoder.bytes(&[12; 32], 32), Ok(())),
-            13 => assert_eq!(encoder.bytes(&[13; 32], 32), Ok(())),
-            14 => assert_eq!(encoder.u64(1_000), Ok(())),
-            15 => assert_eq!(encoder.bytes(&sequencer_id, 32), Ok(())),
-            _ => panic!("unreachable header field"),
-        }
-    }
-    encoder.finish()
-}
-
 fn protocol_artifact() -> OfflineExport {
     let receipt_key = SigningKey::from_bytes(&[3; 32]);
-    let unsigned = receipt_bytes(None);
-    let signing_digest = result(receipt_digest(&unsigned), "receipt digest");
-    let canonical_receipt = receipt_bytes(Some(receipt_key.sign(&signing_digest).to_bytes()));
+    let unsigned = result(receipt_vector(None), "unsigned receipt");
+    let signing_digest = result(receipt_signing_digest(&unsigned), "receipt digest");
+    let canonical_receipt = result(
+        receipt_vector(Some(receipt_key.sign(&signing_digest).to_bytes())),
+        "signed receipt",
+    );
     let authorised_batch = AuthorizedBatch::new(
         [4; 32],
         [5; 32],
@@ -126,8 +65,14 @@ fn protocol_artifact() -> OfflineExport {
     let (_, activity_root) = result(build_proof(&[activity_leaf.as_slice()], 0), "activity root");
     let sequencer_key = SigningKey::from_bytes(&[7; 32]);
     let sequencer_id = sequencer_key.verifying_key().to_bytes();
-    let canonical_header = header_bytes(state_root, activity_root, sequencer_id);
-    let header_digest = result(batch_header_digest(&canonical_header), "header digest");
+    let canonical_header = result(
+        batch_header(state_root, activity_root, sequencer_id),
+        "canonical header",
+    );
+    let header_digest = result(
+        batch_header_signing_digest(&canonical_header),
+        "header digest",
+    );
 
     OfflineExport {
         receipts: vec![ReceiptFact {

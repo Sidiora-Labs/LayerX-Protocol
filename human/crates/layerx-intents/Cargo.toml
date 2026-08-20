@@ -5,6 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+test-vectors = []
+
 [dependencies]
 layerx-types.workspace = true
 layerx-wire.workspace = true
