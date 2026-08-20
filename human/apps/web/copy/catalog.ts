@@ -65,6 +65,14 @@ export const copyEntries = [
   { key: "action.retry", message: "Retry", context: "Retry the current read without duplicating a money movement.", surface: "default", kind: "action", moneyAdjacent: false },
   { key: "action.reload", message: "Reload", context: "Reload a structurally broken screen.", surface: "default", kind: "action", moneyAdjacent: false },
   { key: "action.report", message: "Report", context: "Submit consented non-sensitive diagnostic context.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "action.cancel", message: "Cancel", context: "Dismiss a confirmation without applying its action.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "action.copy", message: "Copy", context: "Copy an explicitly copyable identifier.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "action.copied", message: "Copied", context: "Confirm that an identifier was copied.", surface: "default", kind: "action", moneyAdjacent: false },
+  { key: "confirmation.incomplete", message: "Confirmation is incomplete.", context: "Explain why an irreversible confirmation remains disabled.", surface: "default", kind: "body", moneyAdjacent: false },
+  { key: "confirmation.type_exact", message: "Type {expectedValue} exactly to continue.", context: "Disabled reason for an irreversible typed confirmation.", surface: "default", kind: "body", moneyAdjacent: false },
+  { key: "confirmation.type_to_confirm", message: "Type {expectedValue} to confirm", context: "Label for an irreversible typed-confirmation field.", surface: "default", kind: "body", moneyAdjacent: false },
+  { key: "fee.disclosure.title", message: "How this fee is calculated", context: "Heading for the numbered fee calculation disclosure.", surface: "default", kind: "body", moneyAdjacent: true },
+  { key: "fee.disclosure.total", message: "Total fee", context: "Label for the computed total in a fee calculation disclosure.", surface: "default", kind: "body", moneyAdjacent: true },
 ] as const satisfies readonly CopyEntry[];
 
 const catalog = new Map<string, CopyEntry>(

@@ -1,11 +1,9 @@
-import { Card } from "@layerx/ui";
-
+import { ScreenCard } from "../kit";
 import { human_web_app_scaffold } from "./scaffold";
 
 export default function RootPage() {
+  const scaffold = human_web_app_scaffold();
   return (
-    <Card>
-      <main data-application={human_web_app_scaffold().application} />
-    </Card>
+    <ScreenCard title={scaffold.application} dataApplication={scaffold.application} />
   );
 }

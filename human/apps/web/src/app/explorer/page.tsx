@@ -1,14 +1,11 @@
-import { Card } from "@layerx/ui";
-
 import { copyEntry } from "../../../copy/catalog";
+import { ScreenCard } from "../../kit";
 
 export default function ExplorerPlanePage() {
   return (
-    <Card>
-      <main aria-labelledby="explorer-plane-title">
-        <h1 id="explorer-plane-title">{copyEntry("explorer.title").message}</h1>
-        <p>{copyEntry("explorer.summary").message}</p>
-      </main>
-    </Card>
+    <ScreenCard
+      title={copyEntry("explorer.title").message}
+      description={copyEntry("explorer.summary").message}
+    />
   );
 }

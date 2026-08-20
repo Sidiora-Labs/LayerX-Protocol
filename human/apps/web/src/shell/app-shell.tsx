@@ -1,10 +1,14 @@
 "use client";
 
-import { AppShell, type NavItem } from "@layerx/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { copyEntry } from "../../copy/catalog";
+import {
+  DesktopNavigation,
+  MobileNavigation,
+  type NavigationProps,
+} from "../kit";
 import {
   SHELL_HINT_COOKIE,
   ShellSelector,
@@ -17,7 +21,7 @@ const NAVIGATION = [
   { id: "agents", label: copyEntry("navigation.agents").message },
   { id: "activity", label: copyEntry("navigation.activity").message },
   { id: "more", label: copyEntry("navigation.more").message },
-] as const satisfies readonly NavItem[];
+] as const satisfies readonly NavigationProps["nav"][number][];
 
 const DESTINATIONS: Readonly<Record<(typeof NAVIGATION)[number]["id"], string>> = {
   home: "/app",
@@ -69,6 +73,7 @@ export function AuthenticatedShell({
   const frame = useRef<number | undefined>(undefined);
   const pathname = usePathname();
   const router = useRouter();
+  const Navigation = selection.shell === "mobile" ? MobileNavigation : DesktopNavigation;
 
   useLayoutEffect(() => {
     const applyClientSelection = () => {
@@ -125,7 +130,7 @@ export function AuthenticatedShell({
       data-shell-corrected={corrected ? "true" : "false"}
       data-touch-targets={selection.touchTargets ? "true" : "false"}
     >
-      <AppShell
+      <Navigation
         nav={[...NAVIGATION]}
         activeNav={activeNavigation(pathname)}
         onNavigate={navigate}
@@ -138,11 +143,10 @@ export function AuthenticatedShell({
         onSettings={() => {
           router.push("/app/settings");
         }}
-        platform={selection.shell}
         title={copyEntry(`navigation.${activeNavigation(pathname)}`).message}
       >
         {children}
-      </AppShell>
+      </Navigation>
     </div>
   );
 }
