@@ -243,9 +243,14 @@ export function WalletBindingScreen({
             </span>{" "}
             {copyEntry("settings.wallet.security_notification.body").message}{" "}
             {actionKey === undefined || !human_copy_catalog().has(actionKey) ? null : (
-              <button type="button" className="font-semibold underline" onClick={() => { router.push(securityNotification.deep_link); }}>
+              <KitButton
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={() => { router.push(securityNotification.deep_link); }}
+              >
                 {copyEntry(actionKey).message}
-              </button>
+              </KitButton>
             )}
           </InlineNotice>
         )}

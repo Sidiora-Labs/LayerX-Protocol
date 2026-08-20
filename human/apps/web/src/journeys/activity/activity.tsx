@@ -8,10 +8,12 @@ import { formatCopy } from "../../../copy/format";
 import { humanApi, type ActivityFilter, type ActivityPage, type ExportArtefact } from "../../api";
 import {
   DesktopActivityFeed,
+  DesktopDetail,
   DesktopFilters,
   InlineNotice,
   KitButton,
   MobileActivityFeed,
+  MobileDetail,
   MobileFilters,
   ScreenCard,
   SignedWordedAmount,
@@ -58,6 +60,9 @@ type ExportState =
   | Readonly<{ kind: "failed"; failure: ActivityFailure }>;
 
 export function ActivityErrorSurface({ failure, onRetry }: Readonly<{ failure: ActivityFailure; onRetry: () => void }>) {
+  const shell = useShellSelection().shell;
+  const Detail = shell === "mobile" ? MobileDetail : DesktopDetail;
+  const [technicalOpen, setTechnicalOpen] = useState(false);
   const reportPath = `/app/support?code=${encodeURIComponent(failure.code)}${
     failure.trace === undefined ? "" : `&trace=${encodeURIComponent(failure.trace)}`
   }`;
@@ -77,15 +82,21 @@ export function ActivityErrorSurface({ failure, onRetry }: Readonly<{ failure: A
         </KitButton>
         <KitButton asChild variant="secondary"><a href={reportPath}>{copyEntry("action.report").message}</a></KitButton>
       </div>
-      <details className="text-sm text-foreground-secondary">
-        <summary className="cursor-pointer font-semibold">{copyEntry("activity.error.technical").message}</summary>
-        <dl className="mt-2 grid gap-2">
+      <Detail
+        open={technicalOpen}
+        onOpenChange={setTechnicalOpen}
+        title={copyEntry("activity.error.technical").message}
+        summary={copyEntry("activity.error.technical").message}
+        mobileVariant="sheet"
+        desktopVariant="inline"
+      >
+        <dl className="grid gap-2 text-sm text-foreground-secondary">
           <div><dt className="font-semibold">{copyEntry("activity.error.code").message}</dt><dd>{failure.code}</dd></div>
           {failure.trace === undefined ? null : (
             <div><dt className="font-semibold">{copyEntry("activity.error.trace").message}</dt><dd>{failure.trace}</dd></div>
           )}
         </dl>
-      </details>
+      </Detail>
     </StateFrame>
   );
 }

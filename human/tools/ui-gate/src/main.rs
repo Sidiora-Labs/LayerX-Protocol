@@ -430,10 +430,7 @@ fn check_package_contract(web_root: &Path, violations: &mut Vec<Violation>) {
     }
 
     let style_checks: &[(&str, &[&str])] = &[
-        (
-            "app-shell.tsx",
-            &["border-t border-border", "shadow-[0_6px_20px"],
-        ),
+        ("app-shell.tsx", &["border-t border-border", "shadow-overlay"]),
         (
             "button.tsx",
             &["border border-border-strong", "focus-visible:ring-2"],
