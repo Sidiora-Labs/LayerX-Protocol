@@ -316,7 +316,10 @@ export function Activity() {
             </span>
           </InlineNotice>
         ) : exportState.kind === "failed" ? (
-          <InlineNotice tone="danger" role="alert">{copyEntry("activity.export.failed").message} ({exportState.failure.code})</InlineNotice>
+          <InlineNotice tone="danger" role="alert">
+            <span>{copyEntry("activity.export.failed").message}</span>{" "}
+            <span>{formatCopy("error.technical.machine_code", { machineCode: exportState.failure.code })}</span>
+          </InlineNotice>
         ) : null}
         {groups.length === 0 ? (
           <StateEmpty title={copyEntry("activity.feed.empty").message} description={echo.join(" ")} />
