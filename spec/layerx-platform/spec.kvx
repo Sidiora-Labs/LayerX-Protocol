@@ -1976,7 +1976,7 @@ reqs = ["26.5","26.6"]
 
 [task.17.6]
 title = "Ship one-command MCP and A2A installation"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["17.1","17.4"]
 do_1 = "Build layerx install mcp: one command installing a working payment-capable MCP server configuration against the chosen environment."

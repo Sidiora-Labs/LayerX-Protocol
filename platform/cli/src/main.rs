@@ -2,18 +2,23 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Args, Parser, Subcommand};
+use layerx_mcp::server::DeploymentMode;
 use serde_json::{json, Value};
 
+mod a2a;
 mod account;
 mod config;
 mod credential;
 mod encoding;
 mod http;
+mod install;
+mod mcp;
 mod output;
 mod payment;
 mod programs;
 mod receipt;
 mod scaffold;
+mod toolset;
 
 use config::{Configuration, Environment};
 use http::Client;
@@ -60,6 +65,15 @@ enum Command {
     /// Run the local gateway around the real protocol core transition.
     #[command(subcommand)]
     Emulator(EmulatorCommand),
+    /// Install and register a payment-capable agent transport in one command.
+    #[command(subcommand)]
+    Install(InstallCommand),
+    /// Serve the model context protocol transport on standard input and output.
+    #[command(subcommand)]
+    Mcp(McpCommand),
+    /// Serve the agent-to-agent transport on a loopback endpoint.
+    #[command(subcommand)]
+    A2a(A2aCommand),
 }
 
 #[derive(Args)]
@@ -246,6 +260,72 @@ enum EmulatorCommand {
     },
 }
 
+#[derive(Subcommand)]
+enum InstallCommand {
+    /// Install a payment-capable model context protocol server.
+    Mcp(InstallMcpArgs),
+    /// Install a payment-capable agent-to-agent server.
+    A2a(InstallA2aArgs),
+}
+
+#[derive(Args)]
+struct InstallMcpArgs {
+    #[arg(long)]
+    environment: Option<String>,
+    #[arg(long)]
+    host: Vec<String>,
+    #[arg(long)]
+    key: Option<String>,
+    #[arg(long)]
+    read_only: bool,
+    #[arg(long)]
+    token_stdin: bool,
+}
+
+#[derive(Args)]
+struct InstallA2aArgs {
+    #[arg(long)]
+    environment: Option<String>,
+    #[arg(long, default_value = "127.0.0.1:9433")]
+    listen: String,
+    #[arg(long)]
+    key: Option<String>,
+    #[arg(long)]
+    well_known: Option<PathBuf>,
+    #[arg(long)]
+    read_only: bool,
+    #[arg(long)]
+    token_stdin: bool,
+}
+
+#[derive(Subcommand)]
+enum McpCommand {
+    /// Serve the installed tool surface for one environment and key.
+    Serve {
+        #[arg(long)]
+        environment: Option<String>,
+        #[arg(long)]
+        key: Option<String>,
+        #[arg(long)]
+        read_only: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum A2aCommand {
+    /// Serve the agent card and task interface for one environment and key.
+    Serve {
+        #[arg(long)]
+        environment: Option<String>,
+        #[arg(long)]
+        key: Option<String>,
+        #[arg(long, default_value = "127.0.0.1:9433")]
+        listen: String,
+        #[arg(long)]
+        read_only: bool,
+    },
+}
+
 /// Stable graph anchor for the unified developer CLI.
 #[must_use]
 pub const fn platform_cli() -> &'static str {
@@ -279,6 +359,120 @@ fn run(command: Command, machine: bool) -> Result<Option<CommandOutput>, String>
             layerx_platform_emulator::run(arguments)?;
             Ok(None)
         }
+        Command::Install(command) => install(command).map(Some),
+        Command::Mcp(McpCommand::Serve {
+            environment,
+            key,
+            read_only,
+        }) => {
+            let configuration = serving_configuration(environment)?;
+            let subject = bound_subject(&configuration, key.as_deref())?;
+            mcp::serve(
+                &configuration,
+                subject.as_deref(),
+                deployment_mode(read_only),
+            )?;
+            Ok(None)
+        }
+        Command::A2a(A2aCommand::Serve {
+            environment,
+            key,
+            listen,
+            read_only,
+        }) => {
+            let configuration = serving_configuration(environment)?;
+            let subject = bound_subject(&configuration, key.as_deref())?;
+            a2a::serve(
+                &configuration,
+                subject.as_deref(),
+                &listen,
+                deployment_mode(read_only),
+            )?;
+            Ok(None)
+        }
+    }
+}
+
+fn install(command: InstallCommand) -> Result<CommandOutput, String> {
+    let mut configuration = Configuration::load()?;
+    match command {
+        InstallCommand::Mcp(arguments) => {
+            let request = install::mcp::Request {
+                environment: arguments.environment,
+                hosts: arguments.host,
+                key: arguments.key,
+                read_only: arguments.read_only,
+                token_stdin: arguments.token_stdin,
+            };
+            let data = install::mcp::platform_install_mcp(&mut configuration, &request)?;
+            let message = format!(
+                "Installed the LayerX model context protocol server for {}",
+                environment_of(&data)
+            );
+            Ok(CommandOutput::new("install.mcp", message, data))
+        }
+        InstallCommand::A2a(arguments) => {
+            let request = install::a2a::Request {
+                environment: arguments.environment,
+                listen: arguments.listen,
+                key: arguments.key,
+                well_known: arguments.well_known,
+                read_only: arguments.read_only,
+                token_stdin: arguments.token_stdin,
+            };
+            let data = install::a2a::platform_install_a2a(&mut configuration, &request)?;
+            let message = format!(
+                "Installed the LayerX agent-to-agent server for {}",
+                environment_of(&data)
+            );
+            Ok(CommandOutput::new("install.a2a", message, data))
+        }
+    }
+}
+
+fn environment_of(data: &Value) -> &str {
+    data.get("environment")
+        .and_then(Value::as_str)
+        .unwrap_or("the active environment")
+}
+
+fn serving_configuration(environment: Option<String>) -> Result<Configuration, String> {
+    let mut configuration = Configuration::load()?;
+    if let Some(name) = environment {
+        Configuration::validate_environment_name(&name)?;
+        if !configuration.environments.contains_key(&name) {
+            return Err(format!(
+                "environment {name} is not configured; run layerx environment use {name} --endpoint <url> --network-id <id>"
+            ));
+        }
+        configuration.current_environment = name;
+    }
+    Ok(configuration)
+}
+
+fn bound_subject(
+    configuration: &Configuration,
+    key: Option<&str>,
+) -> Result<Option<String>, String> {
+    let name = match key {
+        Some(value) => value,
+        None => match &configuration.default_key {
+            Some(value) => value.as_str(),
+            None => return Ok(None),
+        },
+    };
+    let metadata = configuration
+        .keys
+        .get(name)
+        .ok_or_else(|| format!("key {name} does not exist"))?;
+    Ok(Some(metadata.did.clone()))
+}
+
+const fn deployment_mode(read_only: bool) -> DeploymentMode {
+    if read_only {
+        DeploymentMode::ReadOnly
+    } else {
+        DeploymentMode::Full
     }
 }
 
