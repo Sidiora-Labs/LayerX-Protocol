@@ -469,7 +469,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - State refusals with whether money left the account.
     - Test detail assembly for every journey class.
     - _Requirements: 14.3, 14.8_
-  - [-] 10.4 Implement statement and evidence exports
+  - [x] 10.4 Implement statement and evidence exports
     - Implement the statement export over the feed's filters.
     - Implement the evidence bundle: referenced receipts and proofs in canonical bytes, verifiable independently of this plane.
     - Prove bundle verifiability with the agent layer's offline verification tooling in a test.
