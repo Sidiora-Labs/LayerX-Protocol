@@ -123,6 +123,12 @@ impl ProtocolReceipt {
         self.amount
     }
 
+    /// Returns the exact fee charged by protocol execution.
+    #[must_use]
+    pub const fn fee_charged(&self) -> u128 {
+        self.fee_charged
+    }
+
     /// Returns the debit account.
     #[must_use]
     pub const fn from(&self) -> [u8; 32] {

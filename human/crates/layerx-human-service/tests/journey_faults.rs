@@ -79,10 +79,38 @@ fn activity_type() -> ActivityType {
 }
 
 fn registry() -> ModuleRegistry {
-    let registration = ModuleRegistration::new(ModuleId::Asset, &[activity_type()])
-        .unwrap_or_else(|error| panic!("module registration: {error:?}"));
-    ModuleRegistry::new(&[registration])
+    let asset = ModuleRegistration::new(
+        ModuleId::Asset,
+        &[
+            activity_type(),
+            ActivityType::new(ModuleId::Asset, 6)
+                .unwrap_or_else(|error| panic!("receive activity type: {error:?}")),
+        ],
+    )
+    .unwrap_or_else(|error| panic!("asset registration: {error:?}"));
+    let budget = ModuleRegistration::new(
+        ModuleId::Budget,
+        &[ActivityType::new(ModuleId::Budget, 7)
+            .unwrap_or_else(|error| panic!("defund activity type: {error:?}"))],
+    )
+    .unwrap_or_else(|error| panic!("budget registration: {error:?}"));
+    ModuleRegistry::new(&[asset, budget])
         .unwrap_or_else(|error| panic!("module registry: {error:?}"))
+}
+
+fn payload_activity_type(payload: &[u8]) -> Result<ActivityType, AgentBoundaryError> {
+    let tag = payload
+        .get(..2)
+        .and_then(|bytes| <[u8; 2]>::try_from(bytes).ok())
+        .map(u16::from_be_bytes)
+        .ok_or(AgentBoundaryError::CorruptResponse)?;
+    match tag {
+        0x5301 => ActivityType::new(ModuleId::Asset, 5),
+        0x5201 => ActivityType::new(ModuleId::Asset, 6),
+        0x4207 => ActivityType::new(ModuleId::Budget, 7),
+        _ => return Err(AgentBoundaryError::Refused),
+    }
+    .map_err(|_| AgentBoundaryError::CorruptResponse)
 }
 
 fn account(value: &str) -> AccountId {
@@ -261,7 +289,7 @@ impl AgentBoundary for RealAgentLayer {
             }
         } else {
             let request = &mutation.operation;
-            let activity = activity_type();
+            let activity = payload_activity_type(request.payload.as_bytes())?;
             let mut core = RecordedCore(CorePreparationState {
                 network_id: NETWORK_ID,
                 account_sequence: request.account_sequence.get(),
@@ -379,7 +407,7 @@ impl AgentBoundary for RealAgentLayer {
                 None,
             )
             .map_err(|_| AgentBoundaryError::Refused)?;
-        let receipt = receipt(activity_id, key[0], 5);
+        let receipt = receipt(activity_id, key[0], prepared.envelope.activity_type());
         self.receipt_material.insert(key, receipt.clone());
         Self::count(&mut self.effects, key);
         let mode = self
@@ -535,18 +563,21 @@ struct ReceiptFields {
     resulting_state_root: [u8; 32],
     batch_id: [u8; 32],
     asset: [u8; 32],
+    module: ModuleId,
     operation: u8,
     sequence: u64,
 }
 
-fn receipt(activity_id: [u8; 32], marker: u8, operation: u8) -> ReceiptMaterial {
+fn receipt(activity_id: [u8; 32], marker: u8, activity: ActivityType) -> ReceiptMaterial {
     let fields = ReceiptFields {
         activity_id,
         previous_state_root: [marker.saturating_add(1); 32],
         resulting_state_root: [marker.saturating_add(2); 32],
         batch_id: [marker.saturating_add(3); 32],
         asset: [0x33; 32],
-        operation,
+        module: activity.module(),
+        operation: u8::try_from(activity.ordinal())
+            .unwrap_or_else(|_| panic!("activity ordinal is outside receipt range")),
         sequence: u64::from(marker),
     };
     let signer = SigningKey::from_bytes(&[marker.saturating_add(4); 32]);
@@ -581,7 +612,7 @@ fn encode_receipt(fields: &ReceiptFields, signature: Option<[u8; 64]>) -> Vec<u8
     bytes.extend_from_slice(&0_u32.to_be_bytes());
     bytes.extend_from_slice(&1_u128.to_be_bytes());
     push_bytes(&mut bytes, &fields.batch_id);
-    push_u16(&mut bytes, u16::from(ModuleId::Asset as u8));
+    push_u16(&mut bytes, u16::from(fields.module as u8));
     bytes.extend_from_slice(&1_u32.to_be_bytes());
     bytes.extend_from_slice(&1_u32.to_be_bytes());
     bytes.push(fields.operation);

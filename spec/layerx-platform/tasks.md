@@ -379,7 +379,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Reflect pause, resume and limit changes in the agent's presented state within the declared freshness bound.
     - Test authority revocation latency and the enforcement labelling against a real agent layer.
     - _Requirements: 12.3, 12.4_
-  - [-] 8.3 Implement the reclaim paths
+  - [x] 8.3 Implement the reclaim paths
     - Implement taking money back exclusively through budget defunding, agent-authorised transfers and receives under explicit payer grants, as movement journeys with receipts.
     - Make any key-based sweep of an agent account structurally impossible through the custody service's operation set.
     - Present reclaim in the movement vocabulary as return.
@@ -400,7 +400,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Emit the security notification and audit entries with evidence.
     - Test archive end to end including refusal while funds remain undisposed.
     - _Requirements: 12.6, 21.1_
-  - [ ] 8.6 Reconcile spend against limits from receipts
+  - [-] 8.6 Reconcile spend against limits from receipts
     - Compute per-agent spend for the current period from verified receipts alone.
     - Reconcile local accounting against protocol budget state, adopting the protocol figure and surfacing divergence honestly.
     - Expose spend-versus-limit through the contract for both shells' agent surfaces.

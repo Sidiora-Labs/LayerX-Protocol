@@ -16,6 +16,12 @@ use crate::{ct, SignatureMessage};
 const ASSET_SEND_ORDINAL: u16 = 5;
 const SEND_WIRE_TAG: u16 = 0x5301;
 const SEND_FIELD_COUNT: u16 = 10;
+const ASSET_RECEIVE_ORDINAL: u16 = 6;
+const RECEIVE_WIRE_TAG: u16 = 0x5201;
+const RECEIVE_FIELD_COUNT: u16 = 8;
+const BUDGET_DEFUND_ORDINAL: u16 = 7;
+const BUDGET_DEFUND_WIRE_TAG: u16 = 0x4207;
+const BUDGET_DEFUND_FIELD_COUNT: u16 = 7;
 const BRIDGE_DEPOSIT_CREDIT_ORDINAL: u16 = 1;
 const BRIDGE_DEPOSIT_CREDIT_WIRE_TAG: u16 = 0x4801;
 const BRIDGE_DEPOSIT_CREDIT_FIELD_COUNT: u16 = 7;
@@ -242,6 +248,68 @@ fn decode_send(payload: &[u8], activity: &Activity) -> Result<SendSemantics, Dis
     })
 }
 
+fn decode_receive(payload: &[u8], activity: &Activity) -> Result<SendSemantics, DisclosureError> {
+    let mut decoder = Decoder::new(payload, 0);
+    if decoder.u16()? != RECEIVE_WIRE_TAG || decoder.u16()? != RECEIVE_FIELD_COUNT {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    let from = fixed(&mut decoder)?;
+    let to = fixed(&mut decoder)?;
+    let asset = fixed(&mut decoder)?;
+    let amount = decoder.u128()?;
+    let _payer_grant: [u8; 32] = fixed(&mut decoder)?;
+    let sequence = decoder.u64()?;
+    let idempotency_key = fixed(&mut decoder)?;
+    let _context_hash: [u8; 32] = fixed(&mut decoder)?;
+    decoder.finish()?;
+    if amount == 0
+        || from == to
+        || sequence != activity.account_sequence()
+        || idempotency_key != activity.idempotency_key()
+    {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    Ok(SendSemantics {
+        from,
+        to,
+        asset,
+        amount,
+        sequence,
+        idempotency_key,
+        expires_at: activity.timestamp_bound().not_after,
+    })
+}
+
+fn decode_budget_defund(
+    payload: &[u8],
+    activity: &Activity,
+) -> Result<SendSemantics, DisclosureError> {
+    let mut decoder = Decoder::new(payload, 0);
+    if decoder.u16()? != BUDGET_DEFUND_WIRE_TAG || decoder.u16()? != BUDGET_DEFUND_FIELD_COUNT {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    let _budget_id: [u8; 32] = fixed(&mut decoder)?;
+    let from = fixed(&mut decoder)?;
+    let to = fixed(&mut decoder)?;
+    let asset = fixed(&mut decoder)?;
+    let amount = decoder.u128()?;
+    let sequence = decoder.u64()?;
+    let idempotency_key = fixed(&mut decoder)?;
+    decoder.finish()?;
+    if amount == 0 || from == to || idempotency_key != activity.idempotency_key() {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    Ok(SendSemantics {
+        from,
+        to,
+        asset,
+        amount,
+        sequence,
+        idempotency_key,
+        expires_at: activity.timestamp_bound().not_after,
+    })
+}
+
 fn decode_bridge_deposit_credit(
     payload: &[u8],
     activity: &Activity,
@@ -347,6 +415,10 @@ fn semantics(activity: &Activity) -> Result<SendSemantics, DisclosureError> {
     }
     match (activity_type.module(), activity_type.ordinal()) {
         (ModuleId::Asset, ASSET_SEND_ORDINAL) => decode_send(activity.payload(), activity),
+        (ModuleId::Asset, ASSET_RECEIVE_ORDINAL) => decode_receive(activity.payload(), activity),
+        (ModuleId::Budget, BUDGET_DEFUND_ORDINAL) => {
+            decode_budget_defund(activity.payload(), activity)
+        }
         (ModuleId::Bridge, BRIDGE_DEPOSIT_CREDIT_ORDINAL) => {
             decode_bridge_deposit_credit(activity.payload(), activity)
         }
@@ -465,6 +537,10 @@ impl Disclosure {
     }
 
     /// Computes a domain-separated audit digest over the validated disclosure form.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first semantic mismatch or canonical transport encoding failure.
     pub fn audit_digest(&self) -> Result<[u8; 32], DisclosureError> {
         let transport = self.transport_bytes()?;
         let mut hasher = Sha256::new();

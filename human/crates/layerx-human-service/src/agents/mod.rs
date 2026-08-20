@@ -2,6 +2,7 @@
 
 mod controls;
 mod create;
+mod reclaim;
 
 pub use controls::{
     AgentControlAgent, AgentControlContract, AgentControlError, AgentControlProfile,
@@ -15,4 +16,8 @@ pub use create::{
     CreateAgentRequest, CreationContext, CreationJourney, CreationStage, CreationState,
     CreationStatus, ProtocolAction, ProtocolEvidence, PurposePresetCatalog, SessionProvision,
     StageState,
+};
+pub use reclaim::{
+    Reclaim, ReclaimAgentBoundary, ReclaimAgentContext, ReclaimError, ReclaimMechanism,
+    ReclaimRequest, ReclaimResult, ReclaimStage, ReclaimStatus,
 };

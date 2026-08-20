@@ -1141,7 +1141,7 @@ reqs = ["12.3","12.4"]
 
 [task.8.3]
 title = "Implement the reclaim paths"
-status = "in_progress"
+status = "done"
 wave = 4
 requires = ["8.1","7.2"]
 do_1 = "Implement taking money back exclusively through budget defunding, agent-authorised transfers and receives under explicit payer grants, as movement journeys with receipts."
@@ -1186,7 +1186,7 @@ reqs = ["12.6","21.1"]
 
 [task.8.6]
 title = "Reconcile spend against limits from receipts"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["8.1"]
 do_1 = "Compute per-agent spend for the current period from verified receipts alone."
