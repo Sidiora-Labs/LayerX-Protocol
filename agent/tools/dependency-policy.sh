@@ -20,11 +20,42 @@ if [ -n "$missing_license" ]; then
     exit 1
 fi
 
-if rg -n --glob '*.rs' '\bunsafe\s+(fn|trait|impl|extern)|\bunsafe\s*\{' "$repo_root/agent/crates"; then
+allowlist="$repo_root/agent/unsafe-allowlist.toml"
+test -r "$allowlist"
+
+if command -v rg >/dev/null 2>&1; then
+    unsafe_hits=$(rg -n --glob '*.rs' '\bunsafe\s+(fn|trait|impl|extern)|\bunsafe\s*\{' "$repo_root/agent/crates" || true)
+else
+    unsafe_hits=$(grep -rEn --include='*.rs' '\bunsafe[[:space:]]+(fn|trait|impl|extern)|\bunsafe[[:space:]]*\{' "$repo_root/agent/crates" || true)
+fi
+
+exceptions=$(sed -n 's/^path = "\(.*\)"$/\1/p' "$allowlist")
+for exception in $exceptions; do
+    if [ ! -f "$repo_root/agent/$exception" ]; then
+        echo "unsafe policy: allowlisted exception no longer exists: $exception" >&2
+        exit 1
+    fi
+done
+
+unreviewed=$(printf '%s\n' "$unsafe_hits" | while IFS= read -r hit; do
+    [ -n "$hit" ] || continue
+    file=${hit%%:*}
+    relative=${file#"$repo_root/agent/"}
+    reviewed=0
+    for exception in $exceptions; do
+        if [ "$relative" = "$exception" ]; then
+            reviewed=1
+            break
+        fi
+    done
+    [ "$reviewed" -eq 1 ] || printf '%s\n' "$hit"
+done)
+
+if [ -n "$unreviewed" ]; then
+    printf '%s\n' "$unreviewed" >&2
     echo "unsafe policy: unsafe code requires an explicit reviewed exception" >&2
     exit 1
 fi
 
-test -r "$repo_root/agent/unsafe-allowlist.toml"
 test -r "$repo_root/agent/deny.toml"
 echo "agent dependency and unsafe policies passed"
