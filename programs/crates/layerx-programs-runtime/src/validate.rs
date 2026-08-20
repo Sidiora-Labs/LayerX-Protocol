@@ -6,6 +6,7 @@ use wasmparser_nostd::{BlockType, FunctionBody, Import, Operator, Parser, Payloa
 
 use crate::engine::WasmEngine;
 use crate::execute::{fault_from_error, ExecutionFault, ProgramInstance};
+use crate::meter::Meter;
 
 const PERMITTED_IMPORTS: &[(&str, &str)] = &[];
 
@@ -55,7 +56,10 @@ impl Display for ValidationRefusal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ModuleTooLarge { byte_size, limit } => {
-                write!(f, "module of {byte_size} bytes exceeds declared limit {limit}")
+                write!(
+                    f,
+                    "module of {byte_size} bytes exceeds declared limit {limit}"
+                )
             }
             Self::TooManyFunctions {
                 function_count,
@@ -113,8 +117,22 @@ impl ValidatedModule {
     /// Returns a typed [`ExecutionFault`] when instantiation fails or the
     /// module's start function traps.
     pub fn instantiate(&self) -> Result<ProgramInstance, ExecutionFault> {
-        let mut store = wasmi::Store::new(self.module.engine(), ());
-        let linker: wasmi::Linker<()> = wasmi::Linker::new(self.module.engine());
+        self.instantiate_metered(Meter::declared())
+    }
+
+    pub(crate) fn instantiate_metered(
+        &self,
+        meter: Meter,
+    ) -> Result<ProgramInstance, ExecutionFault> {
+        let fuel = meter.cpu_budget();
+        let mut store = wasmi::Store::new(self.module.engine(), meter);
+        store.limiter(|meter| meter);
+        store
+            .add_fuel(fuel)
+            .map_err(|error| ExecutionFault::EngineFault {
+                reason: error.to_string(),
+            })?;
+        let linker: wasmi::Linker<Meter> = wasmi::Linker::new(self.module.engine());
         let instance = linker
             .instantiate(&mut store, &self.module)
             .map_err(|error| fault_from_error(&error))?
@@ -237,11 +255,11 @@ fn refuse_float_code(body: &FunctionBody<'_>) -> Result<(), ValidationRefusal> {
         })?;
         refuse_value_type(value_type)?;
     }
-    let operators = body
-        .get_operators_reader()
-        .map_err(|error| ValidationRefusal::MalformedModule {
-            reason: error.to_string(),
-        })?;
+    let operators =
+        body.get_operators_reader()
+            .map_err(|error| ValidationRefusal::MalformedModule {
+                reason: error.to_string(),
+            })?;
     for operator in operators {
         let operator = operator.map_err(|error| ValidationRefusal::MalformedModule {
             reason: error.to_string(),

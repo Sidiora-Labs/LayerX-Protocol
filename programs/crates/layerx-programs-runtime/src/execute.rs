@@ -5,6 +5,14 @@ use core::fmt::{self, Display};
 use wasmi::core::TrapCode;
 use wasmi::{Instance, Store, Value};
 
+use crate::meter::{FeeSchedule, Meter, MeterRefusal, MeteredUsage, ResourceBudget, ResourceKind};
+use crate::validate::ValidatedModule;
+
+/// Runtime version recorded for versioned replay of every execution.
+pub const RUNTIME_VERSION: u16 = 1;
+/// ABI version recorded alongside the runtime version in execution evidence.
+pub const ABI_VERSION: u16 = 1;
+
 /// An integer-only value crossing the program boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WasmValue {
@@ -58,6 +66,11 @@ pub enum ExecutionFault {
     OutOfFuel,
     /// A growth operation was refused by a resource limit.
     GrowthLimited,
+    /// A deterministic meter refused the execution before an effect escaped.
+    Resource {
+        /// Exact resource refusal.
+        refusal: MeterRefusal,
+    },
     /// A program value crossed the boundary outside the integer subset.
     NonIntegerValue,
     /// The engine reported a fault outside the typed trap set.
@@ -83,6 +96,7 @@ impl Display for ExecutionFault {
             Self::BadSignature => write!(f, "indirect call signature mismatch"),
             Self::OutOfFuel => write!(f, "metered fuel budget exhausted"),
             Self::GrowthLimited => write!(f, "growth operation refused by resource limit"),
+            Self::Resource { refusal } => write!(f, "resource refusal: {refusal}"),
             Self::NonIntegerValue => write!(f, "non-integer value crossed the boundary"),
             Self::EngineFault { reason } => write!(f, "engine fault: {reason}"),
         }
@@ -121,12 +135,12 @@ const fn fault_from_trap_code(code: TrapCode) -> ExecutionFault {
 /// An instantiated program isolated inside its own store.
 #[derive(Debug)]
 pub struct ProgramInstance {
-    store: Store<()>,
+    store: Store<Meter>,
     instance: Instance,
 }
 
 impl ProgramInstance {
-    pub(crate) const fn new(store: Store<()>, instance: Instance) -> Self {
+    pub(crate) const fn new(store: Store<Meter>, instance: Instance) -> Self {
         Self { store, instance }
     }
 
@@ -153,10 +167,26 @@ impl ProgramInstance {
             });
         };
         let result_count = func.ty(&self.store).results().len();
+        self.store
+            .data_mut()
+            .charge_output(result_count)
+            .map_err(|refusal| ExecutionFault::Resource { refusal })?;
         let inputs: Vec<Value> = args.iter().copied().map(Value::from).collect();
         let mut outputs = vec![Value::I64(0); result_count];
-        func.call(&mut self.store, &inputs, &mut outputs)
-            .map_err(|error| fault_from_error(&error))?;
+        let result = func.call(&mut self.store, &inputs, &mut outputs);
+        let Some(consumed) = self.store.fuel_consumed() else {
+            return Err(ExecutionFault::EngineFault {
+                reason: "fuel metering disabled".to_string(),
+            });
+        };
+        self.store.data_mut().record_cpu(consumed);
+        if let Err(error) = result {
+            let fault = fault_from_error(&error);
+            if fault == ExecutionFault::OutOfFuel {
+                self.store.data_mut().mark_cpu_exhausted();
+            }
+            return Err(fault);
+        }
         outputs
             .into_iter()
             .map(|value| match value {
@@ -167,5 +197,140 @@ impl ProgramInstance {
                 }
             })
             .collect()
+    }
+
+    /// Borrows the exact meter state for this isolated execution.
+    #[must_use]
+    pub fn meter(&self) -> &Meter {
+        self.store.data()
+    }
+}
+
+/// Receipt-carriable deterministic execution result.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExecutionRecord {
+    /// Runtime version under which the program executed.
+    pub runtime_version: u16,
+    /// ABI version under which the program executed.
+    pub abi_version: u16,
+    /// Integer-only guest outputs.
+    pub outputs: Vec<WasmValue>,
+    /// Exact deterministic resource use and fee units.
+    pub usage: MeteredUsage,
+}
+
+/// Failure of an isolated execution; no instance or guest mutation is returned.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExecutionError {
+    /// Guest or engine execution fault.
+    Fault(ExecutionFault),
+    /// Typed resource-budget refusal.
+    Resource(MeterRefusal),
+}
+
+impl Display for ExecutionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Fault(fault) => write!(formatter, "execution fault: {fault}"),
+            Self::Resource(refusal) => write!(formatter, "resource refusal: {refusal}"),
+        }
+    }
+}
+
+impl std::error::Error for ExecutionError {}
+
+/// Stateless executor creating a fresh isolated instance for every call.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Executor {
+    budget: ResourceBudget,
+    prices: FeeSchedule,
+    runtime_version: u16,
+    abi_version: u16,
+}
+
+impl Executor {
+    /// Constructs an executor with explicit integer-only budgets and prices.
+    #[must_use]
+    pub const fn new(budget: ResourceBudget, prices: FeeSchedule) -> Self {
+        Self {
+            budget,
+            prices,
+            runtime_version: RUNTIME_VERSION,
+            abi_version: ABI_VERSION,
+        }
+    }
+
+    /// Constructs the declared production executor.
+    #[must_use]
+    pub const fn declared() -> Self {
+        Self::new(ResourceBudget::declared(), FeeSchedule::declared())
+    }
+
+    /// Executes a validated module under a fresh store and exact resource budget.
+    ///
+    /// A failed call returns no instance, output or guest mutation, providing the
+    /// rollback boundary consumed by the programs module transition.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed guest fault or resource refusal.
+    pub fn execute(
+        &self,
+        module: &ValidatedModule,
+        export: &str,
+        args: &[WasmValue],
+    ) -> Result<ExecutionRecord, ExecutionError> {
+        let meter = Meter::new(self.budget, self.prices);
+        let mut instance = module
+            .instantiate_metered(meter)
+            .map_err(|fault| self.classify_fault(fault, None))?;
+        let outputs = match instance.call(export, args) {
+            Ok(outputs) => outputs,
+            Err(fault) => {
+                return Err(self.classify_fault(fault, instance.meter().exhaustion()));
+            }
+        };
+        let usage = instance
+            .meter()
+            .finish()
+            .map_err(ExecutionError::Resource)?;
+        Ok(ExecutionRecord {
+            runtime_version: self.runtime_version,
+            abi_version: self.abi_version,
+            outputs,
+            usage,
+        })
+    }
+
+    fn classify_fault(
+        &self,
+        fault: ExecutionFault,
+        exhausted: Option<MeterRefusal>,
+    ) -> ExecutionError {
+        if let Some(refusal) = exhausted {
+            return ExecutionError::Resource(refusal);
+        }
+        match fault {
+            ExecutionFault::Resource { refusal } => ExecutionError::Resource(refusal),
+            ExecutionFault::OutOfFuel => ExecutionError::Resource(MeterRefusal::BudgetExceeded {
+                resource: ResourceKind::Cpu,
+                limit: self.budget.cpu_fuel(),
+                attempted: self.budget.cpu_fuel().saturating_add(1),
+            }),
+            ExecutionFault::GrowthLimited => {
+                ExecutionError::Resource(MeterRefusal::BudgetExceeded {
+                    resource: ResourceKind::Memory,
+                    limit: self.budget.memory_bytes(),
+                    attempted: self.budget.memory_bytes().saturating_add(1),
+                })
+            }
+            other => ExecutionError::Fault(other),
+        }
+    }
+}
+
+impl Default for Executor {
+    fn default() -> Self {
+        Self::declared()
     }
 }

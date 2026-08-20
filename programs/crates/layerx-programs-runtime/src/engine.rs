@@ -68,6 +68,7 @@ impl WasmEngine {
             .wasm_reference_types(false)
             .wasm_tail_call(false)
             .wasm_extended_const(false)
+            .consume_fuel(true)
             .floats(false);
         Ok(Self {
             engine: Engine::new(&config),

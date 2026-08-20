@@ -3,12 +3,17 @@
 pub mod engine;
 pub mod execute;
 pub mod limits;
+pub mod meter;
 pub mod test_support;
 pub mod validate;
 
 pub use engine::{EngineRefusal, WasmEngine};
-pub use execute::{ExecutionFault, ProgramInstance, WasmValue};
+pub use execute::{
+    ExecutionError, ExecutionFault, ExecutionRecord, Executor, ProgramInstance, WasmValue,
+    ABI_VERSION, RUNTIME_VERSION,
+};
 pub use limits::{DeclaredLimit, LimitsRefusal, ValidationLimits};
+pub use meter::{FeeSchedule, Meter, MeterRefusal, MeteredUsage, ResourceBudget, ResourceKind};
 pub use validate::{ValidatedModule, ValidationRefusal};
 
 /// Identifies the workspace manifest that governs every programs-plane crate.
