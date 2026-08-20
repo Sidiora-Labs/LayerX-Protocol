@@ -2,6 +2,7 @@
 
 mod deposit;
 mod engine;
+mod exit;
 mod resolver;
 mod withdraw;
 
@@ -16,6 +17,14 @@ pub use engine::{
     AgentBoundary, AgentBoundaryError, AgentObservation, AgentPreparation, JourneyEngine,
     JourneyError, JourneyLeg, JourneyPhase, JourneyPlan, JourneyProgress, JourneyState,
     JourneyStatus, ReceiptLookup, ReceiptMaterial, VerifiedLegEvidence,
+};
+
+pub use exit::{
+    ExitBoundaryError, ExitConfirmationError, ExitFailureKind, ExitFinalityEvidence, ExitJourney,
+    ExitJourneyError, ExitPlan, ExitStage, ExitStatus, ExitWallet, ExitWalletOutcome,
+    ExitWalletRequest, IrreversibleExitConfirmation, EXIT_CONFIRMATION_PHRASE,
+    EXIT_IRREVERSIBILITY_NOTICE, EXIT_NORMAL_OPERATION_MESSAGE, EXIT_SETTINGS_SURFACE, EXIT_TITLE,
+    ORDINARY_WITHDRAWAL_PATH,
 };
 
 pub use resolver::{

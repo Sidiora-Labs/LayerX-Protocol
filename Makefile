@@ -1646,6 +1646,9 @@ human-test-journeys:
 	@if [ -f human/crates/layerx-human-service/tests/withdraw.rs ]; then \
 		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test withdraw; \
 	fi
+	@if [ -f human/crates/layerx-human-service/tests/exit.rs ]; then \
+		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test exit; \
+	fi
 
 human-test-explorer: $(BUILD_DIR)/tests/explorer_fixture
 	LAYERX_EXPLORER_CORE_FIXTURE=$(abspath $<) \

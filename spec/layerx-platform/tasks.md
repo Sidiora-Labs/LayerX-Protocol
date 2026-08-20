@@ -349,7 +349,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Remind on unexercised claims and preserve claimable state across restarts indefinitely.
     - Prove no double claim and no lost claimable state under the fault-injection suite.
     - _Requirements: 11.1, 11.2, 11.8_
-  - [-] 7.5 Implement the emergency exit journey
+  - [x] 7.5 Implement the emergency exit journey
     - Implement the guided exit journey over the exit path: typed confirmation of irreversibility, claim construction against the last finalised checkpoint, staged progress to verified Paxeer finality.
     - Keep the journey operable when LayerX ordinary operation is degraded, sourcing evidence as the exit path requires.
     - Present completion only on verified finality of the exit.
@@ -386,7 +386,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Show the receipt-backed result on the agent and in activity.
     - Test reclaim through each mechanism against a real agent layer.
     - _Requirements: 12.5, 9.1_
-  - [ ] 8.4 Implement agent rotation and recovery
+  - [-] 8.4 Implement agent rotation and recovery
     - Implement agent key rotation and recovery under the human's recovery authority through the protocol mechanism, with the challenge delay in plain time.
     - Keep agent identity and history continuous across rotation.
     - Handle a competing rotation during an open challenge window exactly as the protocol does, surfaced honestly.
