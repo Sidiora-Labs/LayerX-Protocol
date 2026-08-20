@@ -1246,6 +1246,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "layerx-platform-dashboard"
+version = "0.1.0"
+dependencies = [
+ "layerx-platform-gateway",
+ "layerx-platform-webhooks",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "layerx-platform-emulator"
 version = "0.1.0"
 
@@ -1289,6 +1300,20 @@ dependencies = [
 [[package]]
 name = "layerx-platform-testnet"
 version = "0.1.0"
+
+[[package]]
+name = "layerx-platform-webhooks"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "getrandom 0.3.4",
+ "layerx-platform-gateway",
+ "serde",
+ "serde_json",
+ "sha2",
+ "ureq",
+ "zeroize",
+]
 
 [[package]]
 name = "layerx-platform-workspace-gate"

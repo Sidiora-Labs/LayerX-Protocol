@@ -1,0 +1,26 @@
+[package]
+name = "layerx-platform-webhooks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "layerx-webhooks"
+path = "src/main.rs"
+
+[dependencies]
+ed25519-dalek.workspace = true
+getrandom.workspace = true
+layerx-platform-gateway = { path = "../gateway" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+ureq.workspace = true
+zeroize.workspace = true
+
+[lints]
+workspace = true
