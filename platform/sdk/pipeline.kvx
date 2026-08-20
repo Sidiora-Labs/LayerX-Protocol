@@ -1,6 +1,6 @@
 [pipeline]
 sources = ["agent-api", "human-api"]
-outputs = ["agent-typescript", "agent-python", "agent-compatibility", "human-typescript", "platform-go", "platform-jvm", "platform-conformance"]
+outputs = ["agent-typescript", "agent-python", "agent-compatibility", "human-typescript", "platform-go", "platform-jvm", "platform-conformance", "platform-swift", "platform-dotnet", "platform-portable-conformance"]
 
 [source.agent-api]
 root = "agent/schema/agent-api"
@@ -78,3 +78,24 @@ root = "platform/sdk/conformance"
 [files.platform-conformance]
 "jvm.kvx" = "bc4d939376d0ebe58467f5d05a9ca79d74317fdb9ee80e753c26f9289fb0fb9c"
 "run-jvm.sh" = "99277f9edb1629ad1b7b64737770652bd3e87d1acc03b8b6d497772447d53f87"
+
+[output.platform-swift]
+language = "swift"
+root = "platform/sdk/swift/Sources/LayerXSDK/Generated"
+
+[files.platform-swift]
+"OperationCatalog.swift" = "be6b90925ec33c4eb0779526ce322f41125565632dc86bfc489298f487dabcb2"
+
+[output.platform-dotnet]
+language = "csharp"
+root = "platform/sdk/dotnet/Generated"
+
+[files.platform-dotnet]
+"OperationCatalog.cs" = "1a9149be693f3ef62f9c88103d10636cc0477af21f7d39dc76de6967993fe9e8"
+
+[output.platform-portable-conformance]
+language = "json"
+root = "platform/sdk/conformance"
+
+[files.platform-portable-conformance]
+"operations.json" = "545976a7ecb8c6e2397acc1fdf0f73d548b8745f91c7b0d7762dd5ae37fcb684"

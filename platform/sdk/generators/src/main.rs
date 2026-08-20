@@ -37,7 +37,7 @@ pub const JVM_FILES: &[&str] = &[
     "src/main/kotlin/com/sidiora/layerx/sdk/LayerX.kt",
 ];
 
-const OUTPUTS: [(&str, &str, &str, Option<&[&str]>); 7] = [
+const OUTPUTS: [(&str, &str, &str, Option<&[&str]>); 10] = [
     (
         "agent-typescript",
         "typescript",
@@ -74,6 +74,24 @@ const OUTPUTS: [(&str, &str, &str, Option<&[&str]>); 7] = [
         "kvx",
         "platform/sdk/conformance",
         Some(&["jvm.kvx", "run-jvm.sh"]),
+    ),
+    (
+        "platform-swift",
+        "swift",
+        "platform/sdk/swift/Sources/LayerXSDK/Generated",
+        Some(&["OperationCatalog.swift"]),
+    ),
+    (
+        "platform-dotnet",
+        "csharp",
+        "platform/sdk/dotnet/Generated",
+        Some(&["OperationCatalog.cs"]),
+    ),
+    (
+        "platform-portable-conformance",
+        "json",
+        "platform/sdk/conformance",
+        Some(&["operations.json"]),
     ),
 ];
 

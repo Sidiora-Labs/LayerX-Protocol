@@ -7,7 +7,7 @@ PLATFORM_MANIFEST := platform/Cargo.toml
 
 platform-build:
 	$(PLATFORM_CARGO) build --manifest-path $(PLATFORM_MANIFEST) --locked --workspace
-	$(PLATFORM_CARGO) run --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-sdkgen -- --check
+	$(MAKE) platform-sdk-check
 	$(PLATFORM_CARGO) run --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-release -- --check platform/release/registries.kvx
 
 platform-lint:
@@ -36,16 +36,22 @@ platform-emulator-conformance:
 		"$$LAYERX_TESTNET_URL" "$${LAYERX_CONFORMANCE_ACTIVITIES}"
 
 platform-sdk-check:
+	python3 platform/sdk/generators/generate_portable.py --check $(CURDIR)
 	$(PLATFORM_CARGO) run --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-sdkgen -- --check
 
 platform-sdk-generate:
 	cargo run --manifest-path agent/tools/sdk-gen/Cargo.toml --locked -- --write
 	cargo run --manifest-path human/tools/api-gen/Cargo.toml --locked -- human/schema/human-api human/apps/web/src/api/generated
+	python3 platform/sdk/generators/generate_portable.py $(CURDIR)
 	$(PLATFORM_CARGO) run --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-sdkgen -- --write
 
 platform-test-sdks: platform-sdk-check
 	sh platform/sdk/conformance/run-go.sh $(CURDIR)
 	sh platform/sdk/conformance/run-jvm.sh $(CURDIR)
+	command -v swift >/dev/null
+	swift build --package-path platform/sdk/swift
+	command -v dotnet >/dev/null
+	dotnet build platform/sdk/dotnet/LayerX.Sdk.csproj --configuration Release --nologo
 
 platform-release-check:
 	$(PLATFORM_CARGO) run --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-release -- --check platform/release/registries.kvx

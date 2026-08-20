@@ -108,6 +108,21 @@ fn repo_fixture(label: &str) -> PathBuf {
         "[sdk]\nname = \"jvm\"\n",
     );
     place(&root, "platform/sdk/conformance/run-jvm.sh", "#!/bin/sh\n");
+    place(
+        &root,
+        "platform/sdk/swift/Sources/LayerXSDK/Generated/OperationCatalog.swift",
+        "// generated Swift\n",
+    );
+    place(
+        &root,
+        "platform/sdk/dotnet/Generated/OperationCatalog.cs",
+        "// generated C#\n",
+    );
+    place(
+        &root,
+        "platform/sdk/conformance/operations.json",
+        "{\"schema\":1,\"operations\":[]}\n",
+    );
     root
 }
 
