@@ -1637,6 +1637,9 @@ human-test-agents:
 	@if [ -f human/crates/layerx-human-service/tests/reclaim.rs ]; then \
 		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test reclaim; \
 	fi
+	@if [ -f human/crates/layerx-human-service/tests/archive.rs ]; then \
+		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test archive; \
+	fi
 
 human-test-journeys:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test resolver

@@ -1,8 +1,16 @@
 //! Managed-agent lifecycle orchestration.
 
+mod archive;
 mod controls;
 mod create;
 mod reclaim;
+
+pub use archive::{
+    AgentBalance, ArchiveAgentContract, ArchiveBoundary, ArchiveError, ArchiveJourney,
+    ArchiveRequest, ArchiveStage, ArchiveStatus, ArchivedHistoryEntry, FundsDispositionEvidence,
+    SessionArchiveAdapter, ARCHIVE_ACTION_LABEL, ARCHIVE_CONFIRMATION_TONE,
+    ARCHIVE_IRREVERSIBILITY_NOTICE,
+};
 
 pub use controls::{
     AgentControlAgent, AgentControlContract, AgentControlError, AgentControlProfile,

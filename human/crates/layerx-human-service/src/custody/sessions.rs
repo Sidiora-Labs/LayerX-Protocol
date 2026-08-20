@@ -1147,8 +1147,29 @@ impl<C: AgentSessionContract, E: SessionEntropySource> SessionKeyProvisioner<C, 
             .get(&key)
             .map(|agent| agent.current.clone())
             .ok_or(SessionKeyError::NotProvisioned)?;
-        if matches!(lease.state, SessionLeaseState::Revoked { .. }) {
-            return Err(SessionKeyError::NotProvisioned);
+        if let SessionLeaseState::Revoked {
+            reason: completed_reason,
+            suspended_at,
+            revoked_at,
+            suspension_receipt_digest,
+            revocation_receipt_digest,
+        } = lease.state
+        {
+            if completed_reason != reason || requested_at > suspended_at {
+                return Err(SessionKeyError::NotProvisioned);
+            }
+            let latency_seconds = revoked_at.saturating_sub(suspended_at);
+            return Ok(RevocationOutcome {
+                reason,
+                requested_at,
+                suspended_at,
+                revoked_at,
+                latency_seconds,
+                within_declared_target: latency_seconds
+                    <= self.policy.maximum_revocation_latency_seconds,
+                suspension_receipt_digest,
+                revocation_receipt_digest,
+            });
         }
         let target = target(&lease);
         let suspension = match lease.state {

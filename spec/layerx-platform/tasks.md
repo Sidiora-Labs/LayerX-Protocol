@@ -393,7 +393,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Notify the human of every rotation and recovery event as a security notification.
     - Test rotation and recovery against a real core including the challenge-delay path.
     - _Requirements: 12.7, 4.8_
-  - [ ] 8.5 Implement archive with funds disposition
+  - [x] 8.5 Implement archive with funds disposition
     - Implement archive as a destructive journey requiring funds disposition first through legitimate reclaim, then typed-name confirmation, then authority revocation and session-key retirement.
     - Retain the archived agent's history and receipts read-only.
     - Make archive irreversible in the service and honest about it in the contract shapes.

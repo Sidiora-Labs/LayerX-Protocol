@@ -290,6 +290,7 @@ pub enum SecurityChangeKind {
     RecoveryInitiated,
     KeyRotation,
     WalletRebinding,
+    AgentArchive,
 }
 
 impl SecurityChangeKind {
@@ -303,6 +304,7 @@ impl SecurityChangeKind {
             Self::RecoveryInitiated => 6,
             Self::KeyRotation => 7,
             Self::WalletRebinding => 8,
+            Self::AgentArchive => 9,
         }
     }
 
@@ -316,6 +318,7 @@ impl SecurityChangeKind {
             6 => Ok(Self::RecoveryInitiated),
             7 => Ok(Self::KeyRotation),
             8 => Ok(Self::WalletRebinding),
+            9 => Ok(Self::AgentArchive),
             _ => Err(AuditError::Corrupt("unknown security change")),
         }
     }

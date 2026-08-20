@@ -1171,7 +1171,7 @@ reqs = ["12.7","4.8"]
 
 [task.8.5]
 title = "Implement archive with funds disposition"
-status = "pending"
+status = "done"
 wave = 4
 requires = ["8.2","8.3"]
 do_1 = "Implement archive as a destructive journey requiring funds disposition first through legitimate reclaim, then typed-name confirmation, then authority revocation and session-key retirement."
