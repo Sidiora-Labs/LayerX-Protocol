@@ -436,6 +436,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "layerx-visa-tap"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "ed25519-dalek",
+ "layerx-interop-gateway",
+ "openssl",
+ "sha2",
+]
+
+[[package]]
 name = "layerx-wire"
 version = "0.1.0"
 dependencies = [

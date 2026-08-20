@@ -1,0 +1,16 @@
+[package]
+name = "layerx-visa-tap"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+base64.workspace = true
+ed25519-dalek.workspace = true
+layerx-interop-gateway.workspace = true
+openssl.workspace = true
+sha2.workspace = true
+
+[lints]
+workspace = true
