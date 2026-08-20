@@ -6,6 +6,7 @@ mod finality;
 mod json;
 mod rpc;
 mod status;
+mod withdraw;
 
 pub use client::{
     BlockRef, ClientConfigError, EndpointError, ExecutionOutcome, LogRecord, PaxeerClient,
@@ -23,6 +24,13 @@ pub use json::{parse as parse_json, Json, JsonError, JsonErrorReason};
 pub use rpc::{raw_call, EndpointConfig, EndpointFailure, EndpointFault};
 pub use status::{
     BoundaryHealth, BoundaryStatus, ChainStatus, ContractStatus, DelayExpectation, EndpointStatus,
+};
+pub use withdraw::{
+    CancellationEvidence, CancelledFundsDisposition, ChallengeHold, ChallengeKind,
+    CheckpointProof, ClaimProgress, ClaimRefusal, CommittedWithdrawalDebit, DebitExpectation,
+    DebitFault, PaxeerFundsDisposition, PayoutEvidence, ProtocolDebitDisposition,
+    SubmittedWithdrawalClaim, WithdrawalAttestation, WithdrawalBoundary, WithdrawalClaim,
+    WithdrawalConfig, WithdrawalConfigError, WithdrawalError,
 };
 
 /// Stable identity of the Paxeer custody-boundary client.

@@ -252,7 +252,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Append every signing grant and refusal to the audit log with digest, operation, principal and step-up evidence, never key material or payload secrets.
     - Enforce per-principal signing throughput limits as declared configuration with typed refusals, and refuse honestly with no fallback when the KMS is unavailable.
     - _Requirements: 4.1, 4.2, 4.10_
-  - [ ] 5.4 Implement onboarding: DID, recovery and activation
+  - [-] 5.4 Implement onboarding: DID, recovery and activation
     - Orchestrate onboarding as a durable journey: application identity, key generation in custody, DID registration through a typed intent, recovery registration, each stage receipt-verified before the next.
     - Treat the account as active only when the DID registration receipt verifies, exposing honest per-stage status until then.
     - Make every stage idempotent and resumable so crashes and duplicates converge on one identity, one DID, one recovery registration and one receipt set.
@@ -296,7 +296,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Surface each failure class - custody transaction failed, proof unavailable, credit refused - as a typed state for the journey engine.
     - Test the full path against a Paxeer test network and a real core: custody transaction to verified LayerX credit receipt.
     - _Requirements: 10.2, 10.6_
-  - [-] 6.3 Construct withdrawal claims and verify payouts
+  - [x] 6.3 Construct withdrawal claims and verify payouts
     - Construct the withdrawal claim from the committed LayerX debit and its checkpoint proof, in the form the Paxeer contracts require.
     - Track a submitted claim to Paxeer finality and verify the payout transaction before it is ever reported paid out.
     - Detect and report a challenge-window hold on the claimed checkpoint as its own honest state with the window's timing.

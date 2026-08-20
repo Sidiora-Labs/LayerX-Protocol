@@ -873,7 +873,7 @@ reqs = ["4.1","4.2","4.10"]
 
 [task.5.4]
 title = "Implement onboarding: DID, recovery and activation"
-status = "pending"
+status = "in_progress"
 wave = 3
 requires = ["5.3","3.3"]
 do_1 = "Orchestrate onboarding as a durable journey: application identity, key generation in custody, DID registration through a typed intent, recovery registration, each stage receipt-verified before the next."
@@ -967,7 +967,7 @@ reqs = ["10.2","10.6"]
 
 [task.6.3]
 title = "Construct withdrawal claims and verify payouts"
-status = "in_progress"
+status = "done"
 wave = 3
 requires = ["6.1"]
 do_1 = "Construct the withdrawal claim from the committed LayerX debit and its checkpoint proof, in the form the Paxeer contracts require."
