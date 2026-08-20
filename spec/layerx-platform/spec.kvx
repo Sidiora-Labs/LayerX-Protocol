@@ -2232,7 +2232,7 @@ reqs = ["31.1","31.5"]
 
 [task.21.5]
 title = "Ship the second and third authoring languages"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["21.4"]
 do_1 = "Ship two additional authoring-language SDKs compiling to the same ABI, each with its determinism lint."

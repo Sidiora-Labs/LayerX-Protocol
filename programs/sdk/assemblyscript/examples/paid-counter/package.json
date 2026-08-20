@@ -1,0 +1,19 @@
+{
+  "name": "@sidiora/layerx-paid-counter",
+  "version": "0.1.0",
+  "description": "Paid-counter quickstart program for the LayerX AssemblyScript SDK",
+  "type": "module",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "build": "asc assembly/index.ts --config asconfig.json --target release",
+    "lint": "node ../../tools/determinism-lint.mjs assembly build/paid-counter.wasm",
+    "clean": "node -e \"require('node:fs').rmSync('build', { recursive: true, force: true })\""
+  },
+  "devDependencies": {
+    "assemblyscript": "0.27.31"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

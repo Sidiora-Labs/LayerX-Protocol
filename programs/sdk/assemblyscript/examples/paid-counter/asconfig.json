@@ -1,0 +1,11 @@
+{
+  "extends": "../../asconfig.json",
+  "entries": [
+    "assembly/index.ts"
+  ],
+  "targets": {
+    "release": {
+      "outFile": "build/paid-counter.wasm"
+    }
+  }
+}

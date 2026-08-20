@@ -900,7 +900,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Ship the quickstart program used by the programs five-minute benchmark.
     - Test SDK-built programs against the runtime conformance vectors.
     - _Requirements: 31.1, 31.5_
-  - [ ] 21.5 Ship the second and third authoring languages
+  - [x] 21.5 Ship the second and third authoring languages
     - Ship two additional authoring-language SDKs compiling to the same ABI, each with its determinism lint.
     - Prove byte-identical behaviour with the Rust SDK on the shared vector set.
     - Ship a quickstart program per language.

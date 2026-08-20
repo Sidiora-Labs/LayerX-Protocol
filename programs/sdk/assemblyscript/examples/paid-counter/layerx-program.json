@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "abi_version": 1,
+  "language": "assemblyscript",
+  "name": "paid-counter",
+  "sdk": "../..",
+  "build": {
+    "command": "npx",
+    "args": ["--no-install", "asc", "assembly/index.ts", "--config", "asconfig.json", "--target", "release"],
+    "artifact": "build/paid-counter.wasm"
+  },
+  "lint": {
+    "command": "node",
+    "args": ["../../tools/determinism-lint.mjs", "assembly", "build/paid-counter.wasm"]
+  },
+  "clean": {
+    "command": "node",
+    "args": ["-e", "require('node:fs').rmSync('build', { recursive: true, force: true })"]
+  },
+  "entry": {
+    "main": "layerx_main",
+    "call": "layerx_call",
+    "reserve": "layerx_reserve",
+    "call_input_capacity": 8192,
+    "selectors": { "count": 0, "reset": 1 }
+  },
+  "exports": [
+    { "name": "configure", "params": ["i64", "i64", "i64", "i64", "i64", "i64", "i64", "i64", "i64", "i64"], "results": ["i32"] },
+    { "name": "count", "params": [], "results": ["i64"] },
+    { "name": "settle", "params": ["i64", "i64", "i64", "i64"], "results": ["i64"] },
+    { "name": "forward", "params": ["i64", "i64", "i64", "i64", "i64"], "results": ["i32"] },
+    { "name": "reset", "params": [], "results": ["i32"] },
+    { "name": "layerx_main", "params": ["i64"], "results": ["i64"] },
+    { "name": "layerx_reserve", "params": ["i32"], "results": ["i32"] },
+    { "name": "layerx_call", "params": ["i32", "i32"], "results": ["i32"] }
+  ],
+  "wire": {
+    "storage_keys": [
+      "layerx.quickstart.fee",
+      "layerx.quickstart.asset",
+      "layerx.quickstart.payee",
+      "layerx.quickstart.count"
+    ],
+    "events": [
+      { "topic": "layerx.quickstart.configured", "bytes": 80, "layout": "fee[16]||asset[32]||payee[32]" },
+      { "topic": "layerx.quickstart.settled", "bytes": 56, "layout": "count[8]||amount[16]||digest[32]" },
+      { "topic": "layerx.quickstart.noted", "bytes": 16, "layout": "count[8]||note[8]" }
+    ],
+    "forward_capabilities": "0002 01 03",
+    "forward_input": "note[8] big-endian"
+  },
+  "capabilities": [
+    "storage_read",
+    "storage_write",
+    "emit_event",
+    "call",
+    "transfer_402",
+    "receipt_read"
+  ]
+}

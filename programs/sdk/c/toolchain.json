@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "language": "c",
+  "display_name": "C (freestanding wasm32)",
+  "abi_version": 1,
+  "abi_module": "layerx_v1",
+  "target": "wasm32-unknown-unknown",
+  "program_manifest": "layerx-program.json",
+  "template": "examples/paid-counter",
+  "requires": [
+    { "binary": "clang", "minimum_version": "15.0", "reason": "wasm32 freestanding code generation" },
+    { "binary": "cc", "minimum_version": "0", "reason": "builds the determinism lint for the host" }
+  ],
+  "determinism": {
+    "lint": "tools/determinism_lint.c",
+    "rules": [
+      "malformed-module",
+      "module-too-large",
+      "too-many-functions",
+      "forbidden-import",
+      "forbidden-float-type",
+      "forbidden-float-instruction",
+      "forbidden-vector-type",
+      "forbidden-atomic-instruction",
+      "unknown-instruction",
+      "missing-memory-export",
+      "forbidden-import-declaration"
+    ],
+    "structural": [
+      "-nostdlib removes every C library symbol, so a clock, socket, thread or random source cannot be linked at all",
+      "-ffreestanding removes the hosted environment assumptions the standard library depends on",
+      "the SDK exposes no allocator; every buffer is caller-owned, so a program carries no ambient authority",
+      "WebAssembly linear memory is zero-initialised, so even an unwritten read is deterministic"
+    ]
+  }
+}

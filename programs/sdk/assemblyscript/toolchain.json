@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "language": "assemblyscript",
+  "display_name": "AssemblyScript (deterministic wasm32)",
+  "abi_version": 1,
+  "abi_module": "layerx_v1",
+  "target": "wasm32-unknown-unknown",
+  "package": "@sidiora/layerx-program-sdk",
+  "entry": "assembly/index.ts",
+  "program_manifest": "layerx-program.json",
+  "template": "examples/paid-counter",
+  "requires": [
+    { "binary": "node", "minimum_version": "22.0", "reason": "runs the compiler and the determinism lint" },
+    { "package": "assemblyscript", "minimum_version": "0.27.31", "reason": "asc lowers the guest to the deterministic wasm32 subset" }
+  ],
+  "compiler": {
+    "binary": "asc",
+    "config": "asconfig.json",
+    "runtime": "stub",
+    "use": ["abort=", "trace=", "seed="],
+    "disable": ["nontrapping-f2i"]
+  },
+  "determinism": {
+    "lint": "tools/determinism-lint.mjs",
+    "rules": [
+      "malformed-module",
+      "module-too-large",
+      "too-many-functions",
+      "forbidden-import",
+      "forbidden-float-type",
+      "forbidden-float-instruction",
+      "forbidden-vector-type",
+      "forbidden-atomic-instruction",
+      "unknown-instruction",
+      "missing-memory-export",
+      "forbidden-import-declaration",
+      "forbidden-source-construct"
+    ],
+    "structural": [
+      "every non-deterministic AssemblyScript builtin reaches its effect through an env.* WebAssembly import, and the runtime's import allowlist refuses every module other than layerx_v1, so a clock, a socket or an entropy source is refused at validation rather than at review",
+      "--use abort=, --use trace= and --use seed= remove those three imports at the source, so a compiled program carries no import outside the frozen seven",
+      "--runtime stub removes garbage collection and finalisation, so allocation is a monotonic bump and no object lifetime depends on a collector's schedule",
+      "--disable nontrapping-f2i matches the runtime's saturating_float_to_int refusal exactly, and threads, simd, reference-types, exception-handling, tail-calls and extended-const stay off because AssemblyScript disables them by default",
+      "the SDK names no f32, f64 or v128 anywhere; amounts are two exact u64 halves and lengths are i32, so no value silently widens to a floating-point double",
+      "the source gate refuses number, Date, Math, performance, process, fetch, atomics and parseFloat before the compiler runs, and refuses any ambient function declaration that carries no layerx_v1 binding"
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "@sidiora/layerx-program-sdk",
+  "version": "0.1.0",
+  "description": "Deterministic AssemblyScript guest bindings for the LayerX version-one programs ABI",
+  "type": "module",
+  "private": false,
+  "license": "SEE LICENSE IN LICENSE",
+  "ascMain": "assembly/index.ts",
+  "exports": {
+    ".": "./assembly/index.ts",
+    "./asconfig.json": "./asconfig.json",
+    "./toolchain.json": "./toolchain.json",
+    "./determinism-lint": "./tools/determinism-lint.mjs"
+  },
+  "files": [
+    "assembly",
+    "tools",
+    "asconfig.json",
+    "toolchain.json",
+    "tsconfig.json"
+  ],
+  "bin": {
+    "layerx-determinism-lint": "tools/determinism-lint.mjs"
+  },
+  "scripts": {
+    "lint": "node tools/determinism-lint.mjs assembly"
+  },
+  "devDependencies": {
+    "assemblyscript": "0.27.31"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

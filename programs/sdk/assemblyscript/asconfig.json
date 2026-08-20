@@ -1,0 +1,21 @@
+{
+  "options": {
+    "runtime": "stub",
+    "use": [
+      "abort=",
+      "trace=",
+      "seed="
+    ],
+    "disable": [
+      "nontrapping-f2i"
+    ],
+    "exportRuntime": false,
+    "importMemory": false,
+    "exportTable": false,
+    "importTable": false,
+    "sourceMap": false,
+    "debug": false,
+    "optimizeLevel": 3,
+    "shrinkLevel": 2
+  }
+}
