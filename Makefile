@@ -1635,6 +1635,9 @@ human-test-journeys:
 	@if [ -f human/crates/layerx-human-service/tests/journey_faults.rs ]; then \
 		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test journey_faults; \
 	fi
+	@if [ -f human/crates/layerx-human-service/tests/deposit.rs ]; then \
+		$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service --test deposit; \
+	fi
 
 human-test-explorer:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-explorer-index --test rebuild

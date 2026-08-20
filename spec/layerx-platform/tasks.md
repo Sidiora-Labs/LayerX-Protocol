@@ -335,7 +335,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Emit journey progress on the streaming surface and to the notification service at stage boundaries.
     - Prove exactly-once economic effect per leg with a fault-injection suite crashing at every stage against a real agent layer.
     - _Requirements: 9.4, 9.5, 9.6_
-  - [-] 7.3 Implement the deposit journey
+  - [x] 7.3 Implement the deposit journey
     - Implement the deposit journey: binding check, wallet signature stage, custody finality tracking, proof construction, credit submission and credit-receipt verification, as one resumable journey.
     - Keep the in-flight amount out of every balance presentation until the credit receipt verifies, exposing it as in-flight.
     - Map each stage's failure to its typed state - wallet rejected, custody failed, reorg displaced, finality stalled, credit refused - with stall reported as delay carrying a revised expectation.

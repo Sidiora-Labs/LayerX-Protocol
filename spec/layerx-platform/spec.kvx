@@ -1047,7 +1047,7 @@ reqs = ["9.4","9.5","9.6"]
 
 [task.7.3]
 title = "Implement the deposit journey"
-status = "in_progress"
+status = "done"
 wave = 4
 requires = ["7.2","6.2"]
 do_1 = "Implement the deposit journey: binding check, wallet signature stage, custody finality tracking, proof construction, credit submission and credit-receipt verification, as one resumable journey."

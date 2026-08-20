@@ -160,6 +160,17 @@ pub struct ReceiptMaterial {
     pub authorised_batch: AuthorizedBatch,
 }
 
+/// Receipt evidence retained by a completed journey leg. This exposes only
+/// the immutable facts a higher-level journey needs for operation-specific
+/// verification; it cannot be used to advance or rewrite the engine.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerifiedLegEvidence {
+    pub action_key: [u8; 32],
+    pub activity_id: [u8; 32],
+    pub canonical_receipt: Vec<u8>,
+    pub receipt_digest: [u8; 32],
+}
+
 /// Result of the receipt-only resolution operation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReceiptLookup {
@@ -607,6 +618,38 @@ impl JourneyEngine {
             phases,
             receipt_digests,
         })
+    }
+
+    /// Returns the immutable receipt evidence for a verified leg.
+    ///
+    /// # Errors
+    ///
+    /// Refuses an out-of-range leg or a corrupt partially verified record.
+    pub fn verified_leg_evidence(
+        &self,
+        index: usize,
+    ) -> Result<Option<VerifiedLegEvidence>, JourneyError> {
+        let leg = self
+            .record
+            .legs
+            .get(index)
+            .ok_or(JourneyError::Corrupt("receipt leg is outside the plan"))?;
+        if leg.phase != JourneyPhase::ReceiptVerified {
+            return Ok(None);
+        }
+        Ok(Some(VerifiedLegEvidence {
+            action_key: leg.action_key,
+            activity_id: leg
+                .activity_id
+                .ok_or(JourneyError::Corrupt("verified leg has no activity"))?,
+            canonical_receipt: leg
+                .receipt
+                .clone()
+                .ok_or(JourneyError::Corrupt("verified leg has no receipt"))?,
+            receipt_digest: leg
+                .receipt_digest
+                .ok_or(JourneyError::Corrupt("verified leg has no receipt digest"))?,
+        }))
     }
 
     /// Reads ordered progress events from the resumable stream outbox.
