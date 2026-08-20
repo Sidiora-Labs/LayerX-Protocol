@@ -36,6 +36,31 @@ impl AuthorizedBatch {
             sequencer_public_key,
         }
     }
+
+    #[must_use]
+    pub const fn batch_id(&self) -> [u8; 32] {
+        self.batch_id
+    }
+
+    #[must_use]
+    pub const fn asset(&self) -> [u8; 32] {
+        self.asset
+    }
+
+    #[must_use]
+    pub const fn previous_state_root(&self) -> [u8; 32] {
+        self.previous_state_root
+    }
+
+    #[must_use]
+    pub const fn resulting_state_root(&self) -> [u8; 32] {
+        self.resulting_state_root
+    }
+
+    #[must_use]
+    pub const fn sequencer_public_key(&self) -> [u8; 32] {
+        self.sequencer_public_key
+    }
 }
 
 /// The exact verification stage that rejected a receipt.

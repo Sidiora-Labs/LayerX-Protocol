@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 
 use crate::custody::{
-    CustodyError, CustodySigner, KeyId, Operation, SignAuthorization, SignRequest,
+    CustodyError, CustodySigner, KeyId, Operation, SignAuthorization, SignRequest, StepUpEvidence,
 };
 use crate::notify::JourneyId;
 use crate::store::{PrincipalScope, RowKey, StoreError, Table};
@@ -510,6 +510,38 @@ impl JourneyEngine {
         trace: &TraceId,
         now: u64,
     ) -> Result<JourneyStatus, JourneyError> {
+        self.advance_authorized(
+            scope,
+            agent_contract,
+            agent,
+            custody,
+            registry,
+            trace,
+            None,
+            now,
+        )
+        .await
+    }
+
+    /// Advances one phase with optional fresh step-up evidence for a sensitive
+    /// signing operation. Ordinary protocol mutations use [`Self::advance`].
+    ///
+    /// # Errors
+    ///
+    /// Returns the same typed failures as [`Self::advance`], including custody
+    /// refusal when a sensitive operation lacks matching fresh evidence.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn advance_authorized(
+        &mut self,
+        scope: &mut PrincipalScope<'_>,
+        agent_contract: &AgentClient,
+        agent: &mut dyn AgentBoundary,
+        custody: &CustodySigner,
+        registry: &ModuleRegistry,
+        trace: &TraceId,
+        step_up: Option<&StepUpEvidence>,
+        now: u64,
+    ) -> Result<JourneyStatus, JourneyError> {
         self.repair_events(scope)?;
         if self.terminal() {
             return self.status();
@@ -547,7 +579,7 @@ impl JourneyEngine {
                             &principal,
                             &key,
                             trace,
-                            SignAuthorization::new(operation, None),
+                            SignAuthorization::new(operation, step_up),
                             &prepared.unsigned_canonical_bytes,
                             &prepared.disclosure,
                             now,

@@ -19,6 +19,9 @@ const SEND_FIELD_COUNT: u16 = 10;
 const BRIDGE_DEPOSIT_CREDIT_ORDINAL: u16 = 1;
 const BRIDGE_DEPOSIT_CREDIT_WIRE_TAG: u16 = 0x4801;
 const BRIDGE_DEPOSIT_CREDIT_FIELD_COUNT: u16 = 7;
+const BRIDGE_WITHDRAW_REQUEST_ORDINAL: u16 = 2;
+const BRIDGE_WITHDRAW_REQUEST_WIRE_TAG: u16 = 0x4802;
+const BRIDGE_WITHDRAW_REQUEST_FIELD_COUNT: u16 = 7;
 const GOVERNANCE_EVM_BINDING_ORDINAL: u16 = 4;
 const GOVERNANCE_EVM_BINDING_WIRE_TAG: u16 = 0x7104;
 const GOVERNANCE_EVM_BINDING_FIELD_COUNT: u16 = 4;
@@ -271,6 +274,43 @@ fn decode_bridge_deposit_credit(
     })
 }
 
+fn decode_bridge_withdraw_request(
+    payload: &[u8],
+    activity: &Activity,
+) -> Result<SendSemantics, DisclosureError> {
+    let mut decoder = Decoder::new(payload, 0);
+    if decoder.u16()? != BRIDGE_WITHDRAW_REQUEST_WIRE_TAG
+        || decoder.u16()? != BRIDGE_WITHDRAW_REQUEST_FIELD_COUNT
+    {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    let withdrawal_id: [u8; 32] = fixed(&mut decoder)?;
+    let from = fixed(&mut decoder)?;
+    let to = fixed(&mut decoder)?;
+    let payout_address: [u8; 20] = fixed(&mut decoder)?;
+    let asset = fixed(&mut decoder)?;
+    let amount = decoder.u128()?;
+    let idempotency_key = fixed(&mut decoder)?;
+    decoder.finish()?;
+    if withdrawal_id == [0; 32]
+        || payout_address == [0; 20]
+        || idempotency_key != activity.idempotency_key()
+        || amount == 0
+        || from == to
+    {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    Ok(SendSemantics {
+        from,
+        to,
+        asset,
+        amount,
+        sequence: activity.account_sequence(),
+        idempotency_key,
+        expires_at: activity.timestamp_bound().not_after,
+    })
+}
+
 fn decode_evm_payout_binding(
     payload: &[u8],
     activity: &Activity,
@@ -309,6 +349,9 @@ fn semantics(activity: &Activity) -> Result<SendSemantics, DisclosureError> {
         (ModuleId::Asset, ASSET_SEND_ORDINAL) => decode_send(activity.payload(), activity),
         (ModuleId::Bridge, BRIDGE_DEPOSIT_CREDIT_ORDINAL) => {
             decode_bridge_deposit_credit(activity.payload(), activity)
+        }
+        (ModuleId::Bridge, BRIDGE_WITHDRAW_REQUEST_ORDINAL) => {
+            decode_bridge_withdraw_request(activity.payload(), activity)
         }
         _ => Err(DisclosureError::UnsupportedActivity(activity_type.value())),
     }

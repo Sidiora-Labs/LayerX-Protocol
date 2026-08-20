@@ -658,6 +658,32 @@ impl WithdrawalBoundary {
         claim: WithdrawalClaim,
         report: &FinalityReport,
     ) -> Result<SubmittedWithdrawalClaim, WithdrawalError> {
+        self.submission_from_queue(claim, report, Some(1))
+    }
+
+    /// Reconstructs a previously accepted submission from its immutable queue
+    /// transaction after a service restart. The current claim may already be
+    /// queued, paid, or cancelled, but its original queue event and every
+    /// stored claim field must still bind to the supplied claim.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same transaction/event/state mismatches as
+    /// [`Self::accept_submission`] and refuses absent or unknown claim states.
+    pub fn restore_submission(
+        &self,
+        claim: WithdrawalClaim,
+        report: &FinalityReport,
+    ) -> Result<SubmittedWithdrawalClaim, WithdrawalError> {
+        self.submission_from_queue(claim, report, None)
+    }
+
+    fn submission_from_queue(
+        &self,
+        claim: WithdrawalClaim,
+        report: &FinalityReport,
+        expected_status: Option<u8>,
+    ) -> Result<SubmittedWithdrawalClaim, WithdrawalError> {
         let observed = self.verify_transaction(report, self.claims_contract, claim.calldata())?;
         let queued = unique_log(
             &observed.logs,
@@ -679,7 +705,13 @@ impl WithdrawalBoundary {
             });
         }
         let record = self.claim_record(event.claim_id)?;
-        verify_claim_record(&claim, event.claim_id, event.available_at, &record, 1)?;
+        let status = expected_status.unwrap_or(record.status);
+        if !matches!(status, 1..=3) {
+            return Err(WithdrawalError::ClaimState {
+                detail: format!("unknown or absent claim status {status}"),
+            });
+        }
+        verify_claim_record(&claim, event.claim_id, event.available_at, &record, status)?;
         Ok(SubmittedWithdrawalClaim {
             claim,
             claim_id: event.claim_id,

@@ -81,6 +81,24 @@ fn bridge_deposit_credit_discloses_and_signs_the_exact_compiled_semantics() {
 }
 
 #[test]
+fn bridge_withdrawal_discloses_and_signs_the_exact_compiled_semantics() {
+    let canonical = support::canonical_bridge_withdraw(25);
+    let registry = support::bridge_withdraw_registry();
+    let Ok(disclosure) = bind(&canonical, &registry) else {
+        panic!("canonical bridge withdrawal disclosure rejected");
+    };
+    assert_eq!(disclosure.activity_type.value(), 0x0008_0002);
+    assert_eq!(disclosure.counterparties[0].account, [0x11; 32]);
+    assert_eq!(disclosure.counterparties[1].account, [0x22; 32]);
+    assert_eq!(disclosure.asset, [0x33; 32]);
+    assert_eq!(disclosure.amounts[0].value, 25);
+    assert_eq!(disclosure.idempotency_key, [0x71; 32]);
+    assert_eq!(disclosure.reencode(), Ok(canonical.clone()));
+    let signer = LocalSigner::new([0xa5; 32]);
+    assert!(ready(sign_disclosed(&signer, &canonical, &disclosure, &registry)).is_ok());
+}
+
+#[test]
 fn disclosed_signing_uses_the_exact_canonical_bytes() {
     let canonical = support::canonical_send(25);
     let registry = support::registry();

@@ -3,6 +3,7 @@
 mod deposit;
 mod engine;
 mod resolver;
+mod withdraw;
 
 pub use deposit::{
     DepositActivity, DepositAgentBoundary, DepositAgentPlan, DepositBoundaryError,
@@ -21,4 +22,10 @@ pub use resolver::{
     BudgetCreation, BudgetRoute, ChangeSurface, CustodyRoute, Endpoint, EndpointKind, LimitRefusal,
     LimitRefusalError, LimitSource, Mechanism, MovementTerm, PayerGrantRoute, Relationship, Route,
     RouteError, RouteLeg, RouteRequest, RouteResolver, SendRoute,
+};
+pub use withdraw::{
+    CancellationPolicy, PaxeerAction, PaxeerActionOutcome, SettlementConfig, SettlementExpectation,
+    WithdrawalAgentPlan, WithdrawalBoundaryError, WithdrawalJourney, WithdrawalJourneyError,
+    WithdrawalPlan, WithdrawalReminder, WithdrawalRuntime, WithdrawalStage, WithdrawalStatus,
+    WithdrawalTransactionRequest,
 };

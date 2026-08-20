@@ -342,7 +342,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Notify on completion and failure with a deep link to the journey.
     - Test the full deposit end to end against the test network and a real core, including crash-resume at every stage.
     - _Requirements: 10.1, 10.2, 10.6_
-  - [-] 7.4 Implement the withdrawal and claim journey
+  - [x] 7.4 Implement the withdrawal and claim journey
     - Implement the withdrawal journey: receipt-verified debit first, checkpoint wait with configured expectation, claim readiness, wallet claim stage and payout verification.
     - State irreversibility at review: a committed withdrawal completes, it does not cancel.
     - Surface challenge-window holds and post-challenge cancellation honestly through the journey states.
@@ -356,7 +356,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Record the exit fully in the audit trail with its evidence.
     - Test the exit journey end to end including the degraded-core and ineligible-during-normal-operation scenarios.
     - _Requirements: 11.6, 11.8_
-  - [ ] 7.6 Implement the move-money journey
+  - [-] 7.6 Implement the move-money journey
     - Implement the internal movement journey over the resolver and engine: quote with fee estimate and ceiling, plain-language review content, commit, per-leg progress and receipt-backed completion.
     - Return the receipt-backed actual amounts and fees at completion, replacing every estimate.
     - Reference every leg receipt in order on the journey record.
@@ -379,7 +379,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Reflect pause, resume and limit changes in the agent's presented state within the declared freshness bound.
     - Test authority revocation latency and the enforcement labelling against a real agent layer.
     - _Requirements: 12.3, 12.4_
-  - [ ] 8.3 Implement the reclaim paths
+  - [-] 8.3 Implement the reclaim paths
     - Implement taking money back exclusively through budget defunding, agent-authorised transfers and receives under explicit payer grants, as movement journeys with receipts.
     - Make any key-based sweep of an agent account structurally impossible through the custody service's operation set.
     - Present reclaim in the movement vocabulary as return.

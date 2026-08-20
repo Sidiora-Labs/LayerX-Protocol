@@ -1062,7 +1062,7 @@ reqs = ["10.1","10.2","10.6"]
 
 [task.7.4]
 title = "Implement the withdrawal and claim journey"
-status = "in_progress"
+status = "done"
 wave = 4
 requires = ["7.2","6.3"]
 do_1 = "Implement the withdrawal journey: receipt-verified debit first, checkpoint wait with configured expectation, claim readiness, wallet claim stage and payout verification."
@@ -1092,7 +1092,7 @@ reqs = ["11.6","11.8"]
 
 [task.7.6]
 title = "Implement the move-money journey"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["7.1","7.2"]
 do_1 = "Implement the internal movement journey over the resolver and engine: quote with fee estimate and ceiling, plain-language review content, commit, per-leg progress and receipt-backed completion."
@@ -1141,7 +1141,7 @@ reqs = ["12.3","12.4"]
 
 [task.8.3]
 title = "Implement the reclaim paths"
-status = "pending"
+status = "in_progress"
 wave = 4
 requires = ["8.1","7.2"]
 do_1 = "Implement taking money back exclusively through budget defunding, agent-authorised transfers and receives under explicit payer grants, as movement journeys with receipts."
