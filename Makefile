@@ -2301,3 +2301,18 @@ interop-lint:
 	$(INTEROP_CARGO) clippy --manifest-path $(INTEROP_MANIFEST) --locked --workspace --all-targets -- -D warnings
 	sh interop/tools/dependency-policy.sh
 	cargo deny --manifest-path $(INTEROP_MANIFEST) check advisories bans sources
+
+PROGRAMS_CARGO ?= cargo
+
+.PHONY: programs-build programs-lint programs-test
+
+programs-build:
+	cd programs && $(PROGRAMS_CARGO) build --locked --workspace
+
+programs-lint:
+	cd programs && $(PROGRAMS_CARGO) clippy --locked --workspace --all-targets -- -D warnings
+	sh programs/tools/dependency-policy.sh
+	cd programs && $(PROGRAMS_CARGO) deny check advisories bans sources
+
+programs-test:
+	cd programs && $(PROGRAMS_CARGO) test --locked --workspace

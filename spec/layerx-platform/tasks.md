@@ -598,7 +598,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Keep support reachable from every error surface.
     - Test the support states and the report-to-support path.
     - _Requirements: 8.2, 18.8, 18.2_
-  - [ ] 13.5 Build the public explorer plane
+  - [-] 13.5 Build the public explorer plane
     - Build the server-rendered explorer pages: checkpoints, batches, receipt lookup, account views and the evidence verifier, table-first.
     - Show the verification level for every displayed fact and index freshness on every page.
     - Keep every page deep-linkable and functional signed-out, meeting the same design, accessibility and performance gates.
@@ -669,7 +669,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Establish the signed reproducible release pipeline skeleton for crates.io, npm, PyPI, Go modules, Maven Central, Swift Package Manager and NuGet.
     - Prove existing builds are untouched: make build, make agent-build and make human-build succeed with the platform workspace present.
     - _Requirements: 24.1, 24.6_
-  - [ ] 15.2 Harden the Rust, TypeScript and Python SDKs to production
+  - [-] 15.2 Harden the Rust, TypeScript and Python SDKs to production
     - Bring the existing Rust, TypeScript and Python SDKs to production grade: complete operation coverage from both schemas, idiomatic packaging, typed error taxonomy with stable machine codes and retriability classes.
     - Ship the local receipt, batch-inclusion and checkpoint verification path in all three, requiring no trust in any hosted surface.
     - Enforce integer-only money and required idempotency keys in every public API, with floating-point amounts unrepresentable.
@@ -812,7 +812,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 10 - LayerX Programs
 
 - [ ] 19. Build the deterministic programs runtime
-  - [-] 19.1 Establish the programs workspace and the vendored WASM engine
+  - [x] 19.1 Establish the programs workspace and the vendored WASM engine
     - Create programs/ with the runtime crates, the deterministic WASM engine vendored and pinned, and the programs-build, programs-lint and programs-test make targets.
     - Strip the engine to the deterministic subset: no clocks, no networking, no filesystem, no floats, no threads, no randomness, with the forbidden imports rejected at validation.
     - Declare module validation limits - size, functions, stack depth, call depth - as configuration with typed refusals.

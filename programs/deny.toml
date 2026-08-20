@@ -1,0 +1,58 @@
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+unmaintained = "all"
+ignore = [
+    { id = "RUSTSEC-2024-0436", reason = "paste is a compile-time proc macro inside the pinned vendored engine tree" },
+]
+
+[licenses]
+version = 2
+confidence-threshold = 0.93
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "Unicode-3.0",
+    "Zlib",
+]
+exceptions = []
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+highlight = "all"
+deny = [
+    { name = "bindgen", reason = "Private C layouts may not cross the node boundary" },
+    { name = "libsqlite3-sys", reason = "The programs plane may not open node projections" },
+    { name = "rusqlite", reason = "The programs plane may not open node projections" },
+    { name = "sqlx-sqlite", reason = "The programs plane may not open node projections" },
+    { name = "ctor", reason = "Process-wide initialisation is forbidden" },
+    { name = "inventory", reason = "Process-wide registries are forbidden" },
+    { name = "getrandom", reason = "The deterministic runtime admits no randomness" },
+    { name = "rand", reason = "The deterministic runtime admits no randomness" },
+    { name = "rand_core", reason = "The deterministic runtime admits no randomness" },
+    { name = "chrono", reason = "The deterministic runtime admits no clocks" },
+    { name = "time", reason = "The deterministic runtime admits no clocks" },
+    { name = "instant", reason = "The deterministic runtime admits no clocks" },
+    { name = "tokio", reason = "The deterministic runtime admits no networking or threads" },
+    { name = "mio", reason = "The deterministic runtime admits no networking" },
+    { name = "socket2", reason = "The deterministic runtime admits no networking" },
+    { name = "wasi", reason = "The deterministic runtime admits no host system interface" },
+    { name = "wasmtime", reason = "The vendored engine is the single WASM engine" },
+]
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

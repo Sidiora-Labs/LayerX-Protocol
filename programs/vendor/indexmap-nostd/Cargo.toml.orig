@@ -1,0 +1,25 @@
+[package]
+name = "indexmap-nostd"
+version = "0.4.0"
+edition = "2021"
+authors = ["Robin Freyler <robin.freyler@gmail.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/robbepop/indexmap-nostd"
+documentation = "https:///docs.rs/indexmap-nostd"
+description = "A no_std compatible implementation of the indexmap crate"
+keywords = ["hashmap", "no_std"]
+categories = ["data-structures", "no-std"]
+
+[dependencies]
+serde = { version = "1.0", optional = true, default-features = false }
+
+[dev-dependencies]
+serde_derive = "1.0"
+
+[features]
+default = ["std"]
+std = []
+
+[package.metadata.docs.rs]
+features = ["serde"]

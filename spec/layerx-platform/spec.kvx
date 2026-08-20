@@ -1599,7 +1599,7 @@ reqs = ["8.2","18.8","18.2"]
 
 [task.13.5]
 title = "Build the public explorer plane"
-status = "pending"
+status = "in_progress"
 wave = 7
 requires = ["11.1","10.5"]
 do_1 = "Build the server-rendered explorer pages: checkpoints, batches, receipt lookup, account views and the evidence verifier, table-first."
@@ -1743,7 +1743,7 @@ reqs = ["24.1","24.6"]
 
 [task.15.2]
 title = "Harden the Rust, TypeScript and Python SDKs to production"
-status = "pending"
+status = "in_progress"
 wave = 9
 requires = ["15.1"]
 do_1 = "Bring the existing Rust, TypeScript and Python SDKs to production grade: complete operation coverage from both schemas, idiomatic packaging, typed error taxonomy with stable machine codes and retriability classes."
@@ -2045,7 +2045,7 @@ status = "pending"
 
 [task.19.1]
 title = "Establish the programs workspace and the vendored WASM engine"
-status = "in_progress"
+status = "done"
 wave = 10
 do_1 = "Create programs/ with the runtime crates, the deterministic WASM engine vendored and pinned, and the programs-build, programs-lint and programs-test make targets."
 do_2 = "Strip the engine to the deterministic subset: no clocks, no networking, no filesystem, no floats, no threads, no randomness, with the forbidden imports rejected at validation."

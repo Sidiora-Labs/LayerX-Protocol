@@ -24,6 +24,7 @@
 core
 core.*
 crash-*
+!programs/vendor/**
 
 # Runtime state and logs
 /.logs/

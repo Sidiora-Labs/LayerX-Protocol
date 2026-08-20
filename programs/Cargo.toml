@@ -1,0 +1,26 @@
+[workspace]
+members = [
+    "crates/layerx-programs-runtime",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.91.1"
+version = "0.1.0"
+license = "LicenseRef-Centra-ai-Protocol"
+
+[workspace.dependencies]
+wasmi = "=0.31.2"
+wasmparser-nostd = "=0.100.2"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+float_arithmetic = "deny"
+lossy_float_literal = "deny"
