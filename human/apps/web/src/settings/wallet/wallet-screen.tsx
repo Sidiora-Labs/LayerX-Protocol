@@ -99,7 +99,7 @@ export function WalletBindingScreen({
       return;
     }
     const timer = window.setInterval(() => { void refresh(); }, REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(timer);
+    return () => { window.clearInterval(timer); };
   }, [refresh, snapshot?.phase]);
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export function WalletBindingScreen({
 
   if (failure !== undefined) {
     if (!navigator.onLine) {
-      return <OfflineSurface onRetry={() => window.location.reload()} />;
+      return <OfflineSurface onRetry={() => { window.location.reload(); }} />;
     }
     return (
       <ErrorSurface
@@ -120,7 +120,7 @@ export function WalletBindingScreen({
           setFailure(undefined);
           void controller.load().then(setSnapshot).catch(setFailure);
         }}
-        onReload={() => window.location.reload()}
+        onReload={() => { window.location.reload(); }}
       />
     );
   }
@@ -142,7 +142,7 @@ export function WalletBindingScreen({
           {snapshot.status?.state === "binding" ? (
             <InlineNotice tone="neutral">{copyEntry("settings.wallet.binding.body").message}</InlineNotice>
           ) : null}
-          <KitButton variant="primary" onClick={() => router.push("/app/deposit")}>
+          <KitButton variant="primary" onClick={() => { router.push("/app/deposit"); }}>
             {copyEntry("settings.wallet.add_money").message}
           </KitButton>
         </div>
@@ -243,7 +243,7 @@ export function WalletBindingScreen({
             </span>{" "}
             {copyEntry("settings.wallet.security_notification.body").message}{" "}
             {actionKey === undefined || !human_copy_catalog().has(actionKey) ? null : (
-              <button type="button" className="font-semibold underline" onClick={() => router.push(securityNotification.deep_link)}>
+              <button type="button" className="font-semibold underline" onClick={() => { router.push(securityNotification.deep_link); }}>
                 {copyEntry(actionKey).message}
               </button>
             )}

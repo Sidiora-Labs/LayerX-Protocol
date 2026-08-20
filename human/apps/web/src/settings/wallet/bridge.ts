@@ -36,6 +36,14 @@ function failure(error: unknown): WalletBridgeFailure {
     : "failed";
 }
 
+function firstAccount(response: unknown): string | undefined {
+  if (typeof response !== "object" || response === null || !(0 in response)) {
+    return undefined;
+  }
+  const first: unknown = Reflect.get(response, 0);
+  return typeof first === "string" ? first : undefined;
+}
+
 export function browserBindingWalletBridge(
   provider: () => Eip1193Provider | undefined,
 ): BindingWalletBridge {
@@ -47,8 +55,8 @@ export function browserBindingWalletBridge(
       }
       try {
         const response = await wallet.request({ method: "eth_requestAccounts" });
-        const address = Array.isArray(response) ? response[0] : undefined;
-        return typeof address === "string" && EVM_ADDRESS.test(address)
+        const address = firstAccount(response);
+        return address !== undefined && EVM_ADDRESS.test(address)
           ? { outcome: "approved", address }
           : { outcome: "failed" };
       } catch (error) {
