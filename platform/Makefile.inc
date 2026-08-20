@@ -3,7 +3,7 @@ PLATFORM_MANIFEST := platform/Cargo.toml
 
 .PHONY: platform-build platform-lint platform-test platform-sdk-check \
 	platform-sdk-generate platform-test-sdks platform-release-check platform-release-plan \
-	platform-test-tooling platform-emulator-conformance
+	platform-test-tooling platform-emulator-conformance platform-test-middleware
 
 platform-build:
 	$(PLATFORM_CARGO) build --manifest-path $(PLATFORM_MANIFEST) --locked --workspace
@@ -70,3 +70,14 @@ platform-release-check:
 
 platform-release-plan:
 	$(PLATFORM_CARGO) run --manifest-path $(PLATFORM_MANIFEST) --locked -p layerx-platform-release -- --plan platform/release/registries.kvx
+
+platform-test-middleware:
+	cd platform/middleware/seller && npm install --no-audit --no-fund && npm run build
+	cd platform/middleware/buyer && npm install --no-audit --no-fund && npm run build
+	cd platform/integrations/express && npm install --no-audit --no-fund && npm run build
+	cd platform/integrations/next && npm install --no-audit --no-fund && npm run build
+	node platform/integrations/next/bin/layerx-scan-bundle.mjs platform/integrations/next/example
+	PYTHONPATH=agent/sdk/python:platform/integrations/fastapi python3 -m compileall -q \
+		platform/integrations/fastapi/layerx_fastapi platform/integrations/fastapi/examples
+	mvn -q -f platform/sdk/jvm/pom.xml -DskipTests install
+	mvn -q -f platform/integrations/spring/pom.xml -DskipTests install

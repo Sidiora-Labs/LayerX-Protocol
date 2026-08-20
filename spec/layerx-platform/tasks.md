@@ -720,7 +720,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Ship runnable examples for both, exercised in CI against a real service.
     - Publish both through the release pipeline.
     - _Requirements: 25.1, 25.4, 25.5_
-  - [ ] 16.3 Build the Express, Next.js, FastAPI and Spring integrations
+  - [x] 16.3 Build the Express, Next.js, FastAPI and Spring integrations
     - Ship the Express and Next.js integrations over the TypeScript middleware, installable as one dependency with declared-key configuration.
     - Ship the FastAPI integration over the Python middleware with the same one-dependency rule.
     - Ship the Spring integration over the JVM SDK with starter-style auto-configuration.

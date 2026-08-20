@@ -1,0 +1,21 @@
+{
+  "name": "@sidiora/layerx-example-next",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port ${PORT:-8080}",
+    "build": "next build",
+    "start": "next start --port ${PORT:-8080}",
+    "scan": "layerx-scan-bundle .next/static public"
+  },
+  "dependencies": {
+    "@sidiora/layerx-next": "0.1.0",
+    "next": "15.5.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

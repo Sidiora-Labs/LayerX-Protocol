@@ -1,0 +1,31 @@
+server:
+  address: 127.0.0.1
+  port: 8080
+
+layerx:
+  principal: ${LAYERX_PRINCIPAL}
+  protected-path: ${LAYERX_PROTECTED_PATH:/paid}
+  resource:
+    url: ${LAYERX_RESOURCE_URL}
+    description: ${LAYERX_RESOURCE_DESCRIPTION:}
+    mime-type: ${LAYERX_RESOURCE_MIME_TYPE:application/json}
+    service-name: ${LAYERX_RESOURCE_SERVICE_NAME:}
+  payment:
+    scheme: ${LAYERX_X402_SCHEME}
+    network: ${LAYERX_X402_NETWORK}
+    price: ${LAYERX_PRICE}
+    asset: ${LAYERX_ASSET}
+    pay-to: ${LAYERX_PAY_TO}
+    timeout-seconds: ${LAYERX_PAYMENT_TIMEOUT_SECONDS:120}
+  authorized-batch:
+    batch-id: ${LAYERX_BATCH_ID}
+    asset: ${LAYERX_BATCH_ASSET}
+    previous-state-root: ${LAYERX_PREVIOUS_STATE_ROOT}
+    resulting-state-root: ${LAYERX_RESULTING_STATE_ROOT}
+    sequencer-public-key: ${LAYERX_SEQUENCER_PUBLIC_KEY}
+  webhook:
+    path: ${LAYERX_WEBHOOK_PATH:/layerx/webhooks}
+    public-keys:
+      ${LAYERX_WEBHOOK_KEY_ID:primary}: ${LAYERX_WEBHOOK_PUBLIC_KEY}
+    maximum-age-ms: ${LAYERX_WEBHOOK_MAX_AGE_MS:300000}
+    lease-ms: ${LAYERX_WEBHOOK_LEASE_MS:60000}

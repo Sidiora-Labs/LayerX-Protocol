@@ -1,0 +1,11 @@
+{
+  "name": "layerx-protocol",
+  "private": true,
+  "workspaces": [
+    "agent/sdk/typescript",
+    "platform/middleware/buyer",
+    "platform/middleware/seller",
+    "platform/integrations/express",
+    "platform/integrations/next"
+  ]
+}

@@ -32,6 +32,8 @@ jobs:
         run: make platform-build
       - name: Test the platform workspace
         run: make platform-test
+      - name: Build the framework integrations and scan client bundles for secrets
+        run: make platform-test-middleware
 
   release-pipeline:
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/sdk-v')

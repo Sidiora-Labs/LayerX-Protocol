@@ -1852,7 +1852,7 @@ reqs = ["25.1","25.4","25.5"]
 
 [task.16.3]
 title = "Build the Express, Next.js, FastAPI and Spring integrations"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["16.1"]
 do_1 = "Ship the Express and Next.js integrations over the TypeScript middleware, installable as one dependency with declared-key configuration."
