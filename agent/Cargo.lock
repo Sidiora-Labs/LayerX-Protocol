@@ -436,6 +436,7 @@ dependencies = [
  "layerx-client",
  "layerx-proof",
  "layerx-types",
+ "zeroize",
 ]
 
 [[package]]

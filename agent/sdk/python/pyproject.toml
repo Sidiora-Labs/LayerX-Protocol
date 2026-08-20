@@ -6,7 +6,7 @@ backend-path = ["."]
 [project]
 name = "layerx-sdk"
 version = "0.1.0"
-description = "Generated LayerX Agent API Python SDK"
+description = "Production Python SDK for the LayerX Agent and Human APIs"
 requires-python = ">=3.11"
 license = { text = "See the LayerX repository LICENSE" }
 authors = [{ name = "Sidiora Labs" }]

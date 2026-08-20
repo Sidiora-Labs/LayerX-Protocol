@@ -30,6 +30,7 @@ use layerx_proof::export::{
 use layerx_types::result::ResultCode;
 
 pub mod approval;
+pub mod production;
 
 macro_rules! mutation_methods {
     ($( $method:ident: $request:ty => $operation:ident ),+ $(,)?) => {

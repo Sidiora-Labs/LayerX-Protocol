@@ -1,7 +1,7 @@
 {
   "name": "@sidiora/layerx-sdk",
   "version": "0.1.0",
-  "description": "Generated LayerX Agent API TypeScript SDK",
+  "description": "Production TypeScript SDK for the LayerX Agent and Human APIs",
   "type": "module",
   "private": false,
   "license": "SEE LICENSE IN LICENSE",

@@ -41,6 +41,21 @@ from .generated.client import (
     parse_timestamp_seconds,
     require_verified,
 )
+from .production import (
+    AGENT_OPERATIONS,
+    HUMAN_OPERATIONS,
+    IdempotencyKey,
+    PlatformSdkError,
+    ProductionClient,
+    ProductionTransport,
+    ProtocolAmount,
+    RetryClass,
+    SdkErrorCode,
+    SdkTelemetry,
+    SecretBytes,
+    platform_sdk_python,
+)
+from .stream import ResumableStream, StreamCursor, StreamEvent, StreamPage
 
 __all__ = [
     "APPROVAL_CONTRACT_INTRODUCED",
@@ -84,4 +99,20 @@ __all__ = [
     "parse_sequence",
     "parse_timestamp_seconds",
     "require_verified",
+    "AGENT_OPERATIONS",
+    "HUMAN_OPERATIONS",
+    "IdempotencyKey",
+    "PlatformSdkError",
+    "ProductionClient",
+    "ProductionTransport",
+    "ProtocolAmount",
+    "ResumableStream",
+    "RetryClass",
+    "SdkErrorCode",
+    "SdkTelemetry",
+    "SecretBytes",
+    "StreamCursor",
+    "StreamEvent",
+    "StreamPage",
+    "platform_sdk_python",
 ]

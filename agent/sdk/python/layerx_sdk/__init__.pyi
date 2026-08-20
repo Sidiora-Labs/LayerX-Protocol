@@ -41,3 +41,23 @@ from .generated.client import (
     parse_timestamp_seconds as parse_timestamp_seconds,
     require_verified as require_verified,
 )
+from .production import (
+    AGENT_OPERATIONS as AGENT_OPERATIONS,
+    HUMAN_OPERATIONS as HUMAN_OPERATIONS,
+    IdempotencyKey as IdempotencyKey,
+    PlatformSdkError as PlatformSdkError,
+    ProductionClient as ProductionClient,
+    ProductionTransport as ProductionTransport,
+    ProtocolAmount as ProtocolAmount,
+    RetryClass as RetryClass,
+    SdkErrorCode as SdkErrorCode,
+    SdkTelemetry as SdkTelemetry,
+    SecretBytes as SecretBytes,
+    platform_sdk_python as platform_sdk_python,
+)
+from .stream import (
+    ResumableStream as ResumableStream,
+    StreamCursor as StreamCursor,
+    StreamEvent as StreamEvent,
+    StreamPage as StreamPage,
+)
