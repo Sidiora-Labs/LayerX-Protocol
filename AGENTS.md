@@ -10,7 +10,7 @@ This file is a GENERATED pointer to it. Do not hand-edit it; edit `spec/workflow
 ## Principles
 
 - **Task Driven**: Work is driven by the active feature's spec.kvx task list — not ad-hoc. Pick the next eligible task by dependency wave, do it, mark it, move on.
-- **One In Progress**: At most 6 task is in_progress at a time YOU CAN USE SUB AGENTS TO WORK ON TASKS IN PARALEL WITHIN 1 WAVE. Set it to in_progress before starting, to done only when it genuinely meets the bar.
+- **One In Progress**: At most 12 task is in_progress at a time YOU CAN USE SUB AGENTS TO WORK ON TASKS IN PARALEL WITHIN any non conflicting WAVE. Set it to in_progress before starting, to done only when it genuinely meets the bar.
 - **No False Success**: Never mark a task done or attest completion that did not happen. Surface honest partials. A green test driven by a fake is not done.
 - **Read Full**: When a tool output is flagged truncated/paginated with a way to get the rest, retrieve the full content before reasoning. An information gap is a stop condition.
 - **Deliver Complete**: Deliver complete, runnable artifacts, not diffs. Follow existing repo style; add no comments/docs unless asked.
@@ -38,5 +38,3 @@ This file is a GENERATED pointer to it. Do not hand-edit it; edit `spec/workflow
 - **Read Full**: When tool output is truncated and the rest is retrievable, fetch the full content before reasoning or answering.
 - **Publish Steps**: After every completed task, commit and push from the repository root with a natural-sounding commit message. Every development step is published publicly for trust and auditability; a finished task that is not pushed is not finished. Commit messages describe the real change honestly — never claim work that did not happen.
 - **Ui Component Library**: Client UI uses the exact styling and component API of the owner-supplied @layerx/ui package. Its borders, dividers, shadows, gradients, palette, radii and interaction states are authoritative; application code consumes the package instead of restyling its primitives.
-- **Gideon Validator**: Never perform a write, restart or remote execution against production validator infrastructure unless the user explicitly names the target and authorizes the action.
-- **Gideon Chainloss**: Any op risking total chain-state loss needs the user's explicit YES via a forced gate; never auto-approved.

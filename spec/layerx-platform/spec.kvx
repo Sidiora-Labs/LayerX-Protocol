@@ -1425,7 +1425,7 @@ reqs = ["20.1","20.2","20.6","17.3"]
 
 [task.11.5]
 title = "Build the performance machinery"
-status = "pending"
+status = "in_progress"
 wave = 6
 requires = ["11.1"]
 do_1 = "Code-split by route with declared per-route script budgets enforced in CI."
@@ -1445,7 +1445,7 @@ status = "pending"
 
 [task.12.1]
 title = "Build onboarding and account activation"
-status = "pending"
+status = "in_progress"
 wave = 7
 requires = ["11.3","5.4"]
 do_1 = "Build account creation in both shells: email, passkey ceremony, honest activation progress, ready only on verified activation."
@@ -1460,7 +1460,7 @@ reqs = ["3.4","3.9","2.9"]
 
 [task.12.2]
 title = "Build home and the move-money wizard"
-status = "pending"
+status = "in_progress"
 wave = 7
 requires = ["11.3","7.6"]
 do_1 = "Build home in both shells: verified balance with freshness and privacy toggle, the primary actions Add money, Move money and Withdraw, agents summary, recent activity and the approval badge."
@@ -1475,7 +1475,7 @@ reqs = ["2.1","2.2","9.3"]
 
 [task.12.3]
 title = "Build the custody journey surfaces"
-status = "pending"
+status = "in_progress"
 wave = 7
 requires = ["11.3","7.3","7.4","7.5"]
 do_1 = "Build deposit: binding-folded start, single wallet hand-off with designed in-progress, failure and cancel states, the staged timeline, safe-to-close statement and receipt-gated completion."
@@ -1490,7 +1490,7 @@ reqs = ["10.3","11.2","18.7"]
 
 [task.12.4]
 title = "Build the agent surfaces"
-status = "pending"
+status = "in_progress"
 wave = 7
 requires = ["11.3","8.2","8.5"]
 do_1 = "Build agent creation - name, purpose, limit - with the honest creation-journey progress, in both shells."
@@ -1505,7 +1505,7 @@ reqs = ["12.1","12.6","2.2"]
 
 [task.12.5]
 title = "Build the approval and notification surfaces"
-status = "pending"
+status = "in_progress"
 wave = 7
 requires = ["11.3","9.3","9.5"]
 do_1 = "Build the approval inbox and detail in both shells - the mobile screen and the desktop split view - from the rendered disclosure only, with the expiry countdown."
@@ -1520,7 +1520,7 @@ reqs = ["13.1","13.3","19.4"]
 
 [task.12.6]
 title = "Build the activity surfaces"
-status = "pending"
+status = "in_progress"
 wave = 7
 requires = ["11.3","10.3"]
 do_1 = "Build the feed in both shells: the mobile stacked rows with month bands and subtotals, the desktop sortable table, with the deferred-apply filters echoed in content."
@@ -1584,7 +1584,7 @@ reqs = ["5.3","5.4","5.7"]
 
 [task.13.4]
 title = "Build the support surface"
-status = "pending"
+status = "in_progress"
 wave = 7
 requires = ["11.3"]
 do_1 = "Build support chat seeded with topic suggestion chips, as the mobile screen and the desktop docked panel."
@@ -1729,7 +1729,7 @@ status = "pending"
 
 [task.15.1]
 title = "Establish the platform workspace and its gates"
-status = "pending"
+status = "in_progress"
 wave = 9
 do_1 = "Create platform/ with directories for sdk generators, middleware, cli, emulator, gateway, docs and examples, plus the platform-build, platform-lint and platform-test make targets delegating into it without entering the C, agent or human builds."
 do_2 = "Apply the dependency, license, lockfile and audit policy of the human workspace to every platform ecosystem, failing the build rather than warning."
@@ -2045,7 +2045,7 @@ status = "pending"
 
 [task.19.1]
 title = "Establish the programs workspace and the vendored WASM engine"
-status = "pending"
+status = "in_progress"
 wave = 10
 do_1 = "Create programs/ with the runtime crates, the deterministic WASM engine vendored and pinned, and the programs-build, programs-lint and programs-test make targets."
 do_2 = "Strip the engine to the deterministic subset: no clocks, no networking, no filesystem, no floats, no threads, no randomness, with the forbidden imports rejected at validation."
@@ -2267,7 +2267,7 @@ status = "pending"
 
 [task.22.1]
 title = "Establish the interop workspace and the gateway core"
-status = "pending"
+status = "in_progress"
 wave = 11
 do_1 = "Create interop/ with the gateway service and adapter crates, plus the interop-build, interop-lint and interop-test make targets under the workspace policy gates."
 do_2 = "Build the gateway core: adapter registration, principal isolation, idempotency, typed errors, redaction, audit and trace propagation exactly as the human service enforces them."
@@ -2444,7 +2444,7 @@ reqs = ["34.2","34.3"]
 
 [task.25.3]
 title = "Reserve domain-tagged claim vocabulary"
-status = "pending"
+status = "in_progress"
 wave = 12
 requires = ["4.3"]
 do_1 = "Tag every custody-boundary claim and receipt shape in the schemas with its settlement domain, Paxeer as the sole valid domain in this version."

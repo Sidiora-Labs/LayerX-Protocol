@@ -515,7 +515,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Enforce required contrast across the package's text and semantic token combinations through automated checks.
     - Wire automated accessibility checks into the browser suites, including 1.5x text-expansion layout checks and locale-aware amount rendering with explicit currency codes.
     - _Requirements: 20.1, 20.2, 20.6, 17.3_
-  - [ ] 11.5 Build the performance machinery
+  - [-] 11.5 Build the performance machinery
     - Code-split by route with declared per-route script budgets enforced in CI.
     - Render the explorer plane server-side cacheable.
     - Enforce the paint, interaction and layout-shift budgets in CI on representative pages.
@@ -526,42 +526,42 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 7 - The Application Surfaces
 
 - [ ] 12. Build the application journeys
-  - [ ] 12.1 Build onboarding and account activation
+  - [-] 12.1 Build onboarding and account activation
     - Build account creation in both shells: email, passkey ceremony, honest activation progress, ready only on verified activation.
     - Build failure and resume presentation for every onboarding stage.
     - Keep the surfaces within three decisions and free of banned vocabulary.
     - Build the new-device sign-in flow with the security notification hook.
     - Run onboarding end to end in both shells against the real service.
     - _Requirements: 3.4, 3.9, 2.9_
-  - [ ] 12.2 Build home and the move-money wizard
+  - [-] 12.2 Build home and the move-money wizard
     - Build home in both shells: verified balance with freshness and privacy toggle, the primary actions Add money, Move money and Withdraw, agents summary, recent activity and the approval badge.
     - Build the move-money wizard - who, how much, review, result - as the mobile full-screen wizard and the desktop split pane with the live summary.
     - Render review from the journey quote in plain language with fee estimate and ceiling, and result only from journey state - Done receipt-backed, still-checking locked, refusal honest.
     - Keep initiation within three decisions with automatic routing.
     - Run move-money end to end in both shells including refusal and still-checking paths.
     - _Requirements: 2.1, 2.2, 9.3_
-  - [ ] 12.3 Build the custody journey surfaces
+  - [-] 12.3 Build the custody journey surfaces
     - Build deposit: binding-folded start, single wallet hand-off with designed in-progress, failure and cancel states, the staged timeline, safe-to-close statement and receipt-gated completion.
     - Build withdrawal: irreversibility at review, the staged timeline with the configured settlement expectation, claim readiness with the single wallet hand-off, payout-verified completion.
     - Build challenge-window hold and delay presentations as honest states with expectations.
     - Build the guided emergency exit under Settings with typed confirmation and degraded-mode operability.
     - Run deposit and withdrawal end to end in both shells against the test network.
     - _Requirements: 10.3, 11.2, 18.7_
-  - [ ] 12.4 Build the agent surfaces
+  - [-] 12.4 Build the agent surfaces
     - Build agent creation - name, purpose, limit - with the honest creation-journey progress, in both shells.
     - Build the agent list and detail: the desktop master-detail and the mobile stacked screens, with spend-versus-limit from receipts.
     - Build the controls with the confirmation grammar: fund, return, change limit, pause reversible, archive destructive with disposition-first and typed confirmation.
     - Build rotation and recovery surfaces with the challenge delay in plain time.
     - Run create, pause, reclaim and archive end to end in both shells.
     - _Requirements: 12.1, 12.6, 2.2_
-  - [ ] 12.5 Build the approval and notification surfaces
+  - [-] 12.5 Build the approval and notification surfaces
     - Build the approval inbox and detail in both shells - the mobile screen and the desktop split view - from the rendered disclosure only, with the expiry countdown.
     - Build approve with the step-up ceremony and reject with the nothing-moved confirmation, then track the released activity.
     - Build expired and already-decided presentations.
     - Build the notification surfaces: the mobile screen, the desktop bell popover with archive page, read state and preferences.
     - Run approval grant, reject, expiry and two-device convergence end to end in both shells.
     - _Requirements: 13.1, 13.3, 19.4_
-  - [ ] 12.6 Build the activity surfaces
+  - [-] 12.6 Build the activity surfaces
     - Build the feed in both shells: the mobile stacked rows with month bands and subtotals, the desktop sortable table, with the deferred-apply filters echoed in content.
     - Build entry detail: the plain sentence, the timeline, receipt-backed figures and the collapsed Technical details with explorer links.
     - Build the statement and evidence exports.
@@ -591,7 +591,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Present binding as active only on its verified receipt.
     - Test binding and rebinding end to end with the security notification.
     - _Requirements: 5.3, 5.4, 5.7_
-  - [ ] 13.4 Build the support surface
+  - [-] 13.4 Build the support surface
     - Build support chat seeded with topic suggestion chips, as the mobile screen and the desktop docked panel.
     - Build its designed states: empty with suggestions, offline with retry, send-failure with inline retry, and the feedback loop.
     - Attach the trace identifier to support conversations started from an error's Report action.
@@ -662,7 +662,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 9 - The Developer Platform
 
 - [ ] 15. Ship the SDK family
-  - [ ] 15.1 Establish the platform workspace and its gates
+  - [-] 15.1 Establish the platform workspace and its gates
     - Create platform/ with directories for sdk generators, middleware, cli, emulator, gateway, docs and examples, plus the platform-build, platform-lint and platform-test make targets delegating into it without entering the C, agent or human builds.
     - Apply the dependency, license, lockfile and audit policy of the human workspace to every platform ecosystem, failing the build rather than warning.
     - Wire the SDK generation pipeline to the agent-api and human-api schemas as the single sources, with the drift gate failing on stale or hand-edited output in any language.
@@ -812,7 +812,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 10 - LayerX Programs
 
 - [ ] 19. Build the deterministic programs runtime
-  - [ ] 19.1 Establish the programs workspace and the vendored WASM engine
+  - [-] 19.1 Establish the programs workspace and the vendored WASM engine
     - Create programs/ with the runtime crates, the deterministic WASM engine vendored and pinned, and the programs-build, programs-lint and programs-test make targets.
     - Strip the engine to the deterministic subset: no clocks, no networking, no filesystem, no floats, no threads, no randomness, with the forbidden imports rejected at validation.
     - Declare module validation limits - size, functions, stack depth, call depth - as configuration with typed refusals.
@@ -918,7 +918,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 ## Wave 11 - The Interoperability Gateway
 
 - [ ] 22. Build the gateway and the x402 v2 adapter
-  - [ ] 22.1 Establish the interop workspace and the gateway core
+  - [-] 22.1 Establish the interop workspace and the gateway core
     - Create interop/ with the gateway service and adapter crates, plus the interop-build, interop-lint and interop-test make targets under the workspace policy gates.
     - Build the gateway core: adapter registration, principal isolation, idempotency, typed errors, redaction, audit and trace propagation exactly as the human service enforces them.
     - Enforce the edge-only rule: adapters translate, hold no protocol authority, and terminate every state-changing translation in a receipt-verified LayerX operation.
@@ -1003,7 +1003,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - State mirror freshness wherever mirror-derived data is displayed.
     - Test verification against deliberately altered mirror data: tampering is caught, never absorbed.
     - _Requirements: 34.2, 34.3_
-  - [ ] 25.3 Reserve domain-tagged claim vocabulary
+  - [-] 25.3 Reserve domain-tagged claim vocabulary
     - Tag every custody-boundary claim and receipt shape in the schemas with its settlement domain, Paxeer as the sole valid domain in this version.
     - Reject untagged custody claims in the conformance suites.
     - Keep the change additive within the current schema majors.
