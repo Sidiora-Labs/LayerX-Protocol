@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "language": "rust",
+  "display_name": "Rust (no_std wasm32)",
+  "abi_version": 1,
+  "abi_module": "layerx_v1",
+  "target": "wasm32-unknown-unknown",
+  "program_manifest": "layerx-program.json",
+  "template": "quickstart",
+  "crate": "layerx-program-sdk",
+  "library": "layerx_program_sdk",
+  "reference": true,
+  "requires": [
+    { "binary": "cargo", "minimum_version": "1.91.1", "reason": "builds the program crate for wasm32" },
+    { "binary": "rustc", "minimum_version": "1.91.1", "reason": "compiles the no_std guest crate and its SDK" }
+  ],
+  "determinism": {
+    "lint": "lint",
+    "command": "cargo",
+    "args": ["run", "-p", "layerx-program-lint", "--bin", "layerx-program-lint", "--"],
+    "rules": [
+      "clock-import",
+      "randomness-import",
+      "undeclared-host-import",
+      "floating-point-type",
+      "floating-point-instruction",
+      "vector-type",
+      "module-too-large",
+      "too-many-functions",
+      "missing-export",
+      "malformed-module",
+      "rejected-by-engine",
+      "engine-unavailable",
+      "abi-drift",
+      "forbidden-dependency",
+      "forbidden-source-item",
+      "unreadable-path"
+    ],
+    "structural": [
+      "the crate is no_std, so the standard library's clocks, threads, sockets and process environment are not linked at all",
+      "the SDK never allocates and exposes no allocator, so every buffer is caller-owned and a program carries no ambient authority",
+      "the monetary type accepts only sealed unsigned protocol integers, so no floating-point value can be widened into an amount",
+      "the artifact rule reuses the runtime's own deterministic-subset validator, so the toolchain and the node cannot disagree",
+      "the ABI rule compares the SDK's frozen surface against layerx_programs_runtime, so a stale manifest fails the build"
+    ]
+  }
+}

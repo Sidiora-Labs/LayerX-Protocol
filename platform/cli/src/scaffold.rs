@@ -16,12 +16,13 @@ pub fn create(name: &str, parent: &Path) -> Result<serde_json::Value, String> {
     write_new(
         &project.join("Cargo.toml"),
         &format!(
-            "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[lib]\ncrate-type = [\"cdylib\"]\n\n[profile.release]\npanic = \"abort\"\n"
+            "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[lib]\ncrate-type = [\"cdylib\"]\n\n[dependencies]\nlayerx-program-sdk = {{ path = \"{sdk}\" }}\n\n[profile.release]\nopt-level = \"z\"\nlto = true\ncodegen-units = 1\npanic = \"abort\"\nstrip = true\n",
+            sdk = sdk_path()
         ),
     )?;
     write_new(
         &project.join("src/lib.rs"),
-        "#![no_std]\n\nuse core::panic::PanicInfo;\n\n#[panic_handler]\nfn panic(_information: &PanicInfo<'_>) -> ! {\n    loop {}\n}\n\n#[no_mangle]\npub extern \"C\" fn layerx_main(value: i64) -> i64 {\n    value\n}\n",
+        "#![no_std]\n\nuse layerx_program_sdk::{program, trap_on_panic, ProgramError};\n\ntrap_on_panic!();\n\nprogram!(handle);\n\nfn handle(value: i64) -> Result<i64, ProgramError> {\n    Ok(value)\n}\n",
     )?;
     write_new(
         &project.join("LayerX.toml"),
@@ -59,6 +60,12 @@ fn validate_name(name: &str) -> Result<(), String> {
         return Err("project name must be a lowercase Cargo package name".into());
     }
     Ok(())
+}
+
+const SDK_DEFAULT_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../programs/sdk/rust");
+
+fn sdk_path() -> String {
+    std::env::var("LAYERX_PROGRAM_SDK").unwrap_or_else(|_| SDK_DEFAULT_PATH.to_string())
 }
 
 fn absolute(path: &Path) -> Result<PathBuf, String> {

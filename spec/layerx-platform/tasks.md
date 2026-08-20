@@ -893,7 +893,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Record the gauntlet inventory and outcomes in the qualification report.
     - Wire it into make programs-qualify.
     - _Requirements: 30.7_
-  - [ ] 21.4 Ship the Rust program SDK
+  - [x] 21.4 Ship the Rust program SDK
     - Ship the Rust program SDK covering the full ABI: capabilities, storage, calls, transfers, events and typed errors.
     - Enforce protocol integer amounts, no floating point and construction-time bounds exactly as the intent vocabulary does.
     - Ship the determinism lint failing any build importing clocks, randomness, floats or undeclared host interfaces.

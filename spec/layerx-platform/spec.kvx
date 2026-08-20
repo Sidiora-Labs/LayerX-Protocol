@@ -2217,7 +2217,7 @@ reqs = ["30.7"]
 
 [task.21.4]
 title = "Ship the Rust program SDK"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["19.3"]
 do_1 = "Ship the Rust program SDK covering the full ABI: capabilities, storage, calls, transfers, events and typed errors."

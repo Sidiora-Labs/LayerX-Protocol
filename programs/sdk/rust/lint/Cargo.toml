@@ -1,0 +1,21 @@
+[package]
+name = "layerx-program-lint"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "layerx_program_lint"
+
+[[bin]]
+name = "layerx-program-lint"
+path = "src/main.rs"
+
+[dependencies]
+layerx-program-sdk = { path = ".." }
+layerx-programs-runtime = { path = "../../../crates/layerx-programs-runtime" }
+wasmparser-nostd.workspace = true
+
+[lints]
+workspace = true

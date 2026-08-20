@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "abi_version": 1,
+  "language": "rust",
+  "name": "quickstart",
+  "sdk": "..",
+  "build": {
+    "command": "sh",
+    "args": ["build.sh", "compile"],
+    "artifact": "target/wasm32-unknown-unknown/release/layerx_quickstart.wasm"
+  },
+  "lint": {
+    "command": "sh",
+    "args": ["build.sh", "lint"]
+  },
+  "clean": {
+    "command": "sh",
+    "args": ["build.sh", "clean"]
+  },
+  "entry": {
+    "main": "layerx_main",
+    "call": "layerx_call",
+    "reserve": "layerx_reserve",
+    "call_input_capacity": 8192,
+    "selectors": { "count": 0, "reset": 1 }
+  },
+  "exports": [
+    { "name": "configure", "params": ["i64", "i64", "i64", "i64", "i64", "i64", "i64", "i64", "i64", "i64"], "results": ["i32"] },
+    { "name": "count", "params": [], "results": ["i64"] },
+    { "name": "settle", "params": ["i64", "i64", "i64", "i64"], "results": ["i64"] },
+    { "name": "forward", "params": ["i64", "i64", "i64", "i64", "i64"], "results": ["i32"] },
+    { "name": "reset", "params": [], "results": ["i32"] },
+    { "name": "layerx_main", "params": ["i64"], "results": ["i64"] },
+    { "name": "layerx_reserve", "params": ["i32"], "results": ["i32"] },
+    { "name": "layerx_call", "params": ["i32", "i32"], "results": ["i32"] }
+  ],
+  "wire": {
+    "storage_keys": [
+      "layerx.quickstart.fee",
+      "layerx.quickstart.asset",
+      "layerx.quickstart.payee",
+      "layerx.quickstart.count"
+    ],
+    "events": [
+      { "topic": "layerx.quickstart.configured", "bytes": 80, "layout": "fee[16]||asset[32]||payee[32]" },
+      { "topic": "layerx.quickstart.settled", "bytes": 56, "layout": "count[8]||amount[16]||digest[32]" },
+      { "topic": "layerx.quickstart.noted", "bytes": 16, "layout": "count[8]||note[8]" }
+    ],
+    "forward_capabilities": "0002 01 03",
+    "forward_input": "note[8] big-endian"
+  },
+  "refusals": {
+    "not_configured": -64,
+    "state": -65,
+    "asset_mismatch": -66,
+    "underpaid": -67,
+    "receipt_failed": -68,
+    "counter_overflow": -69
+  },
+  "capabilities": [
+    "storage_read",
+    "storage_write",
+    "emit_event",
+    "call",
+    "transfer_402",
+    "receipt_read"
+  ]
+}

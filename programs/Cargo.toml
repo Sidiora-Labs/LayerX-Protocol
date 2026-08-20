@@ -3,7 +3,10 @@ members = [
     "crates/layerx-programs-registry",
     "crates/layerx-programs-runtime",
     "fuzz",
+    "sdk/rust",
+    "sdk/rust/lint",
 ]
+exclude = ["sdk/rust/quickstart"]
 resolver = "2"
 
 [workspace.package]

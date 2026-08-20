@@ -2348,7 +2348,7 @@ PROGRAMS_CARGO ?= cargo
 PROGRAMS_RUNTIME_LIB := programs/target/debug/liblayerx_programs_runtime.a
 
 .PHONY: programs-build programs-lint programs-test programs-core-test \
-	programs-fuzz-smoke
+	programs-fuzz-smoke programs-quickstart
 
 $(PROGRAMS_RUNTIME_LIB):
 	cd programs && $(PROGRAMS_CARGO) build --locked --workspace
@@ -2393,3 +2393,6 @@ programs-fuzz-smoke:
 
 programs-test: programs-core-test programs-fuzz-smoke
 	cd programs && $(PROGRAMS_CARGO) test --locked --workspace
+
+programs-quickstart:
+	sh programs/sdk/rust/quickstart/build.sh all
