@@ -1626,7 +1626,7 @@ human-test-intents:
 human-test-service:
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-human-service
 
-human-test-paxeer:
+human-test-paxeer: test-bridge-deposit
 	$(HUMAN_CARGO) test --manifest-path $(HUMAN_MANIFEST) --locked -p layerx-paxeer-client
 
 human-fuzz-intents:

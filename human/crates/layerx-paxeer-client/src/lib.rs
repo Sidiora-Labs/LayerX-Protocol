@@ -1,14 +1,19 @@
 #![forbid(unsafe_code)]
 
 mod client;
+mod deposit;
 mod finality;
 mod json;
 mod rpc;
 mod status;
 
 pub use client::{
-    BlockRef, ClientConfigError, EndpointError, ExecutionOutcome, PaxeerClient, TransactionHash,
-    TransactionHashError, TransactionInclusion, TransactionView,
+    BlockRef, ClientConfigError, EndpointError, ExecutionOutcome, LogRecord, PaxeerClient,
+    TransactionHash, TransactionHashError, TransactionInclusion, TransactionView,
+};
+pub use deposit::{
+    account_address, AgentCreditContext, CreditFault, CreditPath, CreditReceipt, CustodyDeposit,
+    CustodyFault, DepositFailure, DepositProof, FinalizedCheckpoint, ProofFault,
 };
 pub use finality::{
     ChainSignal, ConfirmationProgress, EndpointSignal, FinalityReport, FinalityStage,

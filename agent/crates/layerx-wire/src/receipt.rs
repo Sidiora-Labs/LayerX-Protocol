@@ -477,6 +477,12 @@ pub struct BatchHeader {
 }
 
 impl BatchHeader {
+    /// Returns the protocol version committed by the batch.
+    #[must_use]
+    pub const fn protocol_version(&self) -> u16 {
+        self.protocol_version
+    }
+
     /// Returns the node network identifier.
     #[must_use]
     pub const fn network_id(&self) -> u32 {

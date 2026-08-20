@@ -6,11 +6,17 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+layerx-agent-api.workspace = true
 layerx-types.workspace = true
 layerx-crypto.workspace = true
 layerx-proof.workspace = true
 layerx-client.workspace = true
 layerx-sdk.workspace = true
+layerx-intents = { path = "../layerx-intents" }
+sha2 = "=0.10.9"
+
+[dev-dependencies]
+ed25519-dalek = "=2.2.0"
 
 [lints]
 workspace = true

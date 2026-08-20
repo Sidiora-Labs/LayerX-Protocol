@@ -109,6 +109,9 @@ fn reports_distinct_threshold_and_settlement_levels() {
         .unwrap_or_else(|error| panic!("finalised certificate failed: {error:?}"));
     assert_eq!(finalised.achieved, 3);
     assert_eq!(finalised.required, 2);
+    assert_eq!(finalised.protocol_version(), 1);
+    assert_eq!(finalised.network_id(), 42);
+    assert_eq!(finalised.resulting_state_root(), [8; 32]);
     assert_eq!(finalised.level(), VerificationLevel::CHECKPOINT_FINALISED);
     assert_eq!(finalised.evidence().checkpoint_id(), Some(identifier));
     assert_eq!(finalised.evidence().settlement_reference(), None);

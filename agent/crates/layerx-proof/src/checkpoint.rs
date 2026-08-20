@@ -181,6 +181,9 @@ pub struct ThresholdReport {
     /// Configured certificate threshold.
     pub required: usize,
     evidence: Evidence,
+    protocol_version: u16,
+    network_id: u32,
+    resulting_state_root: [u8; 32],
 }
 
 impl ThresholdReport {
@@ -194,6 +197,24 @@ impl ThresholdReport {
     #[must_use]
     pub const fn evidence(&self) -> &Evidence {
         &self.evidence
+    }
+
+    /// Returns the protocol version from the verified canonical header.
+    #[must_use]
+    pub const fn protocol_version(&self) -> u16 {
+        self.protocol_version
+    }
+
+    /// Returns the network identifier from the verified canonical header.
+    #[must_use]
+    pub const fn network_id(&self) -> u32 {
+        self.network_id
+    }
+
+    /// Returns the resulting state root from the verified canonical header.
+    #[must_use]
+    pub const fn resulting_state_root(&self) -> [u8; 32] {
+        self.resulting_state_root
     }
 }
 
@@ -297,5 +318,8 @@ pub fn verify_certificate(
         achieved,
         required: certificate.threshold,
         evidence: Evidence::checkpoint(identifier, settlement_reference),
+        protocol_version: header.protocol_version(),
+        network_id: header.network_id(),
+        resulting_state_root: header.resulting_state_root(),
     })
 }

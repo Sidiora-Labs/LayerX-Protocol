@@ -37,6 +37,7 @@ int main(void)
     lx_account *agent;
     lx_checkpoint_registry checkpoints;
     lx_deposit_nullifier_store nullifiers;
+    lx_deposit_nullifier_store restored_nullifiers;
     lx_deposit_proof proof;
     lx_deposit_proof altered;
     lx_asset_transfer_request transfer;
@@ -156,9 +157,13 @@ int main(void)
         lx_asset_total_units(&assets, &accounts, asset.asset_id, &total) !=
             LXP_OK || total.hi != 0U || total.lo != 100U ||
         lxp_ct_is_zero(receipt.transfer_set_root, 32U)) return 1;
+    (void)memcpy(&restored_nullifiers, &nullifiers, sizeof(nullifiers));
+    (void)memset(&nullifiers, 0, sizeof(nullifiers));
+    bridge.nullifiers = &restored_nullifiers;
     if (lxp_bridge_deposit_credit(&bridge, &transfer, &proof, &receipt) !=
             LXP_ERR_DEPOSIT_ALREADY_CREDITED || reserve->balance.lo != 75U ||
-        agent->balance.lo != 25U || nullifiers.count != 1U) return 1;
+        agent->balance.lo != 25U || restored_nullifiers.count != 1U ||
+        nullifiers.count != 0U) return 1;
     if (lxp_state_store_destroy(&state) != LXP_OK) return 1;
     return 0;
 }

@@ -289,7 +289,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Distinguish endpoint unavailability from chain-side delay in every reported state.
     - Test against a Paxeer test network with induced reorg and stall scenarios.
     - _Requirements: 10.2, 10.5_
-  - [-] 6.2 Construct deposit proofs and the credit path
+  - [x] 6.2 Construct deposit proofs and the credit path
     - Construct the finalised custody proof for a deposit in the form the bridge module requires.
     - Feed the proof into the bridge deposit-credit intent for compilation and agent-layer submission.
     - Guarantee one custody transaction can never produce more than one credit submission, across retries and restarts.

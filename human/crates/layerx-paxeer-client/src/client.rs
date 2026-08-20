@@ -109,6 +109,14 @@ pub enum TransactionView {
     Included(TransactionInclusion),
 }
 
+/// One contract log an included transaction emitted, exactly as reported.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LogRecord {
+    pub address: EvmAddress,
+    pub topics: Vec<[u8; 32]>,
+    pub data: Vec<u8>,
+}
+
 /// Every configured endpoint failed the same read.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EndpointError {
@@ -230,6 +238,48 @@ impl PaxeerClient {
         self.transaction_receipt_with_failovers(&mut Vec::new(), transaction)
     }
 
+    /// Reads the chain identifier the endpoints agree to serve.
+    ///
+    /// # Errors
+    ///
+    /// Returns every endpoint's typed failure when no endpoint served the read.
+    pub fn chain_id(&self) -> Result<u64, EndpointError> {
+        self.chain_id_with_failovers(&mut Vec::new())
+    }
+
+    pub(crate) fn chain_id_with_failovers(
+        &self,
+        failovers: &mut Vec<EndpointFailure>,
+    ) -> Result<u64, EndpointError> {
+        self.read(failovers, "eth_chainId", &[], quantity)
+    }
+
+    /// Reads a custody transaction's inclusion together with every log it
+    /// emitted, from one atomic receipt read.
+    ///
+    /// # Errors
+    ///
+    /// Returns every endpoint's typed failure when no endpoint served the read.
+    pub fn transaction_logs(
+        &self,
+        transaction: TransactionHash,
+    ) -> Result<Option<(TransactionInclusion, Vec<LogRecord>)>, EndpointError> {
+        self.transaction_logs_with_failovers(&mut Vec::new(), transaction)
+    }
+
+    pub(crate) fn transaction_logs_with_failovers(
+        &self,
+        failovers: &mut Vec<EndpointFailure>,
+        transaction: TransactionHash,
+    ) -> Result<Option<(TransactionInclusion, Vec<LogRecord>)>, EndpointError> {
+        self.read(
+            failovers,
+            "eth_getTransactionReceipt",
+            &[Json::Text(transaction.to_hex())],
+            inclusion_with_logs,
+        )
+    }
+
     pub(crate) fn transaction_receipt_with_failovers(
         &self,
         failovers: &mut Vec<EndpointFailure>,
@@ -310,10 +360,8 @@ fn fixed<const N: usize>(value: &Json) -> Result<[u8; N], String> {
     for (slot, pair) in bytes.iter_mut().zip(digits.as_bytes().chunks_exact(2)) {
         match pair {
             &[high, low] => {
-                let upper =
-                    hex_nibble(high).ok_or_else(|| format!("non-hex digit in {text}"))?;
-                let lower =
-                    hex_nibble(low).ok_or_else(|| format!("non-hex digit in {text}"))?;
+                let upper = hex_nibble(high).ok_or_else(|| format!("non-hex digit in {text}"))?;
+                let lower = hex_nibble(low).ok_or_else(|| format!("non-hex digit in {text}"))?;
                 *slot = (upper << 4) | lower;
             }
             _ => return Err(format!("expected {N} bytes, got {text}")),
@@ -329,6 +377,63 @@ fn block_reference(value: &Json) -> Result<Option<BlockRef>, String> {
     let number = quantity(required(value, "number")?)?;
     let hash = fixed::<32>(required(value, "hash")?)?;
     Ok(Some(BlockRef { number, hash }))
+}
+
+fn variable_bytes(value: &Json) -> Result<Vec<u8>, String> {
+    let text = value
+        .as_text()
+        .ok_or_else(|| format!("expected hex bytes, got {value:?}"))?;
+    let digits = text
+        .strip_prefix("0x")
+        .ok_or_else(|| format!("missing 0x prefix in {text}"))?;
+    if digits.len() % 2 != 0 {
+        return Err(format!("odd hex length in {text}"));
+    }
+    let mut bytes = Vec::with_capacity(digits.len() / 2);
+    for pair in digits.as_bytes().chunks_exact(2) {
+        match pair {
+            &[high, low] => {
+                let upper = hex_nibble(high).ok_or_else(|| format!("non-hex digit in {text}"))?;
+                let lower = hex_nibble(low).ok_or_else(|| format!("non-hex digit in {text}"))?;
+                bytes.push((upper << 4) | lower);
+            }
+            _ => return Err(format!("odd hex length in {text}")),
+        }
+    }
+    Ok(bytes)
+}
+
+fn log_record(value: &Json) -> Result<LogRecord, String> {
+    let address = EvmAddress::new(fixed::<20>(required(value, "address")?)?);
+    let topics = match required(value, "topics")? {
+        Json::Array(items) => items
+            .iter()
+            .map(fixed::<32>)
+            .collect::<Result<Vec<_>, _>>()?,
+        other => return Err(format!("expected topics array, got {other:?}")),
+    };
+    let data = variable_bytes(required(value, "data")?)?;
+    Ok(LogRecord {
+        address,
+        topics,
+        data,
+    })
+}
+
+fn inclusion_with_logs(
+    value: &Json,
+) -> Result<Option<(TransactionInclusion, Vec<LogRecord>)>, String> {
+    let Some(included) = inclusion(value)? else {
+        return Ok(None);
+    };
+    let logs = match required(value, "logs")? {
+        Json::Array(items) => items
+            .iter()
+            .map(log_record)
+            .collect::<Result<Vec<_>, _>>()?,
+        other => return Err(format!("expected logs array, got {other:?}")),
+    };
+    Ok(Some((included, logs)))
 }
 
 fn inclusion(value: &Json) -> Result<Option<TransactionInclusion>, String> {

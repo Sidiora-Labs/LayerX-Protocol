@@ -952,7 +952,7 @@ reqs = ["10.2","10.5"]
 
 [task.6.2]
 title = "Construct deposit proofs and the credit path"
-status = "in_progress"
+status = "done"
 wave = 3
 requires = ["6.1","3.2"]
 do_1 = "Construct the finalised custody proof for a deposit in the form the bridge module requires."

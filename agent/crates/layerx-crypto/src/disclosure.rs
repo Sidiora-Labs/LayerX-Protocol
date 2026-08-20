@@ -16,6 +16,9 @@ use crate::{ct, SignatureMessage};
 const ASSET_SEND_ORDINAL: u16 = 5;
 const SEND_WIRE_TAG: u16 = 0x5301;
 const SEND_FIELD_COUNT: u16 = 10;
+const BRIDGE_DEPOSIT_CREDIT_ORDINAL: u16 = 1;
+const BRIDGE_DEPOSIT_CREDIT_WIRE_TAG: u16 = 0x4801;
+const BRIDGE_DEPOSIT_CREDIT_FIELD_COUNT: u16 = 7;
 const MAX_SEND_CONDITIONS: usize = 8;
 const MAX_SEND_PAYLOAD_BYTES: usize = 512;
 const MAX_TRANSPORT_DISCLOSURE_BYTES: usize = 1_048_576;
@@ -218,15 +221,50 @@ fn decode_send(payload: &[u8], activity: &Activity) -> Result<SendSemantics, Dis
     })
 }
 
+fn decode_bridge_deposit_credit(
+    payload: &[u8],
+    activity: &Activity,
+) -> Result<SendSemantics, DisclosureError> {
+    let mut decoder = Decoder::new(payload, 0);
+    if decoder.u16()? != BRIDGE_DEPOSIT_CREDIT_WIRE_TAG
+        || decoder.u16()? != BRIDGE_DEPOSIT_CREDIT_FIELD_COUNT
+    {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    let _deposit_proof: [u8; 32] = fixed(&mut decoder)?;
+    let _checkpoint: [u8; 32] = fixed(&mut decoder)?;
+    let from = fixed(&mut decoder)?;
+    let to = fixed(&mut decoder)?;
+    let asset = fixed(&mut decoder)?;
+    let amount = decoder.u128()?;
+    let idempotency_key = fixed(&mut decoder)?;
+    decoder.finish()?;
+    if idempotency_key != activity.idempotency_key() || amount == 0 || from == to {
+        return Err(DisclosureError::MalformedPayload);
+    }
+    Ok(SendSemantics {
+        from,
+        to,
+        asset,
+        amount,
+        sequence: activity.account_sequence(),
+        idempotency_key,
+        expires_at: activity.timestamp_bound().not_after,
+    })
+}
+
 fn semantics(activity: &Activity) -> Result<SendSemantics, DisclosureError> {
     let activity_type = activity.activity_type();
-    if activity_type.module() != ModuleId::Asset || activity_type.ordinal() != ASSET_SEND_ORDINAL {
-        return Err(DisclosureError::UnsupportedActivity(activity_type.value()));
-    }
     if activity.payload().len() > MAX_SEND_PAYLOAD_BYTES {
         return Err(DisclosureError::MalformedPayload);
     }
-    decode_send(activity.payload(), activity)
+    match (activity_type.module(), activity_type.ordinal()) {
+        (ModuleId::Asset, ASSET_SEND_ORDINAL) => decode_send(activity.payload(), activity),
+        (ModuleId::Bridge, BRIDGE_DEPOSIT_CREDIT_ORDINAL) => {
+            decode_bridge_deposit_credit(activity.payload(), activity)
+        }
+        _ => Err(DisclosureError::UnsupportedActivity(activity_type.value())),
+    }
 }
 
 fn decoded_fields(activity: &Activity) -> Result<DisclosureFields, DisclosureError> {
