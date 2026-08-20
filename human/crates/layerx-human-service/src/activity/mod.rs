@@ -1,8 +1,12 @@
 //! Principal-scoped, receipt-gated projection of Human and agent activity.
 
 pub mod detail;
+mod export;
 
 pub use detail::EntryDetail;
+pub use export::{
+    BundleReport, EvidenceBundle, EvidenceEntry, EvidenceExport, ExportError, StatementExport,
+};
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter, Write as _};
