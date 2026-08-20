@@ -490,37 +490,40 @@ func (value AgentErrorClass) Valid() bool {
 type HumanErrorCode string
 
 const (
-	HumanErrorUnauthenticated         HumanErrorCode = "unauthenticated"
-	HumanErrorSessionExpired          HumanErrorCode = "session-expired"
-	HumanErrorStepUpRequired          HumanErrorCode = "step-up-required"
-	HumanErrorForbidden               HumanErrorCode = "forbidden"
-	HumanErrorNotFound                HumanErrorCode = "not-found"
-	HumanErrorInvalidRequest          HumanErrorCode = "invalid-request"
-	HumanErrorConflict                HumanErrorCode = "conflict"
-	HumanErrorRateLimited             HumanErrorCode = "rate-limited"
-	HumanErrorCursorExpired           HumanErrorCode = "cursor-expired"
-	HumanErrorUnavailable             HumanErrorCode = "unavailable"
-	HumanErrorUpstreamDegraded        HumanErrorCode = "upstream-degraded"
-	HumanErrorChallengeExpired        HumanErrorCode = "challenge-expired"
-	HumanErrorRefusedByPolicy         HumanErrorCode = "refused-by-policy"
-	HumanErrorRefusedByBudget         HumanErrorCode = "refused-by-budget"
-	HumanErrorRefusedByCapability     HumanErrorCode = "refused-by-capability"
-	HumanErrorRefusedByProtocol       HumanErrorCode = "refused-by-protocol"
-	HumanErrorRefusedByLimit          HumanErrorCode = "refused-by-limit"
-	HumanErrorQuoteExpired            HumanErrorCode = "quote-expired"
-	HumanErrorWalletNotBound          HumanErrorCode = "wallet-not-bound"
-	HumanErrorExitUnavailable         HumanErrorCode = "exit-unavailable"
-	HumanErrorAlreadyDecided          HumanErrorCode = "already-decided"
-	HumanErrorHoldExpired             HumanErrorCode = "hold-expired"
-	HumanErrorHoldDefective           HumanErrorCode = "hold-defective"
-	HumanErrorArchiveNeedsDisposition HumanErrorCode = "archive-needs-disposition"
-	HumanErrorConfirmationMismatch    HumanErrorCode = "confirmation-mismatch"
-	HumanErrorNotSuppressible         HumanErrorCode = "not-suppressible"
+	HumanErrorUnauthenticated            HumanErrorCode = "unauthenticated"
+	HumanErrorSessionExpired             HumanErrorCode = "session-expired"
+	HumanErrorStepUpRequired             HumanErrorCode = "step-up-required"
+	HumanErrorForbidden                  HumanErrorCode = "forbidden"
+	HumanErrorNotFound                   HumanErrorCode = "not-found"
+	HumanErrorInvalidRequest             HumanErrorCode = "invalid-request"
+	HumanErrorConflict                   HumanErrorCode = "conflict"
+	HumanErrorRateLimited                HumanErrorCode = "rate-limited"
+	HumanErrorCursorExpired              HumanErrorCode = "cursor-expired"
+	HumanErrorUnavailable                HumanErrorCode = "unavailable"
+	HumanErrorUpstreamDegraded           HumanErrorCode = "upstream-degraded"
+	HumanErrorChallengeExpired           HumanErrorCode = "challenge-expired"
+	HumanErrorRefusedByPolicy            HumanErrorCode = "refused-by-policy"
+	HumanErrorRefusedByBudget            HumanErrorCode = "refused-by-budget"
+	HumanErrorRefusedByCapability        HumanErrorCode = "refused-by-capability"
+	HumanErrorRefusedByProtocol          HumanErrorCode = "refused-by-protocol"
+	HumanErrorRefusedByLimit             HumanErrorCode = "refused-by-limit"
+	HumanErrorQuoteExpired               HumanErrorCode = "quote-expired"
+	HumanErrorWalletNotBound             HumanErrorCode = "wallet-not-bound"
+	HumanErrorExitUnavailable            HumanErrorCode = "exit-unavailable"
+	HumanErrorAlreadyDecided             HumanErrorCode = "already-decided"
+	HumanErrorHoldExpired                HumanErrorCode = "hold-expired"
+	HumanErrorHoldDefective              HumanErrorCode = "hold-defective"
+	HumanErrorArchiveNeedsDisposition    HumanErrorCode = "archive-needs-disposition"
+	HumanErrorConfirmationMismatch       HumanErrorCode = "confirmation-mismatch"
+	HumanErrorNotSuppressible            HumanErrorCode = "not-suppressible"
+	HumanErrorSupportUnavailable         HumanErrorCode = "support-unavailable"
+	HumanErrorSupportConversationUnknown HumanErrorCode = "support-conversation-unknown"
+	HumanErrorSupportMessageUnknown      HumanErrorCode = "support-message-unknown"
 )
 
 func (value HumanErrorCode) Valid() bool {
 	switch value {
-	case HumanErrorUnauthenticated, HumanErrorSessionExpired, HumanErrorStepUpRequired, HumanErrorForbidden, HumanErrorNotFound, HumanErrorInvalidRequest, HumanErrorConflict, HumanErrorRateLimited, HumanErrorCursorExpired, HumanErrorUnavailable, HumanErrorUpstreamDegraded, HumanErrorChallengeExpired, HumanErrorRefusedByPolicy, HumanErrorRefusedByBudget, HumanErrorRefusedByCapability, HumanErrorRefusedByProtocol, HumanErrorRefusedByLimit, HumanErrorQuoteExpired, HumanErrorWalletNotBound, HumanErrorExitUnavailable, HumanErrorAlreadyDecided, HumanErrorHoldExpired, HumanErrorHoldDefective, HumanErrorArchiveNeedsDisposition, HumanErrorConfirmationMismatch, HumanErrorNotSuppressible:
+	case HumanErrorUnauthenticated, HumanErrorSessionExpired, HumanErrorStepUpRequired, HumanErrorForbidden, HumanErrorNotFound, HumanErrorInvalidRequest, HumanErrorConflict, HumanErrorRateLimited, HumanErrorCursorExpired, HumanErrorUnavailable, HumanErrorUpstreamDegraded, HumanErrorChallengeExpired, HumanErrorRefusedByPolicy, HumanErrorRefusedByBudget, HumanErrorRefusedByCapability, HumanErrorRefusedByProtocol, HumanErrorRefusedByLimit, HumanErrorQuoteExpired, HumanErrorWalletNotBound, HumanErrorExitUnavailable, HumanErrorAlreadyDecided, HumanErrorHoldExpired, HumanErrorHoldDefective, HumanErrorArchiveNeedsDisposition, HumanErrorConfirmationMismatch, HumanErrorNotSuppressible, HumanErrorSupportUnavailable, HumanErrorSupportConversationUnknown, HumanErrorSupportMessageUnknown:
 		return true
 	default:
 		return false

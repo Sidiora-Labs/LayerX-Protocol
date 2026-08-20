@@ -96,7 +96,10 @@ final class GeneratedContract {
         "hold-defective",
         "archive-needs-disposition",
         "confirmation-mismatch",
-        "not-suppressible");
+        "not-suppressible",
+        "support-unavailable",
+        "support-conversation-unknown",
+        "support-message-unknown");
     static final Map<String, OperationCatalog.Route> HUMAN_ROUTES = Map.ofEntries(
         Map.entry("account.create", new OperationCatalog.Route("POST", "/v1/accounts", List.of(), true, false)),
         Map.entry("activity.entry", new OperationCatalog.Route("GET", "/v1/activity/{entry_id}", List.of("entry_id"), false, true)),
