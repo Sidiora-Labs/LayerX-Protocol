@@ -653,6 +653,16 @@
     },
     {
       "plane": "human",
+      "name": "binding.rebind.action",
+      "method": "POST",
+      "path": "/v1/wallet-binding/rebind/action",
+      "request": "BindingStatementRequest",
+      "response": "BindingRebindAction",
+      "idempotency": false,
+      "bodyless": false
+    },
+    {
+      "plane": "human",
       "name": "binding.statement",
       "method": "POST",
       "path": "/v1/wallet-binding/statement",

@@ -66,6 +66,7 @@ public enum PlatformOperation: String, CaseIterable, Sendable {
     case humanAuthenticatorSetupFinish = "human:authenticator.setup.finish"
     case humanAuthenticatorStatus = "human:authenticator.status"
     case humanBindingRebind = "human:binding.rebind"
+    case humanBindingRebindAction = "human:binding.rebind.action"
     case humanBindingStatement = "human:binding.statement"
     case humanBindingStatus = "human:binding.status"
     case humanBindingSubmit = "human:binding.submit"
@@ -184,6 +185,7 @@ public enum PlatformOperation: String, CaseIterable, Sendable {
         case .humanAuthenticatorSetupFinish: return OperationDescriptor(plane: .human, name: "authenticator.setup.finish", method: .post, path: "/v1/security/authenticators/setups/{setup_id}", requestType: "AuthenticatorSetupFinish", responseType: "AuthenticatorSetupResult", requiresIdempotency: false, bodyless: false)
         case .humanAuthenticatorStatus: return OperationDescriptor(plane: .human, name: "authenticator.status", method: .get, path: "/v1/security/authenticators", requestType: "Empty", responseType: "AuthenticatorStatus", requiresIdempotency: false, bodyless: true)
         case .humanBindingRebind: return OperationDescriptor(plane: .human, name: "binding.rebind", method: .post, path: "/v1/wallet-binding/rebind", requestType: "RebindingSubmission", responseType: "Journey", requiresIdempotency: true, bodyless: false)
+        case .humanBindingRebindAction: return OperationDescriptor(plane: .human, name: "binding.rebind.action", method: .post, path: "/v1/wallet-binding/rebind/action", requestType: "BindingStatementRequest", responseType: "BindingRebindAction", requiresIdempotency: false, bodyless: false)
         case .humanBindingStatement: return OperationDescriptor(plane: .human, name: "binding.statement", method: .post, path: "/v1/wallet-binding/statement", requestType: "BindingStatementRequest", responseType: "BindingStatement", requiresIdempotency: false, bodyless: false)
         case .humanBindingStatus: return OperationDescriptor(plane: .human, name: "binding.status", method: .get, path: "/v1/wallet-binding", requestType: "Empty", responseType: "WalletBinding", requiresIdempotency: false, bodyless: true)
         case .humanBindingSubmit: return OperationDescriptor(plane: .human, name: "binding.submit", method: .post, path: "/v1/wallet-binding", requestType: "BindingSubmission", responseType: "Journey", requiresIdempotency: true, bodyless: false)
@@ -434,6 +436,9 @@ public extension PlatformClient {
     func humanBindingRebind(_ request: JSONValue, idempotencyKey: IdempotencyKey, pathParameters: [String: String] = [:]) async throws -> JSONValue {
         try await mutate(.humanBindingRebind, request: request, idempotencyKey: idempotencyKey, pathParameters: pathParameters)
     }
+    func humanBindingRebindAction(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
+        try await read(.humanBindingRebindAction, request: request, pathParameters: pathParameters)
+    }
     func humanBindingStatement(_ request: JSONValue, pathParameters: [String: String] = [:]) async throws -> JSONValue {
         try await read(.humanBindingStatement, request: request, pathParameters: pathParameters)
     }
@@ -586,6 +591,6 @@ public extension PlatformClient {
     }
 }
 
-private let sdkMetadata = SDKMetadata(name: "LayerXSDK", version: "0.1.0", agentOperations: 40, humanOperations: 75)
+private let sdkMetadata = SDKMetadata(name: "LayerXSDK", version: "0.1.0", agentOperations: 40, humanOperations: 76)
 
 public func platform_sdk_swift() -> SDKMetadata { sdkMetadata }

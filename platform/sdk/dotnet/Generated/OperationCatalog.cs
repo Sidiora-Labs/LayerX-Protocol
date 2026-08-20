@@ -70,6 +70,7 @@ public enum PlatformOperation
     HumanAuthenticatorSetupFinish,
     HumanAuthenticatorStatus,
     HumanBindingRebind,
+    HumanBindingRebindAction,
     HumanBindingStatement,
     HumanBindingStatus,
     HumanBindingSubmit,
@@ -191,6 +192,7 @@ public static class GeneratedOperationCatalog
             PlatformOperation.HumanAuthenticatorSetupFinish => new(PlatformPlane.Human, "authenticator.setup.finish", SdkHttpMethod.Post, "/v1/security/authenticators/setups/{setup_id}", "AuthenticatorSetupFinish", "AuthenticatorSetupResult", false, false),
             PlatformOperation.HumanAuthenticatorStatus => new(PlatformPlane.Human, "authenticator.status", SdkHttpMethod.Get, "/v1/security/authenticators", "Empty", "AuthenticatorStatus", false, true),
             PlatformOperation.HumanBindingRebind => new(PlatformPlane.Human, "binding.rebind", SdkHttpMethod.Post, "/v1/wallet-binding/rebind", "RebindingSubmission", "Journey", true, false),
+            PlatformOperation.HumanBindingRebindAction => new(PlatformPlane.Human, "binding.rebind.action", SdkHttpMethod.Post, "/v1/wallet-binding/rebind/action", "BindingStatementRequest", "BindingRebindAction", false, false),
             PlatformOperation.HumanBindingStatement => new(PlatformPlane.Human, "binding.statement", SdkHttpMethod.Post, "/v1/wallet-binding/statement", "BindingStatementRequest", "BindingStatement", false, false),
             PlatformOperation.HumanBindingStatus => new(PlatformPlane.Human, "binding.status", SdkHttpMethod.Get, "/v1/wallet-binding", "Empty", "WalletBinding", false, true),
             PlatformOperation.HumanBindingSubmit => new(PlatformPlane.Human, "binding.submit", SdkHttpMethod.Post, "/v1/wallet-binding", "BindingSubmission", "Journey", true, false),
@@ -246,7 +248,7 @@ public static class GeneratedOperationCatalog
 
     public static SdkMetadata platform_sdk_dotnet()
     {
-        return new("LayerX.Sdk", "0.1.0", 40, 75);
+        return new("LayerX.Sdk", "0.1.0", 40, 76);
     }
 }
 
@@ -382,6 +384,8 @@ public static class GeneratedPlatformClientExtensions
         client.ReadAsync(PlatformOperation.HumanAuthenticatorStatus, request ?? JsonValue.EmptyObject, pathParameters, cancellationToken);
     public static Task<JsonValue> HumanBindingRebindAsync(this PlatformClient client, JsonValue request, IdempotencyKey idempotencyKey, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
         client.MutateAsync(PlatformOperation.HumanBindingRebind, request, idempotencyKey, pathParameters, cancellationToken);
+    public static Task<JsonValue> HumanBindingRebindActionAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
+        client.ReadAsync(PlatformOperation.HumanBindingRebindAction, request, pathParameters, cancellationToken);
     public static Task<JsonValue> HumanBindingStatementAsync(this PlatformClient client, JsonValue request, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>
         client.ReadAsync(PlatformOperation.HumanBindingStatement, request, pathParameters, cancellationToken);
     public static Task<JsonValue> HumanBindingStatusAsync(this PlatformClient client, JsonValue? request = null, IReadOnlyDictionary<string, string>? pathParameters = null, CancellationToken cancellationToken = default) =>

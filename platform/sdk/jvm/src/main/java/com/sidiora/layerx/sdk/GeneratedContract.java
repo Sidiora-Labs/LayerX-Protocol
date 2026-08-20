@@ -123,6 +123,7 @@ final class GeneratedContract {
         Map.entry("authenticator.setup.finish", new OperationCatalog.Route("POST", "/v1/security/authenticators/setups/{setup_id}", List.of("setup_id"), false, false)),
         Map.entry("authenticator.status", new OperationCatalog.Route("GET", "/v1/security/authenticators", List.of(), false, true)),
         Map.entry("binding.rebind", new OperationCatalog.Route("POST", "/v1/wallet-binding/rebind", List.of(), true, false)),
+        Map.entry("binding.rebind.action", new OperationCatalog.Route("POST", "/v1/wallet-binding/rebind/action", List.of(), false, false)),
         Map.entry("binding.statement", new OperationCatalog.Route("POST", "/v1/wallet-binding/statement", List.of(), false, false)),
         Map.entry("binding.status", new OperationCatalog.Route("GET", "/v1/wallet-binding", List.of(), false, true)),
         Map.entry("binding.submit", new OperationCatalog.Route("POST", "/v1/wallet-binding", List.of(), true, false)),

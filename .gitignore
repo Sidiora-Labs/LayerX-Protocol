@@ -67,6 +67,7 @@ Thumbs.db
 tmp/*
 .claude/worktrees/
 agent/target/
+agent/tools/sdk-gen/target/
 platform/docs/samples/*/first-payment-go
 spec/specgen/specgen
 
