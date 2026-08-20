@@ -111,8 +111,8 @@ export function ApprovalsJourneyScreen({
   }, [load]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setAt(new Date()), 1_000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(() => { setAt(new Date()); }, 1_000);
+    return () => { window.clearInterval(timer); };
   }, []);
 
   const refreshResolved = useCallback(async () => {
@@ -131,7 +131,7 @@ export function ApprovalsJourneyScreen({
       return;
     }
     const timer = window.setInterval(() => { void refreshResolved(); }, 3_000);
-    return () => window.clearInterval(timer);
+    return () => { window.clearInterval(timer); };
   }, [outcome, refreshResolved]);
 
   useEffect(() => {
@@ -185,12 +185,12 @@ export function ApprovalsJourneyScreen({
         error={errorPresentation(loadState.error)}
         route={approvalId === undefined ? "/app/approvals" : approvalRoute(approvalId)}
         onRetry={() => { void load(); }}
-        onReload={() => window.location.reload()}
+        onReload={() => { window.location.reload(); }}
       />
     );
   }
 
-  const open = (id: string) => router.push(approvalRoute(id));
+  const open = (id: string) => { router.push(approvalRoute(id)); };
   const detail = loadState.detail;
 
   const decide = async (action: DecisionAction) => {
@@ -226,8 +226,8 @@ export function ApprovalsJourneyScreen({
         outcome={outcome}
         released={loadState.released}
         deciding={deciding || outcome?.kind === "still-checking"}
-        onApprove={() => setApproveOpen(true)}
-        onReject={() => setRejectOpen(true)}
+        onApprove={() => { setApproveOpen(true); }}
+        onReject={() => { setRejectOpen(true); }}
       />
       <ApprovalDecisionConfirmations
         detail={detail}

@@ -174,7 +174,7 @@ export function SupportChat({
       session.setOnline(true);
       void session.retryFailed();
     };
-    const offline = () => session.setOnline(false);
+    const offline = () => { session.setOnline(false); };
     window.addEventListener("online", online);
     window.addEventListener("offline", offline);
     if (!navigator.onLine) {

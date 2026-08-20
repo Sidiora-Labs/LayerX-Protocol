@@ -219,7 +219,7 @@ export function Home() {
                         {row.amount === undefined || row.currency === undefined ? null : (
                           <PrivateFigure className="contents">
                             <SignedWordedAmount
-                              value={protocolAmount(row.direction === "outbound" ? -row.amount : row.amount)}
+                              value={protocolAmount(row.direction === "outbound" ? row.amount * -1 : row.amount)}
                               currency={row.currency}
                               locale={AMOUNT_LOCALE}
                               decimals={0}

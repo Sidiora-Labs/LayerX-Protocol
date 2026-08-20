@@ -62,7 +62,7 @@ function channelToLinear(value: number): number {
 function hexChannels(color: string): readonly [number, number, number] {
   const compact = color.trim().toLowerCase();
   const expanded = /^#[0-9a-f]{3}$/u.test(compact)
-    ? `#${compact[1]}${compact[1]}${compact[2]}${compact[2]}${compact[3]}${compact[3]}`
+    ? `#${compact.slice(1, 2).repeat(2)}${compact.slice(2, 3).repeat(2)}${compact.slice(3, 4).repeat(2)}`
     : compact;
   if (!/^#[0-9a-f]{6}$/u.test(expanded)) {
     throw new Error(`Expected a hexadecimal color, received ${color}`);

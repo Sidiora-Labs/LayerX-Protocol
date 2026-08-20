@@ -55,7 +55,7 @@ function Confirmation({ platform, ...props }: ConfirmationProps & Readonly<{ pla
             variant="secondary"
             size="lg"
             fullWidth={platform === "mobile"}
-            onClick={() => props.onOpenChange(false)}
+            onClick={() => { props.onOpenChange(false); }}
           >
             {props.cancelLabel ?? copyEntry("action.cancel").message}
           </KitButton>
@@ -89,7 +89,7 @@ function Confirmation({ platform, ...props }: ConfirmationProps & Readonly<{ pla
           {typed.label ?? formatCopy("confirmation.type_to_confirm", { expectedValue: typed.expectedValue })}
           <Input
             value={typed.value}
-            onChange={(event) => typed.onValueChange(event.target.value)}
+            onChange={(event) => { typed.onValueChange(event.target.value); }}
             autoComplete="off"
             spellCheck={false}
           />

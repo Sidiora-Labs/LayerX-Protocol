@@ -240,7 +240,7 @@ export function decodePage<T>(
     throw new TypeError(`${at}.items must be an array`);
   }
   return Object.freeze({
-    items: Object.freeze(item.items.map((entry, index) => decodeItem(entry, `${at}.items[${index}]`))),
+    items: Object.freeze(item.items.map((entry, index) => decodeItem(entry, `${at}.items[${String(index)}]`))),
     ...(item.next_before === undefined || item.next_before === null
       ? {}
       : { nextBefore: decimal(item.next_before, `${at}.next_before`) }),

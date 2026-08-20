@@ -9,7 +9,7 @@ export function OfflineBanner() {
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
-    const update = () => setOffline(!navigator.onLine);
+    const update = () => { setOffline(!navigator.onLine); };
     update();
     window.addEventListener("online", update);
     window.addEventListener("offline", update);

@@ -15,7 +15,7 @@ async function readBoundedBody(request: Request): Promise<string | undefined> {
   let received = 0;
   let body = "";
   try {
-    while (true) {
+    for (;;) {
       const chunk = await reader.read();
       if (chunk.done) {
         body += decoder.decode();

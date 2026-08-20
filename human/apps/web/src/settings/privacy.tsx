@@ -44,7 +44,7 @@ export function PrivacyModeProvider({
       }
     };
     window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
+    return () => { window.removeEventListener("storage", sync); };
   }, [key]);
 
   const setMasked = useCallback((next: boolean) => {

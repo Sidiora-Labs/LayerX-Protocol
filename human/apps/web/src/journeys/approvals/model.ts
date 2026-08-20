@@ -8,6 +8,7 @@ import type {
   ApprovalDetail,
   ApprovalState,
   ApprovalSummary,
+  ErrorCode,
   JourneyState,
   Money,
   OperationDigest,
@@ -256,31 +257,39 @@ export function convergedOutcome(detail: ApprovalDetail): ApprovalOutcome {
   });
 }
 
+type FailureOutcomePresentation = Readonly<{
+  kind: "already-decided" | "defective" | "expired" | "step-up-required";
+  fallbackKey: string;
+}>;
+
+const FAILURE_OUTCOMES: Readonly<Partial<Record<ErrorCode, FailureOutcomePresentation>>> = Object.freeze({
+  "already-decided": Object.freeze({
+    kind: "already-decided",
+    fallbackKey: "error.approval.already-decided",
+  }),
+  "hold-expired": Object.freeze({
+    kind: "expired",
+    fallbackKey: "error.approval.hold-expired",
+  }),
+  "hold-defective": Object.freeze({
+    kind: "defective",
+    fallbackKey: "error.approval.hold-defective",
+  }),
+  "step-up-required": Object.freeze({
+    kind: "step-up-required",
+    fallbackKey: "error.step-up.required",
+  }),
+});
+
 export function failureOutcome(detail: ApiError): ApprovalOutcome | undefined {
-  switch (detail.code) {
-    case "already-decided":
-      return Object.freeze({
-        kind: "already-decided",
-        message: catalogMessage(detail.copy_key, "error.approval.already-decided"),
-      });
-    case "hold-expired":
-      return Object.freeze({
-        kind: "expired",
-        message: catalogMessage(detail.copy_key, "error.approval.hold-expired"),
-      });
-    case "hold-defective":
-      return Object.freeze({
-        kind: "defective",
-        message: catalogMessage(detail.copy_key, "error.approval.hold-defective"),
-      });
-    case "step-up-required":
-      return Object.freeze({
-        kind: "step-up-required",
-        message: catalogMessage(detail.copy_key, "error.step-up.required"),
-      });
-    default:
-      return undefined;
+  const presentation = FAILURE_OUTCOMES[detail.code];
+  if (presentation === undefined) {
+    return undefined;
   }
+  return Object.freeze({
+    kind: presentation.kind,
+    message: catalogMessage(detail.copy_key, presentation.fallbackKey),
+  });
 }
 
 export function decisionKey(): string {

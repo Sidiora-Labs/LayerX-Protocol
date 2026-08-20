@@ -193,7 +193,7 @@ export function AuthenticatedShell({
           onPrimaryAction={() => {
             router.push("/app");
           }}
-          onNotifications={() => router.push("/app/notifications")}
+          onNotifications={() => { router.push("/app/notifications"); }}
           notificationCount={notificationCenter.state.unreadCount}
           {...(selection.shell === "desktop" ? {
             notificationControl: (
@@ -202,7 +202,7 @@ export function AuthenticatedShell({
                 items={notifications}
                 unreadCount={notificationCenter.state.unreadCount}
                 onItemClick={(item) => { void openNotification(item.id); }}
-                onViewAll={() => router.push("/app/notifications")}
+                onViewAll={() => { router.push("/app/notifications"); }}
               />
             ),
           } : {})}

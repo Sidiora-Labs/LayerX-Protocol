@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from "react";
 
 import { copyEntry } from "../../copy/catalog";
 import { formatCopy } from "../../copy/format";
@@ -223,7 +223,7 @@ export function SettingsScreen({
     }
   };
 
-  const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
+  const saveProfile = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (snapshot === undefined || savingProfile || displayName.trim().length === 0) {
       return;
@@ -257,7 +257,7 @@ export function SettingsScreen({
         error={errorPresentation(loadState.error)}
         route="/app/settings"
         onRetry={() => { void load(); }}
-        onReload={() => window.location.reload()}
+        onReload={() => { window.location.reload(); }}
       />
     );
   }
@@ -283,7 +283,7 @@ export function SettingsScreen({
             subtitle={profileValue}
             trailing={copyEntry("settings.action.edit").message}
             navigates
-            onClick={() => setProfileOpen((current) => !current)}
+            onClick={() => { setProfileOpen((current) => !current); }}
           />
           {profileOpen ? (
             <form className="flex flex-col gap-3 py-3" onSubmit={(event) => { void saveProfile(event); }}>
@@ -293,7 +293,7 @@ export function SettingsScreen({
                   value={displayName}
                   maxLength={128}
                   autoComplete="name"
-                  onChange={(event) => setDisplayName(event.target.value)}
+                  onChange={(event) => { setDisplayName(event.target.value); }}
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm font-semibold text-foreground">
@@ -304,7 +304,7 @@ export function SettingsScreen({
                   inputMode="url"
                   maxLength={2048}
                   autoComplete="url"
-                  onChange={(event) => setAvatarUrl(event.target.value)}
+                  onChange={(event) => { setAvatarUrl(event.target.value); }}
                 />
               </label>
               <KitButton
@@ -328,7 +328,7 @@ export function SettingsScreen({
             title={copyEntry("settings.security.title").message}
             subtitle={copyEntry("settings.security.current").message}
             navigates
-            onClick={() => router.push("/app/settings/security")}
+            onClick={() => { router.push("/app/settings/security"); }}
           />
         </SettingsSection>
 
@@ -337,7 +337,7 @@ export function SettingsScreen({
             title={copyEntry("settings.wallet.title").message}
             subtitle={bindingValue(loadState.snapshot.binding)}
             navigates
-            onClick={() => router.push("/app/settings/wallet")}
+            onClick={() => { router.push("/app/settings/wallet"); }}
           />
         </SettingsSection>
 
@@ -369,7 +369,7 @@ export function SettingsScreen({
             preferences={loadState.snapshot.notifications}
             disabled={savingNotifications}
             onChange={(candidate) => { void saveNotifications(candidate); }}
-            onRefused={() => setNotice(copyEntry("settings.notifications.non_suppressible").message)}
+            onRefused={() => { setNotice(copyEntry("settings.notifications.non_suppressible").message); }}
           />
         ))}
 
@@ -390,7 +390,7 @@ export function SettingsScreen({
             title={copyEntry("exit.title").message}
             subtitle={copyEntry("exit.summary").message}
             navigates
-            onClick={() => router.push("/app/settings/exit")}
+            onClick={() => { router.push("/app/settings/exit"); }}
           />
         </SettingsSection>
 
@@ -399,7 +399,7 @@ export function SettingsScreen({
             title={copyEntry("settings.help.support").message}
             subtitle={copyEntry("settings.help.support.body").message}
             navigates
-            onClick={() => router.push("/app/support")}
+            onClick={() => { router.push("/app/support"); }}
           />
         </SettingsSection>
       </div>

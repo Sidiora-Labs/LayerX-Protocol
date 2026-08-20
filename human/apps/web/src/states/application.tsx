@@ -13,7 +13,7 @@ export function ApplicationStateBoundary({ children }: Readonly<{ children: Reac
     const flush = () => { void browserSupportReportOutbox.flushPending().catch(() => undefined); };
     flush();
     window.addEventListener("online", flush);
-    return () => window.removeEventListener("online", flush);
+    return () => { window.removeEventListener("online", flush); };
   }, []);
   return (
     <>

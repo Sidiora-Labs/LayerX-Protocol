@@ -53,7 +53,7 @@ export function DeviceList() {
         error={errorPresentation(state.error)}
         route="/app/settings/devices"
         onRetry={() => { void load(); }}
-        onReload={() => window.location.reload()}
+        onReload={() => { window.location.reload(); }}
       />
     );
   }

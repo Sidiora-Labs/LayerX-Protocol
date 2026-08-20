@@ -144,8 +144,8 @@ export function MobileNotifications(props: MobileNotificationsProps) {
 
 export function DesktopNotifications({ view, ...props }: DesktopNotificationsProps) {
   return view === "archive" ? (
-    <NotificationsArchive {...(props as DesktopArchivePrimitiveProps)} />
+    <NotificationsArchive {...props} />
   ) : (
-    <BellPopover {...(props as DesktopPopoverPrimitiveProps)} />
+    <BellPopover {...props} />
   );
 }

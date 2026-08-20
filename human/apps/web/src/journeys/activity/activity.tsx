@@ -32,7 +32,6 @@ import {
   feedGroups,
   filterEchoLines,
   formatEntryDate,
-  kindLabel,
   loadActivity,
   mergePages,
   newExportKey,
@@ -105,7 +104,7 @@ function groupViews(page: ActivityPage): readonly ActivityFeedGroup[] {
           direction="inbound"
         /></PrivateFigure></span>
         <span>{copyEntry("activity.feed.subtotal_out").message} <PrivateFigure><SignedWordedAmount
-          value={protocolAmount(-group.subtotalOut)}
+          value={protocolAmount(group.subtotalOut * -1)}
           currency={group.currency}
           locale={AMOUNT_LOCALE}
           decimals={0}
@@ -146,7 +145,7 @@ export function Activity() {
   const [paging, setPaging] = useState(false);
   const [pagingFailure, setPagingFailure] = useState<ActivityFailure | undefined>();
   const [exportState, setExportState] = useState<ExportState>({ kind: "idle" });
-  const exportKeys = useRef<Partial<Record<"evidence-bundle" | "statement", string>>>({});
+  const exportKeys = useRef(new Map<"evidence-bundle" | "statement", string>());
 
   const refresh = useCallback((filter: ActivityFilter) => {
     setLoad({ kind: "loading" });
@@ -193,8 +192,8 @@ export function Activity() {
     if (load.kind !== "loaded" || exportState.kind === "preparing") {
       return;
     }
-    const key = exportKeys.current[exportKind] ?? newExportKey();
-    exportKeys.current[exportKind] = key;
+    const key = exportKeys.current.get(exportKind) ?? newExportKey();
+    exportKeys.current.set(exportKind, key);
     setExportState({ kind: "preparing", exportKind });
     const request = exportKind === "statement"
       ? client.activityExportStatement({ filter: load.page.filter }, key)
@@ -204,7 +203,7 @@ export function Activity() {
       if (artefact.kind !== exportKind) {
         throw new Error("The export kind did not match the request");
       }
-      delete exportKeys.current[exportKind];
+      exportKeys.current.delete(exportKind);
       setExportState({ kind: "ready", artefact });
     }).catch((error: unknown) => { setExportState({ kind: "failed", failure: activityFailure(error) }); });
   };

@@ -34,7 +34,7 @@ async function boundedBody(request: Request): Promise<string> {
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
-  while (true) {
+  for (;;) {
     const result = await reader.read();
     if (result.done) {
       break;

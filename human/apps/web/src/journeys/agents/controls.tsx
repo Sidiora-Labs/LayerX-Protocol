@@ -88,7 +88,7 @@ export function AgentControls({
   const controlsLocked = journeyPending || outcomeUnknown;
 
   useEffect(() => {
-    if (!journeyPending || lastJourney === undefined) {
+    if (!journeyPending) {
       return;
     }
     let cancelled = false;

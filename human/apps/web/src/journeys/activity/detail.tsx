@@ -223,7 +223,7 @@ export function ActivityDetail({ entryId }: Readonly<{ entryId: string }>) {
               label={copyEntry("activity.detail.fee").message}
               value={fee === undefined || detail.fees === undefined ? copyEntry("activity.detail.no_fee").message : (
                 <PrivateFigure><SignedWordedAmount
-                  value={protocolAmount(-fee)}
+                  value={protocolAmount(fee * -1)}
                   currency={detail.fees.currency}
                   locale={AMOUNT_LOCALE}
                   decimals={0}

@@ -45,7 +45,7 @@ export function browserPasskeyAuthenticator(): PasskeyAuthenticator {
     if (credential === null) {
       throw new Error("The platform returned no credential for the ceremony");
     }
-    const serialized = (credential as PublicKeyCredential).toJSON();
+    const serialized: unknown = (credential as PublicKeyCredential).toJSON();
     return base64UrlFromText(JSON.stringify(serialized));
   };
 }

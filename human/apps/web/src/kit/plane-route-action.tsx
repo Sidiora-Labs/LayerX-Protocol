@@ -10,5 +10,5 @@ export function PlaneRouteAction({
   children,
 }: Readonly<{ destination: "/app" | "/explorer"; children: ReactNode }>) {
   const router = useRouter();
-  return <KitButton onClick={() => router.push(destination)}>{children}</KitButton>;
+  return <KitButton onClick={() => { router.push(destination); }}>{children}</KitButton>;
 }

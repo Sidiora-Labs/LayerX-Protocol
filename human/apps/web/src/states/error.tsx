@@ -95,7 +95,7 @@ function useResolvedPlatform(platform?: "mobile" | "desktop"): "mobile" | "deskt
     update();
     const media = window.matchMedia("(max-width: 767px)");
     media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
+    return () => { media.removeEventListener("change", update); };
   }, [platform]);
   return resolved;
 }
@@ -161,12 +161,12 @@ export function ErrorSurface({
         {error.structural && onReload !== undefined ? (
           <KitButton variant="secondary" onClick={onReload}>{copyEntry("action.reload").message}</KitButton>
         ) : null}
-        <KitButton variant="secondary" onClick={() => setReportOpen(true)}>
+        <KitButton variant="secondary" onClick={() => { setReportOpen(true); }}>
           {copyEntry("action.report").message}
         </KitButton>
         <KitButton
           variant="secondary"
-          onClick={() => window.location.assign(`/app/support?trace=${encodeURIComponent(error.traceId)}`)}
+          onClick={() => { window.location.assign(`/app/support?trace=${encodeURIComponent(error.traceId)}`); }}
         >
           {copyEntry("support.open").message}
         </KitButton>
@@ -257,7 +257,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         {...(this.props.platform === undefined ? {} : { platform: this.props.platform })}
         {...(this.props.reporter === undefined ? {} : { reporter: this.props.reporter })}
         onRetry={this.reset}
-        onReload={() => window.location.reload()}
+        onReload={() => { window.location.reload(); }}
       />
     );
   }
@@ -273,7 +273,7 @@ export function RouteErrorBoundary({
       error={errorPresentation(error)}
       route={route}
       onRetry={reset}
-      onReload={() => window.location.reload()}
+      onReload={() => { window.location.reload(); }}
     />
   );
 }

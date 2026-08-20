@@ -141,7 +141,7 @@ export function signedBaseUnits(
     throw new RangeError("Activity money exceeds the safe display range");
   }
   const magnitude = protocolAmount(value);
-  return direction === "out" ? protocolAmount(-magnitude) : magnitude;
+  return direction === "out" ? protocolAmount(magnitude * -1) : magnitude;
 }
 
 export function unsignedBaseUnits(money: Money): ProtocolAmount {
@@ -358,7 +358,7 @@ export function toWireFilter(values: FeedFilterValues): ActivityFilter {
     filter.agent_id = agent;
   }
   const range = values["date"];
-  if (typeof range === "object" && range !== undefined && range.from !== undefined) {
+  if (typeof range === "object") {
     const last = range.to ?? range.from;
     const from = new Date(Date.UTC(range.from.getFullYear(), range.from.getMonth(), range.from.getDate()));
     const to = new Date(Date.UTC(last.getFullYear(), last.getMonth(), last.getDate() + 1));

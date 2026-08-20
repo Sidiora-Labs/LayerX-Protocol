@@ -37,7 +37,7 @@ export function NotificationsArchiveScreen() {
         error={errorPresentation(center.state.error)}
         route="/app/notifications"
         onRetry={() => { void center.refresh(); }}
-        onReload={() => window.location.reload()}
+        onReload={() => { window.location.reload(); }}
       />
     );
   }
@@ -73,7 +73,7 @@ export function NotificationsArchiveScreen() {
           <p role="status" className="text-sm font-semibold text-muted-foreground">
             {formatCopy("notification.unread", { count: center.state.unreadCount })}
           </p>
-          <KitButton variant="secondary" onClick={() => router.push("/app/settings") }>
+          <KitButton variant="secondary" onClick={() => { router.push("/app/settings"); }}>
             {copyEntry("notification.preferences.title").message}
           </KitButton>
         </div>
@@ -88,7 +88,7 @@ export function NotificationsArchiveScreen() {
         {shell === "mobile" ? (
           <MobileNotifications
             items={items}
-            onBack={() => router.back()}
+            onBack={() => { router.back(); }}
             onItemClick={(item) => { void open(item); }}
           />
         ) : (

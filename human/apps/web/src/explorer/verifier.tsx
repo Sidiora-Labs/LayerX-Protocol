@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type SyntheticEvent } from "react";
 
 import { copyEntry } from "../../copy/catalog";
 import {
@@ -32,7 +32,7 @@ export function EvidenceVerifier() {
   const [status, setStatus] = useState<"idle" | "checking" | "refused" | "unavailable">("idle");
   const [report, setReport] = useState<EvidenceVerificationReport | undefined>(undefined);
 
-  const verify = async (event: FormEvent<HTMLFormElement>) => {
+  const verify = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (status === "checking" || evidence.trim().length === 0) {
       return;
@@ -63,7 +63,7 @@ export function EvidenceVerifier() {
           aria-label={copyEntry("explorer.verify.kind.label").message}
           options={KIND_OPTIONS.map((option) => ({ ...option }))}
           value={kind}
-          onValueChange={(value) => setKind(value as EvidenceKind)}
+          onValueChange={(value) => { setKind(value as EvidenceKind); }}
         />
         <label className="flex flex-col gap-1 text-sm font-semibold text-foreground">
           {copyEntry("explorer.verify.evidence.label").message}
@@ -73,7 +73,7 @@ export function EvidenceVerifier() {
             required
             spellCheck={false}
             placeholder={copyEntry("explorer.verify.evidence.placeholder").message}
-            onChange={(event) => setEvidence(event.target.value)}
+            onChange={(event) => { setEvidence(event.target.value); }}
           />
         </label>
         <KitButton
