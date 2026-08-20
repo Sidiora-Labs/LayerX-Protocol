@@ -1,0 +1,16 @@
+[package]
+name = "layerx-porting-cosmwasm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "programs_porting_cosmwasm"
+
+[dependencies]
+layerx-programs-registry = { path = "../../crates/layerx-programs-registry" }
+layerx-programs-runtime = { path = "../../crates/layerx-programs-runtime" }
+
+[lints]
+workspace = true

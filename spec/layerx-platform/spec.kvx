@@ -2247,7 +2247,7 @@ reqs = ["31.2","31.5"]
 
 [task.21.6]
 title = "Ship the porting kits with ported reference contracts"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["21.4","20.2"]
 do_1 = "Ship the EVM porting kit: Solidity storage, event and call semantic mappings with compatibility layers."

@@ -907,7 +907,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Wire each toolchain into the CLI's program build and deploy commands.
     - Run each language's conformance suite in CI.
     - _Requirements: 31.2, 31.5_
-  - [ ] 21.6 Ship the porting kits with ported reference contracts
+  - [x] 21.6 Ship the porting kits with ported reference contracts
     - Ship the EVM porting kit: Solidity storage, event and call semantic mappings with compatibility layers.
     - Ship the Solana porting kit: account-model and Anchor pattern mappings to namespaced storage and capabilities.
     - Ship the CosmWasm porting kit mapping contract patterns to the programs ABI.
