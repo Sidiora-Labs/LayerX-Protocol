@@ -218,6 +218,13 @@ impl CapabilitySet {
         self.0.get(key).ok_or(AbiError::CapabilityDenied)
     }
 
+    pub(crate) fn permits_transfer(&self, asset: [u8; 32], to: [u8; 32], amount: u128) -> bool {
+        matches!(
+            self.0.get(&CapabilityKey::Transfer { asset, to }),
+            Some(Capability::Transfer402 { maximum_amount, .. }) if amount <= *maximum_amount
+        )
+    }
+
     pub(crate) fn decode_canonical(bytes: &[u8]) -> Result<Vec<Capability>, AbiError> {
         if bytes.len() < 2 {
             return Err(AbiError::InvalidEncoding);

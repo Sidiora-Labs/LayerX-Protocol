@@ -2,6 +2,8 @@
 #define LAYERX_PROGRAMS_H
 
 #include "layerx/lxp_module.h"
+#include "layerx/lxp_ledger.h"
+#include "layerx/lxp_transfer.h"
 
 #include <stdint.h>
 
@@ -40,5 +42,31 @@ lxp_result layerx_programs_migration_wasm_byte(uint64_t handle, uint8_t byte);
 lxp_result layerx_programs_migration_hook_byte(uint64_t handle, uint8_t byte);
 lxp_result layerx_programs_migration_execute(uint64_t handle);
 void layerx_programs_migration_abort(uint64_t handle);
+
+typedef struct lx_programs_transfer_runtime {
+    lx_account_registry *accounts;
+    const lxp_transfer_asset_state *assets;
+    size_t asset_count;
+} lx_programs_transfer_runtime;
+
+lxp_result lxp_programs_transfer_decode(lxp_module_ctx *ctx,
+                                        const uint8_t *payload,
+                                        size_t payload_length,
+                                        void **decoded);
+lxp_result lxp_programs_transfer_validate(
+    lxp_module_ctx *ctx, const lxp_activity *activity,
+    const lxp_authority_resolved *authority, const void *decoded);
+lxp_result lxp_programs_transfer_execute(
+    lxp_module_ctx *ctx, const lxp_activity *activity,
+    const lxp_authority_resolved *authority, const void *decoded,
+    lxp_effect_buffer *effects);
+
+lxp_result layerx_programs_authorize_402lxp_leg(
+    uint64_t p0, uint64_t p1, uint64_t p2, uint64_t p3,
+    uint64_t r0, uint64_t r1, uint64_t r2, uint64_t r3,
+    uint64_t h0, uint64_t h1, uint64_t h2, uint64_t h3,
+    uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,
+    uint64_t t0, uint64_t t1, uint64_t t2, uint64_t t3,
+    uint64_t amount_hi, uint64_t amount_lo);
 
 #endif

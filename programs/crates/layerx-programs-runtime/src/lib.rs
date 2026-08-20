@@ -7,6 +7,7 @@ pub mod engine;
 #[deny(unsafe_code)]
 pub mod execute;
 mod ffi;
+mod ffi_transfer;
 #[deny(unsafe_code)]
 mod host;
 #[deny(unsafe_code)]
@@ -21,6 +22,8 @@ pub mod qualification;
 pub mod storage;
 #[deny(unsafe_code)]
 pub mod test_support;
+#[deny(unsafe_code)]
+pub mod transfer;
 #[deny(unsafe_code)]
 pub mod validate;
 
@@ -40,6 +43,10 @@ pub use qualification::{
     DifferentialMismatch, FuzzTarget, RecordedExecution, ReplayRefusal,
 };
 pub use storage::{PrincipalId, ProgramId, Storage, StorageError, StorageNamespace};
+pub use transfer::{
+    AtomicTransferSet, KernelTransferPrimitive, TransferCapability, TransferLawError,
+    VerifiedProgramSettlement,
+};
 pub use validate::{ValidatedModule, ValidationRefusal};
 
 /// Identifies the workspace manifest that governs every programs-plane crate.

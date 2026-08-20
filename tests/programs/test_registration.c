@@ -59,7 +59,7 @@ static int exercise(uint16_t ordinal, size_t payload_length,
 int main(void)
 {
     if (programs_module_registration() != lx_programs_module_iface()) return 1;
-    if (exercise(3U, 40U, LXP_OK, 1U) != 0) return 1;
+    if (exercise(3U, 40U, LXP_ERR_LENGTH_LIMIT, 0U) != 0) return 1;
     if (exercise(4U, 32U, LXP_OK, 0U) != 0) return 1;
     if (exercise(3U, 31U, LXP_ERR_TRUNCATED, 0U) != 0) return 1;
     return 0;

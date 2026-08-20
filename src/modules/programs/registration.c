@@ -37,6 +37,8 @@ static lxp_result programs_decode(lxp_module_ctx *ctx, uint16_t ordinal,
     if (ordinal == 1U || ordinal == 2U)
         return lxp_programs_lifecycle_decode(ctx, ordinal, payload, length,
                                              decoded);
+    if (ordinal == 3U)
+        return lxp_programs_transfer_decode(ctx, payload, length, decoded);
     if (ctx == NULL || decoded == NULL || ordinal == 0U || ordinal > 4U ||
         payload == NULL || length < 32U)
         return ordinal == 0U || ordinal > 4U ? LXP_ERR_UNKNOWN_ACTIVITY :
@@ -64,6 +66,8 @@ static lxp_result programs_validate(lxp_module_ctx *ctx,
          lxp_activity_type_ordinal(activity->activity_type) == 2U))
         return lxp_programs_lifecycle_validate(ctx, activity, authority,
                                                decoded);
+    if (activity != NULL && lxp_activity_type_ordinal(activity->activity_type) == 3U)
+        return lxp_programs_transfer_validate(ctx, activity, authority, decoded);
     if (ctx == NULL || activity == NULL || authority == NULL || value == NULL)
         return LXP_ERR_NON_CANONICAL;
     if (lxp_ct_is_zero(authority->principal, sizeof(authority->principal)))
@@ -91,6 +95,9 @@ static lxp_result programs_execute(lxp_module_ctx *ctx,
          lxp_activity_type_ordinal(activity->activity_type) == 2U))
         return lxp_programs_lifecycle_execute(ctx, activity, authority,
                                               decoded, effects);
+    if (activity != NULL && lxp_activity_type_ordinal(activity->activity_type) == 3U)
+        return lxp_programs_transfer_execute(ctx, activity, authority, decoded,
+                                             effects);
     (void)effects;
     if (ctx == NULL || authority == NULL || value == NULL)
         return LXP_ERR_NON_CANONICAL;

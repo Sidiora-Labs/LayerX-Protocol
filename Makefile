@@ -2338,21 +2338,29 @@ programs-lint:
 	cd programs && $(PROGRAMS_CARGO) deny check advisories bans sources
 
 $(BUILD_DIR)/tests/programs_registration: tests/programs/test_registration.c \
-		$(LIBRARY) $(PROGRAMS_RUNTIME_LIB)
+		$(LIBRARY) $(PROGRAMS_RUNTIME_LIB) | programs-build
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(PROGRAMS_RUNTIME_LIB) \
 		$(EXTRA_LDFLAGS) -lcrypto -pthread -ldl -lm -o $@
 
 $(BUILD_DIR)/tests/programs_lifecycle: tests/programs/test_lifecycle.c \
-		$(LIBRARY) $(PROGRAMS_RUNTIME_LIB)
+		$(LIBRARY) $(PROGRAMS_RUNTIME_LIB) | programs-build
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(PROGRAMS_RUNTIME_LIB) \
+		$(EXTRA_LDFLAGS) -lcrypto -pthread -ldl -lm -o $@
+
+$(BUILD_DIR)/tests/programs_monetary_law: tests/programs/test_monetary_law.c \
+		$(LIBRARY) $(PROGRAMS_RUNTIME_LIB) | programs-build
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(PROGRAMS_RUNTIME_LIB) \
 		$(EXTRA_LDFLAGS) -lcrypto -pthread -ldl -lm -o $@
 
 programs-core-test: $(BUILD_DIR)/tests/programs_registration \
-		$(BUILD_DIR)/tests/programs_lifecycle
+		$(BUILD_DIR)/tests/programs_lifecycle \
+		$(BUILD_DIR)/tests/programs_monetary_law
 	$(RUN_PREFIX) $(BUILD_DIR)/tests/programs_registration
 	$(RUN_PREFIX) $(BUILD_DIR)/tests/programs_lifecycle
+	$(RUN_PREFIX) $(BUILD_DIR)/tests/programs_monetary_law
 
 programs-fuzz-smoke:
 	cd programs && $(PROGRAMS_CARGO) run --locked -p layerx-programs-fuzz --bin programs-fuzz -- validation fuzz/corpus/validation
