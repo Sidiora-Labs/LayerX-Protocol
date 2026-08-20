@@ -131,6 +131,7 @@ impl Buyer {
         }
         let payload = PaymentPayload {
             x402_version: X402_VERSION,
+            resource: Some(required.resource),
             payload: scheme_payload,
             accepted,
             extensions: required.extensions,

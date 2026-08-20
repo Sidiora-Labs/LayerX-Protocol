@@ -2,10 +2,13 @@
 
 pub mod buyer;
 mod codec;
+pub mod facilitator;
 pub mod model;
 pub mod seller;
+pub mod transport;
 
 pub use buyer::Buyer;
+pub use facilitator::Facilitator;
 pub use model::{PaymentPayload, PaymentRequired, PaymentRequirements, SettlementResponse};
 pub use seller::Seller;
 
@@ -52,4 +55,10 @@ pub const fn interop_x402_seller() -> &'static str {
 #[must_use]
 pub const fn interop_x402_buyer() -> &'static str {
     "x402-v2-evidence-bound-buyer"
+}
+
+/// Codify anchor for the receipt-backed facilitator and transport matrix.
+#[must_use]
+pub const fn interop_x402_facilitator() -> &'static str {
+    "x402-v2-receipt-backed-facilitator-http-mcp-a2a"
 }

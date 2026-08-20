@@ -206,6 +206,8 @@ impl PaymentRequired {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct PaymentPayload {
     pub x402_version: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource: Option<ResourceInfo>,
     pub payload: Value,
     pub accepted: PaymentRequirements,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -216,6 +218,9 @@ impl PaymentPayload {
     pub(crate) fn validate(&self) -> Result<(), X402Error> {
         validate_version(self.x402_version)?;
         self.accepted.validate()?;
+        if let Some(resource) = &self.resource {
+            resource.validate()?;
+        }
         if !self.payload.is_object() {
             return Err(X402Error::InvalidPayload);
         }
@@ -258,8 +263,18 @@ impl SettlementResponse {
             if self.transaction.is_empty() || self.error_reason.is_some() {
                 return Err(X402Error::EvidenceMissing);
             }
-        } else if !self.transaction.is_empty() || self.error_reason.is_none() {
-            return Err(X402Error::InvalidPayload);
+        } else {
+            let reason = self
+                .error_reason
+                .as_deref()
+                .ok_or(X402Error::InvalidPayload)?;
+            if reason == "settlement_pending" {
+                if self.transaction.is_empty() {
+                    return Err(X402Error::InvalidPayload);
+                }
+            } else if !self.transaction.is_empty() {
+                return Err(X402Error::InvalidPayload);
+            }
         }
         Ok(())
     }
