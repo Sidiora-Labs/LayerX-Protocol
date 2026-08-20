@@ -1,0 +1,33 @@
+name: LayerXWallet
+options:
+  bundleIdPrefix: com.sidiora.layerx
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+packages:
+  LayerXMobile:
+    path: ..
+targets:
+  LayerXWallet:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    dependencies:
+      - package: LayerXMobile
+        product: LayerXMobile
+      - package: LayerXMobile
+        product: LayerXMobileSampleKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sidiora.layerx.wallet
+        PRODUCT_NAME: LayerXWallet
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Info.plist
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
+        CODE_SIGN_STYLE: Automatic

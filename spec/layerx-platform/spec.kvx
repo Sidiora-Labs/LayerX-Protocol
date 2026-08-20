@@ -1867,7 +1867,7 @@ reqs = ["25.2","25.7","25.5"]
 
 [task.16.4]
 title = "Build the mobile bindings and agent-framework integrations"
-status = "pending"
+status = "done"
 wave = 9
 requires = ["15.5","16.2"]
 do_1 = "Ship iOS bindings over the Swift SDK and Android bindings over the JVM SDK, each with a runnable sample app."

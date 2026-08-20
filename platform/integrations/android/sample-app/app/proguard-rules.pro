@@ -1,0 +1,6 @@
+-keep class com.sidiora.layerx.sdk.** { *; }
+-keep class com.sidiora.layerx.android.** { *; }
+-keepattributes Signature,InnerClasses,EnclosingMethod,RuntimeVisibleAnnotations
+-dontwarn com.fasterxml.jackson.databind.ext.**
+-dontwarn org.bouncycastle.jsse.**
+-dontwarn javax.naming.**

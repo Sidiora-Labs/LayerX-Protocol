@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LayerX Wallet Sample</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_pay">Pay quote</string>
+    <string name="label_service">Service</string>
+    <string name="label_identity">Identity</string>
+    <string name="label_activity">Activity entries</string>
+    <string name="label_settlement">Settlement</string>
+    <string name="label_deliveries">Verified events</string>
+    <string name="state_idle">idle</string>
+</resources>

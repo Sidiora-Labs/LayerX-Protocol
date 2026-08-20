@@ -81,3 +81,8 @@ platform-test-middleware:
 		platform/integrations/fastapi/layerx_fastapi platform/integrations/fastapi/examples
 	mvn -q -f platform/sdk/jvm/pom.xml -DskipTests install
 	mvn -q -f platform/integrations/spring/pom.xml -DskipTests install
+	cd platform/middleware/agent && npm install --no-audit --no-fund && npm run build
+	cd platform/integrations/agents && npm install --no-audit --no-fund && npm run build
+	mvn -q -f platform/integrations/android/pom.xml -DskipTests verify
+	command -v swift >/dev/null
+	swift build --package-path platform/integrations/ios

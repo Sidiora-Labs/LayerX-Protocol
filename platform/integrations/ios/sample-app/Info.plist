@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>LayerX Wallet</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+	</dict>
+	<key>LayerX</key>
+	<dict>
+		<key>layerx.service_url</key>
+		<string>https://platform.example.com</string>
+		<key>layerx.session_broker_url</key>
+		<string>https://app-backend.example.com/layerx/session</string>
+		<key>layerx.event_public_key.relay-2026</key>
+		<string>d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a</string>
+		<key>layerx.event_max_age_seconds</key>
+		<string>300</string>
+		<key>layerx.request_timeout_seconds</key>
+		<string>30</string>
+	</dict>
+	<key>LayerXSample</key>
+	<dict>
+		<key>receipt_relay_url</key>
+		<string>https://app-backend.example.com/layerx/receipts</string>
+		<key>asset</key>
+		<string>0000000000000000000000000000000000000000000000000000000000000001</string>
+		<key>recipient</key>
+		<string>0000000000000000000000000000000000000000000000000000000000000002</string>
+		<key>amount</key>
+		<string>1250</string>
+		<key>quote_json</key>
+		<string>{"destination":"merchant:demo","amount":"1250","asset":"0000000000000000000000000000000000000000000000000000000000000001"}</string>
+	</dict>
+</dict>
+</plist>

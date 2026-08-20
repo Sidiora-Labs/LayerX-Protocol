@@ -8,6 +8,9 @@ path = "platform/sdk/generators"
 [dir.middleware]
 path = "platform/middleware"
 
+[dir.integrations]
+path = "platform/integrations"
+
 [dir.cli]
 path = "platform/cli"
 

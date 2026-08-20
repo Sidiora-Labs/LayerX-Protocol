@@ -1,0 +1,54 @@
+{
+  "name": "@sidiora/layerx-agent-integrations",
+  "version": "0.1.0",
+  "description": "One-dependency LayerX integrations for MCP, OpenAI, Anthropic, LangChain and the Vercel AI SDK",
+  "type": "module",
+  "private": false,
+  "license": "SEE LICENSE IN LICENSE",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp.d.ts",
+      "import": "./dist/mcp.js"
+    },
+    "./openai": {
+      "types": "./dist/openai.d.ts",
+      "import": "./dist/openai.js"
+    },
+    "./anthropic": {
+      "types": "./dist/anthropic.d.ts",
+      "import": "./dist/anthropic.js"
+    },
+    "./langchain": {
+      "types": "./dist/langchain.d.ts",
+      "import": "./dist/langchain.js"
+    },
+    "./vercel-ai": {
+      "types": "./dist/vercel-ai.d.ts",
+      "import": "./dist/vercel-ai.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "layerx-mcp-server": "./dist/mcp-server.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@sidiora/layerx-agent-middleware": "0.1.0",
+    "@sidiora/layerx-sdk": "0.1.0",
+    "@sidiora/layerx-seller-middleware": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

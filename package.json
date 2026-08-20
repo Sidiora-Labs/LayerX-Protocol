@@ -3,8 +3,10 @@
   "private": true,
   "workspaces": [
     "agent/sdk/typescript",
+    "platform/middleware/agent",
     "platform/middleware/buyer",
     "platform/middleware/seller",
+    "platform/integrations/agents",
     "platform/integrations/express",
     "platform/integrations/next"
   ]

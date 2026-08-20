@@ -1,0 +1,15 @@
+{
+  "name": "@sidiora/layerx-example-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@sidiora/layerx-agent-integrations": "0.1.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
