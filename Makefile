@@ -2349,7 +2349,7 @@ interop-lint:
 PROGRAMS_CARGO ?= cargo
 PROGRAMS_RUNTIME_LIB := programs/target/debug/liblayerx_programs_runtime.a
 
-.PHONY: programs-build programs-lint programs-test programs-core-test programs-module-boundaries \
+.PHONY: programs-build programs-lint programs-test programs-core-test programs-adversarial programs-module-boundaries \
 	programs-fuzz-smoke programs-quickstart programs-sdk-rust programs-sdk-c programs-sdk-assemblyscript
 
 $(PROGRAMS_RUNTIME_LIB):
@@ -2396,7 +2396,10 @@ programs-fuzz-smoke:
 	cd programs && $(PROGRAMS_CARGO) run --locked -p layerx-programs-fuzz --bin programs-fuzz -- instantiation fuzz/corpus/instantiation
 	cd programs && $(PROGRAMS_CARGO) run --locked -p layerx-programs-fuzz --bin programs-fuzz -- execution fuzz/corpus/execution
 
-programs-test: programs-module-boundaries programs-core-test programs-fuzz-smoke programs-sdk-rust programs-sdk-c programs-sdk-assemblyscript
+programs-adversarial:
+	cd programs && $(PROGRAMS_CARGO) test --locked -p layerx-programs-runtime --test isolation --test composition
+
+programs-test: programs-module-boundaries programs-core-test programs-adversarial programs-fuzz-smoke programs-sdk-rust programs-sdk-c programs-sdk-assemblyscript
 	cd programs && $(PROGRAMS_CARGO) test --locked --workspace
 
 programs-sdk-c:

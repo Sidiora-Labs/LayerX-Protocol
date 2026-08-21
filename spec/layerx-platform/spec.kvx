@@ -2754,7 +2754,7 @@ reqs = ["35.5","28.3"]
 
 [task.28.6]
 title = "Ship the isolation and composition adversarial suites"
-status = "pending"
+status = "done"
 wave = 14
 requires = ["28.1"]
 do_1 = "Write the isolation suite the capability ABI claims: guests attempting to reach kernel state, another program's namespace, another principal's cells, the host linker and memory outside their own instance, each defeated by construction."

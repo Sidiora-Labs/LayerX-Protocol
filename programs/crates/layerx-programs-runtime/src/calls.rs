@@ -805,11 +805,12 @@ fn execute_nested(
             .map_err(|refusal| preflight_entry_refusal(callee, refusal))?;
     }
     let carried = state.meter().cpu_carried();
-    state
-        .composition_mut()
+    let mut admitted_graph = state
+        .composition()
         .ok_or(CompositionRefusal::NotComposable)?
-        .graph_mut()
-        .enter(callee)?;
+        .graph()
+        .clone();
+    admitted_graph.enter(callee)?;
     let (principal, capabilities, storage, receipts) = {
         let abi = state.abi_mut().ok_or(CompositionRefusal::NotComposable)?;
         let capabilities = abi.stage_call(callee, input, requested)?;
@@ -820,6 +821,10 @@ fn execute_nested(
             abi.verified_receipts(),
         )
     };
+    state
+        .composition_mut()
+        .ok_or(CompositionRefusal::NotComposable)?
+        .set_graph(admitted_graph);
     let mut child_meter = state.meter().clone();
     child_meter.carry_cpu(consumed)?;
     child_meter.record_cpu(0);

@@ -1,15 +1,18 @@
+use layerx_programs_runtime::abi::response::CANDIDATE_ABI_MODULE;
 use layerx_programs_runtime::test_support::{
     code_section, func_body, function_section, import_section, module, type_section, unsigned_leb,
     OP_CALL, OP_END, OP_I32_CONST, TYPE_I32, TYPE_I64,
 };
 use layerx_programs_runtime::{
     Abi, AbiError, AuthorizationContext, AuthorizedExecutionRequest, Capability, CapabilitySet,
-    CompositionContext, Executor, PrincipalId, ProgramId, ReceiptOracle, ReceiptView, Storage,
-    StorageNamespace, ValidationRefusal, WasmEngine, WasmValue, ABI_MODULE, ABI_VERSION,
+    CompositionContext, CompositionRules, ExecutionError, Executor, PrincipalId, ProgramCatalog,
+    ProgramId, ReceiptOracle, ReceiptView, ResponseRefusal, Storage, StorageNamespace,
+    ValidationRefusal, WasmEngine, WasmValue, ABI_MODULE, ABI_VERSION, CALL_ENTRY_EXPORT,
     HOST_FUNCTIONS,
 };
 
 const ABI_V1_GOLDEN: &str = include_str!("../vectors/abi-v1.hex");
+const ATTACK_INVENTORY: &str = include_str!("../../../tests/gauntlet/attack-inventory.tsv");
 #[derive(Debug)]
 struct NoReceipts;
 
@@ -31,6 +34,35 @@ fn section(id: u8, payload: &[u8]) -> Vec<u8> {
     encoded.extend(unsigned_leb(payload.len() as u64));
     encoded.extend_from_slice(payload);
     encoded
+}
+
+fn exports(entries: &[(&str, u8, u8)]) -> Vec<u8> {
+    let mut payload = unsigned_leb(entries.len() as u64);
+    for (name, kind, index) in entries {
+        payload.extend(unsigned_leb(name.len() as u64));
+        payload.extend_from_slice(name.as_bytes());
+        payload.extend_from_slice(&[*kind, *index]);
+    }
+    section(7, &payload)
+}
+
+fn data_section(entries: &[(u32, &[u8])]) -> Vec<u8> {
+    let mut payload = unsigned_leb(entries.len() as u64);
+    for (offset, bytes) in entries {
+        payload.extend([0, OP_I32_CONST]);
+        payload.extend(signed_leb_i32(
+            i32::try_from(*offset).unwrap_or_else(|error| panic!("data offset: {error}")),
+        ));
+        payload.push(OP_END);
+        payload.extend(unsigned_leb(bytes.len() as u64));
+        payload.extend_from_slice(bytes);
+    }
+    section(11, &payload)
+}
+
+fn push_i32(instructions: &mut Vec<u8>, value: i32) {
+    instructions.push(OP_I32_CONST);
+    instructions.extend(signed_leb_i32(value));
 }
 
 fn memory_and_data(value: &[u8]) -> (Vec<u8>, Vec<u8>) {
@@ -71,6 +103,270 @@ fn storage_module(function: &str, pointer: i32, value: &[u8]) -> Vec<u8> {
         section(7, &export_payload),
         code_section(&[func_body(&[], &instructions)]),
         data,
+    ])
+}
+
+fn storage_read_destination_module(pointer: i32, capacity: i32) -> Vec<u8> {
+    let mut instructions = Vec::new();
+    for value in [0, 3, pointer, capacity] {
+        push_i32(&mut instructions, value);
+    }
+    instructions.extend([OP_CALL, 0, OP_END]);
+    module(&[
+        type_section(&[
+            (&[TYPE_I32; 4], &[TYPE_I32]),
+            (&[TYPE_I32, TYPE_I32], &[TYPE_I32]),
+        ]),
+        import_section(&[(ABI_MODULE, "storage_read", 0)]),
+        function_section(&[1]),
+        section(5, &[1, 1, 1, 1]),
+        exports(&[("run", 0, 1), ("memory", 2, 0)]),
+        code_section(&[func_body(&[], &instructions)]),
+        data_section(&[(0, b"key")]),
+    ])
+}
+
+fn missing_memory_storage_module() -> Vec<u8> {
+    module(&[
+        type_section(&[
+            (&[TYPE_I32; 4], &[TYPE_I32]),
+            (&[TYPE_I32, TYPE_I32], &[TYPE_I32]),
+        ]),
+        import_section(&[(ABI_MODULE, "storage_write", 0)]),
+        function_section(&[1]),
+        exports(&[("run", 0, 1)]),
+        code_section(&[func_body(
+            &[],
+            &[
+                OP_I32_CONST,
+                0,
+                OP_I32_CONST,
+                0,
+                OP_I32_CONST,
+                0,
+                OP_I32_CONST,
+                0,
+                OP_CALL,
+                0,
+                OP_END,
+            ],
+        )]),
+    ])
+}
+
+fn storage_write_entry(value: u8) -> Vec<u8> {
+    let mut entry = Vec::new();
+    for argument in [0, 1, 1, 1] {
+        push_i32(&mut entry, argument);
+    }
+    entry.extend([OP_CALL, 0, OP_END]);
+    module(&[
+        type_section(&[
+            (&[TYPE_I32; 4], &[TYPE_I32]),
+            (&[TYPE_I32], &[TYPE_I32]),
+            (&[TYPE_I32, TYPE_I32], &[TYPE_I32]),
+        ]),
+        import_section(&[(ABI_MODULE, "storage_write", 0)]),
+        function_section(&[1, 2]),
+        section(5, &[1, 1, 1, 1]),
+        exports(&[
+            ("layerx_reserve", 0, 1),
+            (CALL_ENTRY_EXPORT, 0, 2),
+            ("memory", 2, 0),
+        ]),
+        code_section(&[
+            func_body(&[], &[OP_I32_CONST, 0, OP_END]),
+            func_body(&[], &entry),
+        ]),
+        data_section(&[(0, b"k"), (1, &[value])]),
+    ])
+}
+
+fn nested_storage_root(child: ProgramId, value: u8) -> Vec<u8> {
+    let requested = CapabilitySet::new([Capability::StorageWrite])
+        .unwrap_or_else(|error| panic!("requested storage capability: {error}"))
+        .canonical_encoding();
+    let mut entry = Vec::new();
+    for argument in [0, 1, 1, 1] {
+        push_i32(&mut entry, argument);
+    }
+    entry.extend([OP_CALL, 0, 0x1a]);
+    for argument in [
+        32,
+        32,
+        0,
+        0,
+        64,
+        i32::try_from(requested.len()).unwrap_or(i32::MAX),
+    ] {
+        push_i32(&mut entry, argument);
+    }
+    entry.extend([OP_CALL, 1, OP_END]);
+    module(&[
+        type_section(&[
+            (&[TYPE_I32; 4], &[TYPE_I32]),
+            (&[TYPE_I32; 6], &[TYPE_I32]),
+            (&[TYPE_I32], &[TYPE_I32]),
+            (&[TYPE_I32, TYPE_I32], &[TYPE_I32]),
+        ]),
+        import_section(&[
+            (ABI_MODULE, "storage_write", 0),
+            (ABI_MODULE, "program_call", 1),
+        ]),
+        function_section(&[2, 3]),
+        section(5, &[1, 1, 1, 1]),
+        exports(&[
+            ("layerx_reserve", 0, 2),
+            (CALL_ENTRY_EXPORT, 0, 3),
+            ("memory", 2, 0),
+        ]),
+        code_section(&[
+            func_body(&[], &[OP_I32_CONST, 0, OP_END]),
+            func_body(&[], &entry),
+        ]),
+        data_section(&[
+            (0, b"k"),
+            (1, &[value]),
+            (32, &child.bytes()),
+            (64, &requested),
+        ]),
+    ])
+}
+
+fn execute_nested_storage(
+    root_wasm: &[u8],
+    child: ProgramId,
+    child_wasm: &[u8],
+    storage: &mut Storage,
+    root: ProgramId,
+    principal: PrincipalId,
+) -> layerx_programs_runtime::AuthorizedExecutionRecord {
+    let engine = WasmEngine::declared().unwrap_or_else(|error| panic!("engine: {error}"));
+    let root_module = engine
+        .validate(root_wasm)
+        .unwrap_or_else(|error| panic!("root validation: {error}"));
+    let mut catalog = ProgramCatalog::new();
+    catalog.insert(
+        child,
+        engine
+            .validate(child_wasm)
+            .unwrap_or_else(|error| panic!("child validation: {error}")),
+    );
+    let grants = CapabilitySet::new([
+        Capability::StorageWrite,
+        Capability::Call { program: child },
+    ])
+    .unwrap_or_else(|error| panic!("root grants: {error}"));
+    Executor::declared()
+        .execute_authorized(
+            storage,
+            AuthorizedExecutionRequest {
+                module: &root_module,
+                program: root,
+                authorization: AuthorizationContext::new(principal, grants),
+                receipts: &NoReceipts,
+                entrypoint: CALL_ENTRY_EXPORT,
+                calldata: &[],
+                composition: CompositionContext::catalog(catalog, CompositionRules::declared()),
+                response_capacity: 0,
+            },
+        )
+        .unwrap_or_else(|error| panic!("nested execution: {error}"))
+}
+
+fn event_module() -> Vec<u8> {
+    module(&[
+        type_section(&[
+            (&[TYPE_I32; 4], &[TYPE_I32]),
+            (&[TYPE_I32, TYPE_I32], &[TYPE_I32]),
+        ]),
+        import_section(&[(ABI_MODULE, "event_emit", 0)]),
+        function_section(&[1]),
+        section(5, &[1, 1, 1, 1]),
+        exports(&[("run", 0, 1), ("memory", 2, 0)]),
+        code_section(&[func_body(
+            &[],
+            &[
+                OP_I32_CONST,
+                0,
+                OP_I32_CONST,
+                1,
+                OP_I32_CONST,
+                1,
+                OP_I32_CONST,
+                1,
+                OP_CALL,
+                0,
+                OP_END,
+            ],
+        )]),
+        data_section(&[(0, b"te")]),
+    ])
+}
+
+fn transfer_module() -> Vec<u8> {
+    let asset = [0xa5; 32];
+    let recipient = [0x5a; 32];
+    module(&[
+        type_section(&[
+            (
+                &[TYPE_I64, TYPE_I64, TYPE_I32, TYPE_I32, TYPE_I32, TYPE_I32],
+                &[TYPE_I32],
+            ),
+            (&[TYPE_I32, TYPE_I32], &[TYPE_I32]),
+        ]),
+        import_section(&[(ABI_MODULE, "transfer_402", 0)]),
+        function_section(&[1]),
+        section(5, &[1, 1, 1, 1]),
+        exports(&[("run", 0, 1), ("memory", 2, 0)]),
+        code_section(&[func_body(
+            &[],
+            &[
+                0x42,
+                0,
+                0x42,
+                1,
+                OP_I32_CONST,
+                0,
+                OP_I32_CONST,
+                32,
+                OP_I32_CONST,
+                32,
+                OP_I32_CONST,
+                32,
+                OP_CALL,
+                0,
+                OP_END,
+            ],
+        )]),
+        data_section(&[(0, &asset), (32, &recipient)]),
+    ])
+}
+
+fn candidate_oob_response_module(pointer: i32) -> Vec<u8> {
+    let mut entry = Vec::new();
+    for value in [0, pointer, 1] {
+        push_i32(&mut entry, value);
+    }
+    entry.extend([OP_CALL, 0, 0x1a, OP_I32_CONST, 0, OP_END]);
+    module(&[
+        type_section(&[
+            (&[TYPE_I32; 3], &[TYPE_I32]),
+            (&[TYPE_I32], &[TYPE_I32]),
+            (&[TYPE_I32, TYPE_I32], &[TYPE_I32]),
+        ]),
+        import_section(&[(CANDIDATE_ABI_MODULE, "response_write", 0)]),
+        function_section(&[1, 2]),
+        section(5, &[1, 1, 1, 1]),
+        exports(&[
+            ("layerx_reserve", 0, 1),
+            (CALL_ENTRY_EXPORT, 0, 2),
+            ("memory", 2, 0),
+        ]),
+        code_section(&[
+            func_body(&[], &[OP_I32_CONST, 0, OP_END]),
+            func_body(&[], &entry),
+        ]),
     ])
 }
 
@@ -171,6 +467,41 @@ fn nibble(byte: u8) -> u8 {
     }
 }
 
+fn inventory_rows(suite: &str) -> Vec<(&'static str, &'static str)> {
+    let mut lines = ATTACK_INVENTORY.lines();
+    assert_eq!(
+        lines.next(),
+        Some("id\tsuite\thostile_action\tboundary\texpected\ttest\tatomicity\tfuture_owner")
+    );
+    let mut identifiers = std::collections::BTreeSet::new();
+    let mut selected = Vec::new();
+    for (offset, line) in lines.enumerate() {
+        assert!(
+            !line.trim().is_empty(),
+            "blank inventory row {}",
+            offset + 2
+        );
+        let fields = line.split('\t').collect::<Vec<_>>();
+        assert_eq!(fields.len(), 8, "malformed inventory row {}", offset + 2);
+        assert!(
+            fields.iter().all(|field| !field.trim().is_empty()),
+            "empty inventory field on row {}",
+            offset + 2
+        );
+        assert!(identifiers.insert(fields[0]), "duplicate id {}", fields[0]);
+        assert!(
+            matches!(fields[1], "isolation" | "composition"),
+            "unknown inventory suite {} on row {}",
+            fields[1],
+            offset + 2
+        );
+        if fields[1] == suite {
+            selected.push((fields[0], fields[5]));
+        }
+    }
+    selected
+}
+
 #[test]
 fn abi_v1_manifest_matches_typed_declarations_and_golden() {
     let mut regenerated = Vec::new();
@@ -237,7 +568,14 @@ fn wrong_signature_is_rejected_during_validation() {
 #[test]
 fn unknown_and_ambient_kernel_imports_are_rejected() {
     let engine = WasmEngine::declared().unwrap_or_else(|error| panic!("engine: {error}"));
-    for (module_name, import_name) in [(ABI_MODULE, "kernel_state"), ("env", "kernel_state")] {
+    for (module_name, import_name) in [
+        (ABI_MODULE, "kernel_state"),
+        (ABI_MODULE, "balance_write"),
+        ("env", "kernel_state"),
+        ("kernel", "storage_read"),
+        ("wasi_snapshot_preview1", "fd_write"),
+        (CANDIDATE_ABI_MODULE, "response_write"),
+    ] {
         let wasm = module(&[
             type_section(&[(&[], &[TYPE_I32])]),
             import_section(&[(module_name, import_name, 0)]),
@@ -254,19 +592,21 @@ fn unknown_and_ambient_kernel_imports_are_rejected() {
 
 #[test]
 fn wrong_kind_is_rejected_during_validation() {
-    let mut payload = vec![1, 9];
-    payload.extend_from_slice(ABI_MODULE.as_bytes());
-    payload.push(12);
-    payload.extend_from_slice(b"storage_read");
-    payload.extend([2, 0, 1]);
-    let wasm = module(&[section(2, &payload)]);
     let engine = WasmEngine::declared().unwrap_or_else(|error| panic!("engine: {error}"));
-    assert_eq!(
-        validation_refusal(&engine, &wasm),
-        ValidationRefusal::WrongImportKind {
-            import_name: "storage_read".into()
-        }
-    );
+    for descriptor in [vec![1, 0x70, 0, 1], vec![2, 0, 1], vec![3, TYPE_I32, 0]] {
+        let mut payload = vec![1, 9];
+        payload.extend_from_slice(ABI_MODULE.as_bytes());
+        payload.push(12);
+        payload.extend_from_slice(b"storage_read");
+        payload.extend(descriptor);
+        let wasm = module(&[section(2, &payload)]);
+        assert_eq!(
+            validation_refusal(&engine, &wasm),
+            ValidationRefusal::WrongImportKind {
+                import_name: "storage_read".into()
+            }
+        );
+    }
 }
 
 #[test]
@@ -306,7 +646,7 @@ fn real_guest_storage_is_scoped_by_program_and_principal() {
     assert_eq!(written.execution.outputs, vec![WasmValue::I32(0)]);
     assert_eq!(written.execution.usage.storage_write_bytes, 6);
     let foreign_program_write = execute(
-        &storage_module("storage_write", 0, b"bee"),
+        &storage_module("storage_write", 0, b"foreign"),
         &mut storage,
         program_b,
         principal_p,
@@ -323,7 +663,10 @@ fn real_guest_storage_is_scoped_by_program_and_principal() {
         foreign_program_write.execution.outputs,
         vec![WasmValue::I32(0)]
     );
-    assert_eq!(foreign_program_write.execution.usage.storage_write_bytes, 6);
+    assert_eq!(
+        foreign_program_write.execution.usage.storage_write_bytes,
+        10
+    );
     assert_eq!(
         foreign_principal_write.execution.outputs,
         vec![WasmValue::I32(0)]
@@ -355,15 +698,15 @@ fn real_guest_storage_is_scoped_by_program_and_principal() {
     );
     assert_eq!(owner.execution.outputs, vec![WasmValue::I32(4)]);
     assert_eq!(owner.execution.usage.storage_read_bytes, 6);
-    assert_eq!(other_program.execution.outputs, vec![WasmValue::I32(4)]);
-    assert_eq!(other_program.execution.usage.storage_read_bytes, 6);
+    assert_eq!(other_program.execution.outputs, vec![WasmValue::I32(8)]);
+    assert_eq!(other_program.execution.usage.storage_read_bytes, 10);
     assert_eq!(other_principal.execution.outputs, vec![WasmValue::I32(6)]);
     assert_eq!(other_principal.execution.usage.storage_read_bytes, 8);
     let owner_namespace = StorageNamespace::new(program_a, principal_p);
     let program_namespace = StorageNamespace::new(program_b, principal_p);
     let principal_namespace = StorageNamespace::new(program_a, principal_q);
     assert_namespace(&mut storage, owner_namespace, b"new");
-    assert_namespace(&mut storage, program_namespace, b"bee");
+    assert_namespace(&mut storage, program_namespace, b"foreign");
     assert_namespace(&mut storage, principal_namespace, b"queue");
     let mut replacement = storage.transaction(owner_namespace);
     replacement
@@ -376,19 +719,176 @@ fn real_guest_storage_is_scoped_by_program_and_principal() {
 #[test]
 fn guest_memory_bounds_refusal_cannot_write_or_emit_effects() {
     let (program, principal) = ids(3, 4);
+    for pointer in [-1, 65_535, i32::MAX] {
+        let mut storage = Storage::new();
+        let before = storage.clone();
+        let refusal = execute_result(
+            &storage_module("storage_write", pointer, b"new"),
+            &mut storage,
+            program,
+            principal,
+            [Capability::StorageWrite],
+        );
+        let status = if pointer < 0 { -2 } else { -3 };
+        assert_eq!(
+            refusal,
+            Err(layerx_programs_runtime::ExecutionError::Entrypoint(
+                layerx_programs_runtime::EntrypointRefusal::GuestRefused { code: status }
+            )),
+            "pointer {pointer}"
+        );
+        assert_eq!(storage, before, "pointer {pointer}");
+    }
+
+    let namespace = StorageNamespace::new(program, principal);
+    for pointer in [-1, 65_535, i32::MAX] {
+        let mut storage = Storage::new();
+        let mut seed = storage.transaction(namespace);
+        seed.write(b"key", b"canary")
+            .unwrap_or_else(|error| panic!("seed: {error}"));
+        assert_eq!(seed.commit(), 1);
+        let before = storage.clone();
+        let refusal = execute_result(
+            &storage_read_destination_module(pointer, 16),
+            &mut storage,
+            program,
+            principal,
+            [Capability::StorageRead],
+        );
+        let status = if pointer < 0 { -2 } else { -3 };
+        assert_eq!(
+            refusal,
+            Err(ExecutionError::Entrypoint(
+                layerx_programs_runtime::EntrypointRefusal::GuestRefused { code: status }
+            )),
+            "destination {pointer}"
+        );
+        assert_eq!(storage, before, "destination {pointer}");
+    }
+
     let mut storage = Storage::new();
     let before = storage.clone();
-    let refusal = execute_result(
-        &storage_module("storage_write", 65_535, b"new"),
+    assert_eq!(
+        execute_result(
+            &missing_memory_storage_module(),
+            &mut storage,
+            program,
+            principal,
+            [Capability::StorageWrite],
+        ),
+        Err(ExecutionError::Entrypoint(
+            layerx_programs_runtime::EntrypointRefusal::GuestRefused { code: -2 }
+        ))
+    );
+    assert_eq!(storage, before);
+}
+
+#[test]
+fn denied_event_and_transfer_guests_have_no_effects() {
+    let (program, principal) = ids(11, 12);
+    for (name, wasm) in [("event", event_module()), ("transfer", transfer_module())] {
+        let mut storage = Storage::new();
+        let before = storage.clone();
+        assert_eq!(
+            execute_result(&wasm, &mut storage, program, principal, []),
+            Err(ExecutionError::Entrypoint(
+                layerx_programs_runtime::EntrypointRefusal::GuestRefused { code: -1 }
+            )),
+            "{name}"
+        );
+        assert_eq!(storage, before, "{name}");
+    }
+}
+
+#[test]
+fn nested_frames_use_their_own_program_memory_and_storage_namespace() {
+    let (root, principal_p) = ids(13, 15);
+    let (child, _) = ids(14, 15);
+    let (_, principal_q) = ids(13, 16);
+    let root_wasm = nested_storage_root(child, b'A');
+    let child_wasm = storage_write_entry(b'B');
+    let mut storage = Storage::new();
+    let record = execute_nested_storage(
+        &root_wasm,
+        child,
+        &child_wasm,
         &mut storage,
-        program,
-        principal,
-        [Capability::StorageWrite],
+        root,
+        principal_p,
+    );
+    assert_eq!(record.call_graph.edges().len(), 1);
+    assert_eq!(record.call_graph.edges()[0].principal(), principal_p);
+    assert_eq!(
+        storage
+            .transaction(StorageNamespace::new(root, principal_p))
+            .read(b"k"),
+        Ok(Some(vec![b'A']))
     );
     assert_eq!(
-        refusal,
-        Err(layerx_programs_runtime::ExecutionError::Entrypoint(
-            layerx_programs_runtime::EntrypointRefusal::GuestRefused { code: -3 }
+        storage
+            .transaction(StorageNamespace::new(child, principal_p))
+            .read(b"k"),
+        Ok(Some(vec![b'B']))
+    );
+    assert_eq!(
+        storage
+            .transaction(StorageNamespace::new(root, principal_q))
+            .read(b"k"),
+        Ok(None)
+    );
+
+    let other = execute(
+        &storage_module("storage_write", 0, b"queue"),
+        &mut storage,
+        root,
+        principal_q,
+        [Capability::StorageWrite],
+    );
+    assert_eq!(other.execution.outputs, vec![WasmValue::I32(0)]);
+    assert_eq!(
+        storage
+            .transaction(StorageNamespace::new(root, principal_p))
+            .read(b"k"),
+        Ok(Some(vec![b'A']))
+    );
+    assert_eq!(
+        storage
+            .transaction(StorageNamespace::new(root, principal_q))
+            .read(b"key"),
+        Ok(Some(b"queue".to_vec()))
+    );
+}
+
+#[test]
+fn candidate_linker_uses_the_same_bounded_guest_memory_boundary() {
+    let (program, principal) = ids(17, 18);
+    let engine = WasmEngine::declared().unwrap_or_else(|error| panic!("engine: {error}"));
+    let wasm = candidate_oob_response_module(65_536);
+    assert!(matches!(
+        engine.validate(&wasm),
+        Err(ValidationRefusal::ForbiddenImport { .. })
+    ));
+    let module = engine
+        .validate_candidate_v2(&wasm)
+        .unwrap_or_else(|error| panic!("candidate validation: {error}"));
+    let mut storage = Storage::new();
+    let before = storage.clone();
+    assert_eq!(
+        Executor::declared().execute_authorized_candidate(
+            &mut storage,
+            AuthorizedExecutionRequest {
+                module: &module,
+                program,
+                authorization: AuthorizationContext::new(principal, CapabilitySet::empty()),
+                receipts: &NoReceipts,
+                entrypoint: CALL_ENTRY_EXPORT,
+                calldata: &[],
+                composition: CompositionContext::isolated(),
+                response_capacity: 1,
+            },
+        ),
+        Err(ExecutionError::Response(
+            ResponseRefusal::InvalidPublication
         ))
     );
     assert_eq!(storage, before);
@@ -443,4 +943,57 @@ fn host_table_contains_seven_unique_names() {
     for function in HOST_FUNCTIONS {
         assert!(names.insert(function.name));
     }
+}
+
+#[test]
+#[allow(clippy::missing_panics_doc)]
+pub fn programs_isolation_suite() {
+    unknown_and_ambient_kernel_imports_are_rejected();
+    wrong_kind_is_rejected_during_validation();
+    abi_v1_manifest_matches_typed_declarations_and_golden();
+    denied_guest_storage_write_is_stable_and_has_no_effect();
+    denied_event_and_transfer_guests_have_no_effects();
+    real_guest_storage_is_scoped_by_program_and_principal();
+    nested_frames_use_their_own_program_memory_and_storage_namespace();
+    guest_memory_bounds_refusal_cannot_write_or_emit_effects();
+    candidate_linker_uses_the_same_bounded_guest_memory_boundary();
+    capability_narrowing_rejects_missing_grants_and_limit_widening_without_effects();
+
+    let executed = vec![
+        ("ISO-001", "unknown_and_ambient_kernel_imports_are_rejected"),
+        ("ISO-002", "wrong_kind_is_rejected_during_validation"),
+        (
+            "ISO-003",
+            "abi_v1_manifest_matches_typed_declarations_and_golden",
+        ),
+        (
+            "ISO-004",
+            "denied_guest_storage_write_is_stable_and_has_no_effect",
+        ),
+        (
+            "ISO-005",
+            "denied_event_and_transfer_guests_have_no_effects",
+        ),
+        (
+            "ISO-006",
+            "real_guest_storage_is_scoped_by_program_and_principal",
+        ),
+        (
+            "ISO-007",
+            "nested_frames_use_their_own_program_memory_and_storage_namespace",
+        ),
+        (
+            "ISO-008",
+            "guest_memory_bounds_refusal_cannot_write_or_emit_effects",
+        ),
+        (
+            "ISO-009",
+            "candidate_linker_uses_the_same_bounded_guest_memory_boundary",
+        ),
+        (
+            "ISO-010",
+            "capability_narrowing_rejects_missing_grants_and_limit_widening_without_effects",
+        ),
+    ];
+    assert_eq!(inventory_rows("isolation"), executed);
 }

@@ -181,6 +181,12 @@ impl ProgramInstance {
             });
         };
         let result_count = func.ty(&self.store).results().len();
+        let Some(consumed) = self.store.fuel_consumed() else {
+            return Err(ExecutionFault::EngineFault {
+                reason: "fuel metering disabled".to_string(),
+            });
+        };
+        self.store.data_mut().meter_mut().record_cpu(consumed);
         self.store
             .data_mut()
             .meter_mut()

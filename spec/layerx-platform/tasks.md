@@ -1105,7 +1105,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Keep the whole call graph inside one declared budget exactly as the carried-fuel accounting already does, so composition cannot multiply a ceiling.
     - Property-test that declared budget and consumed usage are independent: equal executions under different ceilings consume identical usage and produce identical evidence.
     - _Requirements: 35.5, 28.3_
-  - [ ] 28.6 Ship the isolation and composition adversarial suites
+  - [x] 28.6 Ship the isolation and composition adversarial suites
     - Write the isolation suite the capability ABI claims: guests attempting to reach kernel state, another program's namespace, another principal's cells, the host linker and memory outside their own instance, each defeated by construction.
     - Write the composition suite the call rules claim: depth, fan-out, edge-count, visit-count and reentrancy violations, each refused typed with no partial call graph, no surviving storage write and no staged transfer.
     - Prove atomicity across the graph: a refusal at any depth discards every write and every effect of every frame, asserted on storage contents rather than on return codes alone.
