@@ -2694,7 +2694,7 @@ reqs = ["28.6","30.1"]
 
 [task.28.2]
 title = "Carry calldata into the invoked entry point"
-status = "pending"
+status = "done"
 wave = 14
 requires = ["28.1"]
 do_1 = "Add bounded calldata to AuthorizedExecutionRequest so an activity supplies input bytes rather than only integer arguments, routed through the same reserve-and-write protocol the composition path already uses to enter a callee."

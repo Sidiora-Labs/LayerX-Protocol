@@ -13,7 +13,7 @@ use std::fmt::{self, Display};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use layerx_program_sdk::{CALL_ENTRY_EXPORT, ENTRYPOINT, MEMORY_EXPORT};
+use layerx_program_sdk::{CALL_ENTRY_EXPORT, CALL_RESERVE_EXPORT, MEMORY_EXPORT};
 use layerx_programs_runtime::{ValidationRefusal, WasmEngine};
 use wasmparser_nostd::{ExternalKind, Parser, Payload};
 
@@ -419,6 +419,7 @@ fn import_and_export_violations(wasm: &[u8]) -> Vec<DeterminismViolation> {
     let mut violations = Vec::new();
     let mut memory = false;
     let mut entrypoint = false;
+    let mut reservation = false;
     for payload in Parser::new(0).parse_all(wasm) {
         let payload = match payload {
             Ok(payload) => payload,
@@ -451,10 +452,14 @@ fn import_and_export_violations(wasm: &[u8]) -> Vec<DeterminismViolation> {
                             if export.kind == ExternalKind::Memory && export.name == MEMORY_EXPORT {
                                 memory = true;
                             }
-                            if export.kind == ExternalKind::Func
-                                && (export.name == ENTRYPOINT || export.name == CALL_ENTRY_EXPORT)
+                            if export.kind == ExternalKind::Func && export.name == CALL_ENTRY_EXPORT
                             {
                                 entrypoint = true;
+                            }
+                            if export.kind == ExternalKind::Func
+                                && export.name == CALL_RESERVE_EXPORT
+                            {
+                                reservation = true;
                             }
                         }
                         Err(error) => violations.push(DeterminismViolation::MalformedModule {
@@ -473,7 +478,12 @@ fn import_and_export_violations(wasm: &[u8]) -> Vec<DeterminismViolation> {
     }
     if !entrypoint {
         violations.push(DeterminismViolation::MissingExport {
-            export: format!("{ENTRYPOINT} or {CALL_ENTRY_EXPORT}"),
+            export: CALL_ENTRY_EXPORT.to_string(),
+        });
+    }
+    if !reservation {
+        violations.push(DeterminismViolation::MissingExport {
+            export: CALL_RESERVE_EXPORT.to_string(),
         });
     }
     violations

@@ -4,7 +4,7 @@ use wasmi::core::{Trap, TrapCode};
 use wasmi::{Caller, Linker};
 
 use crate::abi::CapabilitySet;
-use crate::calls::{self as runtime_calls, call_admission_fuel};
+use crate::calls::{self as runtime_calls};
 use crate::execute::ExecutionFault;
 use crate::storage::ProgramId;
 
@@ -53,7 +53,7 @@ pub(super) fn register(linker: &mut Linker<RuntimeState>) -> Result<(), Executio
                     return Ok(STATUS_DENIED);
                 }
                 if caller
-                    .consume_fuel(call_admission_fuel(input.len()))
+                    .consume_fuel(crate::calls::CALL_ADMISSION_FUEL)
                     .is_err()
                 {
                     caller.data_mut().meter_mut().mark_cpu_exhausted();

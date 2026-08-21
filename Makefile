@@ -2350,7 +2350,7 @@ PROGRAMS_CARGO ?= cargo
 PROGRAMS_RUNTIME_LIB := programs/target/debug/liblayerx_programs_runtime.a
 
 .PHONY: programs-build programs-lint programs-test programs-core-test programs-module-boundaries \
-	programs-fuzz-smoke programs-quickstart programs-sdk-c programs-sdk-assemblyscript
+	programs-fuzz-smoke programs-quickstart programs-sdk-rust programs-sdk-c programs-sdk-assemblyscript
 
 $(PROGRAMS_RUNTIME_LIB):
 	cd programs && $(PROGRAMS_CARGO) build --locked --workspace
@@ -2396,11 +2396,14 @@ programs-fuzz-smoke:
 	cd programs && $(PROGRAMS_CARGO) run --locked -p layerx-programs-fuzz --bin programs-fuzz -- instantiation fuzz/corpus/instantiation
 	cd programs && $(PROGRAMS_CARGO) run --locked -p layerx-programs-fuzz --bin programs-fuzz -- execution fuzz/corpus/execution
 
-programs-test: programs-module-boundaries programs-core-test programs-fuzz-smoke programs-sdk-c programs-sdk-assemblyscript
+programs-test: programs-module-boundaries programs-core-test programs-fuzz-smoke programs-sdk-rust programs-sdk-c programs-sdk-assemblyscript
 	cd programs && $(PROGRAMS_CARGO) test --locked --workspace
 
 programs-sdk-c:
 	STRICT=1 sh programs/sdk/c/examples/paid-counter/build.sh all
+
+programs-sdk-rust:
+	sh programs/sdk/rust/quickstart/build.sh all
 
 programs-sdk-assemblyscript:
 	cd programs/sdk/assemblyscript/examples/paid-counter && npm install --no-audit --no-fund && npm run build && npm run lint

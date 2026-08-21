@@ -19,8 +19,7 @@ macro_rules! program {
     };
 }
 
-/// Defines the `layerx_call` and `layerx_reserve` exports that make a program
-/// callable by another program.
+/// Defines the canonical byte entry used identically by activities and nested calls.
 ///
 /// The handler takes the input bytes the caller wrote into the SDK's declared
 /// reservation and returns either a [`CallResult`](crate::CallResult) or a
@@ -28,7 +27,7 @@ macro_rules! program {
 /// negative host status, which the composition layer treats as a refusal of
 /// the whole call graph.
 #[macro_export]
-macro_rules! callable {
+macro_rules! entrypoint {
     ($handler:path) => {
         #[allow(unsafe_code)]
         #[no_mangle]
@@ -43,14 +42,22 @@ macro_rules! callable {
                 &[u8],
             )
                 -> ::core::result::Result<$crate::CallResult, $crate::ProgramError> = $handler;
-            match $crate::entry::call_input(input_pointer, input_length) {
-                ::core::result::Result::Ok(input) => match handler(input) {
+            match $crate::entry::with_call_input(input_pointer, input_length, handler) {
+                ::core::result::Result::Ok(result) => match result {
                     ::core::result::Result::Ok(result) => $crate::CallResult::code(result),
                     ::core::result::Result::Err(error) => $crate::ProgramError::code(error),
                 },
                 ::core::result::Result::Err(error) => $crate::ProgramError::code(error),
             }
         }
+    };
+}
+
+/// Compatibility alias for the canonical [`entrypoint!`](crate::entrypoint) macro.
+#[macro_export]
+macro_rules! callable {
+    ($handler:path) => {
+        $crate::entrypoint!($handler);
     };
 }
 

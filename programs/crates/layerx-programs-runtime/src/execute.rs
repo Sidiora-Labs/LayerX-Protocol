@@ -7,6 +7,7 @@ use wasmi::{Extern, Instance, Memory, Store, Value};
 
 use crate::abi::{Abi, AbiEffects, AbiError, AuthorizationContext, ReceiptOracle};
 use crate::calls::{CallGraph, Composition, CompositionContext, CompositionRefusal};
+use crate::entrypoint::{self, EntrypointRefusal};
 use crate::host::RuntimeState;
 use crate::meter::{FeeSchedule, Meter, MeterRefusal, MeteredUsage, ResourceBudget, ResourceKind};
 use crate::storage::{ProgramId, Storage};
@@ -231,6 +232,18 @@ impl ProgramInstance {
             .map_err(|_| ExecutionFault::MemoryOutOfBounds)
     }
 
+    pub(crate) fn consume_copy_fuel(&mut self, fuel: u64) -> Result<(), EntrypointRefusal> {
+        if self.store.consume_fuel(fuel).is_err() {
+            self.store.data_mut().meter_mut().mark_cpu_exhausted();
+            return Err(EntrypointRefusal::Resource(MeterRefusal::BudgetExceeded {
+                resource: ResourceKind::Cpu,
+                limit: self.meter().cpu_budget(),
+                attempted: self.meter().cpu_budget().saturating_add(1),
+            }));
+        }
+        Ok(())
+    }
+
     pub(crate) fn into_state(self) -> RuntimeState {
         self.store.into_data()
     }
@@ -266,8 +279,8 @@ pub struct AuthorizedExecutionRequest<'a> {
     pub program: ProgramId,
     pub authorization: AuthorizationContext,
     pub receipts: &'a dyn ReceiptOracle,
-    pub export: &'a str,
-    pub args: &'a [WasmValue],
+    pub entrypoint: &'a str,
+    pub calldata: &'a [u8],
     pub composition: CompositionContext,
 }
 
@@ -319,6 +332,8 @@ pub enum ExecutionError {
     Resource(MeterRefusal),
     /// Capability ABI refusal before or during execution.
     Abi(AbiError),
+    /// Canonical calldata entry protocol refusal.
+    Entrypoint(EntrypointRefusal),
     /// Program-to-program composition refusal; no leg of the call graph was
     /// committed.
     Composition(CompositionRefusal),
@@ -330,6 +345,7 @@ impl Display for ExecutionError {
             Self::Fault(fault) => write!(formatter, "execution fault: {fault}"),
             Self::Resource(refusal) => write!(formatter, "resource refusal: {refusal}"),
             Self::Abi(error) => write!(formatter, "ABI refusal: {error}"),
+            Self::Entrypoint(refusal) => write!(formatter, "entrypoint refusal: {refusal}"),
             Self::Composition(refusal) => write!(formatter, "composition refusal: {refusal}"),
         }
     }
@@ -413,6 +429,7 @@ impl Executor {
         storage: &mut Storage,
         request: AuthorizedExecutionRequest<'_>,
     ) -> Result<AuthorizedExecutionRecord, ExecutionError> {
+        entrypoint::preflight(request.calldata).map_err(ExecutionError::Entrypoint)?;
         let meter = Meter::new(self.budget, self.prices);
         let principal = request.authorization.principal();
         let abi = Abi::new(
@@ -431,14 +448,22 @@ impl Executor {
             .module
             .instantiate_composed(meter, abi, composition)
             .map_err(|(fault, exhausted)| self.classify_fault(fault, exhausted))?;
-        let outputs = match instance.call(request.export, request.args) {
-            Ok(outputs) => outputs,
-            Err(fault) => {
+        let code = match entrypoint::invoke(&mut instance, request.entrypoint, request.calldata) {
+            Ok(code) => code,
+            Err(EntrypointRefusal::Fault(fault)) => {
                 if let Some(refusal) = instance.state().refusal() {
                     return Err(ExecutionError::Composition(refusal.clone()));
                 }
                 return Err(self.classify_fault(fault, instance.meter().exhaustion()));
             }
+            Err(EntrypointRefusal::Resource(MeterRefusal::BudgetExceeded {
+                resource: ResourceKind::Cpu,
+                ..
+            })) => return Err(self.classify_fault(ExecutionFault::OutOfFuel, None)),
+            Err(EntrypointRefusal::Resource(refusal)) => {
+                return Err(ExecutionError::Resource(refusal));
+            }
+            Err(refusal) => return Err(ExecutionError::Entrypoint(refusal)),
         };
         let usage = instance
             .meter()
@@ -458,7 +483,7 @@ impl Executor {
             execution: ExecutionRecord {
                 runtime_version: self.runtime_version,
                 abi_version: self.abi_version,
-                outputs,
+                outputs: vec![WasmValue::I32(code)],
                 usage,
             },
             effects: committed.effects,

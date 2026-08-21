@@ -71,12 +71,13 @@ fn storage_writer_module(tail: &[u8]) -> Vec<u8> {
         OP_DROP,
     ];
     instructions.extend_from_slice(tail);
+    instructions.extend([OP_I32_CONST, 0]);
     instructions.push(OP_END);
     let data_payload = [vec![1, 0, OP_I32_CONST, 0, OP_END, 6], b"keynew".to_vec()].concat();
     module(&[
         type_section(&[
             (&[TYPE_I32, TYPE_I32, TYPE_I32, TYPE_I32], &[TYPE_I32]),
-            (&[], &[]),
+            (&[TYPE_I32, TYPE_I32], &[TYPE_I32]),
         ]),
         import_section(&[("layerx_v1", "storage_write", 0)]),
         function_section(&[1]),
@@ -134,8 +135,8 @@ fn assert_authorized_write_rolls_back(wasm: &[u8], executor: Executor, expected:
             program,
             authorization: AuthorizationContext::new(principal, capabilities),
             receipts: &EmptyReceipts,
-            export: "run",
-            args: &[],
+            entrypoint: "run",
+            calldata: &[],
             composition: CompositionContext::isolated(),
         },
     );

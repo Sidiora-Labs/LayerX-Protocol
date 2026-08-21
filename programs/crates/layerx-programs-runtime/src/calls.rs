@@ -9,7 +9,8 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::abi::{Abi, AbiError, AuthorizationContext, Capability, MAX_CALL_INPUT_BYTES};
-use crate::execute::{ExecutionFault, ProgramInstance, WasmValue, ABI_VERSION};
+use crate::entrypoint::{self, EntrypointRefusal};
+use crate::execute::{ExecutionFault, ABI_VERSION};
 use crate::host::RuntimeState;
 use crate::limits::{DeclaredLimit, LimitsRefusal};
 use crate::meter::{MeterRefusal, ResourceKind};
@@ -748,7 +749,10 @@ pub(crate) fn execute_nested_call(
     let mut instance = module
         .instantiate_composed(child_meter, child_abi, child_composition)
         .map_err(|(fault, exhausted)| instantiation_refusal(fault, exhausted))?;
-    let code = invoke(&mut instance, callee, input)?;
+    let code = match entrypoint::invoke(&mut instance, CALL_ENTRY_EXPORT, input) {
+        Ok(code) => code,
+        Err(refusal) => return Err(entry_refusal(&instance, callee, refusal)),
+    };
     let (returned_meter, returned_abi, returned_composition) = instance.into_state().into_parts();
     let committed = returned_abi
         .ok_or(CompositionRefusal::NotComposable)?
@@ -777,91 +781,29 @@ pub(crate) fn execute_nested_call(
     Ok(NestedOutcome { code, subtree_fuel })
 }
 
-fn invoke(
-    instance: &mut ProgramInstance,
-    callee: ProgramId,
-    input: &[u8],
-) -> Result<i32, CompositionRefusal> {
-    let length = i32::try_from(input.len()).map_err(|_| CompositionRefusal::InputTooLarge {
-        bytes: input.len(),
-        limit: MAX_CALL_INPUT_BYTES,
-    })?;
-    let pointer = if input.is_empty() {
-        0
-    } else {
-        reserve(instance, length, input)?
-    };
-    let outputs = match instance.call(
-        CALL_ENTRY_EXPORT,
-        &[WasmValue::I32(pointer), WasmValue::I32(length)],
-    ) {
-        Ok(outputs) => outputs,
-        Err(fault) => {
-            return Err(nested_refusal(
-                instance,
-                fault,
-                CompositionRefusal::MissingEntry,
-            ))
-        }
-    };
-    let code = match outputs.as_slice() {
-        [WasmValue::I32(code)] => *code,
-        _ => return Err(CompositionRefusal::MissingEntry),
-    };
-    if code < 0 {
-        return Err(CompositionRefusal::GuestRefused {
-            program: callee,
-            code,
-        });
-    }
-    Ok(code)
-}
-
-fn reserve(
-    instance: &mut ProgramInstance,
-    length: i32,
-    input: &[u8],
-) -> Result<i32, CompositionRefusal> {
-    let outputs = match instance.call(CALL_RESERVE_EXPORT, &[WasmValue::I32(length)]) {
-        Ok(outputs) => outputs,
-        Err(fault) => {
-            return Err(nested_refusal(
-                instance,
-                fault,
-                CompositionRefusal::MissingAllocator,
-            ))
-        }
-    };
-    let pointer = match outputs.as_slice() {
-        [WasmValue::I32(pointer)] => *pointer,
-        _ => return Err(CompositionRefusal::MissingAllocator),
-    };
-    let offset = usize::try_from(pointer)
-        .map_err(|_| CompositionRefusal::AllocationRefused { code: pointer })?;
-    let memory = instance
-        .linear_memory()
-        .ok_or(CompositionRefusal::MissingMemory)?;
-    instance
-        .write_linear_memory(memory, offset, input)
-        .map_err(CompositionRefusal::Fault)?;
-    Ok(pointer)
-}
-
-fn nested_refusal(
-    instance: &ProgramInstance,
-    fault: ExecutionFault,
-    missing: CompositionRefusal,
+fn entry_refusal(
+    instance: &crate::execute::ProgramInstance,
+    program: ProgramId,
+    refusal: EntrypointRefusal,
 ) -> CompositionRefusal {
     if let Some(refusal) = instance.state().refusal() {
         return refusal.clone();
     }
-    if let Some(refusal) = instance.meter().exhaustion() {
-        return CompositionRefusal::Resource(refusal);
-    }
-    match fault {
-        ExecutionFault::UnknownExport { .. } | ExecutionFault::NotAFunction { .. } => missing,
-        ExecutionFault::Resource { refusal } => CompositionRefusal::Resource(refusal),
-        other => CompositionRefusal::Fault(other),
+    match refusal {
+        EntrypointRefusal::InputTooLarge { bytes, limit } => {
+            CompositionRefusal::InputTooLarge { bytes, limit }
+        }
+        EntrypointRefusal::MissingAllocator => CompositionRefusal::MissingAllocator,
+        EntrypointRefusal::MissingMemory => CompositionRefusal::MissingMemory,
+        EntrypointRefusal::MissingEntry => CompositionRefusal::MissingEntry,
+        EntrypointRefusal::AllocationRefused { code } => {
+            CompositionRefusal::AllocationRefused { code }
+        }
+        EntrypointRefusal::GuestRefused { code } => {
+            CompositionRefusal::GuestRefused { program, code }
+        }
+        EntrypointRefusal::Fault(fault) => CompositionRefusal::Fault(fault),
+        EntrypointRefusal::Resource(refusal) => CompositionRefusal::Resource(refusal),
     }
 }
 

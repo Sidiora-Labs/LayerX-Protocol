@@ -63,7 +63,7 @@ fn storage_module(function: &str, pointer: i32, value: &[u8]) -> Vec<u8> {
     module(&[
         type_section(&[
             (&[TYPE_I32, TYPE_I32, TYPE_I32, TYPE_I32], &[TYPE_I32]),
-            (&[], &[TYPE_I32]),
+            (&[TYPE_I32, TYPE_I32], &[TYPE_I32]),
         ]),
         import_section(&[(ABI_MODULE, function, 0)]),
         function_section(&[1]),
@@ -98,26 +98,38 @@ fn execute(
     principal: PrincipalId,
     grants: impl IntoIterator<Item = Capability>,
 ) -> layerx_programs_runtime::AuthorizedExecutionRecord {
+    execute_result(wasm, storage, program, principal, grants)
+        .unwrap_or_else(|error| panic!("execution: {error}"))
+}
+
+fn execute_result(
+    wasm: &[u8],
+    storage: &mut Storage,
+    program: ProgramId,
+    principal: PrincipalId,
+    grants: impl IntoIterator<Item = Capability>,
+) -> Result<
+    layerx_programs_runtime::AuthorizedExecutionRecord,
+    layerx_programs_runtime::ExecutionError,
+> {
     let engine = WasmEngine::declared().unwrap_or_else(|error| panic!("engine: {error}"));
     let module = engine
         .validate(wasm)
         .unwrap_or_else(|error| panic!("validation: {error}"));
     let capabilities =
         CapabilitySet::new(grants).unwrap_or_else(|error| panic!("capabilities: {error}"));
-    Executor::declared()
-        .execute_authorized(
-            storage,
-            AuthorizedExecutionRequest {
-                module: &module,
-                program,
-                authorization: AuthorizationContext::new(principal, capabilities),
-                receipts: &NoReceipts,
-                export: "run",
-                args: &[],
-                composition: CompositionContext::isolated(),
-            },
-        )
-        .unwrap_or_else(|error| panic!("execution: {error}"))
+    Executor::declared().execute_authorized(
+        storage,
+        AuthorizedExecutionRequest {
+            module: &module,
+            program,
+            authorization: AuthorizationContext::new(principal, capabilities),
+            receipts: &NoReceipts,
+            entrypoint: "run",
+            calldata: &[],
+            composition: CompositionContext::isolated(),
+        },
+    )
 }
 
 fn decode_hex(encoded: &str) -> Vec<u8> {
@@ -261,16 +273,19 @@ fn denied_guest_storage_write_is_stable_and_has_no_effect() {
     let (program, principal) = ids(1, 2);
     let mut storage = Storage::new();
     let before = storage.clone();
-    let record = execute(
+    let refusal = execute_result(
         &storage_module("storage_write", 0, b"new"),
         &mut storage,
         program,
         principal,
         [],
     );
-    assert_eq!(record.execution.outputs, vec![WasmValue::I32(-1)]);
-    assert_eq!(record.execution.usage.storage_write_bytes, 0);
-    assert!(record.effects.events.is_empty());
+    assert_eq!(
+        refusal,
+        Err(layerx_programs_runtime::ExecutionError::Entrypoint(
+            layerx_programs_runtime::EntrypointRefusal::GuestRefused { code: -1 }
+        ))
+    );
     assert_eq!(storage, before);
 }
 
@@ -362,17 +377,20 @@ fn guest_memory_bounds_refusal_cannot_write_or_emit_effects() {
     let (program, principal) = ids(3, 4);
     let mut storage = Storage::new();
     let before = storage.clone();
-    let record = execute(
+    let refusal = execute_result(
         &storage_module("storage_write", 65_535, b"new"),
         &mut storage,
         program,
         principal,
         [Capability::StorageWrite],
     );
-    assert_eq!(record.execution.outputs, vec![WasmValue::I32(-3)]);
-    assert_eq!(record.execution.usage.storage_write_bytes, 0);
+    assert_eq!(
+        refusal,
+        Err(layerx_programs_runtime::ExecutionError::Entrypoint(
+            layerx_programs_runtime::EntrypointRefusal::GuestRefused { code: -3 }
+        ))
+    );
     assert_eq!(storage, before);
-    assert!(record.effects.events.is_empty());
 }
 
 #[test]

@@ -17,6 +17,8 @@ pub mod calls;
 #[deny(unsafe_code)]
 pub mod engine;
 #[deny(unsafe_code)]
+pub mod entrypoint;
+#[deny(unsafe_code)]
 pub mod execute;
 mod ffi;
 mod ffi_transfer;
@@ -46,6 +48,7 @@ pub use calls::{
     DEFAULT_MAX_CALL_GRAPH_EDGES, DEFAULT_MAX_COMPOSITION_DEPTH, DEFAULT_MAX_PROGRAM_VISITS,
 };
 pub use engine::{EngineRefusal, WasmEngine};
+pub use entrypoint::EntrypointRefusal;
 pub use execute::{
     AuthorizedExecutionRecord, AuthorizedExecutionRequest, ExecutionError, ExecutionFault,
     ExecutionRecord, Executor, ProgramInstance, WasmValue, ABI_VERSION, RUNTIME_VERSION,

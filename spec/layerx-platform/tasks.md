@@ -1077,7 +1077,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Add a module-boundary lint proving no host-function family reaches another family's state except through RuntimeState, so later waves can add a host function without reading the whole file.
     - Record the module map in the runtime crate documentation so a parallel agent can find its lane without reading every file.
     - _Requirements: 28.6, 30.1_
-  - [ ] 28.2 Carry calldata into the invoked entry point
+  - [x] 28.2 Carry calldata into the invoked entry point
     - Add bounded calldata to AuthorizedExecutionRequest so an activity supplies input bytes rather than only integer arguments, routed through the same reserve-and-write protocol the composition path already uses to enter a callee.
     - Unify the entry protocol: the activity boundary and a program-to-program edge enter a program the same way, so a program has one entry contract rather than two.
     - Meter the calldata copy on the same per-byte basis composition already charges, and refuse input past the declared ABI bound with a typed result before any guest code runs.
