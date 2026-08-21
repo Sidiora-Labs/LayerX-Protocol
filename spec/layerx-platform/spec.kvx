@@ -2679,7 +2679,7 @@ note = "Parallel lanes: 28.1 lands first and alone because it reshapes the ABI a
 
 [task.28.1]
 title = "Modularize the ABI and host surface into per-capability units"
-status = "pending"
+status = "done"
 wave = 14
 requires = ["19.3"]
 do_1 = "Split src/abi.rs into an abi module: mod.rs holding the Abi transaction, effects and commit; capability.rs holding Capability, CapabilitySet and narrowing; storage_ops.rs holding the storage operations; leaving room for context, crypto, response and balance units later waves add without collision."

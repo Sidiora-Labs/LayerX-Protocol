@@ -1070,7 +1070,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 
 - [ ] 28. Make deployed programs callable on the network
   - Parallel lanes: 28.1 lands first and alone because it reshapes the ABI and host surface every later lane edits. Once it lands, 28.2 through 28.6 are five independent agents on disjoint files. 28.7 joins them and 28.8 follows it.
-  - [ ] 28.1 Modularize the ABI and host surface into per-capability units
+  - [x] 28.1 Modularize the ABI and host surface into per-capability units
     - Split src/abi.rs into an abi module: mod.rs holding the Abi transaction, effects and commit; capability.rs holding Capability, CapabilitySet and narrowing; storage_ops.rs holding the storage operations; leaving room for context, crypto, response and balance units later waves add without collision.
     - Split src/host.rs into a host module: mod.rs holding linker construction and RuntimeState; memory.rs holding the guest read and write helpers; storage.rs, events.rs, calls.rs and transfer.rs holding one host-function family each.
     - Keep the change strictly behaviour-preserving: the frozen ABI manifest, the host-function table, every status code and every refusal taxonomy stay byte-identical, and the existing test suites pass unchanged with no edits to their assertions.

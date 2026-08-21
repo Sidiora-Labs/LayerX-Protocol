@@ -2349,7 +2349,7 @@ interop-lint:
 PROGRAMS_CARGO ?= cargo
 PROGRAMS_RUNTIME_LIB := programs/target/debug/liblayerx_programs_runtime.a
 
-.PHONY: programs-build programs-lint programs-test programs-core-test \
+.PHONY: programs-build programs-lint programs-test programs-core-test programs-module-boundaries \
 	programs-fuzz-smoke programs-quickstart programs-sdk-c programs-sdk-assemblyscript
 
 $(PROGRAMS_RUNTIME_LIB):
@@ -2358,10 +2358,13 @@ $(PROGRAMS_RUNTIME_LIB):
 programs-build:
 	cd programs && $(PROGRAMS_CARGO) build --locked --workspace
 
-programs-lint:
+programs-lint: programs-module-boundaries
 	cd programs && $(PROGRAMS_CARGO) clippy --locked --workspace --all-targets -- -D warnings
 	sh programs/tools/dependency-policy.sh
 	cd programs && $(PROGRAMS_CARGO) deny check advisories bans sources
+
+programs-module-boundaries:
+	sh programs/tools/runtime-module-boundaries.sh
 
 $(BUILD_DIR)/tests/programs_registration: tests/programs/test_registration.c \
 		$(LIBRARY) $(PROGRAMS_RUNTIME_LIB) | programs-build
@@ -2393,7 +2396,7 @@ programs-fuzz-smoke:
 	cd programs && $(PROGRAMS_CARGO) run --locked -p layerx-programs-fuzz --bin programs-fuzz -- instantiation fuzz/corpus/instantiation
 	cd programs && $(PROGRAMS_CARGO) run --locked -p layerx-programs-fuzz --bin programs-fuzz -- execution fuzz/corpus/execution
 
-programs-test: programs-core-test programs-fuzz-smoke programs-sdk-c programs-sdk-assemblyscript
+programs-test: programs-module-boundaries programs-core-test programs-fuzz-smoke programs-sdk-c programs-sdk-assemblyscript
 	cd programs && $(PROGRAMS_CARGO) test --locked --workspace
 
 programs-sdk-c:

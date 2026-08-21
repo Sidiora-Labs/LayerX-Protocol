@@ -1,4 +1,14 @@
 //! Deterministic WASM runtime foundation for `LayerX` guest programs.
+//!
+//! # Module map
+//!
+//! The [`abi`] transaction boundary lives in `abi/mod.rs`; capability grants,
+//! encoding, and narrowing live in `abi/capability.rs`; and namespaced storage
+//! operations live in `abi/storage_ops.rs`. The private `host/mod.rs` owns
+//! linker orchestration and `RuntimeState`, while `host/memory.rs` owns guest
+//! memory access and `host/{storage,events,calls,transfer}.rs` each register
+//! exactly one host-function family. New capability families belong in their
+//! own ABI and host units and reach execution state only through `RuntimeState`.
 
 #[deny(unsafe_code)]
 pub mod abi;
