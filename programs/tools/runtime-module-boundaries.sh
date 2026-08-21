@@ -45,6 +45,7 @@ check_root() {
     failed=0
 
     for path in \
+        budget.rs \
         abi/mod.rs abi/capability.rs abi/response.rs abi/storage_ops.rs \
         host/mod.rs host/memory.rs host/storage.rs host/events.rs host/calls.rs host/transfer.rs
     do
@@ -58,6 +59,15 @@ check_root() {
     do
         if [ -e "$root/$legacy" ]; then
             echo "runtime module boundary: legacy $legacy remains" >&2
+            failed=1
+        fi
+    done
+
+    for production_path in "$root"/ffi*.rs "$root"/lifecycle.rs
+    do
+        if [ -f "$production_path" ] && grep -E '_for_qualification' "$production_path" >/dev/null
+        then
+            echo "runtime module boundary: production transition reaches qualification-only API" >&2
             failed=1
         fi
     done
@@ -129,7 +139,7 @@ if [ "${1:-}" = "--self-test" ]; then
     fixture=$(mktemp -d)
     trap 'find "$fixture" -type f -delete; find "$fixture" -depth -type d -exec rmdir {} \; 2>/dev/null || true' EXIT
     mkdir -p "$fixture/abi" "$fixture/host"
-    for path in abi/mod.rs abi/capability.rs abi/response.rs abi/storage_ops.rs host/mod.rs host/memory.rs host/storage.rs host/events.rs host/calls.rs host/transfer.rs
+    for path in budget.rs abi/mod.rs abi/capability.rs abi/response.rs abi/storage_ops.rs host/mod.rs host/memory.rs host/storage.rs host/events.rs host/calls.rs host/transfer.rs
     do
         : > "$fixture/$path"
     done
@@ -137,6 +147,18 @@ if [ "${1:-}" = "--self-test" ]; then
         echo "runtime module boundary self-test: valid layout was rejected" >&2
         exit 1
     fi
+    rm -f "$fixture/budget.rs"
+    if check_root "$fixture" >/dev/null 2>&1; then
+        echo "runtime module boundary self-test: missing budget module was accepted" >&2
+        exit 1
+    fi
+    : > "$fixture/budget.rs"
+    printf '%s\n' 'fn invalid() { execute_authorized_budgeted_for_qualification(); }' > "$fixture/ffi.rs"
+    if check_root "$fixture" >/dev/null 2>&1; then
+        echo "runtime module boundary self-test: qualification API reached production transition" >&2
+        exit 1
+    fi
+    : > "$fixture/ffi.rs"
     printf '%s\n' '// Meter is only reachable via RuntimeState.' 'const NOTE: &str = "Abi Storage Composition Meter";' > "$fixture/host/storage.rs"
     if ! check_root "$fixture" >/dev/null 2>&1; then
         echo "runtime module boundary self-test: comments or strings were treated as code" >&2

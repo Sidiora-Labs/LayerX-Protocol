@@ -2,7 +2,8 @@
 //!
 //! # Module map
 //!
-//! The [`abi`] transaction boundary lives in `abi/mod.rs`; capability grants,
+//! Caller-declared activity ceilings and their consumed admission token live in
+//! [`budget`]. The [`abi`] transaction boundary lives in `abi/mod.rs`; capability grants,
 //! encoding, and narrowing live in `abi/capability.rs`; candidate response and
 //! refusal transport lives in `abi/response.rs`; and namespaced storage
 //! operations live in `abi/storage_ops.rs`. The private `host/mod.rs` owns
@@ -13,6 +14,8 @@
 
 #[deny(unsafe_code)]
 pub mod abi;
+#[deny(unsafe_code)]
+pub mod budget;
 #[deny(unsafe_code)]
 pub mod calls;
 #[deny(unsafe_code)]
@@ -45,6 +48,10 @@ pub mod transfer;
 pub mod validate;
 
 pub use abi::response::{CallResponse, ResponseRefusal, MAX_CALL_RESPONSE_BYTES};
+pub use budget::{
+    ActivityBudgetBinding, AdmittedBudget, BudgetAdmissionRefusal, BudgetDimension, DeclaredBudget,
+    DECLARED_BUDGET_DOMAIN,
+};
 pub use calls::{
     call_admission_fuel, CallEdge, CallFrame, CallGraph, CompositionContext, CompositionRefusal,
     CompositionRules, ProgramCatalog, ProgramResolver, CALL_ADMISSION_FUEL, CALL_ENTRY_EXPORT,
@@ -54,10 +61,12 @@ pub use calls::{
 pub use engine::{EngineRefusal, WasmEngine};
 pub use entrypoint::EntrypointRefusal;
 pub use execute::{
-    AuthorizedExecutionRecord, AuthorizedExecutionRequest, CandidateActivityOutcome,
-    CandidateActivityReceipt, CandidateAuthorizedExecutionRecord, CandidateExecutionRecord,
-    CandidateReceiptOutcome, ExecutionError, ExecutionFault, ExecutionRecord, Executor,
-    ProgramInstance, WasmValue, ABI_VERSION, RUNTIME_VERSION,
+    AuthorizedExecutionRecord, AuthorizedExecutionRequest, BudgetedAuthorizedExecutionRequest,
+    BudgetedResourceFailureRecord, BudgetedV1ActivityOutcome, BudgetedV1FailureCause,
+    BudgetedV1FailureRecord, CandidateActivityOutcome, CandidateActivityReceipt,
+    CandidateAuthorizedExecutionRecord, CandidateExecutionRecord, CandidateReceiptOutcome,
+    ExecutionError, ExecutionFault, ExecutionRecord, Executor, ProgramInstance, WasmValue,
+    ABI_VERSION, RUNTIME_VERSION,
 };
 pub use fault::{
     FailureEncodingError, ProgramFailure, RefusalClass, RefusalReason, CANDIDATE_REFUSAL_SENTINEL,
@@ -68,7 +77,10 @@ pub use lifecycle::{
     Migration, ProgramVersion, Upgrade, UpgradePolicy,
 };
 pub use limits::{DeclaredLimit, LimitsRefusal, ValidationLimits};
-pub use meter::{FeeSchedule, Meter, MeterRefusal, MeteredUsage, ResourceBudget, ResourceKind};
+pub use meter::{
+    BudgetMeterRefusal, BudgetResourceKind, FeeSchedule, Meter, MeterRefusal, MeteredUsage,
+    ResourceBudget, ResourceKind,
+};
 pub use qualification::{
     programs_differential_gate, programs_fuzz_targets, replay_recorded_execution,
     DifferentialMismatch, FuzzTarget, RecordedExecution, ReplayRefusal,

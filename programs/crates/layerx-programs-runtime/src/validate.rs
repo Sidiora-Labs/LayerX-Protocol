@@ -9,6 +9,7 @@ use wasmparser_nostd::{
 use crate::abi::{Abi, AbiValueType, ABI_MODULE, HOST_FUNCTIONS, HOST_FUNCTION_TYPES};
 use crate::calls::Composition;
 use crate::engine::WasmEngine;
+use crate::entrypoint::EntrypointRefusal;
 use crate::execute::{fault_from_error, ExecutionFault, ProgramInstance};
 use crate::host::{self, RuntimeState};
 use crate::meter::Meter;
@@ -151,6 +152,40 @@ impl ValidatedModule {
         self.revision
     }
 
+    pub(crate) fn preflight_entrypoint(
+        &self,
+        entrypoint: &str,
+        calldata_is_empty: bool,
+    ) -> Result<(), EntrypointRefusal> {
+        use wasmi::core::ValueType;
+
+        self.module
+            .get_export(entrypoint)
+            .and_then(|export| export.func().cloned())
+            .filter(|function| {
+                function.params() == [ValueType::I32, ValueType::I32]
+                    && function.results() == [ValueType::I32]
+            })
+            .ok_or(EntrypointRefusal::MissingEntry)?;
+        if calldata_is_empty {
+            return Ok(());
+        }
+        self.module
+            .get_export(crate::calls::CALL_RESERVE_EXPORT)
+            .and_then(|export| export.func().cloned())
+            .filter(|function| {
+                function.params() == [ValueType::I32] && function.results() == [ValueType::I32]
+            })
+            .ok_or(EntrypointRefusal::MissingAllocator)?;
+        if !matches!(
+            self.module.get_export("memory"),
+            Some(wasmi::ExternType::Memory(_))
+        ) {
+            return Err(EntrypointRefusal::MissingMemory);
+        }
+        Ok(())
+    }
+
     /// Instantiates the validated module in an isolated store.
     ///
     /// # Errors
@@ -176,6 +211,15 @@ impl ValidatedModule {
         composition: Composition,
     ) -> Result<ProgramInstance, (ExecutionFault, Option<crate::meter::MeterRefusal>)> {
         self.instantiate_state(RuntimeState::composed(meter, abi, composition))
+    }
+
+    pub(crate) fn instantiate_composed_retained(
+        &self,
+        meter: Meter,
+        abi: Abi,
+        composition: Composition,
+    ) -> Result<ProgramInstance, Box<(ExecutionFault, RuntimeState)>> {
+        self.instantiate_state_retained(RuntimeState::composed(meter, abi, composition))
     }
 
     pub(crate) fn instantiate_composed_response_retained(

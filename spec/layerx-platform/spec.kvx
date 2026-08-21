@@ -2739,7 +2739,7 @@ reqs = ["35.4","35.6"]
 
 [task.28.5]
 title = "Admit a caller-declared execution budget"
-status = "pending"
+status = "done"
 wave = 14
 requires = ["28.1"]
 do_1 = "Replace the compiled-constant execution budget with a budget declared by the invoking activity, bounded above by the protocol maximum and below by the declared minimum viable execution."

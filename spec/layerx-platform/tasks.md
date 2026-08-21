@@ -1098,7 +1098,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Carry the failure payload into the activity receipt under the standard receipt shape so every consumer renders a program failure with the same rigor as a success.
     - Extend the Rust SDK error vocabulary to construct and decode a reason, and test refusal propagation from depth one and from the declared maximum depth.
     - _Requirements: 35.4, 35.6_
-  - [ ] 28.5 Admit a caller-declared execution budget
+  - [x] 28.5 Admit a caller-declared execution budget
     - Replace the compiled-constant execution budget with a budget declared by the invoking activity, bounded above by the protocol maximum and below by the declared minimum viable execution.
     - Charge only the metered usage actually consumed inside the declared ceiling, so a caller that over-declares is not billed for headroom it did not use.
     - Refuse an execution whose declared budget exceeds the protocol maximum, or whose payer cannot cover the ceiling, before any guest code runs and with a typed result.

@@ -179,6 +179,10 @@ impl RuntimeState {
         self.failure_graph.take()
     }
 
+    pub(crate) fn failure_graph(&self) -> Option<&CallGraph> {
+        self.failure_graph.as_ref()
+    }
+
     pub(super) fn publish_response_status(&mut self, response: CallResponse) -> i32 {
         match self.publish_response(response) {
             Ok(()) => 0,
@@ -254,8 +258,17 @@ impl RuntimeState {
         &mut self,
         operation: impl FnOnce(&mut Abi, &mut Meter) -> Result<T, AbiError>,
     ) -> Result<T, AbiError> {
-        let abi = self.abi.as_mut().ok_or(AbiError::CapabilityDenied)?;
-        operation(abi, &mut self.meter)
+        let result = self
+            .abi
+            .as_mut()
+            .ok_or(AbiError::CapabilityDenied)
+            .and_then(|abi| operation(abi, &mut self.meter));
+        if let Err(error) = &result {
+            if self.meter.is_activity() {
+                self.record_refusal(CompositionRefusal::Authority(*error));
+            }
+        }
+        result
     }
 }
 
