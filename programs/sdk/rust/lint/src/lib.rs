@@ -513,6 +513,12 @@ fn from_validation(refusal: &ValidationRefusal) -> DeterminismViolation {
             import_module,
             import_name,
         } => classify_import(import_module, import_name),
+        ValidationRefusal::WrongImportKind { import_name }
+        | ValidationRefusal::WrongImportSignature { import_name } => {
+            DeterminismViolation::RejectedByEngine {
+                reason: format!("invalid LayerX ABI import {import_name}"),
+            }
+        }
         ValidationRefusal::ForbiddenFloatType => DeterminismViolation::FloatingPointType,
         ValidationRefusal::ForbiddenFloatInstruction => {
             DeterminismViolation::FloatingPointInstruction

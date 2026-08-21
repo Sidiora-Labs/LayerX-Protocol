@@ -826,7 +826,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Prove byte-identical execution across operating systems, architectures and optimisation levels on the conformance vector set.
     - Property-test that metering is deterministic: equal executions consume equal budgets everywhere.
     - _Requirements: 28.3, 28.4, 28.2_
-  - [ ] 19.3 Implement the capability ABI and namespaced storage
+  - [x] 19.3 Implement the capability ABI and namespaced storage
     - Define the versioned program ABI: capability-based host functions for storage, events, program calls, 402LXP transfer requests and receipt-verified reads, with no ambient authority.
     - Implement namespaced persistent storage per program with storage metering and isolation from every other namespace.
     - Bind every capability to the invoking activity's authorisation context, with downward-only narrowing.

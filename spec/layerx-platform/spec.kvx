@@ -2175,7 +2175,7 @@ reqs = ["28.3","28.4","28.2"]
 
 [task.19.3]
 title = "Implement the capability ABI and namespaced storage"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["19.2"]
 do_1 = "Define the versioned program ABI: capability-based host functions for storage, events, program calls, 402LXP transfer requests and receipt-verified reads, with no ambient authority."

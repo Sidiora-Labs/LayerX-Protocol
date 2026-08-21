@@ -2,24 +2,16 @@
 
 use core::fmt::{self, Display};
 
-use wasmparser_nostd::{BlockType, FunctionBody, Import, Operator, Parser, Payload, Type, ValType};
+use wasmparser_nostd::{
+    BlockType, FuncType, FunctionBody, Import, Operator, Parser, Payload, Type, TypeRef, ValType,
+};
 
-use crate::abi::Abi;
+use crate::abi::{Abi, AbiValueType, ABI_MODULE, HOST_FUNCTIONS, HOST_FUNCTION_TYPES};
 use crate::calls::Composition;
 use crate::engine::WasmEngine;
 use crate::execute::{fault_from_error, ExecutionFault, ProgramInstance};
 use crate::host::{self, RuntimeState};
 use crate::meter::Meter;
-
-const PERMITTED_IMPORTS: &[(&str, &str)] = &[
-    ("layerx_v1", "storage_read"),
-    ("layerx_v1", "storage_write"),
-    ("layerx_v1", "storage_delete"),
-    ("layerx_v1", "event_emit"),
-    ("layerx_v1", "program_call"),
-    ("layerx_v1", "transfer_402"),
-    ("layerx_v1", "receipt_read"),
-];
 
 /// A typed refusal produced while validating a module.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,6 +37,10 @@ pub enum ValidationRefusal {
         /// The name field of the refused import.
         import_name: String,
     },
+    /// A declared ABI name was imported as a non-function item.
+    WrongImportKind { import_name: String },
+    /// A declared ABI function was imported with the wrong type.
+    WrongImportSignature { import_name: String },
     /// The module declares a floating-point type.
     ForbiddenFloatType,
     /// The module contains a floating-point instruction.
@@ -86,6 +82,12 @@ impl Display for ValidationRefusal {
                 import_name,
             } => {
                 write!(f, "forbidden import {import_module}::{import_name}")
+            }
+            Self::WrongImportKind { import_name } => {
+                write!(f, "ABI import {import_name} is not a function")
+            }
+            Self::WrongImportSignature { import_name } => {
+                write!(f, "ABI import {import_name} has the wrong signature")
             }
             Self::ForbiddenFloatType => write!(f, "floating-point types are forbidden"),
             Self::ForbiddenFloatInstruction => {
@@ -202,6 +204,7 @@ pub(crate) fn validate_module(
         });
     }
     let mut function_count: u32 = 0;
+    let mut function_types = Vec::new();
     for payload in Parser::new(0).parse_all(wasm) {
         let payload = payload.map_err(|error| ValidationRefusal::MalformedModule {
             reason: error.to_string(),
@@ -216,6 +219,7 @@ pub(crate) fn validate_module(
                     for value_type in func_type.params().iter().chain(func_type.results()) {
                         refuse_value_type(*value_type)?;
                     }
+                    function_types.push(func_type);
                 }
             }
             Payload::ImportSection(reader) => {
@@ -223,7 +227,7 @@ pub(crate) fn validate_module(
                     let entry = entry.map_err(|error| ValidationRefusal::MalformedModule {
                         reason: error.to_string(),
                     })?;
-                    refuse_import(&entry)?;
+                    refuse_import(&entry, &function_types)?;
                 }
             }
             Payload::FunctionSection(reader) => {
@@ -261,18 +265,47 @@ pub(crate) fn validate_module(
     })
 }
 
-fn refuse_import(import: &Import<'_>) -> Result<(), ValidationRefusal> {
-    let permitted = PERMITTED_IMPORTS
+fn refuse_import(import: &Import<'_>, types: &[FuncType]) -> Result<(), ValidationRefusal> {
+    let Some(declaration_index) = HOST_FUNCTIONS
         .iter()
-        .any(|(module, name)| *module == import.module && *name == import.name);
-    if permitted {
+        .position(|function| import.module == ABI_MODULE && import.name == function.name)
+    else {
+        return Err(ValidationRefusal::ForbiddenImport {
+            import_module: import.module.to_string(),
+            import_name: import.name.to_string(),
+        });
+    };
+    let declaration = &HOST_FUNCTION_TYPES[declaration_index];
+    let TypeRef::Func(type_index) = import.ty else {
+        return Err(ValidationRefusal::WrongImportKind {
+            import_name: import.name.to_string(),
+        });
+    };
+    let function_type =
+        types
+            .get(type_index as usize)
+            .ok_or_else(|| ValidationRefusal::MalformedModule {
+                reason: format!("import {} references absent type {type_index}", import.name),
+            })?;
+    if values_match(function_type.params(), declaration.params)
+        && values_match(function_type.results(), declaration.results)
+    {
         Ok(())
     } else {
-        Err(ValidationRefusal::ForbiddenImport {
-            import_module: import.module.to_string(),
+        Err(ValidationRefusal::WrongImportSignature {
             import_name: import.name.to_string(),
         })
     }
+}
+
+fn values_match(actual: &[ValType], expected: &[AbiValueType]) -> bool {
+    actual.len() == expected.len()
+        && actual.iter().zip(expected).all(|(actual, expected)| {
+            matches!(
+                (actual, expected),
+                (ValType::I32, AbiValueType::I32) | (ValType::I64, AbiValueType::I64)
+            )
+        })
 }
 
 fn refuse_value_type(value_type: ValType) -> Result<(), ValidationRefusal> {

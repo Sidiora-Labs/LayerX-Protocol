@@ -27,6 +27,61 @@ pub struct HostFunction {
     pub signature: &'static str,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AbiValueType {
+    I32,
+    I64,
+}
+
+pub(crate) struct HostFunctionType {
+    pub params: &'static [AbiValueType],
+    pub results: &'static [AbiValueType],
+}
+
+const I32_2: &[AbiValueType] = &[AbiValueType::I32, AbiValueType::I32];
+const I32_4: &[AbiValueType] = &[AbiValueType::I32; 4];
+const I32_6: &[AbiValueType] = &[AbiValueType::I32; 6];
+const TRANSFER_PARAMS: &[AbiValueType] = &[
+    AbiValueType::I64,
+    AbiValueType::I64,
+    AbiValueType::I32,
+    AbiValueType::I32,
+    AbiValueType::I32,
+    AbiValueType::I32,
+];
+const I32_RESULT: &[AbiValueType] = &[AbiValueType::I32];
+
+pub(crate) const HOST_FUNCTION_TYPES: [HostFunctionType; 7] = [
+    HostFunctionType {
+        params: I32_4,
+        results: I32_RESULT,
+    },
+    HostFunctionType {
+        params: I32_4,
+        results: I32_RESULT,
+    },
+    HostFunctionType {
+        params: I32_2,
+        results: I32_RESULT,
+    },
+    HostFunctionType {
+        params: I32_4,
+        results: I32_RESULT,
+    },
+    HostFunctionType {
+        params: I32_6,
+        results: I32_RESULT,
+    },
+    HostFunctionType {
+        params: TRANSFER_PARAMS,
+        results: I32_RESULT,
+    },
+    HostFunctionType {
+        params: I32_4,
+        results: I32_RESULT,
+    },
+];
+
 pub const HOST_FUNCTIONS: [HostFunction; 7] = [
     HostFunction {
         name: "storage_read",
