@@ -19,6 +19,7 @@ mod programs;
 mod receipt;
 mod scaffold;
 mod toolset;
+mod workspace;
 
 use config::{Configuration, Environment};
 use http::Client;
@@ -41,6 +42,8 @@ struct Cli {
 enum Command {
     /// Scaffold a deterministic Rust program project.
     New(NewArgs),
+    /// Install, build, and test every repository module from one visual workspace.
+    Workspace(workspace::WorkspaceArgs),
     /// Inspect or switch the emulator, testnet, and production endpoint.
     #[command(subcommand)]
     Environment(EnvironmentCommand),
@@ -339,6 +342,7 @@ fn run(command: Command, machine: bool) -> Result<Option<CommandOutput>, String>
             format!("Created LayerX program project {}", arguments.name),
             scaffold::create(&arguments.name, &arguments.directory)?,
         ))),
+        Command::Workspace(arguments) => workspace::run(arguments, machine),
         Command::Environment(command) => environment(command).map(Some),
         Command::Key(command) => key(command).map(Some),
         Command::Auth(command) => auth(command).map(Some),

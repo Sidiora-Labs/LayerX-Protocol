@@ -1,0 +1,1082 @@
+#!/usr/bin/env bash
+
+# LayerX workspace dashboard. This file intentionally uses only Bash and
+# standard host utilities so it can run before project dependencies exist.
+
+set -u
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+MODULE_IDS=(core contracts agent human platform programs interop specgen)
+MODULE_NAMES=(
+  "Protocol core"
+  "Paxeer contracts"
+  "Agent layer"
+  "Human plane"
+  "Developer platform"
+  "Programs"
+  "Interop gateway"
+  "Spec generator"
+)
+MODULE_DESCRIPTIONS=(
+  "C17 ledger, sequencing, storage and proofs"
+  "Custody, bridge and governance contracts"
+  "Daemon, SDK, wire, proof and policy crates"
+  "Custody service, explorer and web app"
+  "CLI, hosted tooling, SDKs and middleware"
+  "Deterministic runtime and authoring SDKs"
+  "x402, mandates, fiat, mirrors and ramps"
+  "KVX renderer and workflow tooling"
+)
+MODULE_TOOLS=(
+  "make cc ar docker forge"
+  "forge"
+  "make cargo"
+  "make cargo npm"
+  "make cargo npm python3 go java mvn dotnet swift"
+  "make cargo npm cc"
+  "make cargo"
+  "go"
+)
+SELECTED=(1 1 1 1 1 1 1 1)
+
+ENV_NAMES=(emulator testnet production)
+ENV_LABELS=(Emulator Testnet Production)
+ENV_ENDPOINTS=("http://127.0.0.1:9402" "" "")
+ENV_NETWORKS=(402 "" "")
+ENV_INDEX=0
+
+ACTION_LABELS=(Inspect Install Build Test Everything)
+ACTION_DESCRIPTIONS=(
+  "Check host tools without changing anything"
+  "Resolve every selected module's locked dependencies"
+  "Build every selected module"
+  "Run every selected module's real test gates"
+  "Install dependencies, then build and test"
+)
+ACTION_INDEX=0
+
+DRY_RUN=0
+FAIL_FAST=0
+CI_MODE=0
+FOCUS=0
+RUN_REQUESTED=0
+QUIT_REQUESTED=0
+EVENT=""
+CURRENT_CHILD=""
+RUN_CANCELLED=0
+TERMINAL_ACTIVE=0
+
+STEP_MODULE=()
+STEP_PHASE=()
+STEP_LABEL=()
+STEP_CWD=()
+STEP_TOOLS=()
+STEP_COMMAND=()
+STEP_STATUS=()
+STEP_LOG=()
+
+COLOR=0
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+  COLOR=1
+fi
+
+ESC=$'\033'
+RESET="${ESC}[0m"
+BOLD="${ESC}[1m"
+DIM="${ESC}[2m"
+CYAN="${ESC}[36m"
+GREEN="${ESC}[32m"
+YELLOW="${ESC}[33m"
+RED="${ESC}[31m"
+BLUE_BG="${ESC}[44;97m"
+FOCUS_BG="${ESC}[48;5;238;97m"
+
+paint() {
+  local code="$1"
+  shift
+  if (( COLOR )); then
+    printf '%s%s%s' "$code" "$*" "$RESET"
+  else
+    printf '%s' "$*"
+  fi
+}
+
+terminal_enter() {
+  printf '%s' "${ESC}[?1049h${ESC}[?25l${ESC}[?1000h${ESC}[?1006h"
+  TERMINAL_ACTIVE=1
+}
+
+terminal_leave() {
+  printf '%s' "${ESC}[?1000l${ESC}[?1006l${ESC}[?25h${ESC}[?1049l"
+  TERMINAL_ACTIVE=0
+}
+
+terminal_mouse_on() {
+  printf '%s' "${ESC}[?1000h${ESC}[?1006h"
+}
+
+terminal_mouse_off() {
+  printf '%s' "${ESC}[?1000l${ESC}[?1006l"
+}
+
+cleanup() {
+  if [[ -n "$CURRENT_CHILD" ]] && kill -0 "$CURRENT_CHILD" 2>/dev/null; then
+    kill "$CURRENT_CHILD" 2>/dev/null || true
+    wait "$CURRENT_CHILD" 2>/dev/null || true
+  fi
+  if (( TERMINAL_ACTIVE )); then
+    terminal_leave
+  fi
+}
+
+trap cleanup EXIT HUP TERM
+trap 'RUN_CANCELLED=1; [[ -n "$CURRENT_CHILD" ]] && kill "$CURRENT_CHILD" 2>/dev/null || true' INT
+
+repeat_char() {
+  local character="$1"
+  local count="$2"
+  local output=""
+  while (( count > 0 )); do
+    output+="$character"
+    ((count--))
+  done
+  printf '%s' "$output"
+}
+
+selected_count() {
+  local count=0
+  local value
+  for value in "${SELECTED[@]}"; do
+    (( value == 1 )) && ((count++))
+  done
+  printf '%s' "$count"
+}
+
+set_all_modules() {
+  local value="$1"
+  local index
+  for ((index = 0; index < ${#SELECTED[@]}; index++)); do
+    SELECTED[index]="$value"
+  done
+}
+
+missing_tools() {
+  local tools="$1"
+  local tool
+  local missing=""
+  for tool in $tools; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      missing+="${missing:+, }$tool"
+    fi
+  done
+  printf '%s' "$missing"
+}
+
+module_status() {
+  local index="$1"
+  local missing
+  missing="$(missing_tools "${MODULE_TOOLS[$index]}")"
+  if [[ -z "$missing" ]]; then
+    paint "$GREEN" "READY"
+  else
+    paint "$YELLOW" "MISSING $missing"
+  fi
+}
+
+focus_marker() {
+  local index="$1"
+  if (( FOCUS == index )); then
+    paint "$CYAN" ">"
+  else
+    printf ' '
+  fi
+}
+
+chip() {
+  local active="$1"
+  local focused="$2"
+  local label="$3"
+  if (( active )); then
+    paint "$BLUE_BG" " $label "
+  elif (( focused )); then
+    paint "$FOCUS_BG" " $label "
+  else
+    printf '[ %s ]' "$label"
+  fi
+}
+
+checkbox() {
+  local checked="$1"
+  local label="$2"
+  if (( checked )); then
+    paint "$GREEN" "[x] $label"
+  else
+    printf '[ ] %s' "$label"
+  fi
+}
+
+clear_screen() {
+  printf '%s' "${ESC}[H${ESC}[2J"
+}
+
+render_dashboard() {
+  local index marker status endpoint network selected module_hint
+  clear_screen
+  selected="$(selected_count)"
+  endpoint="${ENV_ENDPOINTS[$ENV_INDEX]}"
+  network="${ENV_NETWORKS[$ENV_INDEX]}"
+  module_hint="click rows to toggle"
+  if (( FOCUS >= 3 && FOCUS <= 10 )); then
+    module_hint="${MODULE_DESCRIPTIONS[$((FOCUS - 3))]}"
+  fi
+
+  paint "$BOLD$CYAN" "  LAYERX WORKSPACE"
+  printf '   '
+  paint "$DIM" "interactive dependency, build and test control"
+  printf '\n'
+  printf '  %s\n' "$(repeat_char '─' 76)"
+
+  printf '  %s Environment  ' "$(focus_marker 0)"
+  for ((index = 0; index < 3; index++)); do
+    chip "$((ENV_INDEX == index))" "$((FOCUS == 0))" "${ENV_LABELS[$index]}"
+    printf '  '
+  done
+  printf '\n'
+
+  printf '  %s Endpoint     ' "$(focus_marker 1)"
+  if [[ -n "$endpoint" ]]; then
+    printf '%-58s' "${endpoint:0:58}"
+  else
+    paint "$YELLOW" "click or press Enter to configure"
+  fi
+  printf '\n'
+
+  printf '  %s Network ID   ' "$(focus_marker 2)"
+  if [[ -n "$network" ]]; then
+    printf '%s' "$network"
+  else
+    paint "$YELLOW" "click or press Enter to configure"
+  fi
+  printf '\n\n'
+
+  paint "$BOLD" "  MODULES"
+  printf '   '
+  paint "$DIM" "$selected/${#MODULE_IDS[@]} selected — $module_hint"
+  printf '\n'
+  for ((index = 0; index < ${#MODULE_IDS[@]}; index++)); do
+    marker="[ ]"
+    (( SELECTED[index] == 1 )) && marker="[x]"
+    printf '  %s ' "$(focus_marker $((index + 3)))"
+    if (( SELECTED[index] == 1 )); then
+      paint "$GREEN" "$marker"
+    else
+      printf '%s' "$marker"
+    fi
+    printf ' %-24s ' "${MODULE_NAMES[$index]}"
+    status="$(module_status "$index")"
+    printf '%s\n' "$status"
+  done
+
+  printf '\n'
+  paint "$BOLD" "  ACTION"
+  printf '   '
+  paint "$DIM" "${ACTION_DESCRIPTIONS[$ACTION_INDEX]}"
+  printf '\n  %s ' "$(focus_marker 11)"
+  for ((index = 0; index < ${#ACTION_LABELS[@]}; index++)); do
+    chip "$((ACTION_INDEX == index))" "$((FOCUS == 11))" "${ACTION_LABELS[$index]}"
+    printf ' '
+  done
+  printf '\n\n'
+
+  printf '  %s ' "$(focus_marker 12)"
+  checkbox "$DRY_RUN" "Plan only"
+  printf '    %s ' "$(focus_marker 13)"
+  checkbox "$FAIL_FAST" "Stop on failure"
+  printf '    %s ' "$(focus_marker 14)"
+  checkbox "$CI_MODE" "CI environment"
+  printf '\n\n'
+
+  printf '  '
+  chip 0 "$((FOCUS == 15))" "Select all"
+  printf '  '
+  chip 0 "$((FOCUS == 16))" "Clear"
+  printf '  '
+  chip "$((FOCUS == 17))" "$((FOCUS == 17))" "RUN SELECTED"
+  printf '  '
+  chip 0 "$((FOCUS == 18))" "Quit"
+  printf '\n'
+
+  paint "$DIM" "  Click controls · Arrows/Tab move · Space toggles · Enter activates · q quits"
+  printf '\n'
+}
+
+read_event() {
+  local key next sequence character
+  EVENT=""
+  IFS= read -rsn1 key || { EVENT="quit"; return; }
+  case "$key" in
+    "") EVENT="enter" ;;
+    " ") EVENT="space" ;;
+    $'\t') EVENT="tab" ;;
+    q|Q) EVENT="quit" ;;
+    a|A) EVENT="all" ;;
+    c|C) EVENT="clear" ;;
+    r|R) EVENT="run" ;;
+    d|D) EVENT="dry" ;;
+    $'\033')
+      IFS= read -rsn1 -t 1 next || { EVENT="escape"; return; }
+      if [[ "$next" != "[" ]]; then
+        EVENT="escape"
+        return
+      fi
+      IFS= read -rsn1 -t 1 next || { EVENT="escape"; return; }
+      case "$next" in
+        A) EVENT="up" ;;
+        B) EVENT="down" ;;
+        C) EVENT="right" ;;
+        D) EVENT="left" ;;
+        '<')
+          sequence=""
+          while IFS= read -rsn1 -t 1 character; do
+            sequence+="$character"
+            [[ "$character" == "M" || "$character" == "m" ]] && break
+          done
+          EVENT="mouse:$sequence"
+          ;;
+        *) EVENT="escape" ;;
+      esac
+      ;;
+    *) EVENT="key:$key" ;;
+  esac
+}
+
+edit_text_value() {
+  local title="$1"
+  local current="$2"
+  local value
+  terminal_mouse_off
+  clear_screen
+  printf '%s' "${ESC}[?25h"
+  paint "$BOLD$CYAN" "  EDIT WORKSPACE ENVIRONMENT"
+  printf '\n\n  %s\n\n' "Press Enter to keep the current value."
+  printf '  %s [%s]: ' "$title" "$current"
+  IFS= read -r value || value=""
+  printf '%s' "${ESC}[?25l"
+  terminal_mouse_on
+  if [[ -n "$value" ]]; then
+    EDITED_VALUE="$value"
+  else
+    EDITED_VALUE="$current"
+  fi
+}
+
+edit_endpoint() {
+  EDITED_VALUE=""
+  edit_text_value "Endpoint" "${ENV_ENDPOINTS[$ENV_INDEX]}"
+  ENV_ENDPOINTS[ENV_INDEX]="$EDITED_VALUE"
+}
+
+edit_network() {
+  local before
+  before="${ENV_NETWORKS[$ENV_INDEX]}"
+  EDITED_VALUE=""
+  edit_text_value "Network ID" "$before"
+  if [[ "$EDITED_VALUE" =~ ^[0-9]+$ ]]; then
+    ENV_NETWORKS[ENV_INDEX]="$EDITED_VALUE"
+  else
+    ENV_NETWORKS[ENV_INDEX]="$before"
+  fi
+}
+
+cycle_environment() {
+  local direction="$1"
+  ENV_INDEX=$(( (ENV_INDEX + direction + 3) % 3 ))
+}
+
+cycle_action() {
+  local direction="$1"
+  ACTION_INDEX=$(( (ACTION_INDEX + direction + ${#ACTION_LABELS[@]}) % ${#ACTION_LABELS[@]} ))
+}
+
+activate_focus() {
+  case "$FOCUS" in
+    0) cycle_environment 1 ;;
+    1) edit_endpoint ;;
+    2) edit_network ;;
+    3|4|5|6|7|8|9|10)
+      local module_index=$((FOCUS - 3))
+      SELECTED[module_index]=$((1 - SELECTED[module_index]))
+      ;;
+    11) cycle_action 1 ;;
+    12) DRY_RUN=$((1 - DRY_RUN)) ;;
+    13) FAIL_FAST=$((1 - FAIL_FAST)) ;;
+    14) CI_MODE=$((1 - CI_MODE)) ;;
+    15) set_all_modules 1 ;;
+    16) set_all_modules 0 ;;
+    17) RUN_REQUESTED=1 ;;
+    18) QUIT_REQUESTED=1 ;;
+  esac
+}
+
+handle_click() {
+  local x="$1"
+  local y="$2"
+  local index
+  case "$y" in
+    3)
+      FOCUS=0
+      if (( x >= 18 && x <= 27 )); then ENV_INDEX=0
+      elif (( x >= 30 && x <= 40 )); then ENV_INDEX=1
+      elif (( x >= 43 && x <= 56 )); then ENV_INDEX=2
+      fi
+      ;;
+    4) FOCUS=1; edit_endpoint ;;
+    5) FOCUS=2; edit_network ;;
+    8|9|10|11|12|13|14|15)
+      index=$((y - 8))
+      FOCUS=$((index + 3))
+      SELECTED[index]=$((1 - SELECTED[index]))
+      ;;
+    18)
+      FOCUS=11
+      if (( x >= 5 && x <= 13 )); then ACTION_INDEX=0
+      elif (( x >= 15 && x <= 25 )); then ACTION_INDEX=1
+      elif (( x >= 27 && x <= 35 )); then ACTION_INDEX=2
+      elif (( x >= 37 && x <= 44 )); then ACTION_INDEX=3
+      elif (( x >= 46 && x <= 59 )); then ACTION_INDEX=4
+      fi
+      ;;
+    20)
+      if (( x >= 5 && x <= 17 )); then FOCUS=12; DRY_RUN=$((1 - DRY_RUN))
+      elif (( x >= 24 && x <= 42 )); then FOCUS=13; FAIL_FAST=$((1 - FAIL_FAST))
+      elif (( x >= 49 && x <= 66 )); then FOCUS=14; CI_MODE=$((1 - CI_MODE))
+      fi
+      ;;
+    22)
+      if (( x >= 3 && x <= 16 )); then FOCUS=15; set_all_modules 1
+      elif (( x >= 19 && x <= 27 )); then FOCUS=16; set_all_modules 0
+      elif (( x >= 30 && x <= 43 )); then FOCUS=17; RUN_REQUESTED=1
+      elif (( x >= 46 && x <= 53 )); then FOCUS=18; QUIT_REQUESTED=1
+      fi
+      ;;
+  esac
+}
+
+handle_mouse_event() {
+  local payload="$1"
+  local suffix button x y
+  suffix="${payload: -1}"
+  [[ "$suffix" == "M" ]] || return
+  payload="${payload%?}"
+  IFS=';' read -r button x y <<< "$payload"
+  [[ "$button" =~ ^[0-9]+$ && "$x" =~ ^[0-9]+$ && "$y" =~ ^[0-9]+$ ]] || return
+  (( button == 0 )) || return
+  handle_click "$x" "$y"
+}
+
+handle_dashboard_event() {
+  case "$EVENT" in
+    up) FOCUS=$(( (FOCUS + 18) % 19 )) ;;
+    down|tab) FOCUS=$(( (FOCUS + 1) % 19 )) ;;
+    left)
+      if (( FOCUS == 0 )); then cycle_environment -1
+      elif (( FOCUS == 11 )); then cycle_action -1
+      else FOCUS=$(( (FOCUS + 18) % 19 ))
+      fi
+      ;;
+    right)
+      if (( FOCUS == 0 )); then cycle_environment 1
+      elif (( FOCUS == 11 )); then cycle_action 1
+      else FOCUS=$(( (FOCUS + 1) % 19 ))
+      fi
+      ;;
+    enter|space) activate_focus ;;
+    all) set_all_modules 1 ;;
+    clear) set_all_modules 0 ;;
+    run) RUN_REQUESTED=1 ;;
+    dry) DRY_RUN=$((1 - DRY_RUN)) ;;
+    quit|escape) QUIT_REQUESTED=1 ;;
+    mouse:*) handle_mouse_event "${EVENT#mouse:}" ;;
+  esac
+}
+
+add_step() {
+  STEP_MODULE+=("$1")
+  STEP_PHASE+=("$2")
+  STEP_LABEL+=("$3")
+  STEP_CWD+=("$4")
+  STEP_TOOLS+=("$5")
+  STEP_COMMAND+=("$6")
+  STEP_STATUS+=("WAITING")
+  STEP_LOG+=("")
+}
+
+append_core_steps() {
+  local phase="$1"
+  case "$phase" in
+    INSTALL) add_step core INSTALL "No project-managed dependencies" "." "" ":" ;;
+    BUILD) add_step core BUILD "Compile the C17 protocol core" "." "make cc ar" "make build" ;;
+    TEST)
+      add_step core TEST "Protocol foundation suites" "." "make cc ar" "make test"
+      add_step core TEST "Kernel and module boundary" "." "make cc ar" "make test-kernel test-module-ctx test-dispatch test-receipts test-state-root"
+      add_step core TEST "Ledger and asset module" "." "make cc ar" "make test-ledger-accounts test-ledger-transfer test-ledger-set test-ledger-send test-ledger-receive test-ledger-receipt test-asset-registry test-asset-balance test-asset-transfer test-asset-deposit test-asset-withdraw test-asset-reserve"
+      add_step core TEST "Escrow, budget and stream modules" "." "make cc ar" "make test-escrow-open test-escrow-capture test-escrow-timeout test-escrow-dispute test-escrow-invariants test-budget-create test-budget-period test-budget-spend test-budget-delegate test-budget-revoke test-stream-open test-stream-accrual test-stream-meter test-stream-settle test-stream-lifecycle"
+      add_step core TEST "Service and oracle modules" "." "make cc ar" "make test-wave-8"
+      add_step core TEST "Perpetual markets module" "." "make cc ar" "make test-wave-9"
+      add_step core TEST "Batches and sequencing" "." "make cc ar" "make test-wave-10"
+      add_step core TEST "Replicas, replay and recovery" "." "make cc ar docker" "make test-wave-11"
+      add_step core TEST "Guarantors, availability, governance and fees" "." "make cc ar" "make test-wave-12"
+      add_step core TEST "Custody, gateways, tools and recovery" "." "make cc ar forge" "make test-paxeer test-paxeer-bond test-bridge-deposit test-bridge-withdraw test-emergency-exit test-reserve test-gateway test-gateway-send test-gateway-receive test-receipt-offline test-layerxd test-tools test-genesis test-genesis-import test-genesis-reconcile test-legacy-readonly test-shadow"
+      ;;
+  esac
+}
+
+append_contracts_steps() {
+  case "$1" in
+    INSTALL) add_step contracts INSTALL "Foundry resolves compiler inputs during build" "." "" ":" ;;
+    BUILD) add_step contracts BUILD "Compile Paxeer contracts" "." "forge" "forge build" ;;
+    TEST) add_step contracts TEST "Run Paxeer contract tests" "." "forge" "forge test" ;;
+  esac
+}
+
+append_agent_steps() {
+  case "$1" in
+    INSTALL) add_step agent INSTALL "Fetch locked agent workspace crates" "." "cargo" "cargo fetch --manifest-path agent/Cargo.toml --locked" ;;
+    BUILD) add_step agent BUILD "Build every agent workspace crate" "." "make cargo" "make agent-build" ;;
+    TEST) add_step agent TEST "Test every agent workspace crate" "." "make cargo" "make agent-test" ;;
+  esac
+}
+
+append_human_steps() {
+  case "$1" in
+    INSTALL)
+      add_step human INSTALL "Fetch locked human workspace crates" "." "cargo" "cargo fetch --manifest-path human/Cargo.toml --locked"
+      add_step human INSTALL "Install locked human web packages" "." "npm" "npm --prefix human/apps/web ci --no-audit --no-fund"
+      ;;
+    BUILD) add_step human BUILD "Build the human service and web application" "." "make cargo npm" "make human-build" ;;
+    TEST) add_step human TEST "Test the human service and web application" "." "make cargo npm" "make human-test" ;;
+  esac
+}
+
+append_platform_steps() {
+  case "$1" in
+    INSTALL)
+      add_step platform INSTALL "Fetch locked platform workspace crates" "." "cargo" "cargo fetch --manifest-path platform/Cargo.toml --locked"
+      add_step platform INSTALL "Install locked JavaScript workspaces" "." "npm" "npm ci --workspaces --include-workspace-root --no-audit --no-fund"
+      add_step platform INSTALL "Download Go SDK modules" "platform/sdk/go" "go" "go mod download"
+      add_step platform INSTALL "Resolve JVM SDK modules" "platform/sdk/jvm" "mvn java" "mvn -q dependency:go-offline"
+      add_step platform INSTALL "Restore the C sharp SDK" "platform/sdk/dotnet" "dotnet" "dotnet restore LayerX.Sdk.csproj --nologo"
+      add_step platform INSTALL "Resolve Swift SDK packages" "platform/sdk/swift" "swift" "swift package resolve"
+      ;;
+    BUILD)
+      add_step platform BUILD "Build the platform Rust workspace" "." "make cargo python3" "make platform-build"
+      add_step platform BUILD "Build JavaScript middleware and integrations" "." "npm" "npm run build --workspaces --if-present"
+      add_step platform BUILD "Build the Go SDK" "platform/sdk/go" "go" "go build ./..."
+      add_step platform BUILD "Build the JVM SDK" "platform/sdk/jvm" "mvn java" "mvn -q -DskipTests package"
+      add_step platform BUILD "Build the C sharp SDK" "platform/sdk/dotnet" "dotnet" "dotnet build LayerX.Sdk.csproj --configuration Release --nologo"
+      add_step platform BUILD "Build the Swift SDK" "platform/sdk/swift" "swift" "swift build"
+      add_step platform BUILD "Compile Python SDK and integrations" "." "python3" "python3 -m compileall -q agent/sdk/python platform/integrations/fastapi"
+      ;;
+    TEST)
+      add_step platform TEST "Test the platform Rust workspace" "." "make cargo" "make platform-test"
+      add_step platform TEST "Test every generated SDK" "." "make cargo python3 go mvn java dotnet swift" "make platform-test-sdks"
+      add_step platform TEST "Test middleware and framework integrations" "." "make npm python3 mvn java swift" "make platform-test-middleware"
+      add_step platform TEST "Test CLI, emulator and hosted tooling" "." "make cargo" "make platform-test-tooling"
+      add_step platform TEST "Build and execute documentation samples" "." "make cargo npm python3 go mvn java dotnet swift" "make platform-test-docs"
+      ;;
+  esac
+}
+
+append_programs_steps() {
+  case "$1" in
+    INSTALL)
+      add_step programs INSTALL "Fetch locked programs workspace crates" "." "cargo" "cargo fetch --manifest-path programs/Cargo.toml --locked"
+      add_step programs INSTALL "Install locked AssemblyScript SDK packages" "programs/sdk/assemblyscript" "npm" "npm ci --no-audit --no-fund"
+      add_step programs INSTALL "Install locked AssemblyScript example packages" "programs/sdk/assemblyscript/examples/paid-counter" "npm" "npm ci --no-audit --no-fund"
+      ;;
+    BUILD)
+      add_step programs BUILD "Build deterministic programs workspace" "." "make cargo cc" "make programs-build"
+      add_step programs BUILD "Build AssemblyScript program SDK" "programs/sdk/assemblyscript/examples/paid-counter" "npm" "npm run build"
+      ;;
+    TEST) add_step programs TEST "Test programs runtime and authoring SDKs" "." "make cargo cc npm" "make programs-test" ;;
+  esac
+}
+
+append_interop_steps() {
+  case "$1" in
+    INSTALL) add_step interop INSTALL "Fetch locked interop workspace crates" "." "cargo" "cargo fetch --manifest-path interop/Cargo.toml --locked" ;;
+    BUILD) add_step interop BUILD "Build every interop adapter" "." "make cargo" "make interop-build" ;;
+    TEST) add_step interop TEST "Test every interop adapter" "." "make cargo" "make interop-test" ;;
+  esac
+}
+
+append_specgen_steps() {
+  case "$1" in
+    INSTALL) add_step specgen INSTALL "Download specification generator modules" "spec/specgen" "go" "go mod download" ;;
+    BUILD) add_step specgen BUILD "Build the specification generator" "spec/specgen" "go" "go build ./..." ;;
+    TEST) add_step specgen TEST "Test the specification generator" "spec/specgen" "go" "go test ./..." ;;
+  esac
+}
+
+append_module_steps() {
+  local module="$1"
+  local phase="$2"
+  case "$module" in
+    core) append_core_steps "$phase" ;;
+    contracts) append_contracts_steps "$phase" ;;
+    agent) append_agent_steps "$phase" ;;
+    human) append_human_steps "$phase" ;;
+    platform) append_platform_steps "$phase" ;;
+    programs) append_programs_steps "$phase" ;;
+    interop) append_interop_steps "$phase" ;;
+    specgen) append_specgen_steps "$phase" ;;
+  esac
+}
+
+reset_plan() {
+  STEP_MODULE=()
+  STEP_PHASE=()
+  STEP_LABEL=()
+  STEP_CWD=()
+  STEP_TOOLS=()
+  STEP_COMMAND=()
+  STEP_STATUS=()
+  STEP_LOG=()
+}
+
+build_plan() {
+  local phases=()
+  local phase module_index
+  reset_plan
+  case "$ACTION_INDEX" in
+    1) phases=(INSTALL) ;;
+    2) phases=(BUILD) ;;
+    3) phases=(TEST) ;;
+    4) phases=(INSTALL BUILD TEST) ;;
+    *) return ;;
+  esac
+  for phase in "${phases[@]}"; do
+    for ((module_index = 0; module_index < ${#MODULE_IDS[@]}; module_index++)); do
+      if (( SELECTED[module_index] == 1 )); then
+        append_module_steps "${MODULE_IDS[$module_index]}" "$phase"
+      fi
+    done
+  done
+}
+
+selected_module_names() {
+  local result=""
+  local index
+  for ((index = 0; index < ${#MODULE_IDS[@]}; index++)); do
+    if (( SELECTED[index] == 1 )); then
+      result+="${result:+, }${MODULE_NAMES[$index]}"
+    fi
+  done
+  printf '%s' "$result"
+}
+
+production_authorized() {
+  local answer=""
+  if (( ENV_INDEX != 2 || (ACTION_INDEX != 3 && ACTION_INDEX != 4) )); then
+    return 0
+  fi
+  clear_screen
+  paint "$BOLD$RED" "  PRODUCTION TEST SAFETY"
+  printf '\n\n  Test settings will be exported as production to every selected test process.\n'
+  printf '  Type production to unlock this run. No process starts until you do.\n\n'
+  terminal_mouse_off
+  printf '%s' "${ESC}[?25h"
+  printf '  Confirmation: '
+  IFS= read -r answer || answer=""
+  printf '%s' "${ESC}[?25l"
+  terminal_mouse_on
+  [[ "$answer" == "production" ]]
+}
+
+render_confirmation() {
+  local choice="$1"
+  local total online dry endpoint network
+  total="${#STEP_MODULE[@]}"
+  endpoint="${ENV_ENDPOINTS[$ENV_INDEX]:-(not configured)}"
+  network="${ENV_NETWORKS[$ENV_INDEX]:-(not configured)}"
+  online="No"
+  (( ACTION_INDEX == 1 || ACTION_INDEX == 4 )) && online="Yes — locked dependencies may be downloaded"
+  dry="No"
+  (( DRY_RUN == 1 )) && dry="Yes — nothing will execute"
+  clear_screen
+  paint "$BOLD$CYAN" "  REVIEW WORKSPACE RUN"
+  printf '\n  %s\n\n' "$(repeat_char '─' 72)"
+  printf '  Action        %s\n' "${ACTION_LABELS[$ACTION_INDEX]}"
+  printf '  Modules       %s selected\n' "$(selected_count)"
+  printf '  Environment   %s\n' "${ENV_LABELS[$ENV_INDEX]}"
+  printf '  Endpoint      %s\n' "$endpoint"
+  printf '  Network ID    %s\n' "$network"
+  printf '  Steps         %s\n' "$total"
+  printf '  Network use   %s\n' "$online"
+  printf '  Plan only     %s\n\n' "$dry"
+  if (( ACTION_INDEX == 1 || ACTION_INDEX == 4 )); then
+    paint "$YELLOW" "  Install steps can access package registries. Nothing runs without confirmation."
+    printf '\n\n'
+  fi
+  printf '  '
+  chip "$((choice == 0))" "$((choice == 0))" "Cancel"
+  printf '     '
+  chip "$((choice == 1))" "$((choice == 1))" "RUN NOW"
+  printf '\n\n'
+  paint "$DIM" "  Click a button · left/right chooses · Enter confirms · Esc cancels"
+  printf '\n'
+}
+
+confirm_run() {
+  local choice=0 payload suffix button x y button_row
+  button_row=13
+  (( ACTION_INDEX == 1 || ACTION_INDEX == 4 )) && button_row=15
+  while true; do
+    render_confirmation "$choice"
+    read_event
+    case "$EVENT" in
+      left|right|tab) choice=$((1 - choice)) ;;
+      enter|space) (( choice == 1 )) && return 0 || return 1 ;;
+      quit|escape) return 1 ;;
+      mouse:*)
+        payload="${EVENT#mouse:}"
+        suffix="${payload: -1}"
+        [[ "$suffix" == "M" ]] || continue
+        payload="${payload%?}"
+        IFS=';' read -r button x y <<< "$payload"
+        [[ "$button" == "0" && "$y" == "$button_row" ]] || continue
+        if (( x >= 3 && x <= 12 )); then return 1
+        elif (( x >= 18 && x <= 26 )); then return 0
+        fi
+        ;;
+    esac
+  done
+}
+
+render_doctor() {
+  local index missing
+  clear_screen
+  paint "$BOLD$CYAN" "  WORKSPACE READINESS"
+  printf '   '
+  paint "$DIM" "read-only host inspection"
+  printf '\n  %s\n\n' "$(repeat_char '─' 82)"
+  printf '  Environment   %s\n' "${ENV_LABELS[$ENV_INDEX]}"
+  printf '  Endpoint      %s\n' "${ENV_ENDPOINTS[$ENV_INDEX]:-(not configured)}"
+  printf '  Network ID    %s\n\n' "${ENV_NETWORKS[$ENV_INDEX]:-(not configured)}"
+  for ((index = 0; index < ${#MODULE_IDS[@]}; index++)); do
+    (( SELECTED[index] == 1 )) || continue
+    missing="$(missing_tools "${MODULE_TOOLS[$index]}")"
+    printf '  %-22s ' "${MODULE_NAMES[$index]}"
+    if [[ -z "$missing" ]]; then
+      paint "$GREEN" "READY"
+    else
+      paint "$YELLOW" "BLOCKED"
+      printf '  missing %s' "$missing"
+    fi
+    printf '\n'
+  done
+  printf '\n  '
+  chip 1 0 "BACK TO DASHBOARD"
+  printf '\n\n'
+  paint "$DIM" "  Click Back or press any key"
+  printf '\n'
+}
+
+show_doctor() {
+  render_doctor
+  read_event
+}
+
+show_notice() {
+  local title="$1"
+  local message="$2"
+  clear_screen
+  paint "$BOLD$YELLOW" "  $title"
+  printf '\n\n  %s\n\n  ' "$message"
+  chip 1 0 "BACK TO DASHBOARD"
+  printf '\n\n'
+  paint "$DIM" "  Click Back or press any key"
+  printf '\n'
+  read_event
+}
+
+status_color() {
+  case "$1" in
+    PASSED) printf '%s' "$GREEN" ;;
+    RUNNING) printf '%s' "$CYAN" ;;
+    PLANNED|SKIPPED) printf '%s' "$DIM" ;;
+    BLOCKED|FAILED|CANCELLED) printf '%s' "$RED" ;;
+    *) printf '%s' "$YELLOW" ;;
+  esac
+}
+
+render_log_tail() {
+  local log_file="$1"
+  if [[ -z "$log_file" || ! -f "$log_file" ]]; then
+    paint "$DIM" "  Waiting for output…"
+    printf '\n'
+    return
+  fi
+  tail -n 6 "$log_file" 2>/dev/null | sed -E $'s/\033\[[0-9;?]*[ -\/]*[@-~]//g; s/[^[:print:]\t]//g' | while IFS= read -r line; do
+    printf '  %.76s\n' "$line"
+  done
+}
+
+progress_bar() {
+  local complete="$1"
+  local total="$2"
+  local width=52
+  local filled=0
+  (( total > 0 )) && filled=$((complete * width / total))
+  printf '['
+  paint "$CYAN" "$(repeat_char '█' "$filled")"
+  repeat_char '░' "$((width - filled))"
+  printf '] %d/%d' "$complete" "$total"
+}
+
+render_execution() {
+  local current="$1"
+  local run_log="$2"
+  local total="${#STEP_MODULE[@]}"
+  local start end index code
+  clear_screen
+  paint "$BOLD$CYAN" "  LAYERX WORKSPACE RUN"
+  printf '   %s · %s\n' "${ACTION_LABELS[$ACTION_INDEX]}" "${ENV_LABELS[$ENV_INDEX]}"
+  printf '  '
+  progress_bar "$current" "$total"
+  printf '\n\n'
+  start=$((current - 3))
+  (( start < 0 )) && start=0
+  end=$((start + 7))
+  (( end > total )) && end=$total
+  for ((index = start; index < end; index++)); do
+    code="$(status_color "${STEP_STATUS[$index]}")"
+    if (( index == current && current < total )); then
+      printf '  '
+      paint "$CYAN" ">"
+    else
+      printf '   '
+    fi
+    printf ' %-10s %-8s ' "${STEP_MODULE[$index]}" "${STEP_PHASE[$index]}"
+    paint "$code" "${STEP_STATUS[$index]}"
+    printf '  %.43s\n' "${STEP_LABEL[$index]}"
+  done
+  printf '\n'
+  paint "$BOLD" "  LIVE OUTPUT"
+  printf '\n  %s\n' "$(repeat_char '─' 76)"
+  render_log_tail "$run_log"
+  printf '\n'
+  paint "$DIM" "  Ctrl-C cancels the active process; completed module results are preserved."
+  printf '\n'
+}
+
+run_one_step() {
+  local index="$1"
+  local run_directory="$2"
+  local missing command log_file exit_code
+  missing="$(missing_tools "${STEP_TOOLS[$index]}")"
+  if (( DRY_RUN )); then
+    log_file=""
+    STEP_LOG[index]=""
+    STEP_STATUS[index]="PLANNED"
+    render_execution "$((index + 1))" "$log_file"
+    return 0
+  fi
+  log_file="$run_directory/$(printf '%03d' "$((index + 1))")-${STEP_MODULE[$index]}-${STEP_PHASE[$index]}.log"
+  STEP_LOG[index]="$log_file"
+  if [[ "${STEP_COMMAND[$index]}" == ":" ]]; then
+    STEP_STATUS[index]="SKIPPED"
+    render_execution "$((index + 1))" "$log_file"
+    return 0
+  fi
+  if [[ -n "$missing" ]]; then
+    STEP_STATUS[index]="BLOCKED"
+    printf 'Missing host tools: %s\n' "$missing" > "$log_file"
+    render_execution "$((index + 1))" "$log_file"
+    return 1
+  fi
+
+  STEP_STATUS[index]="RUNNING"
+  command="${STEP_COMMAND[$index]}"
+  (
+    cd "$ROOT_DIR/${STEP_CWD[$index]}" || exit 127
+    export LAYERX_ENVIRONMENT="${ENV_NAMES[$ENV_INDEX]}"
+    export LAYERX_ENDPOINT="${ENV_ENDPOINTS[$ENV_INDEX]}"
+    export LAYERX_NETWORK_ID="${ENV_NETWORKS[$ENV_INDEX]}"
+    if (( CI_MODE )); then export CI=1; fi
+    bash -c "exec $command"
+  ) </dev/null >"$log_file" 2>&1 &
+  CURRENT_CHILD=$!
+  while kill -0 "$CURRENT_CHILD" 2>/dev/null; do
+    render_execution "$index" "$log_file"
+    if IFS= read -rsn1 -t 0.15 command; then
+      if [[ "$command" == $'\003' ]]; then
+        RUN_CANCELLED=1
+        kill "$CURRENT_CHILD" 2>/dev/null || true
+      fi
+    fi
+  done
+  wait "$CURRENT_CHILD"
+  exit_code=$?
+  CURRENT_CHILD=""
+  if (( RUN_CANCELLED )); then
+    STEP_STATUS[index]="CANCELLED"
+    return 130
+  elif (( exit_code == 0 )); then
+    STEP_STATUS[index]="PASSED"
+    return 0
+  else
+    STEP_STATUS[index]="FAILED"
+    return "$exit_code"
+  fi
+}
+
+render_results() {
+  local passed=0 failed=0 blocked=0 planned=0 skipped=0 cancelled=0 waiting=0
+  local index status code start total
+  total="${#STEP_STATUS[@]}"
+  for status in "${STEP_STATUS[@]}"; do
+    case "$status" in
+      PASSED) ((passed++)) ;;
+      FAILED) ((failed++)) ;;
+      BLOCKED) ((blocked++)) ;;
+      PLANNED) ((planned++)) ;;
+      SKIPPED) ((skipped++)) ;;
+      CANCELLED) ((cancelled++)) ;;
+      WAITING) ((waiting++)) ;;
+    esac
+  done
+  clear_screen
+  paint "$BOLD$CYAN" "  WORKSPACE RESULTS"
+  printf '\n  %s\n\n' "$(repeat_char '─' 76)"
+  printf '  '
+  paint "$GREEN" "$passed passed"
+  printf '   '
+  paint "$RED" "$failed failed"
+  printf '   '
+  paint "$YELLOW" "$blocked blocked"
+  printf '\n  %s planned   %s skipped   %s cancelled   %s not run\n\n' "$planned" "$skipped" "$cancelled" "$waiting"
+  start=$((total - 14))
+  (( start < 0 )) && start=0
+  for ((index = start; index < total; index++)); do
+    status="${STEP_STATUS[$index]}"
+    code="$(status_color "$status")"
+    printf '  %-10s %-8s ' "${STEP_MODULE[$index]}" "${STEP_PHASE[$index]}"
+    paint "$code" "$status"
+    printf '  %.44s\n' "${STEP_LABEL[$index]}"
+  done
+  if [[ -n "$RUN_DIRECTORY" ]]; then
+    printf '\n  Logs: %s\n\n  ' "$RUN_DIRECTORY"
+  else
+    printf '\n  Plan only: no commands ran and no log files were created.\n\n  '
+  fi
+  chip 1 0 "BACK TO DASHBOARD"
+  printf '\n'
+}
+
+run_plan() {
+  local timestamp index result=0 completed=0 last_log=""
+  timestamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+  RUN_DIRECTORY=""
+  if (( ! DRY_RUN )); then
+    RUN_DIRECTORY="$ROOT_DIR/.logs/workspace/$timestamp"
+    mkdir -p "$RUN_DIRECTORY"
+  fi
+  RUN_CANCELLED=0
+  for ((index = 0; index < ${#STEP_MODULE[@]}; index++)); do
+    if ! run_one_step "$index" "$RUN_DIRECTORY"; then
+      result=1
+      completed=$((index + 1))
+      if (( RUN_CANCELLED || FAIL_FAST )); then
+        break
+      fi
+    else
+      completed=$((index + 1))
+    fi
+  done
+  if (( completed > 0 )); then
+    last_log="${STEP_LOG[$((completed - 1))]}"
+  fi
+  render_execution "$completed" "$last_log"
+  render_results
+  read_event
+  return "$result"
+}
+
+start_current_action() {
+  RUN_REQUESTED=0
+  if (( $(selected_count) == 0 )); then
+    show_notice "NO MODULES SELECTED" "Select at least one module before starting a workspace action."
+    return
+  fi
+  if (( ACTION_INDEX == 0 )); then
+    show_doctor
+    return
+  fi
+  if [[ -z "${ENV_ENDPOINTS[$ENV_INDEX]}" || -z "${ENV_NETWORKS[$ENV_INDEX]}" ]]; then
+    FOCUS=1
+    edit_endpoint
+    FOCUS=2
+    edit_network
+    if [[ -z "${ENV_ENDPOINTS[$ENV_INDEX]}" || -z "${ENV_NETWORKS[$ENV_INDEX]}" ]]; then
+      show_notice "ENVIRONMENT NOT CONFIGURED" "Enter both an endpoint and a numeric network ID before running this action."
+      return
+    fi
+  fi
+  build_plan
+  production_authorized || return
+  confirm_run || return
+  run_plan || true
+}
+
+wait_for_usable_terminal() {
+  local size rows columns
+  while true; do
+    size="$(stty size 2>/dev/null || true)"
+    read -r rows columns <<< "$size"
+    [[ "$rows" =~ ^[0-9]+$ && "$columns" =~ ^[0-9]+$ ]] || { rows=24; columns=80; }
+    (( rows == 0 )) && rows=24
+    (( columns == 0 )) && columns=80
+    if (( rows >= 24 && columns >= 78 )); then
+      return 0
+    fi
+    clear_screen
+    paint "$BOLD$YELLOW" "  TERMINAL TOO SMALL"
+    printf '\n\n  LayerX Workspace needs at least 78 columns and 24 rows.\n'
+    printf '  Current terminal: %s columns by %s rows.\n\n' "$columns" "$rows"
+    paint "$DIM" "  Resize the terminal and press any key, or press q to quit."
+    printf '\n'
+    read_event
+    [[ "$EVENT" == "quit" || "$EVENT" == "escape" ]] && return 1
+  done
+}
+
+dashboard_main() {
+  if (( $# != 0 )); then
+    printf 'LayerX Workspace is an interactive dashboard. Launch it without subcommands.\n' >&2
+    return 2
+  fi
+  if [[ ! -t 0 || ! -t 1 ]]; then
+    printf 'LayerX Workspace needs an interactive terminal.\n' >&2
+    return 2
+  fi
+  if [[ ! -f "$ROOT_DIR/Makefile" || ! -f "$ROOT_DIR/platform/Cargo.toml" ]]; then
+    printf 'The dashboard must remain in the LayerX repository root.\n' >&2
+    return 2
+  fi
+  terminal_enter
+  while (( ! QUIT_REQUESTED )); do
+    wait_for_usable_terminal || break
+    render_dashboard
+    read_event
+    handle_dashboard_event
+    if (( RUN_REQUESTED )); then
+      start_current_action
+    fi
+  done
+}
+
+if [[ "${LAYERX_DASHBOARD_LIBRARY:-0}" != "1" ]]; then
+  dashboard_main "$@"
+fi
