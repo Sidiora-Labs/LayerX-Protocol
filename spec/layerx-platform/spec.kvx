@@ -2160,7 +2160,7 @@ reqs = ["28.2","28.7"]
 
 [task.19.2]
 title = "Implement deterministic execution and metering"
-status = "pending"
+status = "done"
 wave = 10
 requires = ["19.1"]
 do_1 = "Implement instruction-level CPU metering, memory accounting and storage accounting, charged through the existing fee mechanism."

@@ -819,7 +819,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Apply the workspace dependency, license and lint policy, including the integer-only rule in every consensus-adjacent path.
     - Prove existing builds are untouched with the programs workspace present.
     - _Requirements: 28.2, 28.7_
-  - [ ] 19.2 Implement deterministic execution and metering
+  - [x] 19.2 Implement deterministic execution and metering
     - Implement instruction-level CPU metering, memory accounting and storage accounting, charged through the existing fee mechanism.
     - Fail an execution exceeding its budget with a typed resource result and full rollback, never a stall or node fault.
     - Record the runtime and ABI version per execution for receipt carriage and versioned replay.

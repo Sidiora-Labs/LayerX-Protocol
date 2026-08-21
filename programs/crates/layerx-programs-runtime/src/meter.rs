@@ -186,6 +186,11 @@ pub enum MeterRefusal {
         /// Attempted cumulative or peak use.
         attempted: u64,
     },
+    /// Cumulative accounting could not be represented exactly.
+    CounterOverflow {
+        /// Resource whose cumulative counter overflowed.
+        resource: ResourceKind,
+    },
     /// Fee-unit multiplication or accumulation exceeded `u128`.
     FeeOverflow,
 }
@@ -201,6 +206,9 @@ impl Display for MeterRefusal {
                 formatter,
                 "{resource} budget {limit} exceeded by attempted use {attempted}"
             ),
+            Self::CounterOverflow { resource } => {
+                write!(formatter, "{resource} cumulative accounting overflowed")
+            }
             Self::FeeOverflow => write!(formatter, "metered fee units overflowed"),
         }
     }
@@ -272,7 +280,7 @@ impl Meter {
     }
 
     pub(crate) fn carry_cpu(&mut self, consumed: u64) -> Result<(), MeterRefusal> {
-        let attempted = self.cpu_carried.saturating_add(consumed);
+        let attempted = self.counter_add(ResourceKind::Cpu, self.cpu_carried, consumed)?;
         self.admit(ResourceKind::Cpu, self.budget.cpu_fuel, attempted)?;
         self.cpu_carried = attempted;
         Ok(())
@@ -289,7 +297,8 @@ impl Meter {
     ///
     /// Returns a typed refusal before the read when its cumulative budget is exceeded.
     pub fn charge_storage_read(&mut self, bytes: u64) -> Result<(), MeterRefusal> {
-        let attempted = self.storage_read_bytes.saturating_add(bytes);
+        let attempted =
+            self.counter_add(ResourceKind::StorageRead, self.storage_read_bytes, bytes)?;
         self.admit(
             ResourceKind::StorageRead,
             self.budget.storage_read_bytes,
@@ -305,7 +314,8 @@ impl Meter {
     ///
     /// Returns a typed refusal before the write when its cumulative budget is exceeded.
     pub fn charge_storage_write(&mut self, bytes: u64) -> Result<(), MeterRefusal> {
-        let attempted = self.storage_write_bytes.saturating_add(bytes);
+        let attempted =
+            self.counter_add(ResourceKind::StorageWrite, self.storage_write_bytes, bytes)?;
         self.admit(
             ResourceKind::StorageWrite,
             self.budget.storage_write_bytes,
@@ -316,20 +326,36 @@ impl Meter {
     }
 
     pub(crate) fn record_cpu(&mut self, consumed: u64) {
-        self.cpu_fuel = self.cpu_carried.saturating_add(consumed);
+        match self.cpu_carried.checked_add(consumed) {
+            Some(total) => self.cpu_fuel = total,
+            None => {
+                self.exhausted = Some(MeterRefusal::CounterOverflow {
+                    resource: ResourceKind::Cpu,
+                });
+            }
+        }
     }
 
     pub(crate) fn mark_cpu_exhausted(&mut self) {
-        self.exhausted = Some(MeterRefusal::BudgetExceeded {
-            resource: ResourceKind::Cpu,
-            limit: self.budget.cpu_fuel,
-            attempted: self.cpu_fuel.saturating_add(1),
+        self.exhausted = Some(match self.cpu_fuel.checked_add(1) {
+            Some(attempted) => MeterRefusal::BudgetExceeded {
+                resource: ResourceKind::Cpu,
+                limit: self.budget.cpu_fuel,
+                attempted,
+            },
+            None => MeterRefusal::CounterOverflow {
+                resource: ResourceKind::Cpu,
+            },
         });
     }
 
     pub(crate) fn charge_output(&mut self, values: usize) -> Result<(), MeterRefusal> {
         let requested = u64::try_from(values).unwrap_or(u64::MAX);
-        let attempted = u64::from(self.output_values).saturating_add(requested);
+        let attempted = self.counter_add(
+            ResourceKind::Output,
+            u64::from(self.output_values),
+            requested,
+        )?;
         self.admit(
             ResourceKind::Output,
             u64::from(self.budget.output_values),
@@ -406,6 +432,19 @@ impl Meter {
         };
         self.exhausted = Some(refusal);
         Err(refusal)
+    }
+
+    fn counter_add(
+        &mut self,
+        resource: ResourceKind,
+        current: u64,
+        increment: u64,
+    ) -> Result<u64, MeterRefusal> {
+        current.checked_add(increment).ok_or_else(|| {
+            let refusal = MeterRefusal::CounterOverflow { resource };
+            self.exhausted = Some(refusal);
+            refusal
+        })
     }
 }
 
