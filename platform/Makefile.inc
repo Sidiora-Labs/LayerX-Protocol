@@ -91,9 +91,10 @@ platform-test-middleware:
 platform-test-docs:
 	sh platform/tools/docs-gate $(CURDIR)
 	command -v node >/dev/null
-	npm --prefix platform/docs/samples/first-payment-typescript install --no-audit --no-fund
-	npm --prefix platform/docs/samples/paid-endpoint-express install --no-audit --no-fund
-	npm --prefix platform/docs/samples/paid-route-next install --no-audit --no-fund
+	npm install --no-audit --no-fund \
+		--workspace @sidiora/layerx-doc-first-payment-typescript \
+		--workspace @sidiora/layerx-doc-paid-endpoint-express \
+		--workspace @sidiora/layerx-doc-paid-route-next
 	python3 -m pip install --quiet -r platform/docs/samples/first-payment-python/requirements.txt
 	python3 -m pip install --quiet -r platform/docs/samples/paid-endpoint-fastapi/requirements.txt
 	python3 -m compileall -q platform/docs/samples/first-payment-python platform/docs/samples/paid-endpoint-fastapi

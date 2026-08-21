@@ -33,6 +33,11 @@
   "peerDependencies": {
     "next": ">=14"
   },
+  "peerDependenciesMeta": {
+    "next": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "typescript": "5.9.2"
   },
