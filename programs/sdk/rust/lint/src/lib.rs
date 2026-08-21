@@ -260,14 +260,53 @@ impl std::error::Error for DeterminismViolation {}
 /// Checks that the SDK still speaks exactly the runtime's frozen ABI.
 #[must_use]
 pub fn abi_surface_violations() -> Vec<DeterminismViolation> {
+    let guest_v1: Vec<_> = layerx_program_sdk::HOST_FUNCTIONS
+        .iter()
+        .map(|function| (function.name, function.signature))
+        .collect();
+    let host_v1: Vec<_> = layerx_programs_runtime::HOST_FUNCTIONS
+        .iter()
+        .map(|function| (function.name, function.signature))
+        .collect();
+    let guest_candidate: Vec<_> = layerx_program_sdk::CANDIDATE_HOST_FUNCTIONS
+        .iter()
+        .map(|function| (function.name, function.signature))
+        .collect();
+    let host_candidate: Vec<_> = layerx_programs_runtime::abi::response::CANDIDATE_HOST_FUNCTIONS
+        .iter()
+        .map(|function| (function.name, function.signature))
+        .collect();
+    surface_violations(
+        layerx_program_sdk::ABI_MODULE,
+        layerx_programs_runtime::ABI_MODULE,
+        &guest_v1,
+        &host_v1,
+        layerx_program_sdk::CANDIDATE_ABI_MODULE,
+        layerx_programs_runtime::abi::response::CANDIDATE_ABI_MODULE,
+        layerx_program_sdk::MAX_CALL_RESPONSE_BYTES,
+        layerx_programs_runtime::MAX_CALL_RESPONSE_BYTES,
+        &guest_candidate,
+        &host_candidate,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn surface_violations(
+    guest_module: &str,
+    host_module: &str,
+    guest_v1: &[(&str, &str)],
+    host_v1: &[(&str, &str)],
+    guest_candidate_module: &str,
+    host_candidate_module: &str,
+    guest_response_maximum: usize,
+    host_response_maximum: usize,
+    guest_candidate: &[(&str, &str)],
+    host_candidate: &[(&str, &str)],
+) -> Vec<DeterminismViolation> {
     let mut violations = Vec::new();
-    if layerx_program_sdk::ABI_MODULE != layerx_programs_runtime::ABI_MODULE {
+    if guest_module != host_module {
         violations.push(DeterminismViolation::AbiDrift {
-            detail: format!(
-                "host module {} is not {}",
-                layerx_program_sdk::ABI_MODULE,
-                layerx_programs_runtime::ABI_MODULE
-            ),
+            detail: format!("host module {guest_module} is not {host_module}"),
         });
     }
     if layerx_program_sdk::ABI_MANIFEST != layerx_programs_runtime::ABI_MANIFEST {
@@ -275,20 +314,52 @@ pub fn abi_surface_violations() -> Vec<DeterminismViolation> {
             detail: "frozen host-function manifest differs".to_string(),
         });
     }
-    for (guest, host) in layerx_program_sdk::HOST_FUNCTIONS
-        .iter()
-        .zip(layerx_programs_runtime::HOST_FUNCTIONS.iter())
-    {
-        if guest.name != host.name || guest.signature != host.signature {
+    compare_function_tables("v1", guest_v1, host_v1, &mut violations);
+    if guest_candidate_module != host_candidate_module {
+        violations.push(DeterminismViolation::AbiDrift {
+            detail: format!(
+                "candidate host module {guest_candidate_module} is not {host_candidate_module}"
+            ),
+        });
+    }
+    if guest_response_maximum != host_response_maximum {
+        violations.push(DeterminismViolation::AbiDrift {
+            detail: format!(
+                "candidate response maximum {guest_response_maximum} is not {host_response_maximum}"
+            ),
+        });
+    }
+    compare_function_tables(
+        "candidate",
+        guest_candidate,
+        host_candidate,
+        &mut violations,
+    );
+    violations
+}
+
+fn compare_function_tables(
+    label: &str,
+    guest: &[(&str, &str)],
+    host: &[(&str, &str)],
+    violations: &mut Vec<DeterminismViolation>,
+) {
+    if guest.len() != host.len() {
+        violations.push(DeterminismViolation::AbiDrift {
+            detail: format!(
+                "{label} host-function count {} is not {}",
+                guest.len(),
+                host.len()
+            ),
+        });
+    }
+    for ((guest_name, guest_signature), (host_name, host_signature)) in guest.iter().zip(host) {
+        if guest_name != host_name || guest_signature != host_signature {
             violations.push(DeterminismViolation::AbiDrift {
-                detail: format!(
-                    "{}{} is not {}{}",
-                    guest.name, guest.signature, host.name, host.signature
-                ),
+                detail: format!("{guest_name}{guest_signature} is not {host_name}{host_signature}"),
             });
         }
     }
-    violations
 }
 
 /// Lints one compiled program artifact.
@@ -639,4 +710,63 @@ fn contains_word(body: &str, word: &str) -> bool {
         cursor = end;
     }
     false
+}
+
+#[cfg(test)]
+mod abi_surface_tests {
+    use super::{surface_violations, DeterminismViolation};
+
+    fn details(violations: &[DeterminismViolation]) -> Vec<&str> {
+        violations
+            .iter()
+            .filter_map(|violation| match violation {
+                DeterminismViolation::AbiDrift { detail } => Some(detail.as_str()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn equal_prefix_with_an_extra_host_function_is_abi_drift() {
+        let guest_v1 = [("storage_read", "(i32)->i32")];
+        let host_v1 = [
+            ("storage_read", "(i32)->i32"),
+            ("storage_write", "(i32)->i32"),
+        ];
+        let violations = surface_violations(
+            "layerx_v1",
+            "layerx_v1",
+            &guest_v1,
+            &host_v1,
+            "layerx_v2_candidate",
+            "layerx_v2_candidate",
+            8,
+            8,
+            &[],
+            &[],
+        );
+
+        assert!(details(&violations).contains(&"v1 host-function count 1 is not 2"));
+    }
+
+    #[test]
+    fn candidate_function_name_or_signature_mismatch_is_abi_drift() {
+        let guest_candidate = [("response_write", "(i32,i32,i32)->i32")];
+        let host_candidate = [("response_read", "(i32,i32,i32)->i32")];
+        let violations = surface_violations(
+            "layerx_v1",
+            "layerx_v1",
+            &[],
+            &[],
+            "layerx_v2_candidate",
+            "layerx_v2_candidate",
+            8,
+            8,
+            &guest_candidate,
+            &host_candidate,
+        );
+
+        assert!(details(&violations)
+            .contains(&"response_write(i32,i32,i32)->i32 is not response_read(i32,i32,i32)->i32",));
+    }
 }

@@ -138,6 +138,7 @@ fn assert_authorized_write_rolls_back(wasm: &[u8], executor: Executor, expected:
             entrypoint: "run",
             calldata: &[],
             composition: CompositionContext::isolated(),
+            response_capacity: 0,
         },
     );
     assert_eq!(result, Err(expected));

@@ -27,6 +27,9 @@
 
 #![no_std]
 
+#[cfg(test)]
+extern crate std;
+
 pub mod abi;
 pub mod amount;
 pub mod buffer;
@@ -49,14 +52,17 @@ mod macros;
 
 pub use abi::{
     HostFunction, ABI_MANIFEST, ABI_MODULE, ABI_VERSION, CALL_ENTRY_EXPORT, CALL_RESERVE_EXPORT,
-    ENTRYPOINT, HOST_FUNCTIONS, MAX_CALL_INPUT_BYTES, MAX_CAPABILITIES,
-    MAX_CAPABILITY_ENCODING_BYTES, MAX_EVENT_DATA_BYTES, MAX_EVENT_TOPIC_BYTES,
-    MAX_STORAGE_KEY_BYTES, MAX_STORAGE_VALUE_BYTES, MEMORY_EXPORT, RECEIPT_ENCODING_BYTES,
+    CANDIDATE_ABI_MODULE, CANDIDATE_HOST_FUNCTIONS, ENTRYPOINT, HOST_FUNCTIONS,
+    MAX_CALL_INPUT_BYTES, MAX_CALL_RESPONSE_BYTES, MAX_CAPABILITIES, MAX_CAPABILITY_ENCODING_BYTES,
+    MAX_EVENT_DATA_BYTES, MAX_EVENT_TOPIC_BYTES, MAX_STORAGE_KEY_BYTES, MAX_STORAGE_VALUE_BYTES,
+    MEMORY_EXPORT, RECEIPT_ENCODING_BYTES,
 };
 pub use amount::{Amount, ProtocolInteger};
 pub use buffer::Bytes;
-pub use call::{CallInput, CallResult, GrantedCapabilities};
+pub use call::{CallInput, CallResponse, CallResult, GrantedCapabilities};
 pub use capability::{Capability, CapabilitySet};
+#[cfg(target_arch = "wasm32")]
+pub use entry::EntryResponse;
 pub use error::{
     Field, HostRefusal, ProgramError, Reason, ValueError, STATUS_BOUNDS, STATUS_BUFFER_TOO_SMALL,
     STATUS_CAPABILITY_BYTES, STATUS_CAPABILITY_LIMIT, STATUS_DATA_TOO_LARGE, STATUS_DENIED,

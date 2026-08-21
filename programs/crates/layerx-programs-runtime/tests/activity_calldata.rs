@@ -196,6 +196,7 @@ fn execute_program(
             entrypoint: CALL_ENTRY_EXPORT,
             calldata,
             composition,
+            response_capacity: 0,
         },
     )
 }

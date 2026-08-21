@@ -45,7 +45,7 @@ check_root() {
     failed=0
 
     for path in \
-        abi/mod.rs abi/capability.rs abi/storage_ops.rs \
+        abi/mod.rs abi/capability.rs abi/response.rs abi/storage_ops.rs \
         host/mod.rs host/memory.rs host/storage.rs host/events.rs host/calls.rs host/transfer.rs
     do
         if [ ! -f "$root/$path" ]; then
@@ -69,7 +69,7 @@ check_root() {
                 [ -f "$file" ] && basename "$file"
             done | sort
         )
-        expected=$(printf '%s\n' capability.rs mod.rs storage_ops.rs)
+        expected=$(printf '%s\n' capability.rs mod.rs response.rs storage_ops.rs)
         if [ "$actual" != "$expected" ]; then
             echo "runtime module boundary: unexpected ABI module inventory" >&2
             failed=1
@@ -129,7 +129,7 @@ if [ "${1:-}" = "--self-test" ]; then
     fixture=$(mktemp -d)
     trap 'find "$fixture" -type f -delete; find "$fixture" -depth -type d -exec rmdir {} \; 2>/dev/null || true' EXIT
     mkdir -p "$fixture/abi" "$fixture/host"
-    for path in abi/mod.rs abi/capability.rs abi/storage_ops.rs host/mod.rs host/memory.rs host/storage.rs host/events.rs host/calls.rs host/transfer.rs
+    for path in abi/mod.rs abi/capability.rs abi/response.rs abi/storage_ops.rs host/mod.rs host/memory.rs host/storage.rs host/events.rs host/calls.rs host/transfer.rs
     do
         : > "$fixture/$path"
     done

@@ -13,6 +13,13 @@ use crate::execute::{fault_from_error, ExecutionFault, ProgramInstance};
 use crate::host::{self, RuntimeState};
 use crate::meter::Meter;
 
+/// Explicitly selected ABI surface used to validate and instantiate a module.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AbiRevision {
+    V1,
+    CandidateV2,
+}
+
 /// A typed refusal produced while validating a module.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValidationRefusal {
@@ -106,8 +113,10 @@ impl std::error::Error for ValidationRefusal {}
 #[derive(Debug)]
 pub struct ValidatedModule {
     module: wasmi::Module,
+    linker: wasmi::Linker<RuntimeState>,
     byte_size: u64,
     function_count: u32,
+    revision: AbiRevision,
 }
 
 impl ValidatedModule {
@@ -137,6 +146,11 @@ impl ValidatedModule {
         self.function_count
     }
 
+    #[must_use]
+    pub const fn abi_revision(&self) -> AbiRevision {
+        self.revision
+    }
+
     /// Instantiates the validated module in an isolated store.
     ///
     /// # Errors
@@ -164,6 +178,20 @@ impl ValidatedModule {
         self.instantiate_state(RuntimeState::composed(meter, abi, composition))
     }
 
+    pub(crate) fn instantiate_composed_response(
+        &self,
+        meter: Meter,
+        abi: Abi,
+        composition: Composition,
+        capacity: usize,
+    ) -> Result<
+        Result<ProgramInstance, (ExecutionFault, Option<crate::meter::MeterRefusal>)>,
+        crate::abi::response::ResponseRefusal,
+    > {
+        let state = RuntimeState::composed_with_response(meter, abi, composition, capacity)?;
+        Ok(self.instantiate_state(state))
+    }
+
     fn instantiate_state(
         &self,
         state: RuntimeState,
@@ -179,9 +207,9 @@ impl ValidatedModule {
                 store.data().meter().exhaustion(),
             )
         })?;
-        let linker = host::linker(self.module.engine())
-            .map_err(|fault| (fault, store.data().meter().exhaustion()))?;
-        let pre = linker
+        let pre = self
+            .linker
+            .clone()
             .instantiate(&mut store, &self.module)
             .map_err(|error| (fault_from_error(&error), store.data().meter().exhaustion()))?;
         let instance = pre
@@ -194,6 +222,7 @@ impl ValidatedModule {
 pub(crate) fn validate_module(
     engine: &WasmEngine,
     wasm: &[u8],
+    revision: AbiRevision,
 ) -> Result<ValidatedModule, ValidationRefusal> {
     let limits = engine.limits();
     let byte_size = wasm.len() as u64;
@@ -227,7 +256,7 @@ pub(crate) fn validate_module(
                     let entry = entry.map_err(|error| ValidationRefusal::MalformedModule {
                         reason: error.to_string(),
                     })?;
-                    refuse_import(&entry, &function_types)?;
+                    refuse_import(&entry, &function_types, revision)?;
                 }
             }
             Payload::FunctionSection(reader) => {
@@ -258,24 +287,45 @@ pub(crate) fn validate_module(
             reason: error.to_string(),
         }
     })?;
+    let linker = host::linker(engine.inner(), revision).map_err(|error| {
+        ValidationRefusal::RejectedByEngine {
+            reason: error.to_string(),
+        }
+    })?;
     Ok(ValidatedModule {
         module,
+        linker,
         byte_size,
         function_count,
+        revision,
     })
 }
 
-fn refuse_import(import: &Import<'_>, types: &[FuncType]) -> Result<(), ValidationRefusal> {
-    let Some(declaration_index) = HOST_FUNCTIONS
+fn refuse_import(
+    import: &Import<'_>,
+    types: &[FuncType],
+    revision: AbiRevision,
+) -> Result<(), ValidationRefusal> {
+    let declaration = if let Some(index) = HOST_FUNCTIONS
         .iter()
         .position(|function| import.module == ABI_MODULE && import.name == function.name)
-    else {
+    {
+        &HOST_FUNCTION_TYPES[index]
+    } else if revision == AbiRevision::CandidateV2
+        && import.module == crate::abi::response::CANDIDATE_ABI_MODULE
+    {
+        crate::abi::response::candidate_function_type(import.name).ok_or_else(|| {
+            ValidationRefusal::ForbiddenImport {
+                import_module: import.module.to_string(),
+                import_name: import.name.to_string(),
+            }
+        })?
+    } else {
         return Err(ValidationRefusal::ForbiddenImport {
             import_module: import.module.to_string(),
             import_name: import.name.to_string(),
         });
     };
-    let declaration = &HOST_FUNCTION_TYPES[declaration_index];
     let TypeRef::Func(type_index) = import.ty else {
         return Err(ValidationRefusal::WrongImportKind {
             import_name: import.name.to_string(),

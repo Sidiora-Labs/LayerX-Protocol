@@ -2404,6 +2404,7 @@ programs-sdk-c:
 
 programs-sdk-rust:
 	sh programs/sdk/rust/quickstart/build.sh all
+	sh programs/sdk/rust/response-fixture/build.sh
 
 programs-sdk-assemblyscript:
 	cd programs/sdk/assemblyscript/examples/paid-counter && npm install --no-audit --no-fund && npm run build && npm run lint

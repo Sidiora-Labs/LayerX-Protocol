@@ -128,6 +128,7 @@ fn execute_result(
             entrypoint: "run",
             calldata: &[],
             composition: CompositionContext::isolated(),
+            response_capacity: 0,
         },
     )
 }

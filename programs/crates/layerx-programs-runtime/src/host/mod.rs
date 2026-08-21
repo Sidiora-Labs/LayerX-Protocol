@@ -8,10 +8,12 @@ mod transfer;
 
 use wasmi::{Caller, Engine, Linker};
 
+use crate::abi::response::{CallResponse, ResponseRefusal, ResponseRegion};
 use crate::abi::{Abi, AbiError, ReceiptView, ABI_MODULE};
 use crate::calls::{Composition, CompositionRefusal};
 use crate::execute::ExecutionFault;
 use crate::meter::Meter;
+use crate::validate::AbiRevision;
 
 use self::memory::{nonnegative, read_fixed, write_guest};
 
@@ -29,6 +31,7 @@ pub(crate) struct RuntimeState {
     abi: Option<Abi>,
     composition: Option<Composition>,
     refusal: Option<CompositionRefusal>,
+    response: Option<ResponseRegion>,
 }
 
 impl RuntimeState {
@@ -38,6 +41,7 @@ impl RuntimeState {
             abi: None,
             composition: None,
             refusal: None,
+            response: None,
         }
     }
 
@@ -47,6 +51,66 @@ impl RuntimeState {
             abi: Some(abi),
             composition: Some(composition),
             refusal: None,
+            response: None,
+        }
+    }
+
+    pub(crate) fn composed_with_response(
+        meter: Meter,
+        abi: Abi,
+        composition: Composition,
+        capacity: usize,
+    ) -> Result<Self, ResponseRefusal> {
+        Ok(Self {
+            meter,
+            abi: Some(abi),
+            composition: Some(composition),
+            refusal: None,
+            response: Some(ResponseRegion::new(capacity)?),
+        })
+    }
+
+    pub(crate) fn publish_response(
+        &mut self,
+        response: CallResponse,
+    ) -> Result<(), ResponseRefusal> {
+        let bytes = response.bytes.len();
+        let region = self
+            .response
+            .as_mut()
+            .ok_or(ResponseRefusal::CapacityExceeded { bytes, capacity: 0 })?;
+        region.publish(response)?;
+        if let Err(refusal) = self.meter.charge_output_bytes(bytes) {
+            let refusal = ResponseRefusal::Meter(refusal);
+            region.refuse(refusal.clone());
+            return Err(refusal);
+        }
+        Ok(())
+    }
+
+    pub(super) fn publish_response_status(&mut self, response: CallResponse) -> i32 {
+        match self.publish_response(response) {
+            Ok(()) => 0,
+            Err(ResponseRefusal::Meter(_)) => STATUS_METER,
+            Err(_) => STATUS_BOUNDS,
+        }
+    }
+
+    pub(crate) fn finalize_response(&self, code: i32) -> Result<CallResponse, ResponseRefusal> {
+        self.response.as_ref().map_or_else(
+            || {
+                Ok(CallResponse {
+                    code,
+                    bytes: Vec::new(),
+                })
+            },
+            |region| region.finish(code),
+        )
+    }
+
+    pub(crate) fn refuse_response(&mut self, refusal: ResponseRefusal) {
+        if let Some(region) = self.response.as_mut() {
+            region.refuse(refusal);
         }
     }
 
@@ -102,11 +166,17 @@ impl RuntimeState {
 }
 
 #[allow(clippy::too_many_lines)]
-pub(crate) fn linker(engine: &Engine) -> Result<Linker<RuntimeState>, ExecutionFault> {
+pub(crate) fn linker(
+    engine: &Engine,
+    revision: AbiRevision,
+) -> Result<Linker<RuntimeState>, ExecutionFault> {
     let mut linker = Linker::new(engine);
     storage::register(&mut linker)?;
     events::register(&mut linker)?;
     calls::register(&mut linker)?;
+    if revision == AbiRevision::CandidateV2 {
+        calls::register_candidate(&mut linker)?;
+    }
     transfer::register(&mut linker)?;
     linker
         .func_wrap(

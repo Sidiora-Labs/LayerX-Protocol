@@ -1084,7 +1084,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Extend the Rust SDK entry plumbing so a program declares its entry point once and receives calldata identically at both boundaries.
     - Test an activity-level call with calldata against a real module, including the empty, maximum and one-past-maximum cases.
     - _Requirements: 35.2_
-  - [ ] 28.3 Return response bytes across the call boundary
+  - [x] 28.3 Return response bytes across the call boundary
     - Add a response region to the call protocol: a callee writes bounded response bytes, the runtime copies them into a caller-declared buffer, and the caller reads them through a response host function rather than through storage.
     - Carry the response to the activity boundary too, so an authorized execution returns bytes as well as integer outputs and metered usage.
     - Meter the response copy per byte and account it against the output resource class, refusing a response past the caller's declared capacity with a typed result rather than truncating.

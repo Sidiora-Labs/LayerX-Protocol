@@ -15,6 +15,8 @@ pub const DEFAULT_STORAGE_READ_BYTES: u64 = 1_048_576;
 pub const DEFAULT_STORAGE_WRITE_BYTES: u64 = 1_048_576;
 /// Default result-value count admitted at the guest boundary.
 pub const DEFAULT_OUTPUT_VALUES: u32 = 64;
+/// Default successful-response byte budget.
+pub const DEFAULT_OUTPUT_BYTES: u64 = 1_048_576;
 /// Default table-element limit per execution.
 pub const DEFAULT_TABLE_ELEMENTS: u32 = 4_096;
 
@@ -31,6 +33,8 @@ pub enum ResourceKind {
     StorageWrite,
     /// Integer values returned across the guest boundary.
     Output,
+    /// Successful response bytes copied across a call boundary.
+    OutputBytes,
 }
 
 impl Display for ResourceKind {
@@ -41,6 +45,7 @@ impl Display for ResourceKind {
             Self::StorageRead => write!(formatter, "storage read bytes"),
             Self::StorageWrite => write!(formatter, "storage write bytes"),
             Self::Output => write!(formatter, "output values"),
+            Self::OutputBytes => write!(formatter, "output bytes"),
         }
     }
 }
@@ -53,6 +58,7 @@ pub struct ResourceBudget {
     storage_read_bytes: u64,
     storage_write_bytes: u64,
     output_values: u32,
+    output_bytes: u64,
     table_elements: u32,
 }
 
@@ -73,6 +79,7 @@ impl ResourceBudget {
             storage_read_bytes,
             storage_write_bytes,
             output_values,
+            output_bytes: DEFAULT_OUTPUT_BYTES,
             table_elements,
         }
     }
@@ -107,6 +114,17 @@ impl ResourceBudget {
     pub const fn output_values(self) -> u32 {
         self.output_values
     }
+
+    #[must_use]
+    pub const fn with_output_bytes(mut self, output_bytes: u64) -> Self {
+        self.output_bytes = output_bytes;
+        self
+    }
+
+    #[must_use]
+    pub const fn output_bytes(self) -> u64 {
+        self.output_bytes
+    }
 }
 
 impl Default for ResourceBudget {
@@ -123,6 +141,7 @@ pub struct FeeSchedule {
     storage_read_byte: u64,
     storage_write_byte: u64,
     output_value: u64,
+    output_byte: u64,
 }
 
 impl FeeSchedule {
@@ -141,7 +160,14 @@ impl FeeSchedule {
             storage_read_byte,
             storage_write_byte,
             output_value,
+            output_byte: 1,
         }
+    }
+
+    #[must_use]
+    pub const fn with_output_byte_price(mut self, output_byte: u64) -> Self {
+        self.output_byte = output_byte;
+        self
     }
 
     /// Returns the runtime's version-one fee-unit schedule.
@@ -170,6 +196,8 @@ pub struct MeteredUsage {
     pub storage_write_bytes: u64,
     /// Integer result values returned.
     pub output_values: u32,
+    /// Successful response bytes copied across execution boundaries.
+    pub output_bytes: u64,
     /// Exact units handed to the existing fee mechanism.
     pub fee_units: u128,
 }
@@ -227,6 +255,7 @@ pub struct Meter {
     storage_read_bytes: u64,
     storage_write_bytes: u64,
     output_values: u32,
+    output_bytes: u64,
     exhausted: Option<MeterRefusal>,
 }
 
@@ -243,6 +272,7 @@ impl Meter {
             storage_read_bytes: 0,
             storage_write_bytes: 0,
             output_values: 0,
+            output_bytes: 0,
             exhausted: None,
         }
     }
@@ -370,6 +400,19 @@ impl Meter {
         Ok(())
     }
 
+    pub(crate) fn charge_output_bytes(&mut self, bytes: usize) -> Result<(), MeterRefusal> {
+        let requested = u64::try_from(bytes).unwrap_or(u64::MAX);
+        let attempted =
+            self.counter_add(ResourceKind::OutputBytes, self.output_bytes, requested)?;
+        self.admit(
+            ResourceKind::OutputBytes,
+            self.budget.output_bytes,
+            attempted,
+        )?;
+        self.output_bytes = attempted;
+        Ok(())
+    }
+
     pub(crate) const fn exhaustion(&self) -> Option<MeterRefusal> {
         self.exhausted
     }
@@ -395,6 +438,7 @@ impl Meter {
                 self.prices.storage_write_byte,
             ),
             (u128::from(self.output_values), self.prices.output_value),
+            (u128::from(self.output_bytes), self.prices.output_byte),
         ];
         let mut fee_units = 0u128;
         for (use_units, price) in priced {
@@ -412,6 +456,7 @@ impl Meter {
             storage_read_bytes: self.storage_read_bytes,
             storage_write_bytes: self.storage_write_bytes,
             output_values: self.output_values,
+            output_bytes: self.output_bytes,
             fee_units,
         })
     }
@@ -509,5 +554,25 @@ impl ResourceLimiter for Meter {
 
     fn memories(&self) -> usize {
         1
+    }
+}
+
+#[cfg(test)]
+mod response_tests {
+    use super::{FeeSchedule, Meter, MeterRefusal, ResourceBudget, ResourceKind};
+
+    #[test]
+    fn response_byte_counter_overflow_is_typed() {
+        let mut meter = Meter::new(
+            ResourceBudget::declared().with_output_bytes(u64::MAX),
+            FeeSchedule::declared(),
+        );
+        meter.output_bytes = u64::MAX;
+        assert_eq!(
+            meter.charge_output_bytes(1),
+            Err(MeterRefusal::CounterOverflow {
+                resource: ResourceKind::OutputBytes,
+            })
+        );
     }
 }

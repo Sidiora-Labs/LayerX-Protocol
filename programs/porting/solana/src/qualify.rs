@@ -305,6 +305,7 @@ pub fn execute_mint(
             entrypoint: CALL_ENTRY_EXPORT,
             calldata: &calldata,
             composition: CompositionContext::isolated(),
+            response_capacity: 0,
         },
     )?)
 }
@@ -416,6 +417,7 @@ fn query(
             entrypoint: CALL_ENTRY_EXPORT,
             calldata: &calldata,
             composition: CompositionContext::isolated(),
+            response_capacity: 0,
         },
     )?)
 }

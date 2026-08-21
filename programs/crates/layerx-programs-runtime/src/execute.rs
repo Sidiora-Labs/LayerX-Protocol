@@ -5,13 +5,14 @@ use core::fmt::{self, Display};
 use wasmi::core::TrapCode;
 use wasmi::{Extern, Instance, Memory, Store, Value};
 
+use crate::abi::response::{CallResponse, ResponseRefusal};
 use crate::abi::{Abi, AbiEffects, AbiError, AuthorizationContext, ReceiptOracle};
 use crate::calls::{CallGraph, Composition, CompositionContext, CompositionRefusal};
 use crate::entrypoint::{self, EntrypointRefusal};
 use crate::host::RuntimeState;
 use crate::meter::{FeeSchedule, Meter, MeterRefusal, MeteredUsage, ResourceBudget, ResourceKind};
 use crate::storage::{ProgramId, Storage};
-use crate::validate::ValidatedModule;
+use crate::validate::{AbiRevision, ValidatedModule};
 
 /// Runtime version recorded for versioned replay of every execution.
 pub const RUNTIME_VERSION: u16 = 1;
@@ -273,6 +274,55 @@ pub struct AuthorizedExecutionRecord {
     pub call_graph: CallGraph,
 }
 
+/// Qualification-only result produced under the explicitly selected candidate ABI.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CandidateAuthorizedExecutionRecord {
+    pub execution: CandidateExecutionRecord,
+    pub response: CallResponse,
+    pub effects: AbiEffects,
+    pub call_graph: CallGraph,
+}
+
+/// Execution facts that cannot be confused with frozen v1 receipt evidence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CandidateExecutionRecord {
+    pub runtime_version: u16,
+    pub outputs: Vec<WasmValue>,
+    pub usage: MeteredUsage,
+}
+
+impl CandidateAuthorizedExecutionRecord {
+    #[must_use]
+    pub fn canonical_evidence(&self) -> Vec<u8> {
+        let mut evidence = b"LXP/program-execution/v2-candidate\0".to_vec();
+        evidence.extend_from_slice(&self.execution.runtime_version.to_be_bytes());
+        evidence.extend_from_slice(&(self.execution.outputs.len() as u64).to_be_bytes());
+        for output in &self.execution.outputs {
+            match output {
+                WasmValue::I32(value) => {
+                    evidence.push(1);
+                    evidence.extend_from_slice(&value.to_be_bytes());
+                }
+                WasmValue::I64(value) => {
+                    evidence.push(2);
+                    evidence.extend_from_slice(&value.to_be_bytes());
+                }
+            }
+        }
+        evidence.extend_from_slice(&self.execution.usage.cpu_fuel.to_be_bytes());
+        evidence.extend_from_slice(&self.execution.usage.memory_bytes.to_be_bytes());
+        evidence.extend_from_slice(&self.execution.usage.storage_read_bytes.to_be_bytes());
+        evidence.extend_from_slice(&self.execution.usage.storage_write_bytes.to_be_bytes());
+        evidence.extend_from_slice(&self.execution.usage.output_values.to_be_bytes());
+        evidence.extend_from_slice(&self.execution.usage.output_bytes.to_be_bytes());
+        evidence.extend_from_slice(&self.execution.usage.fee_units.to_be_bytes());
+        evidence.extend_from_slice(&self.response.code.to_be_bytes());
+        evidence.extend_from_slice(&(self.response.bytes.len() as u64).to_be_bytes());
+        evidence.extend_from_slice(&self.response.bytes);
+        evidence
+    }
+}
+
 /// Complete immutable input to one authorized guest execution.
 pub struct AuthorizedExecutionRequest<'a> {
     pub module: &'a ValidatedModule,
@@ -282,6 +332,7 @@ pub struct AuthorizedExecutionRequest<'a> {
     pub entrypoint: &'a str,
     pub calldata: &'a [u8],
     pub composition: CompositionContext,
+    pub response_capacity: usize,
 }
 
 impl ExecutionRecord {
@@ -337,6 +388,8 @@ pub enum ExecutionError {
     /// Program-to-program composition refusal; no leg of the call graph was
     /// committed.
     Composition(CompositionRefusal),
+    /// Candidate successful-response transport refusal.
+    Response(ResponseRefusal),
 }
 
 impl Display for ExecutionError {
@@ -347,6 +400,7 @@ impl Display for ExecutionError {
             Self::Abi(error) => write!(formatter, "ABI refusal: {error}"),
             Self::Entrypoint(refusal) => write!(formatter, "entrypoint refusal: {refusal}"),
             Self::Composition(refusal) => write!(formatter, "composition refusal: {refusal}"),
+            Self::Response(refusal) => write!(formatter, "response refusal: {refusal}"),
         }
     }
 }
@@ -394,6 +448,9 @@ impl Executor {
         export: &str,
         args: &[WasmValue],
     ) -> Result<ExecutionRecord, ExecutionError> {
+        if module.abi_revision() != AbiRevision::V1 {
+            return Err(ExecutionError::Abi(AbiError::WrongVersion));
+        }
         let meter = Meter::new(self.budget, self.prices);
         let mut instance = module
             .instantiate_metered(meter)
@@ -429,6 +486,9 @@ impl Executor {
         storage: &mut Storage,
         request: AuthorizedExecutionRequest<'_>,
     ) -> Result<AuthorizedExecutionRecord, ExecutionError> {
+        if request.module.abi_revision() != AbiRevision::V1 {
+            return Err(ExecutionError::Abi(AbiError::WrongVersion));
+        }
         entrypoint::preflight(request.calldata).map_err(ExecutionError::Entrypoint)?;
         let meter = Meter::new(self.budget, self.prices);
         let principal = request.authorization.principal();
@@ -443,6 +503,7 @@ impl Executor {
         let composition = Composition::new(
             request.composition.resolver(),
             CallGraph::root(request.composition.rules(), request.program, principal),
+            AbiRevision::V1,
         );
         let mut instance = request
             .module
@@ -486,6 +547,90 @@ impl Executor {
                 outputs: vec![WasmValue::I32(code)],
                 usage,
             },
+            effects: committed.effects,
+            call_graph,
+        })
+    }
+
+    /// Executes an authorized activity through the explicitly selected candidate ABI.
+    ///
+    /// # Errors
+    ///
+    /// Returns typed validation, execution, composition, response, or resource refusals.
+    pub fn execute_authorized_candidate(
+        &self,
+        storage: &mut Storage,
+        request: AuthorizedExecutionRequest<'_>,
+    ) -> Result<CandidateAuthorizedExecutionRecord, ExecutionError> {
+        if request.module.abi_revision() != AbiRevision::CandidateV2 {
+            return Err(ExecutionError::Abi(AbiError::WrongVersion));
+        }
+        if request.response_capacity > crate::abi::response::MAX_CALL_RESPONSE_BYTES {
+            return Err(ExecutionError::Response(ResponseRefusal::TooLarge {
+                bytes: request.response_capacity,
+                limit: crate::abi::response::MAX_CALL_RESPONSE_BYTES,
+            }));
+        }
+        entrypoint::preflight(request.calldata).map_err(ExecutionError::Entrypoint)?;
+        let meter = Meter::new(self.budget, self.prices);
+        let principal = request.authorization.principal();
+        let abi = Abi::new(
+            self.abi_version,
+            request.program,
+            request.authorization,
+            storage.clone(),
+            request.receipts,
+        )
+        .map_err(ExecutionError::Abi)?;
+        let composition = Composition::new(
+            request.composition.resolver(),
+            CallGraph::root(request.composition.rules(), request.program, principal),
+            AbiRevision::CandidateV2,
+        );
+        let mut instance = request
+            .module
+            .instantiate_composed_response(meter, abi, composition, request.response_capacity)
+            .map_err(ExecutionError::Response)?
+            .map_err(|(fault, exhausted)| self.classify_fault(fault, exhausted))?;
+        let code = match entrypoint::invoke(&mut instance, request.entrypoint, request.calldata) {
+            Ok(code) => code,
+            Err(EntrypointRefusal::Fault(fault)) => {
+                if let Some(refusal) = instance.state().refusal() {
+                    return Err(ExecutionError::Composition(refusal.clone()));
+                }
+                return Err(self.classify_fault(fault, instance.meter().exhaustion()));
+            }
+            Err(EntrypointRefusal::Resource(refusal)) => {
+                return Err(ExecutionError::Resource(refusal))
+            }
+            Err(refusal) => return Err(ExecutionError::Entrypoint(refusal)),
+        };
+        let response = match instance.state().finalize_response(code) {
+            Ok(response) => response,
+            Err(ResponseRefusal::Meter(refusal)) => return Err(ExecutionError::Resource(refusal)),
+            Err(refusal) => return Err(ExecutionError::Response(refusal)),
+        };
+        let usage = instance
+            .meter()
+            .finish()
+            .map_err(ExecutionError::Resource)?;
+        let (_, abi, composition) = instance.into_state().into_parts();
+        let committed = abi
+            .ok_or(ExecutionError::Abi(AbiError::CapabilityDenied))?
+            .commit();
+        let call_graph = composition
+            .ok_or(ExecutionError::Composition(
+                CompositionRefusal::NotComposable,
+            ))?
+            .into_graph();
+        *storage = committed.storage;
+        Ok(CandidateAuthorizedExecutionRecord {
+            execution: CandidateExecutionRecord {
+                runtime_version: self.runtime_version,
+                outputs: vec![WasmValue::I32(code)],
+                usage,
+            },
+            response,
             effects: committed.effects,
             call_graph,
         })

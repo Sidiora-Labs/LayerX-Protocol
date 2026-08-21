@@ -9,11 +9,25 @@ use core::cell::UnsafeCell;
 
 use crate::abi::MAX_CALL_INPUT_BYTES;
 use crate::error::{Field, ProgramError, Reason};
+use crate::CallResult;
 
 /// Declared capacity of the call-input reservation every SDK program owns.
 pub const CALL_INPUT_CAPACITY: usize = MAX_CALL_INPUT_BYTES;
 
 const RESERVATION_REFUSED: i32 = -1;
+
+/// Response returned synchronously by a candidate entry handler.
+pub struct EntryResponse<'a> {
+    pub result: CallResult,
+    pub bytes: &'a [u8],
+}
+
+impl<'a> EntryResponse<'a> {
+    #[must_use]
+    pub const fn new(result: CallResult, bytes: &'a [u8]) -> Self {
+        Self { result, bytes }
+    }
+}
 
 struct CallBuffer(UnsafeCell<[u8; CALL_INPUT_CAPACITY]>);
 

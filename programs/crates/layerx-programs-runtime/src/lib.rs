@@ -41,6 +41,7 @@ pub mod transfer;
 #[deny(unsafe_code)]
 pub mod validate;
 
+pub use abi::response::{CallResponse, ResponseRefusal, MAX_CALL_RESPONSE_BYTES};
 pub use calls::{
     call_admission_fuel, CallEdge, CallFrame, CallGraph, CompositionContext, CompositionRefusal,
     CompositionRules, ProgramCatalog, ProgramResolver, CALL_ADMISSION_FUEL, CALL_ENTRY_EXPORT,
@@ -50,8 +51,9 @@ pub use calls::{
 pub use engine::{EngineRefusal, WasmEngine};
 pub use entrypoint::EntrypointRefusal;
 pub use execute::{
-    AuthorizedExecutionRecord, AuthorizedExecutionRequest, ExecutionError, ExecutionFault,
-    ExecutionRecord, Executor, ProgramInstance, WasmValue, ABI_VERSION, RUNTIME_VERSION,
+    AuthorizedExecutionRecord, AuthorizedExecutionRequest, CandidateAuthorizedExecutionRecord,
+    CandidateExecutionRecord, ExecutionError, ExecutionFault, ExecutionRecord, Executor,
+    ProgramInstance, WasmValue, ABI_VERSION, RUNTIME_VERSION,
 };
 pub use lifecycle::{
     CodeHash, Deploy, DeploymentReceipt, DiagnosticArtifact, Lifecycle, LifecycleRefusal,
@@ -68,7 +70,7 @@ pub use transfer::{
     AtomicTransferSet, KernelTransferPrimitive, TransferCapability, TransferLawError,
     VerifiedProgramSettlement,
 };
-pub use validate::{ValidatedModule, ValidationRefusal};
+pub use validate::{AbiRevision, ValidatedModule, ValidationRefusal};
 
 /// Identifies the workspace manifest that governs every programs-plane crate.
 #[must_use]

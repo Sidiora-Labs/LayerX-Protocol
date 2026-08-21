@@ -2709,7 +2709,7 @@ reqs = ["35.2"]
 
 [task.28.3]
 title = "Return response bytes across the call boundary"
-status = "pending"
+status = "done"
 wave = 14
 requires = ["28.1"]
 do_1 = "Add a response region to the call protocol: a callee writes bounded response bytes, the runtime copies them into a caller-declared buffer, and the caller reads them through a response host function rather than through storage."

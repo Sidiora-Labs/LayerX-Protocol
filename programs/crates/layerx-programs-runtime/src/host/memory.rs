@@ -4,6 +4,49 @@ use wasmi::{Caller, Memory};
 
 use super::{RuntimeState, STATUS_BOUNDS, STATUS_INVALID};
 
+pub(super) struct OutputRange {
+    pointer: usize,
+    capacity: usize,
+}
+
+pub(super) fn validate_output(
+    caller: &Caller<'_, RuntimeState>,
+    pointer: i32,
+    capacity: i32,
+) -> Result<OutputRange, i32> {
+    let capacity = nonnegative(capacity)?;
+    let pointer = if capacity == 0 {
+        0
+    } else {
+        nonnegative(pointer)?
+    };
+    let available = memory(caller)?.data(caller).len();
+    let end = pointer.checked_add(capacity).ok_or(STATUS_BOUNDS)?;
+    if end > available {
+        return Err(STATUS_BOUNDS);
+    }
+    Ok(OutputRange { pointer, capacity })
+}
+
+impl OutputRange {
+    pub(super) const fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    pub(super) fn write(
+        &self,
+        caller: &mut Caller<'_, RuntimeState>,
+        bytes: &[u8],
+    ) -> Result<(), i32> {
+        if bytes.len() > self.capacity {
+            return Err(STATUS_BOUNDS);
+        }
+        memory(caller)?
+            .write(caller, self.pointer, bytes)
+            .map_err(|_| STATUS_BOUNDS)
+    }
+}
+
 pub(super) fn memory(caller: &Caller<'_, RuntimeState>) -> Result<Memory, i32> {
     caller
         .get_export("memory")
