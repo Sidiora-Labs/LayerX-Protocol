@@ -238,7 +238,8 @@ test-kernel: $(BUILD_DIR)/tests/lxp_test_kernel
 $(BUILD_DIR)/tests/lxp_test_module_ctx: \
 		tests/protocol/lxp_test_module_ctx.c $(LIBRARY)
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) -pthread -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIBRARY) $(EXTRA_LDFLAGS) \
+		-lcrypto -pthread -o $@
 
 test-module-ctx: $(BUILD_DIR)/tests/lxp_test_module_ctx
 	$(RUN_PREFIX) $(BUILD_DIR)/tests/lxp_test_module_ctx

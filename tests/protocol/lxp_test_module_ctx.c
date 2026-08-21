@@ -3,9 +3,6 @@
 #include <stdint.h>
 #include <string.h>
 
-struct lxp_transfer_set { uint32_t marker; };
-struct lxp_receipt { uint32_t marker; };
-
 static lxp_result module_genesis(lxp_module_ctx *ctx, const uint8_t *bytes,
                                  size_t length)
 { (void)ctx; (void)bytes; (void)length; return LXP_OK; }
@@ -40,12 +37,26 @@ static lxp_result read_parameter(const void *parameters, uint32_t id,
     return LXP_OK;
 }
 
+static lxp_transfer_set applied_set;
+static size_t applied_count;
+
 static lxp_result apply_transfer(lxp_kernel *kernel,
                                  const lxp_transfer_set *set,
                                  lxp_receipt *receipt)
 {
     (void)kernel;
-    receipt->marker = set->marker;
+    if (set->leg_count == 0U || set->legs[0].from == NULL ||
+        set->legs[0].to == NULL)
+        return LXP_ERR_NON_CANONICAL;
+    applied_set = *set;
+    ++applied_count;
+    receipt->module_id = set->context.origin_module_id;
+    receipt->global_sequence = (uint64_t)set->leg_count;
+    receipt->operation = (uint8_t)set->legs[0].reason;
+    receipt->amount = set->legs[0].amount;
+    (void)memcpy(receipt->asset, set->legs[0].asset_id, 32U);
+    (void)memcpy(receipt->from, set->legs[0].from->id, 32U);
+    (void)memcpy(receipt->to, set->legs[0].to->id, 32U);
     return LXP_OK;
 }
 
@@ -80,9 +91,42 @@ int main(void)
     size_t found_length;
     uint64_t parameter;
     uint32_t order = 1U;
-    lxp_transfer_set set = { 77U };
-    lxp_receipt receipt = { 0U };
+    lx_account from_account;
+    lx_account to_account;
+    lxp_transfer_asset_state asset_state;
+    lxp_transfer_set set;
+    lxp_receipt receipt;
     void *allocation;
+
+    (void)memset(&from_account, 0, sizeof(from_account));
+    (void)memset(&to_account, 0, sizeof(to_account));
+    (void)memset(&asset_state, 0, sizeof(asset_state));
+    (void)memset(&set, 0, sizeof(set));
+    (void)memset(&receipt, 0, sizeof(receipt));
+    (void)memset(&from_account.id, 0xA1, sizeof(from_account.id));
+    (void)memset(&to_account.id, 0xB2, sizeof(to_account.id));
+    (void)memset(&asset_state.asset_id, 0xC3, sizeof(asset_state.asset_id));
+    from_account.balance = (lxp_u128){ 0U, 500U };
+    from_account.has_asset = true;
+    (void)memcpy(from_account.asset_id, asset_state.asset_id, 32U);
+    to_account.has_asset = true;
+    (void)memcpy(to_account.asset_id, asset_state.asset_id, 32U);
+    asset_state.registered = true;
+
+    set.leg_count = 1U;
+    set.legs[0].from = &from_account;
+    set.legs[0].to = &to_account;
+    (void)memcpy(set.legs[0].asset_id, asset_state.asset_id, 32U);
+    set.legs[0].amount = (lxp_u128){ 0U, 77U };
+    set.legs[0].reason = LXP_REASON_PAYMENT;
+    set.legs[0].supply_mode = LXP_TRANSFER_CONSERVED;
+    set.context.assets = &asset_state;
+    set.context.asset_count = 1U;
+    set.context.sequence_account = &from_account;
+    set.context.debit_authority_kind = LXP_AUTH_PROTOCOL_MODULE;
+    set.context.protocol_system_capability = true;
+    (void)memcpy(set.context.authorized_from, from_account.id, 32U);
+
     if (lxp_state_store_init(&store, 0U) != LXP_OK ||
         lxp_arena_init(&arena, arena_bytes, sizeof(arena_bytes)) != LXP_OK ||
         lxp_kernel_create(&kernel, &store, &journal, &parameters, 3U) !=
@@ -103,13 +147,40 @@ int main(void)
         parameter != 42U || lxp_ctx_charge_gas(&asset, 15U) != LXP_OK ||
         lxp_ctx_charge_gas(&asset, 6U) != LXP_ERR_GAS_EXHAUSTED ||
         lxp_ctx_arena_alloc(&asset, 8U, 8U, &allocation) != LXP_OK ||
-        allocation == NULL || lxp_ctx_emit_transfer_set(&asset, &set,
-                                                        &receipt) != LXP_OK ||
-        receipt.marker != 77U || lxp_module_ctx_set_mutable(&asset, false) !=
-            LXP_OK || lxp_ctx_kv_put(&asset, &key_a, 1U, &value_a, 1U) !=
+        allocation == NULL ||
+        lxp_ctx_emit_transfer_set(&asset, &set, &receipt) != LXP_OK)
+        return 1;
+
+    if (applied_count != 1U ||
+        applied_set.context.origin_module_id != LXP_MODULE_ASSET ||
+        set.context.origin_module_id != 0U || applied_set.leg_count != 1U ||
+        applied_set.legs[0].from != &from_account ||
+        applied_set.legs[0].to != &to_account ||
+        applied_set.legs[0].reason != LXP_REASON_PAYMENT ||
+        applied_set.legs[0].supply_mode != LXP_TRANSFER_CONSERVED ||
+        memcmp(applied_set.legs[0].asset_id, asset_state.asset_id, 32U) != 0 ||
+        applied_set.legs[0].amount.hi != 0U ||
+        applied_set.legs[0].amount.lo != 77U ||
+        applied_set.context.asset_count != 1U ||
+        applied_set.context.assets != &asset_state ||
+        applied_set.context.debit_authority_kind != LXP_AUTH_PROTOCOL_MODULE ||
+        memcmp(applied_set.context.authorized_from, from_account.id, 32U) != 0)
+        return 1;
+
+    if (receipt.module_id != LXP_MODULE_ASSET || receipt.global_sequence != 1U ||
+        receipt.operation != (uint8_t)LXP_REASON_PAYMENT ||
+        receipt.amount.hi != 0U || receipt.amount.lo != 77U ||
+        memcmp(receipt.asset, asset_state.asset_id, 32U) != 0 ||
+        memcmp(receipt.from, from_account.id, 32U) != 0 ||
+        memcmp(receipt.to, to_account.id, 32U) != 0)
+        return 1;
+
+    if (lxp_module_ctx_set_mutable(&asset, false) != LXP_OK ||
+        lxp_ctx_kv_put(&asset, &key_a, 1U, &value_a, 1U) !=
             LXP_FATAL_INVARIANT ||
         lxp_ctx_emit_transfer_set(&asset, &set, &receipt) !=
             LXP_ERR_BALANCE_BYPASS ||
+        applied_count != 1U ||
         lxp_state_store_destroy(&store) != LXP_OK) return 1;
     return 0;
 }
