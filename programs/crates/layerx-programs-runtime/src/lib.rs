@@ -3,7 +3,8 @@
 //! # Module map
 //!
 //! The [`abi`] transaction boundary lives in `abi/mod.rs`; capability grants,
-//! encoding, and narrowing live in `abi/capability.rs`; and namespaced storage
+//! encoding, and narrowing live in `abi/capability.rs`; candidate response and
+//! refusal transport lives in `abi/response.rs`; and namespaced storage
 //! operations live in `abi/storage_ops.rs`. The private `host/mod.rs` owns
 //! linker orchestration and `RuntimeState`, while `host/memory.rs` owns guest
 //! memory access and `host/{storage,events,calls,transfer}.rs` each register
@@ -20,6 +21,8 @@ pub mod engine;
 pub mod entrypoint;
 #[deny(unsafe_code)]
 pub mod execute;
+#[deny(unsafe_code)]
+pub mod fault;
 mod ffi;
 mod ffi_transfer;
 #[deny(unsafe_code)]
@@ -51,9 +54,14 @@ pub use calls::{
 pub use engine::{EngineRefusal, WasmEngine};
 pub use entrypoint::EntrypointRefusal;
 pub use execute::{
-    AuthorizedExecutionRecord, AuthorizedExecutionRequest, CandidateAuthorizedExecutionRecord,
-    CandidateExecutionRecord, ExecutionError, ExecutionFault, ExecutionRecord, Executor,
+    AuthorizedExecutionRecord, AuthorizedExecutionRequest, CandidateActivityOutcome,
+    CandidateActivityReceipt, CandidateAuthorizedExecutionRecord, CandidateExecutionRecord,
+    CandidateReceiptOutcome, ExecutionError, ExecutionFault, ExecutionRecord, Executor,
     ProgramInstance, WasmValue, ABI_VERSION, RUNTIME_VERSION,
+};
+pub use fault::{
+    FailureEncodingError, ProgramFailure, RefusalClass, RefusalReason, CANDIDATE_REFUSAL_SENTINEL,
+    MAX_REFUSAL_REASON_BYTES, REFUSAL_CLASS_MANIFEST,
 };
 pub use lifecycle::{
     CodeHash, Deploy, DeploymentReceipt, DiagnosticArtifact, Lifecycle, LifecycleRefusal,

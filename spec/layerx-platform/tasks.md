@@ -1091,7 +1091,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Bind the response to the exact call edge so a stale or foreign response can never be read, and prove it across a fan-out of sibling calls.
     - Extend the Rust SDK call surface with a typed response and test the empty, maximum and over-capacity cases.
     - _Requirements: 35.3_
-  - [ ] 28.4 Carry typed failure payloads and program refusal reasons
+  - [x] 28.4 Carry typed failure payloads and program refusal reasons
     - Extend the refusal taxonomy so a guest refusal carries the refusing program, the refusal class and bounded program-supplied reason bytes, replacing the bare negative result code as the only failure signal.
     - Propagate a nested refusal to the activity boundary unchanged, naming the frame that refused rather than the frame that observed it, so a deep call graph reports its actual cause.
     - Meter the reason bytes and bound them, so a failure path cannot be used to move unmetered data or to grow a receipt without limit.

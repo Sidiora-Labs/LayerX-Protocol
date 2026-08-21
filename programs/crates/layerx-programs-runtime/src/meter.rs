@@ -426,8 +426,31 @@ impl Meter {
         if let Some(refusal) = self.exhausted {
             return Err(refusal);
         }
+        self.finish_bounded_usage(self.cpu_fuel)
+    }
+
+    /// Finalises a published candidate failure after that same guest frame
+    /// consumed its complete CPU allowance.
+    pub(crate) fn finish_published_failure(&self) -> Result<MeteredUsage, MeterRefusal> {
+        match self.exhausted {
+            None => self.finish_bounded_usage(self.cpu_fuel),
+            Some(MeterRefusal::BudgetExceeded {
+                resource: ResourceKind::Cpu,
+                limit,
+                attempted,
+            }) if limit == self.budget.cpu_fuel
+                && self.cpu_fuel.checked_add(1) == Some(attempted)
+                && (attempted == limit || limit.checked_add(1) == Some(attempted)) =>
+            {
+                self.finish_bounded_usage(limit)
+            }
+            Some(refusal) => Err(refusal),
+        }
+    }
+
+    fn finish_bounded_usage(&self, cpu_fuel: u64) -> Result<MeteredUsage, MeterRefusal> {
         let priced = [
-            (u128::from(self.cpu_fuel), self.prices.cpu),
+            (u128::from(cpu_fuel), self.prices.cpu),
             (u128::from(self.memory_bytes), self.prices.memory_byte),
             (
                 u128::from(self.storage_read_bytes),
@@ -451,7 +474,7 @@ impl Meter {
                 .ok_or(MeterRefusal::FeeOverflow)?;
         }
         Ok(MeteredUsage {
-            cpu_fuel: self.cpu_fuel,
+            cpu_fuel,
             memory_bytes: self.memory_bytes,
             storage_read_bytes: self.storage_read_bytes,
             storage_write_bytes: self.storage_write_bytes,

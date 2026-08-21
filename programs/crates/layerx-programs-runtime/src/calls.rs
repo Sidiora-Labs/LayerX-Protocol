@@ -14,6 +14,7 @@ use crate::abi::{
 };
 use crate::entrypoint::{self, EntrypointRefusal};
 use crate::execute::{ExecutionFault, ABI_VERSION};
+use crate::fault::{ProgramFailure, RefusalClass, RefusalReason, CANDIDATE_REFUSAL_SENTINEL};
 use crate::host::RuntimeState;
 use crate::limits::{DeclaredLimit, LimitsRefusal};
 use crate::meter::{MeterRefusal, ResourceKind};
@@ -579,6 +580,8 @@ pub enum CompositionRefusal {
         /// The negative result code the callee returned.
         code: i32,
     },
+    /// Candidate program refusal with host-authenticated leaf identity.
+    Program(ProgramFailure),
     /// The call was refused by the capability ABI, including every attempt to
     /// widen authority across an edge.
     Authority(AbiError),
@@ -640,6 +643,12 @@ impl Display for CompositionRefusal {
             Self::GuestRefused { code, .. } => {
                 write!(formatter, "callee refused the call with {code}")
             }
+            Self::Program(failure) => write!(
+                formatter,
+                "program {:?} refused with class {:?}",
+                failure.program(),
+                failure.class()
+            ),
             Self::Authority(error) => write!(formatter, "composition authority refusal: {error}"),
             Self::Fault(fault) => write!(formatter, "callee fault: {fault}"),
             Self::Resource(refusal) => write!(formatter, "composition resource refusal: {refusal}"),
@@ -760,6 +769,7 @@ pub(crate) fn execute_nested_call_response(
     )
 }
 
+#[allow(clippy::too_many_lines)]
 fn execute_nested(
     state: &mut RuntimeState,
     consumed: u64,
@@ -823,15 +833,31 @@ fn execute_nested(
         .clone();
     let child_composition = Composition::new(Rc::clone(&resolver), child_graph, expected);
     let mut instance = if expected == AbiRevision::CandidateV2 {
-        module
-            .instantiate_composed_response(
+        let retained = module
+            .instantiate_composed_response_retained(
                 child_meter,
                 child_abi,
                 child_composition,
                 response_capacity.unwrap_or(0),
             )
-            .map_err(response_refusal)?
-            .map_err(|(fault, exhausted)| instantiation_refusal(fault, exhausted))?
+            .map_err(response_refusal)?;
+        match retained {
+            Ok(instance) => instance,
+            Err(error) => {
+                let (fault, returned) = *error;
+                let refusal = if let Some(refusal) = returned.refusal() {
+                    refusal.clone()
+                } else if let Some(failure) = returned.failure() {
+                    CompositionRefusal::Program(failure.clone())
+                } else if candidate_runtime_fault(&fault) {
+                    CompositionRefusal::Program(runtime_failure(callee))
+                } else {
+                    instantiation_refusal(fault, returned.meter().exhaustion())
+                };
+                retain_failed_nested(state, returned, carried, consumed);
+                return Err(refusal);
+            }
+        }
     } else {
         module
             .instantiate_composed(child_meter, child_abi, child_composition)
@@ -839,8 +865,24 @@ fn execute_nested(
     };
     let code = match entrypoint::invoke(&mut instance, CALL_ENTRY_EXPORT, input) {
         Ok(code) => code,
-        Err(refusal) => return Err(entry_refusal(&instance, callee, refusal)),
+        Err(refusal) => {
+            let refusal = entry_refusal(&instance, callee, refusal);
+            retain_failed_nested(state, instance.into_state(), carried, consumed);
+            return Err(refusal);
+        }
     };
+    let published_refusal = instance.state().refusal().cloned().or_else(|| {
+        instance.state().failure().map(|_| {
+            CompositionRefusal::Response(ResponseRefusal::CodeMismatch {
+                published: CANDIDATE_REFUSAL_SENTINEL,
+                returned: code,
+            })
+        })
+    });
+    if let Some(refusal) = published_refusal {
+        retain_failed_nested(state, instance.into_state(), carried, consumed);
+        return Err(refusal);
+    }
     let response = instance
         .state()
         .finalize_response(code)
@@ -863,6 +905,27 @@ fn execute_nested(
         committed,
         graph: returned_graph,
     })
+}
+
+fn retain_failed_nested(
+    state: &mut RuntimeState,
+    mut returned: RuntimeState,
+    carried: u64,
+    consumed: u64,
+) {
+    let propagated_graph = returned.take_failure_graph();
+    let (mut returned_meter, _, returned_composition) = returned.into_parts();
+    let failed_graph =
+        propagated_graph.or_else(|| returned_composition.map(Composition::into_graph));
+    let subtree_fuel = returned_meter
+        .cpu_total()
+        .saturating_sub(carried.saturating_add(consumed));
+    returned_meter.restore_cpu_carry(carried);
+    state.set_meter(returned_meter);
+    state.set_failure_subtree_fuel(subtree_fuel);
+    if let Some(graph) = failed_graph {
+        state.set_failure_graph(graph);
+    }
 }
 
 pub(crate) fn adopt_nested_call(
@@ -917,12 +980,83 @@ fn entry_refusal(
         EntrypointRefusal::AllocationRefused { code } => {
             CompositionRefusal::AllocationRefused { code }
         }
+        EntrypointRefusal::GuestRefused { code }
+            if instance
+                .state()
+                .composition()
+                .is_some_and(|composition| composition.revision() == AbiRevision::CandidateV2) =>
+        {
+            match instance.state().failure().cloned() {
+                Some(failure) if code == CANDIDATE_REFUSAL_SENTINEL => {
+                    CompositionRefusal::Program(failure)
+                }
+                Some(_) => CompositionRefusal::Response(ResponseRefusal::CodeMismatch {
+                    published: CANDIDATE_REFUSAL_SENTINEL,
+                    returned: code,
+                }),
+                None if code == CANDIDATE_REFUSAL_SENTINEL => {
+                    CompositionRefusal::Response(ResponseRefusal::InvalidPublication)
+                }
+                None => legacy_failure(program),
+            }
+        }
         EntrypointRefusal::GuestRefused { code } => {
             CompositionRefusal::GuestRefused { program, code }
         }
+        EntrypointRefusal::Fault(fault)
+            if instance
+                .state()
+                .composition()
+                .is_some_and(|composition| composition.revision() == AbiRevision::CandidateV2)
+                && candidate_runtime_fault(&fault) =>
+        {
+            instance.state().failure().cloned().map_or_else(
+                || CompositionRefusal::Program(runtime_failure(program)),
+                CompositionRefusal::Program,
+            )
+        }
         EntrypointRefusal::Fault(fault) => CompositionRefusal::Fault(fault),
+        EntrypointRefusal::Resource(_)
+            if instance
+                .state()
+                .composition()
+                .is_some_and(|composition| composition.revision() == AbiRevision::CandidateV2)
+                && instance.state().failure().is_some() =>
+        {
+            CompositionRefusal::Program(
+                instance
+                    .state()
+                    .failure()
+                    .cloned()
+                    .unwrap_or_else(|| unreachable!("guarded candidate failure")),
+            )
+        }
         EntrypointRefusal::Resource(refusal) => CompositionRefusal::Resource(refusal),
     }
+}
+
+fn legacy_failure(program: ProgramId) -> CompositionRefusal {
+    CompositionRefusal::Program(ProgramFailure::authenticated(
+        program,
+        RefusalClass::Legacy,
+        RefusalReason::empty(),
+    ))
+}
+
+fn runtime_failure(program: ProgramId) -> ProgramFailure {
+    ProgramFailure::authenticated(program, RefusalClass::RuntimeFault, RefusalReason::empty())
+}
+
+fn candidate_runtime_fault(fault: &ExecutionFault) -> bool {
+    !matches!(
+        fault,
+        ExecutionFault::EngineFault { .. }
+            | ExecutionFault::UnknownExport { .. }
+            | ExecutionFault::NotAFunction { .. }
+            | ExecutionFault::OutOfFuel
+            | ExecutionFault::GrowthLimited
+            | ExecutionFault::Resource { .. }
+    )
 }
 
 fn instantiation_refusal(

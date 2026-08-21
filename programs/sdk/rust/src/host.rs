@@ -74,6 +74,7 @@ mod candidate_raw {
             output_pointer: i32,
             output_capacity: i32,
         ) -> i64;
+        pub(super) fn refusal_write(class: i32, reason_pointer: i32, reason_length: i32) -> i32;
     }
 }
 
@@ -153,6 +154,23 @@ pub(crate) fn program_call(
 
 pub(crate) fn response_write(code: i32, bytes: &[u8]) -> Result<i32, ProgramError> {
     let status = unsafe { candidate_raw::response_write(code, pointer(bytes)?, length(bytes)?) };
+    ProgramError::from_status(status)
+}
+
+pub(crate) fn refusal_write(
+    class: crate::RefusalClass,
+    reason: crate::RefusalReason<'_>,
+) -> Result<i32, ProgramError> {
+    let bytes = reason.bytes();
+    let reason_pointer = if bytes.is_empty() { 0 } else { pointer(bytes)? };
+    let status = unsafe {
+        candidate_raw::refusal_write(
+            i32::try_from(class.code())
+                .map_err(|_| ProgramError::value(Field::Buffer, Reason::TooLarge))?,
+            reason_pointer,
+            length(bytes)?,
+        )
+    };
     ProgramError::from_status(status)
 }
 

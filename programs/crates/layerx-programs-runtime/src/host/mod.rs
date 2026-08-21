@@ -10,8 +10,9 @@ use wasmi::{Caller, Engine, Linker};
 
 use crate::abi::response::{CallResponse, ResponseRefusal, ResponseRegion};
 use crate::abi::{Abi, AbiError, ReceiptView, ABI_MODULE};
-use crate::calls::{Composition, CompositionRefusal};
+use crate::calls::{CallGraph, Composition, CompositionRefusal};
 use crate::execute::ExecutionFault;
+use crate::fault::{ProgramFailure, RefusalClass, RefusalReason};
 use crate::meter::Meter;
 use crate::validate::AbiRevision;
 
@@ -31,7 +32,15 @@ pub(crate) struct RuntimeState {
     abi: Option<Abi>,
     composition: Option<Composition>,
     refusal: Option<CompositionRefusal>,
-    response: Option<ResponseRegion>,
+    outcome: Option<CandidateOutcomeRegion>,
+    failure_subtree_fuel: Option<u64>,
+    failure_graph: Option<CallGraph>,
+}
+
+#[derive(Debug)]
+enum CandidateOutcomeRegion {
+    Response(ResponseRegion),
+    Failure(ProgramFailure),
 }
 
 impl RuntimeState {
@@ -41,7 +50,9 @@ impl RuntimeState {
             abi: None,
             composition: None,
             refusal: None,
-            response: None,
+            outcome: None,
+            failure_subtree_fuel: None,
+            failure_graph: None,
         }
     }
 
@@ -51,7 +62,9 @@ impl RuntimeState {
             abi: Some(abi),
             composition: Some(composition),
             refusal: None,
-            response: None,
+            outcome: None,
+            failure_subtree_fuel: None,
+            failure_graph: None,
         }
     }
 
@@ -66,7 +79,11 @@ impl RuntimeState {
             abi: Some(abi),
             composition: Some(composition),
             refusal: None,
-            response: Some(ResponseRegion::new(capacity)?),
+            outcome: Some(CandidateOutcomeRegion::Response(ResponseRegion::new(
+                capacity,
+            )?)),
+            failure_subtree_fuel: None,
+            failure_graph: None,
         })
     }
 
@@ -75,10 +92,13 @@ impl RuntimeState {
         response: CallResponse,
     ) -> Result<(), ResponseRefusal> {
         let bytes = response.bytes.len();
-        let region = self
-            .response
-            .as_mut()
-            .ok_or(ResponseRefusal::CapacityExceeded { bytes, capacity: 0 })?;
+        let region = match self.outcome.as_mut() {
+            Some(CandidateOutcomeRegion::Response(region)) => region,
+            Some(CandidateOutcomeRegion::Failure(_)) => {
+                return Err(ResponseRefusal::DuplicatePublication)
+            }
+            None => return Err(ResponseRefusal::CapacityExceeded { bytes, capacity: 0 }),
+        };
         region.publish(response)?;
         if let Err(refusal) = self.meter.charge_output_bytes(bytes) {
             let refusal = ResponseRefusal::Meter(refusal);
@@ -86,6 +106,77 @@ impl RuntimeState {
             return Err(refusal);
         }
         Ok(())
+    }
+
+    pub(crate) fn publish_failure(
+        &mut self,
+        class: RefusalClass,
+        reason: RefusalReason,
+    ) -> Result<(), ResponseRefusal> {
+        match self.outcome.as_ref() {
+            Some(CandidateOutcomeRegion::Failure(_)) => {
+                return Err(ResponseRefusal::DuplicatePublication)
+            }
+            Some(CandidateOutcomeRegion::Response(region)) if region.has_publication() => {
+                return Err(ResponseRefusal::DuplicatePublication)
+            }
+            Some(CandidateOutcomeRegion::Response(_)) => {}
+            None => return Err(ResponseRefusal::InvalidPublication),
+        }
+        let program = self
+            .abi
+            .as_ref()
+            .map(Abi::program)
+            .ok_or(ResponseRefusal::InvalidPublication)?;
+        self.meter
+            .charge_output_bytes(reason.bytes().len())
+            .map_err(ResponseRefusal::Meter)?;
+        self.outcome = Some(CandidateOutcomeRegion::Failure(
+            ProgramFailure::authenticated(program, class, reason),
+        ));
+        Ok(())
+    }
+
+    pub(super) fn publish_failure_status(
+        &mut self,
+        class: RefusalClass,
+        reason: RefusalReason,
+    ) -> i32 {
+        match self.publish_failure(class, reason) {
+            Ok(()) => 0,
+            Err(ResponseRefusal::Meter(refusal)) => {
+                self.record_refusal(CompositionRefusal::Resource(refusal));
+                STATUS_METER
+            }
+            Err(_) if self.failure().is_some() => STATUS_BOUNDS,
+            Err(refusal) => {
+                self.record_refusal(CompositionRefusal::Response(refusal));
+                STATUS_BOUNDS
+            }
+        }
+    }
+
+    pub(crate) fn failure(&self) -> Option<&ProgramFailure> {
+        match self.outcome.as_ref() {
+            Some(CandidateOutcomeRegion::Failure(failure)) => Some(failure),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn set_failure_subtree_fuel(&mut self, fuel: u64) {
+        self.failure_subtree_fuel = Some(fuel);
+    }
+
+    pub(crate) fn take_failure_subtree_fuel(&mut self) -> Option<u64> {
+        self.failure_subtree_fuel.take()
+    }
+
+    pub(crate) fn set_failure_graph(&mut self, graph: CallGraph) {
+        self.failure_graph = Some(graph);
+    }
+
+    pub(crate) fn take_failure_graph(&mut self) -> Option<CallGraph> {
+        self.failure_graph.take()
     }
 
     pub(super) fn publish_response_status(&mut self, response: CallResponse) -> i32 {
@@ -97,19 +188,22 @@ impl RuntimeState {
     }
 
     pub(crate) fn finalize_response(&self, code: i32) -> Result<CallResponse, ResponseRefusal> {
-        self.response.as_ref().map_or_else(
+        self.outcome.as_ref().map_or_else(
             || {
                 Ok(CallResponse {
                     code,
                     bytes: Vec::new(),
                 })
             },
-            |region| region.finish(code),
+            |outcome| match outcome {
+                CandidateOutcomeRegion::Response(region) => region.finish(code),
+                CandidateOutcomeRegion::Failure(_) => Err(ResponseRefusal::DuplicatePublication),
+            },
         )
     }
 
     pub(crate) fn refuse_response(&mut self, refusal: ResponseRefusal) {
-        if let Some(region) = self.response.as_mut() {
+        if let Some(CandidateOutcomeRegion::Response(region)) = self.outcome.as_mut() {
             region.refuse(refusal);
         }
     }
@@ -143,7 +237,7 @@ impl RuntimeState {
     }
 
     pub(crate) fn record_refusal(&mut self, refusal: CompositionRefusal) {
-        if self.refusal.is_none() {
+        if self.refusal.is_none() && self.failure().is_none() {
             self.refusal = Some(refusal);
         }
     }

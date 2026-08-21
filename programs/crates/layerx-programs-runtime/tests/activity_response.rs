@@ -12,9 +12,9 @@ use layerx_programs_runtime::test_support::{
 };
 use layerx_programs_runtime::{
     AbiError, AuthorizationContext, AuthorizedExecutionRequest, Capability, CapabilitySet,
-    CompositionContext, ExecutionError, Executor, FeeSchedule, PrincipalId, ProgramCatalog,
-    ProgramId, ReceiptOracle, ReceiptView, ResourceBudget, ResponseRefusal, Storage,
-    ValidationRefusal, WasmEngine, CALL_ENTRY_EXPORT,
+    CompositionContext, CompositionRules, ExecutionError, Executor, FeeSchedule, PrincipalId,
+    ProgramCatalog, ProgramId, ReceiptOracle, ReceiptView, ResourceBudget, ResponseRefusal,
+    Storage, ValidationRefusal, WasmEngine, CALL_ENTRY_EXPORT,
 };
 
 struct NoReceipts;
@@ -238,6 +238,7 @@ fn start_publishing_responder(
     start_pointer: i32,
     start_length: i32,
     entry_publishes: bool,
+    start_traps: bool,
 ) -> Vec<u8> {
     let types = type_section(&[
         (&[TYPE_I32, TYPE_I32, TYPE_I32], &[TYPE_I32]),
@@ -262,7 +263,11 @@ fn start_publishing_responder(
     start.extend(signed_leb(start_pointer));
     start.push(0x41);
     start.extend(signed_leb(start_length));
-    start.extend_from_slice(&[0x10, 0, 0x1a, 0x0b]);
+    start.extend_from_slice(&[0x10, 0, 0x1a]);
+    if start_traps {
+        start.push(0x00);
+    }
+    start.push(0x0b);
     let entry = if entry_publishes {
         func_body(
             &[],
@@ -577,12 +582,68 @@ fn v1_refuses_candidate_import_and_candidate_returns_binary_response() {
     );
     let record = execute(&wasm, bytes.len(), 100, &mut Storage::new())
         .unwrap_or_else(|error| panic!("candidate execution: {error}"));
-    assert_eq!(record.response.code, 9);
-    assert_eq!(record.response.bytes, bytes);
-    assert_eq!(record.execution.usage.output_bytes, bytes.len() as u64);
+    assert_eq!(
+        record
+            .response()
+            .unwrap_or_else(|| panic!("success response"))
+            .code,
+        9
+    );
+    assert_eq!(
+        record
+            .response()
+            .unwrap_or_else(|| panic!("success response"))
+            .bytes,
+        bytes
+    );
+    assert_eq!(record.execution().usage().output_bytes, bytes.len() as u64);
     assert!(record
         .canonical_evidence()
         .starts_with(b"LXP/program-execution/v2-candidate\0"));
+    let projection = record.receipt_projection();
+    let encoded = projection.canonical_encode();
+    let decoded = layerx_programs_runtime::CandidateActivityReceipt::canonical_decode(&encoded)
+        .unwrap_or_else(|error| panic!("success receipt decode: {error}"));
+    assert_eq!(decoded, projection);
+    assert_eq!(decoded.canonical_encode(), encoded);
+    let domain = b"LXP/candidate-activity-receipt/v2\0".len();
+    let graph_length_offset = domain + 32 + 2 + 2 + 5 * 8 + 4 + 16;
+    let graph_length = projection.graph_evidence().len();
+    let outcome_offset = graph_length_offset + 4 + graph_length;
+    let mut negative_success = encoded.clone();
+    negative_success[outcome_offset + 1..outcome_offset + 5]
+        .copy_from_slice(&(-1i32).to_be_bytes());
+    assert!(
+        layerx_programs_runtime::CandidateActivityReceipt::canonical_decode(&negative_success)
+            .is_err()
+    );
+    let maximum_graph = b"LayerX/programs/call-graph/v1\0".len()
+        + 32
+        + 16
+        + 8
+        + (layerx_programs_runtime::DEFAULT_MAX_CALL_GRAPH_EDGES as usize * 68);
+    let mut oversized_graph = encoded[..graph_length_offset].to_vec();
+    oversized_graph.extend_from_slice(&((maximum_graph + 1) as u32).to_be_bytes());
+    oversized_graph.extend(vec![0; maximum_graph + 1]);
+    oversized_graph.extend_from_slice(&encoded[outcome_offset..]);
+    assert!(
+        layerx_programs_runtime::CandidateActivityReceipt::canonical_decode(&oversized_graph)
+            .is_err()
+    );
+    let mut oversized_response = encoded[..=outcome_offset].to_vec();
+    oversized_response.extend_from_slice(&0i32.to_be_bytes());
+    oversized_response.extend_from_slice(&((MAX_CALL_RESPONSE_BYTES + 1) as u32).to_be_bytes());
+    oversized_response.extend(vec![0; MAX_CALL_RESPONSE_BYTES + 1]);
+    assert!(
+        layerx_programs_runtime::CandidateActivityReceipt::canonical_decode(&oversized_response)
+            .is_err()
+    );
+    for end in 0..encoded.len() {
+        assert!(
+            layerx_programs_runtime::CandidateActivityReceipt::canonical_decode(&encoded[..end])
+                .is_err()
+        );
+    }
 }
 
 #[test]
@@ -592,13 +653,13 @@ fn candidate_evidence_binds_fee_units_in_addition_to_resource_counters() {
     let second = execute_with_prices(&wasm, FeeSchedule::declared().with_output_byte_price(9));
 
     assert_eq!(
-        first.execution.usage.output_bytes,
-        second.execution.usage.output_bytes
+        first.execution().usage().output_bytes,
+        second.execution().usage().output_bytes
     );
-    assert_eq!(first.response, second.response);
+    assert_eq!(first.response(), second.response());
     assert_ne!(
-        first.execution.usage.fee_units,
-        second.execution.usage.fee_units
+        first.execution().usage().fee_units,
+        second.execution().usage().fee_units
     );
     assert_ne!(first.canonical_evidence(), second.canonical_evidence());
 }
@@ -607,7 +668,7 @@ fn candidate_evidence_binds_fee_units_in_addition_to_resource_counters() {
 fn candidate_start_response_refusals_are_configured_and_sticky_before_entry() {
     assert_eq!(
         execute(
-            &start_publishing_responder(-1, 1, false),
+            &start_publishing_responder(-1, 1, false, false),
             1,
             8,
             &mut Storage::new(),
@@ -618,7 +679,7 @@ fn candidate_start_response_refusals_are_configured_and_sticky_before_entry() {
     );
     assert_eq!(
         execute(
-            &start_publishing_responder(0, 1, true),
+            &start_publishing_responder(0, 1, true, false),
             1,
             8,
             &mut Storage::new(),
@@ -627,6 +688,78 @@ fn candidate_start_response_refusals_are_configured_and_sticky_before_entry() {
             ResponseRefusal::DuplicatePublication
         ))
     );
+    let trapped = execute(
+        &start_publishing_responder(0, 1, false, true),
+        1,
+        8,
+        &mut Storage::new(),
+    )
+    .unwrap_or_else(|error| panic!("start fault outcome: {error}"));
+    let failure = trapped
+        .failure()
+        .unwrap_or_else(|| panic!("start runtime fault"));
+    assert_eq!(
+        failure.class(),
+        layerx_programs_runtime::RefusalClass::RuntimeFault
+    );
+    assert!(failure.reason().bytes().is_empty());
+    assert!(trapped.execution().usage().cpu_fuel > 0);
+    let repeated = execute(
+        &start_publishing_responder(0, 1, false, true),
+        1,
+        8,
+        &mut Storage::new(),
+    )
+    .unwrap_or_else(|error| panic!("repeated start fault: {error}"));
+    assert_eq!(
+        trapped.execution().usage().cpu_fuel,
+        repeated.execution().usage().cpu_fuel
+    );
+}
+
+#[test]
+fn nested_candidate_start_trap_preserves_leaf_runtime_fault() {
+    let engine = WasmEngine::declared().unwrap_or_else(|error| panic!("engine: {error}"));
+    let child_id = ProgramId::new([73; 32]).unwrap_or_else(|error| panic!("child: {error}"));
+    let root_id = ProgramId::new([72; 32]).unwrap_or_else(|error| panic!("root: {error}"));
+    let child = engine
+        .validate_candidate_v2(&start_publishing_responder(0, 0, false, true))
+        .unwrap_or_else(|error| panic!("child validation: {error}"));
+    let root = engine
+        .validate_candidate_v2(&response_forwarder(child_id, 1024, 0, &[0, 0]))
+        .unwrap_or_else(|error| panic!("root validation: {error}"));
+    let mut catalog = ProgramCatalog::new();
+    catalog.insert(child_id, child);
+    let capabilities = CapabilitySet::new([Capability::Call { program: child_id }])
+        .unwrap_or_else(|error| panic!("capability: {error}"));
+    let record = Executor::declared()
+        .execute_authorized_candidate(
+            &mut Storage::new(),
+            AuthorizedExecutionRequest {
+                module: &root,
+                program: root_id,
+                authorization: AuthorizationContext::new(
+                    PrincipalId::new([74; 32]).unwrap_or_else(|error| panic!("principal: {error}")),
+                    capabilities,
+                ),
+                receipts: &NoReceipts,
+                entrypoint: CALL_ENTRY_EXPORT,
+                calldata: &[],
+                composition: CompositionContext::catalog(catalog, CompositionRules::declared()),
+                response_capacity: 0,
+            },
+        )
+        .unwrap_or_else(|error| panic!("nested start fault outcome: {error}"));
+    let failure = record
+        .failure()
+        .unwrap_or_else(|| panic!("nested runtime fault"));
+    assert_eq!(failure.program(), child_id);
+    assert_eq!(
+        failure.class(),
+        layerx_programs_runtime::RefusalClass::RuntimeFault
+    );
+    assert!(failure.reason().bytes().is_empty());
+    assert!(record.execution().usage().cpu_fuel > 0);
 }
 
 #[test]
@@ -645,8 +778,20 @@ fn empty_exact_maximum_and_capacity_refusal_are_not_truncated() {
     );
     let empty = execute(&responder(&[], 4, 4, 0), 0, 0, &mut Storage::new())
         .unwrap_or_else(|error| panic!("empty: {error}"));
-    assert_eq!(empty.response.bytes, Vec::<u8>::new());
-    assert_eq!(empty.response.code, 4);
+    assert_eq!(
+        empty
+            .response()
+            .unwrap_or_else(|| panic!("empty response"))
+            .bytes,
+        Vec::<u8>::new()
+    );
+    assert_eq!(
+        empty
+            .response()
+            .unwrap_or_else(|| panic!("empty response"))
+            .code,
+        4
+    );
 
     let maximum = vec![0; MAX_CALL_RESPONSE_BYTES];
     let exact = execute(
@@ -656,7 +801,13 @@ fn empty_exact_maximum_and_capacity_refusal_are_not_truncated() {
         &mut Storage::new(),
     )
     .unwrap_or_else(|error| panic!("maximum: {error}"));
-    assert_eq!(exact.response.bytes, maximum);
+    assert_eq!(
+        exact
+            .response()
+            .unwrap_or_else(|| panic!("exact response"))
+            .bytes,
+        maximum
+    );
 
     let over = vec![0; MAX_CALL_RESPONSE_BYTES + 1];
     assert_eq!(
@@ -719,17 +870,21 @@ fn ignored_duplicate_code_mismatch_and_meter_refusals_stay_sticky() {
             }
         ))
     ));
+    let trapped_after_publication = execute(
+        &trapping_responder(&payload, 3),
+        2,
+        100,
+        &mut Storage::new(),
+    )
+    .unwrap_or_else(|error| panic!("runtime fault must be receipt-carriable: {error}"));
+    let failure = trapped_after_publication
+        .failure()
+        .unwrap_or_else(|| panic!("runtime-fault outcome"));
     assert_eq!(
-        execute(
-            &trapping_responder(&payload, 3),
-            2,
-            100,
-            &mut Storage::new()
-        ),
-        Err(ExecutionError::Fault(
-            layerx_programs_runtime::ExecutionFault::UnreachableExecuted
-        ))
+        failure.class(),
+        layerx_programs_runtime::RefusalClass::RuntimeFault
     );
+    assert!(failure.reason().bytes().is_empty());
 }
 
 #[test]
@@ -773,15 +928,21 @@ fn repeated_same_callee_fanout_keeps_edge_responses_distinct_and_charges_each_bo
         .unwrap_or_else(|error| panic!("nested response: {error}"));
     let mut expected = first.to_vec();
     expected.extend_from_slice(&second);
-    assert_eq!(record.response.bytes, expected);
-    assert_eq!(record.call_graph.edges().len(), 2);
+    assert_eq!(
+        record
+            .response()
+            .unwrap_or_else(|| panic!("nested response"))
+            .bytes,
+        expected
+    );
+    assert_eq!(record.call_graph().edges().len(), 2);
     assert!(record
-        .call_graph
+        .call_graph()
         .edges()
         .iter()
         .all(|edge| edge.callee() == callee));
     assert_eq!(
-        record.execution.usage.output_bytes,
+        record.execution().usage().output_bytes,
         (expected.len() * 2) as u64
     );
 }
@@ -870,8 +1031,12 @@ fn invalid_nested_destination_is_refused_before_child_start_or_graph_entry() {
                 },
             )
             .unwrap_or_else(|error| panic!("invalid destination must not enter child: {error}"));
-        assert!(record.call_graph.edges().is_empty());
-        assert!(record.response.bytes.is_empty());
+        assert!(record.call_graph().edges().is_empty());
+        assert!(record
+            .response()
+            .unwrap_or_else(|| panic!("empty response"))
+            .bytes
+            .is_empty());
     }
 
     let child_engine =
@@ -908,8 +1073,12 @@ fn invalid_nested_destination_is_refused_before_child_start_or_graph_entry() {
             },
         )
         .unwrap_or_else(|error| panic!("zero capacity: {error}"));
-    assert_eq!(record.call_graph.edges().len(), 1);
-    assert!(record.response.bytes.is_empty());
+    assert_eq!(record.call_graph().edges().len(), 1);
+    assert!(record
+        .response()
+        .unwrap_or_else(|| panic!("empty response"))
+        .bytes
+        .is_empty());
 }
 
 #[test]

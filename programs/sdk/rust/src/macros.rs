@@ -94,6 +94,44 @@ macro_rules! response_entrypoint {
     };
 }
 
+/// Defines a candidate entry that publishes either a successful response or a typed refusal.
+#[macro_export]
+macro_rules! failure_entrypoint {
+    ($handler:path) => {
+        #[allow(unsafe_code)]
+        #[no_mangle]
+        pub extern "C" fn layerx_reserve(length: i32) -> i32 {
+            $crate::entry::reserve_call_input(length)
+        }
+
+        #[allow(unsafe_code)]
+        #[no_mangle]
+        pub extern "C" fn layerx_call(input_pointer: i32, input_length: i32) -> i32 {
+            match $crate::entry::with_call_input(
+                input_pointer,
+                input_length,
+                |input| match $handler(input) {
+                    ::core::result::Result::Ok(response) => {
+                        match $crate::call::publish_response(response.result, response.bytes) {
+                            ::core::result::Result::Ok(()) => response.result.code(),
+                            ::core::result::Result::Err(error) => error.code(),
+                        }
+                    }
+                    ::core::result::Result::Err(refusal) => {
+                        match $crate::call::publish_refusal(refusal) {
+                            ::core::result::Result::Ok(()) => $crate::CANDIDATE_REFUSAL_SENTINEL,
+                            ::core::result::Result::Err(error) => error.code(),
+                        }
+                    }
+                },
+            ) {
+                ::core::result::Result::Ok(code) => code,
+                ::core::result::Result::Err(error) => error.code(),
+            }
+        }
+    };
+}
+
 /// Defines the panic handler a `no_std` program needs.
 ///
 /// A panic traps the guest through the WebAssembly `unreachable` instruction,

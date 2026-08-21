@@ -78,6 +78,12 @@ pub(super) fn register(linker: &mut Linker<RuntimeState>) -> Result<(), Executio
                         Ok(outcome.code)
                     }
                     Err(refusal) => {
+                        if let Some(fuel) = caller.data_mut().take_failure_subtree_fuel() {
+                            if caller.consume_fuel(fuel).is_err() {
+                                caller.data_mut().meter_mut().mark_cpu_exhausted();
+                                return Err(Trap::from(TrapCode::OutOfFuel));
+                            }
+                        }
                         caller.data_mut().record_refusal(refusal);
                         Err(Trap::new(COMPOSITION_REFUSED))
                     }
@@ -221,10 +227,69 @@ pub(super) fn register_candidate(linker: &mut Linker<RuntimeState>) -> Result<()
                         Ok(((code << 32) | length).cast_signed())
                     }
                     Err(refusal) => {
+                        if let Some(fuel) = caller.data_mut().take_failure_subtree_fuel() {
+                            if caller.consume_fuel(fuel).is_err() {
+                                caller.data_mut().meter_mut().mark_cpu_exhausted();
+                                return Err(Trap::from(TrapCode::OutOfFuel));
+                            }
+                        }
                         caller.data_mut().record_refusal(refusal);
                         Err(Trap::new(COMPOSITION_REFUSED))
                     }
                 }
+            },
+        )
+        .map_err(|error| linker_fault(&error))?;
+    linker
+        .func_wrap(
+            crate::abi::response::CANDIDATE_ABI_MODULE,
+            "refusal_write",
+            |mut caller: Caller<'_, RuntimeState>, class: i32, pointer: i32, length: i32| -> i32 {
+                let class = u32::try_from(class)
+                    .ok()
+                    .and_then(|class| crate::fault::RefusalClass::decode(class).ok())
+                    .filter(|class| class.is_guest_publishable());
+                let Some(class) = class else {
+                    caller
+                        .data_mut()
+                        .record_refusal(crate::calls::CompositionRefusal::Response(
+                            crate::abi::response::ResponseRefusal::InvalidPublication,
+                        ));
+                    return STATUS_INVALID;
+                };
+                if let Ok(bytes) = usize::try_from(length) {
+                    if bytes > crate::fault::MAX_REFUSAL_REASON_BYTES {
+                        caller.data_mut().record_refusal(
+                            crate::calls::CompositionRefusal::Response(
+                                crate::abi::response::ResponseRefusal::TooLarge {
+                                    bytes,
+                                    limit: crate::fault::MAX_REFUSAL_REASON_BYTES,
+                                },
+                            ),
+                        );
+                        return STATUS_BOUNDS;
+                    }
+                }
+                let bytes = match read_guest(
+                    &caller,
+                    pointer,
+                    length,
+                    crate::fault::MAX_REFUSAL_REASON_BYTES,
+                ) {
+                    Ok(bytes) => bytes,
+                    Err(status) => {
+                        caller.data_mut().record_refusal(
+                            crate::calls::CompositionRefusal::Response(
+                                crate::abi::response::ResponseRefusal::InvalidPublication,
+                            ),
+                        );
+                        return status;
+                    }
+                };
+                let Ok(reason) = crate::fault::RefusalReason::new(&bytes) else {
+                    return STATUS_BOUNDS;
+                };
+                caller.data_mut().publish_failure_status(class, reason)
             },
         )
         .map_err(|error| linker_fault(&error))?;

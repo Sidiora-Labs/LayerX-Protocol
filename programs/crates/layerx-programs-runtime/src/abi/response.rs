@@ -8,9 +8,10 @@ use super::{AbiValueType, HostFunction, HostFunctionType};
 
 /// Explicitly non-current module carrying candidate response operations.
 pub const CANDIDATE_ABI_MODULE: &str = "layerx_v2_candidate";
+pub const CANDIDATE_ABI_MANIFEST: &str = "layerx_v2_candidate\0response_write(i32,i32,i32)->i32\0program_call_response(i32,i32,i32,i32,i32,i32,i32,i32)->i64\0refusal_write(i32,i32,i32)->i32\0";
 
 /// Exact qualification-only response extension table.
-pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 2] = [
+pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 3] = [
     HostFunction {
         name: "response_write",
         signature: "(i32,i32,i32)->i32",
@@ -18,6 +19,10 @@ pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 2] = [
     HostFunction {
         name: "program_call_response",
         signature: "(i32,i32,i32,i32,i32,i32,i32,i32)->i64",
+    },
+    HostFunction {
+        name: "refusal_write",
+        signature: "(i32,i32,i32)->i32",
     },
 ];
 
@@ -34,11 +39,16 @@ const PROGRAM_CALL_RESPONSE_TYPE: HostFunctionType = HostFunctionType {
     params: PROGRAM_CALL_RESPONSE_PARAMS,
     results: I64_RESULT,
 };
+const REFUSAL_WRITE_TYPE: HostFunctionType = HostFunctionType {
+    params: RESPONSE_WRITE_PARAMS,
+    results: I32_RESULT,
+};
 
 pub(crate) fn candidate_function_type(name: &str) -> Option<&'static HostFunctionType> {
     match name {
         "response_write" => Some(&RESPONSE_WRITE_TYPE),
         "program_call_response" => Some(&PROGRAM_CALL_RESPONSE_TYPE),
+        "refusal_write" => Some(&REFUSAL_WRITE_TYPE),
         _ => None,
     }
 }
@@ -102,6 +112,10 @@ pub(crate) struct ResponseRegion {
 }
 
 impl ResponseRegion {
+    pub(crate) const fn has_publication(&self) -> bool {
+        self.published.is_some() || self.refusal.is_some()
+    }
+
     pub(crate) fn new(capacity: usize) -> Result<Self, ResponseRefusal> {
         if capacity > MAX_CALL_RESPONSE_BYTES {
             return Err(ResponseRefusal::TooLarge {

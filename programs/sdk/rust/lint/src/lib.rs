@@ -276,7 +276,7 @@ pub fn abi_surface_violations() -> Vec<DeterminismViolation> {
         .iter()
         .map(|function| (function.name, function.signature))
         .collect();
-    surface_violations(
+    let mut violations = surface_violations(
         layerx_program_sdk::ABI_MODULE,
         layerx_programs_runtime::ABI_MODULE,
         &guest_v1,
@@ -287,7 +287,57 @@ pub fn abi_surface_violations() -> Vec<DeterminismViolation> {
         layerx_programs_runtime::MAX_CALL_RESPONSE_BYTES,
         &guest_candidate,
         &host_candidate,
-    )
+    );
+    violations.extend(candidate_constant_violations(
+        layerx_program_sdk::CANDIDATE_ABI_MANIFEST,
+        layerx_programs_runtime::abi::response::CANDIDATE_ABI_MANIFEST,
+        layerx_program_sdk::MAX_REFUSAL_REASON_BYTES,
+        layerx_programs_runtime::MAX_REFUSAL_REASON_BYTES,
+        layerx_program_sdk::CANDIDATE_REFUSAL_SENTINEL,
+        layerx_programs_runtime::CANDIDATE_REFUSAL_SENTINEL,
+        layerx_program_sdk::REFUSAL_CLASS_MANIFEST,
+        layerx_programs_runtime::REFUSAL_CLASS_MANIFEST,
+    ));
+    violations
+}
+
+#[allow(clippy::too_many_arguments)]
+fn candidate_constant_violations(
+    guest_manifest: &str,
+    host_manifest: &str,
+    guest_reason_maximum: usize,
+    host_reason_maximum: usize,
+    guest_sentinel: i32,
+    host_sentinel: i32,
+    guest_classes: &str,
+    host_classes: &str,
+) -> Vec<DeterminismViolation> {
+    let mut violations = Vec::new();
+    for (matches, detail) in [
+        (
+            guest_manifest == host_manifest,
+            "candidate manifest differs",
+        ),
+        (
+            guest_reason_maximum == host_reason_maximum,
+            "candidate refusal-reason maximum differs",
+        ),
+        (
+            guest_sentinel == host_sentinel,
+            "candidate refusal sentinel differs",
+        ),
+        (
+            guest_classes == host_classes,
+            "candidate refusal classes differ",
+        ),
+    ] {
+        if !matches {
+            violations.push(DeterminismViolation::AbiDrift {
+                detail: detail.to_string(),
+            });
+        }
+    }
+    violations
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -365,8 +415,16 @@ fn compare_function_tables(
 /// Lints one compiled program artifact.
 #[must_use]
 pub fn lint_artifact(wasm: &[u8]) -> Vec<DeterminismViolation> {
-    let mut violations = import_and_export_violations(wasm);
-    violations.extend(engine_violations(wasm));
+    let mut violations = import_and_export_violations(wasm, false);
+    violations.extend(engine_violations(wasm, false));
+    violations
+}
+
+/// Lints an explicitly candidate-qualified compiled program artifact.
+#[must_use]
+pub fn lint_candidate_artifact(wasm: &[u8]) -> Vec<DeterminismViolation> {
+    let mut violations = import_and_export_violations(wasm, true);
+    violations.extend(engine_violations(wasm, true));
     violations
 }
 
@@ -460,11 +518,16 @@ pub fn discover_artifact(project: &Path) -> Result<PathBuf, DeterminismViolation
     }
 }
 
-fn permitted_import(import_module: &str, import_name: &str) -> bool {
-    import_module == layerx_programs_runtime::ABI_MODULE
+fn permitted_import(import_module: &str, import_name: &str, candidate: bool) -> bool {
+    (import_module == layerx_programs_runtime::ABI_MODULE
         && layerx_programs_runtime::HOST_FUNCTIONS
             .iter()
-            .any(|function| function.name == import_name)
+            .any(|function| function.name == import_name))
+        || (candidate
+            && import_module == layerx_programs_runtime::abi::response::CANDIDATE_ABI_MODULE
+            && layerx_programs_runtime::abi::response::CANDIDATE_HOST_FUNCTIONS
+                .iter()
+                .any(|function| function.name == import_name))
 }
 
 fn classify_import(import_module: &str, import_name: &str) -> DeterminismViolation {
@@ -486,7 +549,7 @@ fn classify_import(import_module: &str, import_name: &str) -> DeterminismViolati
     }
 }
 
-fn import_and_export_violations(wasm: &[u8]) -> Vec<DeterminismViolation> {
+fn import_and_export_violations(wasm: &[u8], candidate: bool) -> Vec<DeterminismViolation> {
     let mut violations = Vec::new();
     let mut memory = false;
     let mut entrypoint = false;
@@ -506,7 +569,7 @@ fn import_and_export_violations(wasm: &[u8]) -> Vec<DeterminismViolation> {
                 for entry in reader {
                     match entry {
                         Ok(import) => {
-                            if !permitted_import(import.module, import.name) {
+                            if !permitted_import(import.module, import.name, candidate) {
                                 violations.push(classify_import(import.module, import.name));
                             }
                         }
@@ -560,7 +623,7 @@ fn import_and_export_violations(wasm: &[u8]) -> Vec<DeterminismViolation> {
     violations
 }
 
-fn engine_violations(wasm: &[u8]) -> Vec<DeterminismViolation> {
+fn engine_violations(wasm: &[u8], candidate: bool) -> Vec<DeterminismViolation> {
     let engine = match WasmEngine::declared() {
         Ok(engine) => engine,
         Err(error) => {
@@ -569,7 +632,12 @@ fn engine_violations(wasm: &[u8]) -> Vec<DeterminismViolation> {
             }]
         }
     };
-    match engine.validate(wasm) {
+    let validated = if candidate {
+        engine.validate_candidate_v2(wasm)
+    } else {
+        engine.validate(wasm)
+    };
+    match validated {
         Ok(_) => Vec::new(),
         Err(refusal) => vec![from_validation(&refusal)],
     }
@@ -714,7 +782,9 @@ fn contains_word(body: &str, word: &str) -> bool {
 
 #[cfg(test)]
 mod abi_surface_tests {
-    use super::{surface_violations, DeterminismViolation};
+    use super::{
+        candidate_constant_violations, permitted_import, surface_violations, DeterminismViolation,
+    };
 
     fn details(violations: &[DeterminismViolation]) -> Vec<&str> {
         violations
@@ -768,5 +838,37 @@ mod abi_surface_tests {
 
         assert!(details(&violations)
             .contains(&"response_write(i32,i32,i32)->i32 is not response_read(i32,i32,i32)->i32",));
+    }
+
+    #[test]
+    fn candidate_manifest_bound_sentinel_and_classes_are_all_parity_gated() {
+        for violations in [
+            candidate_constant_violations("guest", "host", 8, 8, -64, -64, "classes", "classes"),
+            candidate_constant_violations(
+                "manifest", "manifest", 7, 8, -64, -64, "classes", "classes",
+            ),
+            candidate_constant_violations(
+                "manifest", "manifest", 8, 8, -65, -64, "classes", "classes",
+            ),
+            candidate_constant_violations("manifest", "manifest", 8, 8, -64, -64, "guest", "host"),
+        ] {
+            assert_eq!(violations.len(), 1);
+            assert_eq!(violations[0].name(), "abi-drift");
+        }
+    }
+
+    #[test]
+    fn candidate_imports_require_explicit_revision_and_exact_declaration() {
+        assert!(!permitted_import(
+            "layerx_v2_candidate",
+            "refusal_write",
+            false
+        ));
+        assert!(permitted_import(
+            "layerx_v2_candidate",
+            "refusal_write",
+            true
+        ));
+        assert!(!permitted_import("layerx_v2_candidate", "undeclared", true));
     }
 }

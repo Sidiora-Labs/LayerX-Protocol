@@ -302,3 +302,9 @@ pub fn publish_response(result: CallResult, bytes: &[u8]) -> Result<(), ProgramE
     }
     host::response_write(result.code(), bytes).map(|_| ())
 }
+
+/// Publishes a candidate program refusal synchronously.
+#[cfg(target_arch = "wasm32")]
+pub fn publish_refusal(refusal: crate::ProgramRefusal<'_>) -> Result<(), ProgramError> {
+    crate::host::refusal_write(refusal.class(), refusal.reason()).map(|_| ())
+}

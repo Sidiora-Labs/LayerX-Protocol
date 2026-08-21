@@ -43,8 +43,14 @@ pub const MAX_CALL_INPUT_BYTES: usize = 1_048_576;
 pub const CANDIDATE_ABI_MODULE: &str = "layerx_v2_candidate";
 /// Maximum candidate successful response payload.
 pub const MAX_CALL_RESPONSE_BYTES: usize = 1_048_576;
+/// Maximum candidate program-refusal reason payload.
+pub const MAX_REFUSAL_REASON_BYTES: usize = 4_096;
+/// Candidate-only entry return for a published refusal.
+pub const CANDIDATE_REFUSAL_SENTINEL: i32 = -64;
+/// Exact qualification-only candidate manifest.
+pub const CANDIDATE_ABI_MANIFEST: &str = "layerx_v2_candidate\0response_write(i32,i32,i32)->i32\0program_call_response(i32,i32,i32,i32,i32,i32,i32,i32)->i64\0refusal_write(i32,i32,i32)->i32\0";
 /// Exact qualification-only response extension table.
-pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 2] = [
+pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 3] = [
     HostFunction {
         name: "response_write",
         signature: "(i32,i32,i32)->i32",
@@ -52,6 +58,10 @@ pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 2] = [
     HostFunction {
         name: "program_call_response",
         signature: "(i32,i32,i32,i32,i32,i32,i32,i32)->i64",
+    },
+    HostFunction {
+        name: "refusal_write",
+        signature: "(i32,i32,i32)->i32",
     },
 ];
 /// Maximum number of grants in one capability set.
@@ -114,6 +124,7 @@ mod tests {
                 "program_call_response",
                 "(i32,i32,i32,i32,i32,i32,i32,i32)->i64",
             ),
+            ("refusal_write", "(i32,i32,i32)->i32"),
         ];
         assert_eq!(CANDIDATE_HOST_FUNCTIONS.len(), expected.len());
         for (actual, expected) in CANDIDATE_HOST_FUNCTIONS.iter().zip(expected) {

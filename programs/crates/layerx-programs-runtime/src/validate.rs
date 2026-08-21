@@ -178,18 +178,48 @@ impl ValidatedModule {
         self.instantiate_state(RuntimeState::composed(meter, abi, composition))
     }
 
-    pub(crate) fn instantiate_composed_response(
+    pub(crate) fn instantiate_composed_response_retained(
         &self,
         meter: Meter,
         abi: Abi,
         composition: Composition,
         capacity: usize,
     ) -> Result<
-        Result<ProgramInstance, (ExecutionFault, Option<crate::meter::MeterRefusal>)>,
+        Result<ProgramInstance, Box<(ExecutionFault, RuntimeState)>>,
         crate::abi::response::ResponseRefusal,
     > {
         let state = RuntimeState::composed_with_response(meter, abi, composition, capacity)?;
-        Ok(self.instantiate_state(state))
+        Ok(self.instantiate_state_retained(state))
+    }
+
+    fn instantiate_state_retained(
+        &self,
+        state: RuntimeState,
+    ) -> Result<ProgramInstance, Box<(ExecutionFault, RuntimeState)>> {
+        let fuel = state.meter().cpu_remaining();
+        let mut store = wasmi::Store::new(self.module.engine(), state);
+        store.limiter(|state| state.meter_mut() as &mut dyn wasmi::ResourceLimiter);
+        if let Err(error) = store.add_fuel(fuel) {
+            let fault = ExecutionFault::EngineFault {
+                reason: error.to_string(),
+            };
+            return Err(Box::new(retained_failure(store, fault)));
+        }
+        let pre = match self.linker.clone().instantiate(&mut store, &self.module) {
+            Ok(pre) => pre,
+            Err(error) => {
+                let fault = fault_from_error(&error);
+                return Err(Box::new(retained_failure(store, fault)));
+            }
+        };
+        let instance = match pre.start(&mut store) {
+            Ok(instance) => instance,
+            Err(error) => {
+                let fault = fault_from_error(&error);
+                return Err(Box::new(retained_failure(store, fault)));
+            }
+        };
+        Ok(ProgramInstance::new(store, instance))
     }
 
     fn instantiate_state(
@@ -217,6 +247,19 @@ impl ValidatedModule {
             .map_err(|error| (fault_from_error(&error), store.data().meter().exhaustion()))?;
         Ok(ProgramInstance::new(store, instance))
     }
+}
+
+fn retained_failure(
+    mut store: wasmi::Store<RuntimeState>,
+    fault: ExecutionFault,
+) -> (ExecutionFault, RuntimeState) {
+    if let Some(consumed) = store.fuel_consumed() {
+        store.data_mut().meter_mut().record_cpu(consumed);
+    }
+    if fault == ExecutionFault::OutOfFuel {
+        store.data_mut().meter_mut().mark_cpu_exhausted();
+    }
+    (fault, store.into_data())
 }
 
 pub(crate) fn validate_module(

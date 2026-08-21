@@ -2724,7 +2724,7 @@ reqs = ["35.3"]
 
 [task.28.4]
 title = "Carry typed failure payloads and program refusal reasons"
-status = "pending"
+status = "done"
 wave = 14
 requires = ["28.1"]
 do_1 = "Extend the refusal taxonomy so a guest refusal carries the refusing program, the refusal class and bounded program-supplied reason bytes, replacing the bare negative result code as the only failure signal."

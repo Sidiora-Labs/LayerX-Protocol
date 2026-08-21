@@ -344,6 +344,10 @@ impl Abi {
         self.authorization.principal()
     }
 
+    pub(crate) const fn program(&self) -> ProgramId {
+        self.program
+    }
+
     pub(crate) fn storage_snapshot(&self) -> Storage {
         self.storage.clone()
     }

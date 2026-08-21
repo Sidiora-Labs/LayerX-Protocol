@@ -9,6 +9,7 @@ use crate::abi::response::{CallResponse, ResponseRefusal};
 use crate::abi::{Abi, AbiEffects, AbiError, AuthorizationContext, ReceiptOracle};
 use crate::calls::{CallGraph, Composition, CompositionContext, CompositionRefusal};
 use crate::entrypoint::{self, EntrypointRefusal};
+use crate::fault::{ProgramFailure, RefusalClass, RefusalReason, CANDIDATE_REFUSAL_SENTINEL};
 use crate::host::RuntimeState;
 use crate::meter::{FeeSchedule, Meter, MeterRefusal, MeteredUsage, ResourceBudget, ResourceKind};
 use crate::storage::{ProgramId, Storage};
@@ -277,21 +278,117 @@ pub struct AuthorizedExecutionRecord {
 /// Qualification-only result produced under the explicitly selected candidate ABI.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CandidateAuthorizedExecutionRecord {
-    pub execution: CandidateExecutionRecord,
-    pub response: CallResponse,
-    pub effects: AbiEffects,
-    pub call_graph: CallGraph,
+    root_program: ProgramId,
+    abi_revision: AbiRevision,
+    execution: CandidateExecutionRecord,
+    outcome: CandidateActivityOutcome,
+    call_graph: CallGraph,
+}
+
+/// Mutually exclusive candidate activity result carried into receipt projection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CandidateActivityOutcome {
+    Success {
+        response: CallResponse,
+        effects: AbiEffects,
+    },
+    Failure(ProgramFailure),
+}
+
+/// Public, canonical candidate activity receipt projection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CandidateActivityReceipt {
+    root_program: ProgramId,
+    abi_revision: u16,
+    runtime_version: u16,
+    usage: MeteredUsage,
+    graph_evidence: Vec<u8>,
+    outcome: CandidateReceiptOutcome,
+}
+
+/// Receipt outcome with no representable success/failure overlap.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CandidateReceiptOutcome {
+    Success(CallResponse),
+    Failure(ProgramFailure),
 }
 
 /// Execution facts that cannot be confused with frozen v1 receipt evidence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CandidateExecutionRecord {
-    pub runtime_version: u16,
-    pub outputs: Vec<WasmValue>,
-    pub usage: MeteredUsage,
+    runtime_version: u16,
+    outputs: Vec<WasmValue>,
+    usage: MeteredUsage,
 }
 
 impl CandidateAuthorizedExecutionRecord {
+    #[must_use]
+    pub const fn root_program(&self) -> ProgramId {
+        self.root_program
+    }
+
+    #[must_use]
+    pub const fn abi_revision(&self) -> AbiRevision {
+        self.abi_revision
+    }
+
+    #[must_use]
+    pub const fn execution(&self) -> &CandidateExecutionRecord {
+        &self.execution
+    }
+
+    #[must_use]
+    pub const fn outcome(&self) -> &CandidateActivityOutcome {
+        &self.outcome
+    }
+
+    #[must_use]
+    pub const fn call_graph(&self) -> &CallGraph {
+        &self.call_graph
+    }
+
+    #[must_use]
+    pub fn receipt_projection(&self) -> CandidateActivityReceipt {
+        CandidateActivityReceipt {
+            root_program: self.root_program,
+            abi_revision: 2,
+            runtime_version: self.execution.runtime_version,
+            usage: self.execution.usage,
+            graph_evidence: self.call_graph.canonical_evidence(),
+            outcome: match &self.outcome {
+                CandidateActivityOutcome::Success { response, .. } => {
+                    CandidateReceiptOutcome::Success(response.clone())
+                }
+                CandidateActivityOutcome::Failure(failure) => {
+                    CandidateReceiptOutcome::Failure(failure.clone())
+                }
+            },
+        }
+    }
+    #[must_use]
+    pub const fn response(&self) -> Option<&CallResponse> {
+        match &self.outcome {
+            CandidateActivityOutcome::Success { response, .. } => Some(response),
+            CandidateActivityOutcome::Failure(_) => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn failure(&self) -> Option<&ProgramFailure> {
+        match &self.outcome {
+            CandidateActivityOutcome::Failure(failure) => Some(failure),
+            CandidateActivityOutcome::Success { .. } => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn effects(&self) -> Option<&AbiEffects> {
+        match &self.outcome {
+            CandidateActivityOutcome::Success { effects, .. } => Some(effects),
+            CandidateActivityOutcome::Failure(_) => None,
+        }
+    }
+
     #[must_use]
     pub fn canonical_evidence(&self) -> Vec<u8> {
         let mut evidence = b"LXP/program-execution/v2-candidate\0".to_vec();
@@ -316,10 +413,232 @@ impl CandidateAuthorizedExecutionRecord {
         evidence.extend_from_slice(&self.execution.usage.output_values.to_be_bytes());
         evidence.extend_from_slice(&self.execution.usage.output_bytes.to_be_bytes());
         evidence.extend_from_slice(&self.execution.usage.fee_units.to_be_bytes());
-        evidence.extend_from_slice(&self.response.code.to_be_bytes());
-        evidence.extend_from_slice(&(self.response.bytes.len() as u64).to_be_bytes());
-        evidence.extend_from_slice(&self.response.bytes);
+        evidence.extend_from_slice(&self.root_program.bytes());
+        let abi_revision = match self.abi_revision {
+            AbiRevision::V1 => ABI_VERSION,
+            AbiRevision::CandidateV2 => 2,
+        };
+        evidence.extend_from_slice(&abi_revision.to_be_bytes());
+        match &self.outcome {
+            CandidateActivityOutcome::Failure(failure) => {
+                evidence.push(1);
+                let failure = failure.canonical_encode();
+                evidence.extend_from_slice(&(failure.len() as u64).to_be_bytes());
+                evidence.extend_from_slice(&failure);
+            }
+            CandidateActivityOutcome::Success { response, .. } => {
+                evidence.push(0);
+                evidence.extend_from_slice(&response.code.to_be_bytes());
+                evidence.extend_from_slice(&(response.bytes.len() as u64).to_be_bytes());
+                evidence.extend_from_slice(&response.bytes);
+            }
+        }
+        let graph = self.call_graph.canonical_evidence();
+        evidence.extend_from_slice(&(graph.len() as u64).to_be_bytes());
+        evidence.extend_from_slice(&graph);
         evidence
+    }
+}
+
+impl CandidateExecutionRecord {
+    #[must_use]
+    pub const fn runtime_version(&self) -> u16 {
+        self.runtime_version
+    }
+
+    #[must_use]
+    pub fn outputs(&self) -> &[WasmValue] {
+        &self.outputs
+    }
+
+    #[must_use]
+    pub const fn usage(&self) -> MeteredUsage {
+        self.usage
+    }
+}
+
+impl CandidateActivityReceipt {
+    const DOMAIN: &'static [u8] = b"LXP/candidate-activity-receipt/v2\0";
+    const MAX_GRAPH_EVIDENCE_BYTES: usize = b"LayerX/programs/call-graph/v1\0".len()
+        + 32
+        + 16
+        + 8
+        + (crate::calls::DEFAULT_MAX_CALL_GRAPH_EDGES as usize * 68);
+
+    #[must_use]
+    pub const fn root_program(&self) -> ProgramId {
+        self.root_program
+    }
+
+    #[must_use]
+    pub const fn abi_revision(&self) -> u16 {
+        self.abi_revision
+    }
+
+    #[must_use]
+    pub const fn runtime_version(&self) -> u16 {
+        self.runtime_version
+    }
+
+    #[must_use]
+    pub const fn usage(&self) -> MeteredUsage {
+        self.usage
+    }
+
+    #[must_use]
+    pub fn graph_evidence(&self) -> &[u8] {
+        &self.graph_evidence
+    }
+
+    #[must_use]
+    pub const fn outcome(&self) -> &CandidateReceiptOutcome {
+        &self.outcome
+    }
+
+    #[must_use]
+    pub fn canonical_encode(&self) -> Vec<u8> {
+        let mut encoded = Self::DOMAIN.to_vec();
+        encoded.extend_from_slice(&self.root_program.bytes());
+        encoded.extend_from_slice(&self.abi_revision.to_be_bytes());
+        encoded.extend_from_slice(&self.runtime_version.to_be_bytes());
+        for value in [
+            self.usage.cpu_fuel,
+            self.usage.memory_bytes,
+            self.usage.storage_read_bytes,
+            self.usage.storage_write_bytes,
+            self.usage.output_bytes,
+        ] {
+            encoded.extend_from_slice(&value.to_be_bytes());
+        }
+        encoded.extend_from_slice(&self.usage.output_values.to_be_bytes());
+        encoded.extend_from_slice(&self.usage.fee_units.to_be_bytes());
+        encoded.extend_from_slice(
+            &u32::try_from(self.graph_evidence.len())
+                .unwrap_or(u32::MAX)
+                .to_be_bytes(),
+        );
+        encoded.extend_from_slice(&self.graph_evidence);
+        match &self.outcome {
+            CandidateReceiptOutcome::Success(response) => {
+                encoded.push(0);
+                encoded.extend_from_slice(&response.code.to_be_bytes());
+                encoded.extend_from_slice(
+                    &u32::try_from(response.bytes.len())
+                        .unwrap_or(u32::MAX)
+                        .to_be_bytes(),
+                );
+                encoded.extend_from_slice(&response.bytes);
+            }
+            CandidateReceiptOutcome::Failure(failure) => {
+                encoded.push(1);
+                let failure = failure.canonical_encode();
+                encoded.extend_from_slice(
+                    &u32::try_from(failure.len())
+                        .unwrap_or(u32::MAX)
+                        .to_be_bytes(),
+                );
+                encoded.extend_from_slice(&failure);
+            }
+        }
+        encoded
+    }
+
+    /// Strictly decodes a candidate receipt projection.
+    ///
+    /// # Errors
+    ///
+    /// Refuses the wrong domain/revision, invalid fields, truncation, and trailing bytes.
+    pub fn canonical_decode(encoded: &[u8]) -> Result<Self, crate::fault::FailureEncodingError> {
+        use crate::fault::FailureEncodingError as Error;
+        let mut cursor = ReceiptCursor::new(encoded);
+        if cursor.take(Self::DOMAIN.len())? != Self::DOMAIN {
+            return Err(Error::Malformed);
+        }
+        let root_program =
+            ProgramId::new(cursor.array::<32>()?).map_err(|_| Error::InvalidProgram)?;
+        let abi_revision = u16::from_be_bytes(cursor.array()?);
+        if abi_revision != 2 {
+            return Err(Error::Malformed);
+        }
+        let runtime_version = u16::from_be_bytes(cursor.array()?);
+        let usage = MeteredUsage {
+            cpu_fuel: u64::from_be_bytes(cursor.array()?),
+            memory_bytes: u64::from_be_bytes(cursor.array()?),
+            storage_read_bytes: u64::from_be_bytes(cursor.array()?),
+            storage_write_bytes: u64::from_be_bytes(cursor.array()?),
+            output_bytes: u64::from_be_bytes(cursor.array()?),
+            output_values: u32::from_be_bytes(cursor.array()?),
+            fee_units: u128::from_be_bytes(cursor.array()?),
+        };
+        let graph_length = u32::from_be_bytes(cursor.array()?) as usize;
+        if graph_length > Self::MAX_GRAPH_EVIDENCE_BYTES {
+            return Err(Error::Malformed);
+        }
+        let graph_evidence = cursor.take(graph_length)?.to_vec();
+        let tag = cursor.take(1)?[0];
+        let outcome = match tag {
+            0 => {
+                let code = i32::from_be_bytes(cursor.array()?);
+                if code < 0 {
+                    return Err(Error::Malformed);
+                }
+                let length = u32::from_be_bytes(cursor.array()?) as usize;
+                if length > crate::MAX_CALL_RESPONSE_BYTES {
+                    return Err(Error::Malformed);
+                }
+                CandidateReceiptOutcome::Success(CallResponse {
+                    code,
+                    bytes: cursor.take(length)?.to_vec(),
+                })
+            }
+            1 => {
+                let length = u32::from_be_bytes(cursor.array()?) as usize;
+                CandidateReceiptOutcome::Failure(ProgramFailure::canonical_decode(
+                    cursor.take(length)?,
+                )?)
+            }
+            _ => return Err(Error::Malformed),
+        };
+        if !cursor.is_empty() {
+            return Err(Error::Malformed);
+        }
+        Ok(Self {
+            root_program,
+            abi_revision,
+            runtime_version,
+            usage,
+            graph_evidence,
+            outcome,
+        })
+    }
+}
+
+struct ReceiptCursor<'a> {
+    remaining: &'a [u8],
+}
+
+impl<'a> ReceiptCursor<'a> {
+    const fn new(remaining: &'a [u8]) -> Self {
+        Self { remaining }
+    }
+
+    fn take(&mut self, length: usize) -> Result<&'a [u8], crate::fault::FailureEncodingError> {
+        let (value, remaining) = self
+            .remaining
+            .split_at_checked(length)
+            .ok_or(crate::fault::FailureEncodingError::Malformed)?;
+        self.remaining = remaining;
+        Ok(value)
+    }
+
+    fn array<const N: usize>(&mut self) -> Result<[u8; N], crate::fault::FailureEncodingError> {
+        self.take(N)?
+            .try_into()
+            .map_err(|_| crate::fault::FailureEncodingError::Malformed)
+    }
+
+    const fn is_empty(&self) -> bool {
+        self.remaining.is_empty()
     }
 }
 
@@ -557,6 +876,7 @@ impl Executor {
     /// # Errors
     ///
     /// Returns typed validation, execution, composition, response, or resource refusals.
+    #[allow(clippy::too_many_lines)]
     pub fn execute_authorized_candidate(
         &self,
         storage: &mut Storage,
@@ -587,24 +907,122 @@ impl Executor {
             CallGraph::root(request.composition.rules(), request.program, principal),
             AbiRevision::CandidateV2,
         );
-        let mut instance = request
+        let retained = request
             .module
-            .instantiate_composed_response(meter, abi, composition, request.response_capacity)
-            .map_err(ExecutionError::Response)?
-            .map_err(|(fault, exhausted)| self.classify_fault(fault, exhausted))?;
-        let code = match entrypoint::invoke(&mut instance, request.entrypoint, request.calldata) {
-            Ok(code) => code,
-            Err(EntrypointRefusal::Fault(fault)) => {
-                if let Some(refusal) = instance.state().refusal() {
-                    return Err(ExecutionError::Composition(refusal.clone()));
-                }
-                return Err(self.classify_fault(fault, instance.meter().exhaustion()));
+            .instantiate_composed_response_retained(
+                meter,
+                abi,
+                composition,
+                request.response_capacity,
+            )
+            .map_err(ExecutionError::Response)?;
+        let mut instance = match retained {
+            Ok(instance) => instance,
+            Err(error) => {
+                let (fault, state) = *error;
+                return self.finish_candidate_start(request.program, fault, state);
             }
-            Err(EntrypointRefusal::Resource(refusal)) => {
-                return Err(ExecutionError::Resource(refusal))
-            }
-            Err(refusal) => return Err(ExecutionError::Entrypoint(refusal)),
         };
+        let (code, failure) =
+            match entrypoint::invoke(&mut instance, request.entrypoint, request.calldata) {
+                Ok(code) => {
+                    if let Some(refusal) = instance.state().refusal() {
+                        return Err(ExecutionError::Composition(refusal.clone()));
+                    }
+                    if instance.state().failure().is_some() {
+                        return Err(ExecutionError::Response(ResponseRefusal::CodeMismatch {
+                            published: CANDIDATE_REFUSAL_SENTINEL,
+                            returned: code,
+                        }));
+                    }
+                    (code, None)
+                }
+                Err(EntrypointRefusal::GuestRefused { code }) => {
+                    if let Some(refusal) = instance.state().refusal() {
+                        return Err(ExecutionError::Composition(refusal.clone()));
+                    }
+                    let failure = match instance.state().failure().cloned() {
+                        Some(failure) if code == CANDIDATE_REFUSAL_SENTINEL => failure,
+                        Some(_) => {
+                            return Err(ExecutionError::Response(ResponseRefusal::CodeMismatch {
+                                published: CANDIDATE_REFUSAL_SENTINEL,
+                                returned: code,
+                            }));
+                        }
+                        None if code == CANDIDATE_REFUSAL_SENTINEL => {
+                            return Err(ExecutionError::Response(
+                                ResponseRefusal::InvalidPublication,
+                            ));
+                        }
+                        None => ProgramFailure::authenticated(
+                            request.program,
+                            RefusalClass::Legacy,
+                            RefusalReason::empty(),
+                        ),
+                    };
+                    (code, Some(failure))
+                }
+                Err(EntrypointRefusal::Fault(fault)) => {
+                    if let Some(refusal) = instance.state().refusal() {
+                        if let CompositionRefusal::Program(failure) = refusal {
+                            (
+                                crate::fault::CANDIDATE_REFUSAL_SENTINEL,
+                                Some(failure.clone()),
+                            )
+                        } else {
+                            return Err(ExecutionError::Composition(refusal.clone()));
+                        }
+                    } else if let Some(failure) = instance.state().failure().cloned() {
+                        (crate::fault::CANDIDATE_REFUSAL_SENTINEL, Some(failure))
+                    } else if is_candidate_runtime_fault(&fault) {
+                        (
+                            crate::fault::CANDIDATE_REFUSAL_SENTINEL,
+                            Some(ProgramFailure::authenticated(
+                                request.program,
+                                crate::fault::RefusalClass::RuntimeFault,
+                                crate::fault::RefusalReason::empty(),
+                            )),
+                        )
+                    } else {
+                        return Err(self.classify_fault(fault, instance.meter().exhaustion()));
+                    }
+                }
+                Err(EntrypointRefusal::Resource(refusal)) => {
+                    if let Some(CompositionRefusal::Program(failure)) = instance.state().refusal() {
+                        (CANDIDATE_REFUSAL_SENTINEL, Some(failure.clone()))
+                    } else if let Some(failure) = instance.state().failure().cloned() {
+                        (CANDIDATE_REFUSAL_SENTINEL, Some(failure))
+                    } else {
+                        return Err(ExecutionError::Resource(refusal));
+                    }
+                }
+                Err(refusal) => return Err(ExecutionError::Entrypoint(refusal)),
+            };
+        if let Some(failure) = failure {
+            let usage = instance
+                .meter()
+                .finish_published_failure()
+                .map_err(ExecutionError::Resource)?;
+            let mut state = instance.into_state();
+            let failure_graph = state.take_failure_graph();
+            let (_, _, composition) = state.into_parts();
+            let call_graph = failure_graph
+                .or_else(|| composition.map(Composition::into_graph))
+                .ok_or(ExecutionError::Composition(
+                    CompositionRefusal::NotComposable,
+                ))?;
+            return Ok(CandidateAuthorizedExecutionRecord {
+                root_program: request.program,
+                abi_revision: AbiRevision::CandidateV2,
+                execution: CandidateExecutionRecord {
+                    runtime_version: self.runtime_version,
+                    outputs: vec![WasmValue::I32(code)],
+                    usage,
+                },
+                outcome: CandidateActivityOutcome::Failure(failure),
+                call_graph,
+            });
+        }
         let response = match instance.state().finalize_response(code) {
             Ok(response) => response,
             Err(ResponseRefusal::Meter(refusal)) => return Err(ExecutionError::Resource(refusal)),
@@ -625,13 +1043,72 @@ impl Executor {
             .into_graph();
         *storage = committed.storage;
         Ok(CandidateAuthorizedExecutionRecord {
+            root_program: request.program,
+            abi_revision: AbiRevision::CandidateV2,
             execution: CandidateExecutionRecord {
                 runtime_version: self.runtime_version,
                 outputs: vec![WasmValue::I32(code)],
                 usage,
             },
-            response,
-            effects: committed.effects,
+            outcome: CandidateActivityOutcome::Success {
+                response,
+                effects: committed.effects,
+            },
+            call_graph,
+        })
+    }
+
+    fn finish_candidate_start(
+        &self,
+        program: ProgramId,
+        fault: ExecutionFault,
+        state: RuntimeState,
+    ) -> Result<CandidateAuthorizedExecutionRecord, ExecutionError> {
+        if let Some(refusal) = state.refusal() {
+            if let CompositionRefusal::Program(failure) = refusal {
+                return self.candidate_failure_from_state(program, failure.clone(), state);
+            }
+            return Err(ExecutionError::Composition(refusal.clone()));
+        }
+        let failure = state.failure().cloned().unwrap_or_else(|| {
+            ProgramFailure::authenticated(
+                program,
+                RefusalClass::RuntimeFault,
+                RefusalReason::empty(),
+            )
+        });
+        if !is_candidate_runtime_fault(&fault) && state.failure().is_none() {
+            return Err(self.classify_fault(fault, state.meter().exhaustion()));
+        }
+        self.candidate_failure_from_state(program, failure, state)
+    }
+
+    fn candidate_failure_from_state(
+        &self,
+        program: ProgramId,
+        failure: ProgramFailure,
+        mut state: RuntimeState,
+    ) -> Result<CandidateAuthorizedExecutionRecord, ExecutionError> {
+        let usage = state
+            .meter()
+            .finish_published_failure()
+            .map_err(ExecutionError::Resource)?;
+        let failure_graph = state.take_failure_graph();
+        let (_, _, composition) = state.into_parts();
+        let call_graph = failure_graph
+            .or_else(|| composition.map(Composition::into_graph))
+            .ok_or(ExecutionError::Composition(
+                CompositionRefusal::NotComposable,
+            ))?;
+        Ok(CandidateAuthorizedExecutionRecord {
+            root_program: program,
+            abi_revision: AbiRevision::CandidateV2,
+            execution: CandidateExecutionRecord {
+                runtime_version: self.runtime_version,
+                outputs: vec![WasmValue::I32(CANDIDATE_REFUSAL_SENTINEL)],
+                usage,
+            },
+            outcome: CandidateActivityOutcome::Failure(failure),
             call_graph,
         })
     }
@@ -661,6 +1138,18 @@ impl Executor {
             other => ExecutionError::Fault(other),
         }
     }
+}
+
+fn is_candidate_runtime_fault(fault: &ExecutionFault) -> bool {
+    !matches!(
+        fault,
+        ExecutionFault::EngineFault { .. }
+            | ExecutionFault::UnknownExport { .. }
+            | ExecutionFault::NotAFunction { .. }
+            | ExecutionFault::OutOfFuel
+            | ExecutionFault::GrowthLimited
+            | ExecutionFault::Resource { .. }
+    )
 }
 
 impl Default for Executor {
