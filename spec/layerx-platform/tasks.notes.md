@@ -93,6 +93,7 @@ superseding the human-interface spec with ids and statuses carried
 | `make platform-test-docs` | The docs build with sample execution and the reference-application runs |
 | `make platform-qualify-adoption` / `make platform-qualify` | The benchmark gates and the all-up platform qualification report |
 | `make programs-build` / `make programs-test` / `make programs-qualify` | The `programs/` workspace, runtime, module, registry and SDK suites; the hostile-program gauntlet and security qualification |
+| `make programs-bench` / `make programs-fuzz` | The execution and interpreter performance baselines; the full programs fuzz corpora beyond the smoke target |
 | `make interop-build` / `make interop-test-x402` / `make interop-test-mandates` / `make interop-test-migration` | The `interop/` workspace and the adapter conformance suites |
 | `make interop-test-mirrors` / `make interop-test-ramps` / `make interop-qualify` | Mirror publication and verification, the ramp suites, and the interop and multichain release gates |
 

@@ -584,7 +584,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Build recovery status presentation with its receipts under Technical details.
     - Test every security mutation path for its step-up gate.
     - _Requirements: 21.1, 21.2, 21.3_
-  - [ ] 13.3 Build wallet binding management
+  - [x] 13.3 Build wallet binding management
     - Build the binding surface: bound address with full checksum rendering, copy and QR, the one-sentence no-authority statement.
     - Build first-binding folded into the first custody journey and standalone rebinding under step-up.
     - Build the wallet hand-off states for binding: in-progress, rejected, disconnected, with retry and cancel.
@@ -1066,6 +1066,502 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Run make platform-qualify as the single all-up entry point.
     - _Requirements: 23.9, 27.5, 24.7_
 
+## Wave 14 - Program Execution as a Protocol Activity
+
+- [ ] 28. Make deployed programs callable on the network
+  - Parallel lanes: 28.1 lands first and alone because it reshapes the ABI and host surface every later lane edits. Once it lands, 28.2 through 28.6 are five independent agents on disjoint files. 28.7 joins them and 28.8 follows it.
+  - [ ] 28.1 Modularize the ABI and host surface into per-capability units
+    - Split src/abi.rs into an abi module: mod.rs holding the Abi transaction, effects and commit; capability.rs holding Capability, CapabilitySet and narrowing; storage_ops.rs holding the storage operations; leaving room for context, crypto, response and balance units later waves add without collision.
+    - Split src/host.rs into a host module: mod.rs holding linker construction and RuntimeState; memory.rs holding the guest read and write helpers; storage.rs, events.rs, calls.rs and transfer.rs holding one host-function family each.
+    - Keep the change strictly behaviour-preserving: the frozen ABI manifest, the host-function table, every status code and every refusal taxonomy stay byte-identical, and the existing test suites pass unchanged with no edits to their assertions.
+    - Add a module-boundary lint proving no host-function family reaches another family's state except through RuntimeState, so later waves can add a host function without reading the whole file.
+    - Record the module map in the runtime crate documentation so a parallel agent can find its lane without reading every file.
+    - _Requirements: 28.6, 30.1_
+  - [ ] 28.2 Carry calldata into the invoked entry point
+    - Add bounded calldata to AuthorizedExecutionRequest so an activity supplies input bytes rather than only integer arguments, routed through the same reserve-and-write protocol the composition path already uses to enter a callee.
+    - Unify the entry protocol: the activity boundary and a program-to-program edge enter a program the same way, so a program has one entry contract rather than two.
+    - Meter the calldata copy on the same per-byte basis composition already charges, and refuse input past the declared ABI bound with a typed result before any guest code runs.
+    - Extend the Rust SDK entry plumbing so a program declares its entry point once and receives calldata identically at both boundaries.
+    - Test an activity-level call with calldata against a real module, including the empty, maximum and one-past-maximum cases.
+    - _Requirements: 35.2_
+  - [ ] 28.3 Return response bytes across the call boundary
+    - Add a response region to the call protocol: a callee writes bounded response bytes, the runtime copies them into a caller-declared buffer, and the caller reads them through a response host function rather than through storage.
+    - Carry the response to the activity boundary too, so an authorized execution returns bytes as well as integer outputs and metered usage.
+    - Meter the response copy per byte and account it against the output resource class, refusing a response past the caller's declared capacity with a typed result rather than truncating.
+    - Bind the response to the exact call edge so a stale or foreign response can never be read, and prove it across a fan-out of sibling calls.
+    - Extend the Rust SDK call surface with a typed response and test the empty, maximum and over-capacity cases.
+    - _Requirements: 35.3_
+  - [ ] 28.4 Carry typed failure payloads and program refusal reasons
+    - Extend the refusal taxonomy so a guest refusal carries the refusing program, the refusal class and bounded program-supplied reason bytes, replacing the bare negative result code as the only failure signal.
+    - Propagate a nested refusal to the activity boundary unchanged, naming the frame that refused rather than the frame that observed it, so a deep call graph reports its actual cause.
+    - Meter the reason bytes and bound them, so a failure path cannot be used to move unmetered data or to grow a receipt without limit.
+    - Carry the failure payload into the activity receipt under the standard receipt shape so every consumer renders a program failure with the same rigor as a success.
+    - Extend the Rust SDK error vocabulary to construct and decode a reason, and test refusal propagation from depth one and from the declared maximum depth.
+    - _Requirements: 35.4, 35.6_
+  - [ ] 28.5 Admit a caller-declared execution budget
+    - Replace the compiled-constant execution budget with a budget declared by the invoking activity, bounded above by the protocol maximum and below by the declared minimum viable execution.
+    - Charge only the metered usage actually consumed inside the declared ceiling, so a caller that over-declares is not billed for headroom it did not use.
+    - Refuse an execution whose declared budget exceeds the protocol maximum, or whose payer cannot cover the ceiling, before any guest code runs and with a typed result.
+    - Keep the whole call graph inside one declared budget exactly as the carried-fuel accounting already does, so composition cannot multiply a ceiling.
+    - Property-test that declared budget and consumed usage are independent: equal executions under different ceilings consume identical usage and produce identical evidence.
+    - _Requirements: 35.5, 28.3_
+  - [ ] 28.6 Ship the isolation and composition adversarial suites
+    - Write the isolation suite the capability ABI claims: guests attempting to reach kernel state, another program's namespace, another principal's cells, the host linker and memory outside their own instance, each defeated by construction.
+    - Write the composition suite the call rules claim: depth, fan-out, edge-count, visit-count and reentrancy violations, each refused typed with no partial call graph, no surviving storage write and no staged transfer.
+    - Prove atomicity across the graph: a refusal at any depth discards every write and every effect of every frame, asserted on storage contents rather than on return codes alone.
+    - Build each hostile module from real WASM through the existing test support rather than from stubs, so the suites exercise the real validator, the real linker and the real meter.
+    - Wire both suites into make programs-test, and record the attack inventory so a later wave extends it rather than rewriting it.
+    - _Requirements: 35.8, 28.6, 30.4_
+  - [ ] 28.7 Implement the program call activity in the programs module
+    - Declare a call activity ordinal in the programs module alongside deploy, upgrade, transfer and registry, decoding program identifier, entry point, calldata, declared budget and requested capabilities canonically.
+    - Add the scalar-only FFI ingress from the C module into the authorized execution path, following the existing bounded staging pattern, and replace the process-global pending map with per-activity state carried on the module context so nothing in the consensus path depends on process-wide mutable state.
+    - Apply the guest effects through the existing boundaries only: storage writes into the module namespace, events through the kernel event stream, transfers through the kernel transfer primitive by way of the existing 402LXP leg authorization.
+    - Apply module failure semantics exactly: a failed call consumes its sequence, charges its metered fee, discards every write and every staged effect of the whole graph, and emits the typed-failure receipt.
+    - Record the runtime version, ABI version and fee schedule version in the receipt so replay executes under the recorded versions.
+    - Test deploy, call, refuse, upgrade and call-again end to end against a real node, asserting state roots and receipts rather than return codes.
+    - _Requirements: 35.1, 35.6, 28.5_
+  - [ ] 28.8 Expose the call activity through the agent layer, the CLI and the emulator
+    - Add the program call operation to the agent layer contract as an additive change within the current contract major, carrying calldata, declared budget, requested capabilities and the typed response.
+    - Add layerx program call to the CLI with machine-readable output, an idempotency key because a call is a money-adjacent state change, and receipt-verified result rendering.
+    - Run the call activity in the local emulator through the real transition function so a local call and a network call differ only in their state.
+    - Surface program calls and their typed failures in the explorer under the standard freshness and honesty rules.
+    - Test the same call through the agent layer, the CLI and the emulator, asserting identical receipts.
+    - _Requirements: 35.7_
+
+## Wave 15 - The Program State Model
+
+- [ ] 29. Give programs shared state, iteration and bounded state lifetimes
+  - Parallel lanes: 29.1 fixes the namespace model first because every other lane addresses it. Then 29.2, 29.3, 29.4 and 29.5 are four independent agents on disjoint files, and 29.6 and 29.7 close behind them.
+  - [ ] 29.1 Extend the namespace model with a program-shared namespace
+    - Model StorageNamespace as a closed enum over a principal-scoped namespace and a program-shared namespace, both carrying the owning program, so a namespace names its scope in the type rather than by convention.
+    - Fix both namespaces before guest code runs exactly as the principal-scoped namespace is fixed today, so no guest-visible operation can choose, widen or construct a namespace.
+    - Keep the address ordering canonical and stable across both variants so state roots and iteration order are deterministic everywhere.
+    - Migrate the existing storage plane and its tests to the enum with no behavioural change to principal-scoped access.
+    - Prove by construction that no program can name another program's namespace of either kind, with the type system carrying the guarantee rather than a runtime check.
+    - _Requirements: 36.1_
+  - [ ] 29.2 Grant and enforce shared-namespace access through explicit capabilities
+    - Add distinct shared-read and shared-write capabilities so an activity can invoke a program with read-only access to shared state, and keep principal-scoped grants conferring no shared access whatsoever.
+    - Extend the storage host functions with a namespace selector, refusing an unselected or out-of-range selector with a typed invalid result before any access occurs.
+    - Keep narrowing downward only across a program-to-program edge for the new grants exactly as it holds for the existing ones, with an attempted widening failing typed.
+    - Meter shared access on the same per-byte basis as principal-scoped access so no namespace is cheaper to abuse.
+    - Test a two-participant program end to end - a shared total mutated by two different principals - which has no representation before this task.
+    - _Requirements: 36.2, 30.1, 30.3_
+  - [ ] 29.3 Implement ordered iteration with a resumable cursor
+    - Add a storage scan host function taking a namespace selector, a bounded key prefix and a cursor, returning entries in canonical key order with a resumable cursor.
+    - Meter every returned byte against the storage read class and enforce a declared per-call entry and byte ceiling so iteration can never outrun the budget.
+    - Refuse a scan into a namespace the program holds no read grant for, and refuse a cursor that does not belong to the scan that issued it.
+    - Make iteration order independent of insertion order, host allocator and platform, proven on the determinism differential.
+    - Test iteration over an empty prefix, a single entry, a prefix spanning the per-call ceiling, and a resumption across two activities.
+    - _Requirements: 36.3_
+  - [ ] 29.4 Implement namespace drop and reclamation
+    - Add a namespace drop operation removing every cell of one namespace as a single committed change, refusing a namespace the program does not own.
+    - Meter the drop by the bytes and cells reclaimed rather than as a constant, so the cost tracks the work, and credit the released occupancy against the rent class.
+    - Keep the drop atomic with the rest of the activity: a later refusal discards the drop exactly as it discards a write.
+    - Prove no cell survives a drop and no adjacent namespace is touched by it, asserted on storage contents across a plane holding several namespaces.
+    - Test drop of an empty namespace, a namespace at the declared cell ceiling, and a drop followed by a write in the same activity.
+    - _Requirements: 36.4_
+  - [ ] 29.5 Charge storage occupancy over time as its own resource class
+    - Add an occupancy resource class measured as namespace bytes held across batches, distinct from the one-off read and write classes the meter already enforces.
+    - Price occupancy through the fee schedule and charge it to the account declared responsible for the namespace, so persistent state is paid for as long as it persists.
+    - Account occupancy deterministically from protocol state - the batch sequence and the recorded namespace size - with no wall-clock input anywhere.
+    - Record occupancy in the metered usage and the canonical evidence so it replays identically under a recorded fee schedule.
+    - Property-test that occupancy is monotone in bytes and in batches held, and that a dropped namespace stops accruing at the batch it was dropped in.
+    - _Requirements: 36.5_
+  - [ ] 29.6 Extend the isolation gauntlet to the shared namespace
+    - Add hostile programs attempting to read and write another program's shared namespace by every reachable route: forged selector, forged capability encoding, crafted key, and a narrowed grant across a call edge.
+    - Add hostile programs attempting to reach principal-scoped cells of a principal other than the invoker through the shared surface.
+    - Add hostile programs attempting to escape the budget through iteration and through repeated drop and rewrite.
+    - Prove every attack defeated by construction, and treat an escape as a build-breaking defect rather than a reported finding.
+    - Extend rather than rewrite the attack inventory recorded in wave 14.
+    - _Requirements: 36.6, 30.7_
+  - [ ] 29.7 Carry shared state into the SDK and every porting kit
+    - Add typed shared-state accessors to the Rust SDK alongside the principal-scoped ones, with the namespace visible in the type so a program cannot address the wrong scope by accident.
+    - Map a Solidity storage slot that is not caller-indexed onto the shared namespace in the EVM kit, and retire the kit declaration that shared state has no version-one representation.
+    - Map a Solana program-owned account onto the shared namespace in the Solana kit, and a CosmWasm item and map onto it in the CosmWasm kit.
+    - Update each migration guide in its own ecosystem vocabulary, replacing the section stating shared state cannot be modelled.
+    - Port one reference contract per kit that requires shared state - a supply total, a pool reserve or an order book - and exercise it end to end.
+    - _Requirements: 36.7, 31.3, 31.4_
+
+## Wave 16 - Program-Owned Accounts
+
+- [ ] 30. Let programs hold and disburse value under their own authority
+  - Parallel lanes: 30.1 fixes the derivation every other lane depends on. Then 30.2, 30.3 and 30.4 are three independent agents on the transfer law, the C module and the capability model, with 30.5, 30.6 and 30.7 closing behind them.
+  - [ ] 30.1 Derive program-owned accounts deterministically
+    - Define a domain-separated derivation from the program identifier and a bounded program-supplied seed to an account identifier, reproducible by any party from public inputs alone.
+    - Make the derivation collision-resistant against principal identifiers so no principal can ever derive, claim or sign for a program-owned account, and no program can derive another program's account.
+    - Expose derivation to guest code as a pure computation that grants no authority by itself, so deriving an account and being allowed to spend from it stay separate concerns.
+    - Freeze the derivation behind golden vectors, because a change to it would silently relocate every program-held balance.
+    - Test derivation determinism across operating systems, architectures and optimisation levels on the conformance vector set.
+    - _Requirements: 37.1_
+  - [ ] 30.2 Authorise transfer legs under program authority
+    - Extend the transfer law with a second authorization root beside the invoking principal: a leg whose source is an account the staging program derives, bound to the deriving program and the exact derivation seed.
+    - Refuse any program-authorised leg whose source account the staging program cannot derive, and refuse any such leg staged by a frame of the call graph other than the deriving program itself.
+    - Keep the kernel transfer primitive the only balance mutation and add no new balance-writing primitive anywhere: INVARIANT 1 applies to program-authorised legs unchanged.
+    - Carry both authorization roots into one atomic transfer set with one canonical encoding and one receipt, so a mixed activity settles whole or not at all.
+    - Test the law against programs attempting to spend from an account they cannot derive, from a callee frame, and past the total of legs the set conserves.
+    - _Requirements: 37.2, 37.3_
+  - [ ] 30.3 Wire program-owned accounts into the kernel account registry
+    - Register program-owned accounts through the existing account registry with the same derivation the runtime uses, so the C side and the Rust side agree byte for byte.
+    - Keep the kernel unchanged: no new authority kind, no new balance-mutation primitive, no kernel type gaining program-specific fields, with program authority resolved as an ordinary authority the existing model already expresses.
+    - Fund, hold and disburse through the existing 402LXP leg authorization path, adding no second monetary route.
+    - Emit program account events through the kernel event stream under the module namespace, committed in the batch event root.
+    - Run the protocol conformance suite proving no existing balance, receipt or state-root behaviour changed with program accounts registered.
+    - _Requirements: 37.2, 28.1_
+  - [ ] 30.4 Add the program spending capability with downward-only narrowing
+    - Add a capability conveying a bounded spending grant over accounts the granting program itself derives, distinct from the existing transfer grant over the invoking principal's balance.
+    - Narrow the new grant downward only across a program-to-program edge, refusing any widening of asset, destination or amount with the same typed escalation refusal the existing grants use.
+    - Include the new grant in the canonical capability encoding with its own tag so an existing encoding stays valid and an unknown tag is refused rather than ignored.
+    - Bind the grant to the deriving program so a callee holding it can spend only what the caller actually owns, never what the callee derives for itself.
+    - Test escalation adversarially across depth, fan-out and repeated visits, with every attempt refused typed and no partial transfer set surviving.
+    - _Requirements: 37.4, 30.3_
+  - [ ] 30.5 Bind registry value accounts to real program balances
+    - Replace the registry's declared value-account bookkeeping with real derived accounts carrying real balances read from protocol state.
+    - Prove the wind-down rules against live balances: every derived account of a deprecated program has an authorised exit path, and a deprecation that would strand value is refused.
+    - Keep a tombstoned program's history readable and its state reachable under the declared wind-down rules with the exit path intact.
+    - Surface program-held balances wherever the program is shown, under the standard freshness and honesty rules.
+    - Test wind-down against a program holding live balances across several assets and several derived accounts.
+    - _Requirements: 37.5, 29.6_
+  - [ ] 30.6 Extend the hostile-program gauntlet to program custody
+    - Add hostile programs attempting to derive another program's account, to spend from an account they cannot derive, and to stage a derived-account leg from a callee frame.
+    - Add hostile programs attempting to escape the atomic transfer set through partial settlement, reentrant spending and repeated visits.
+    - Add hostile programs attempting to mint by staging legs whose totals do not conserve, defeated by the kernel primitive rather than by the program.
+    - Prove every attack defeated by construction, with an escape a build-breaking defect.
+    - Extend the recorded attack inventory rather than replacing it.
+    - _Requirements: 37.6, 30.7_
+  - [ ] 30.7 Ship escrow and vault reference programs
+    - Write an escrow reference program taking custody of a payment and releasing it on a declared condition, deployed, source-verified and exercised end to end.
+    - Write a vault reference program holding pooled value with per-participant accounting across the shared and principal-scoped namespaces together.
+    - Retire the EVM kit refusal of contract-funded value flows where a derived account now carries them honestly, and keep refusing by name what still has no representation.
+    - Update the Solana and CosmWasm kits with the equivalent account-holding pattern in their own vocabulary.
+    - Document the custody model in the program authoring guides, stating plainly what a program can and cannot do with value.
+    - _Requirements: 37.7, 31.4_
+
+## Wave 17 - Execution Context and Compute Primitives
+
+- [ ] 31. Give programs self-knowledge and the primitives every chain provides
+  - Parallel lanes: 31.3, 31.4 and 31.5 are three fully independent agents from the start of the wave, each owning one file under src/crypto. 31.1 and 31.2 run beside them. 31.6 joins all five and 31.7 follows it.
+  - [ ] 31.1 Expose the execution context to guest code
+    - Add a single field-addressed context host function exposing the executing program, the immediate calling program, the invoking principal, the activity sequence, the batch height, the runtime and ABI versions, the remaining fuel and the effective fee schedule version.
+    - Derive every field from protocol state only, with no wall-clock time, host entropy or node-local value reachable through any field, and refuse an unknown field identifier rather than returning a zero.
+    - Make the caller field honest at every frame: a callee observes its own identifier and its immediate caller's, set by the runtime when the frame is entered and never writable by guest code.
+    - Meter the context read per byte returned and freeze the field identifiers and their encodings behind golden vectors.
+    - Prove across the composition suite that the caller field cannot be forged on any edge, at any depth, or by re-entry.
+    - _Requirements: 38.1, 38.2_
+  - [ ] 31.2 Expose receipt-verified balance reads
+    - Add a balance read host function returning a balance for an account and asset the invoking activity explicitly granted sight of, through a capability distinct from every spending grant.
+    - Serve the read through the core receipt-verification authority so a program observes only verified protocol facts, never raw kernel state.
+    - Refuse a read for an account outside the grant with a typed denial rather than a zero balance, so absence and denial are distinguishable.
+    - Meter the read and bound the number of accounts one activity can grant sight of.
+    - Prove sight confers no authority: a program holding every read grant and no spending grant can move nothing.
+    - _Requirements: 38.3_
+  - [ ] 31.3 Add deterministic hash primitives
+    - Add a hash host function covering sha256, keccak256 and blake3, addressed by algorithm identifier, refusing an unknown algorithm rather than defaulting.
+    - Meter per input byte with a per-algorithm coefficient reflecting real cost, and bound the input length per call.
+    - Implement against integer-only, allocation-bounded code paths with no floating point reachable anywhere, honouring the workspace integer-only rule.
+    - Freeze every algorithm behind golden vectors including the published test vectors of each function.
+    - Prove byte-identical digests across operating systems, architectures and optimisation levels on the determinism differential.
+    - _Requirements: 38.4_
+  - [ ] 31.4 Add deterministic signature verification and recovery
+    - Add signature host functions covering ed25519 verification, secp256k1 verification and secp256k1 public-key recovery, addressed by algorithm identifier.
+    - Return every failure as a typed refusal rather than a trap, so an invalid signature is an ordinary program outcome and not an aborted activity.
+    - Meter per operation with a per-algorithm coefficient, and reject malformed keys, signatures and recovery identifiers before any verification work is charged.
+    - Implement with constant-shape execution so metered cost does not depend on secret-bearing inputs, and with no floating point in any path.
+    - Freeze behind golden vectors including published test vectors, malleable signatures and every rejection case, and prove byte-identical results on the determinism differential.
+    - _Requirements: 38.5_
+  - [ ] 31.5 Add wide-integer and modular-exponentiation primitives
+    - Add wide-integer host functions covering 256-bit multiplication, division, remainder and modular exponentiation, operating on big-endian byte operands.
+    - Refuse division and remainder by zero and refuse malformed operand widths as typed results rather than traps.
+    - Meter by operand width and, for modular exponentiation, by exponent bit length, so cost tracks work rather than call count.
+    - Implement integer-only with bounded allocation, honouring the workspace deny on floating-point arithmetic and lossy float literals.
+    - Freeze behind golden vectors covering identity, overflow boundary, maximum-width and zero-modulus cases, and prove determinism across tiers.
+    - _Requirements: 38.6_
+  - [ ] 31.6 Freeze ABI version two
+    - Bump the ABI version once for the whole set of additions from waves 14 through 17, moving the frozen manifest, the host-function table and the permitted-import list together in one change.
+    - Keep version one modules executing under their recorded version, with replay selecting the ABI by the version the receipt records rather than by the version the node runs.
+    - Regenerate golden vectors for both versions and add the build gate that fails on any ABI change without a version bump.
+    - Record the ABI version alongside the runtime version and the fee schedule version in every execution receipt.
+    - Test a simulated upgrade replaying version one and version two activities under their own recorded versions in one history.
+    - _Requirements: 38.7, 28.4_
+  - [ ] 31.7 Bind the context and the primitives in the SDK and the porting kits
+    - Bind every new host function in the Rust SDK with types that make a refusal representable and a malformed call unconstructable.
+    - Map the EVM vocabulary directly in the EVM kit: msg.sender and address(this) onto context fields, block.number onto batch height, keccak256 onto the hash primitive, and ecrecover onto secp256k1 recovery.
+    - Map the Solana and CosmWasm equivalents in their own kits, including the account and message-info patterns their contracts already use.
+    - Move the porting kits off host-side computation of keccak onto the guest-reachable primitive so a ported contract computes its own digests.
+    - Update every migration guide and port one reference contract per kit that requires context and precompiles, exercised end to end.
+    - _Requirements: 38.8, 31.3, 31.4_
+
+## Wave 18 - Economics, Performance and Parallel Execution
+
+- [ ] 32. Make program execution fast enough and priced honestly enough to be a real plane
+  - Parallel lanes: 32.1, 32.2, 32.3 and 32.4 are four independent agents on disjoint files from the start of the wave. 32.5 depends only on the state model and runs beside them. 32.6 joins 32.5, and 32.7 measures everything last.
+  - [ ] 32.1 Cache validated and compiled modules by code hash
+    - Add a bounded cache keyed by code hash and runtime version holding validated, compiled module artifacts, so a program validated once is not revalidated per invocation.
+    - Keep the cache an accelerator with no consensus authority: a cache miss, an eviction and a cold node must produce byte-identical results and identical metered cost to a cache hit.
+    - Bound cache memory explicitly and evict deterministically, with eviction order derived from protocol state rather than wall-clock recency, so two nodes never diverge through eviction.
+    - Invalidate on runtime version change, on ABI version change and on upgrade, and never serve an artifact compiled under a version other than the one the receipt records.
+    - Prove equivalence with a differential harness executing a large activity mix twice, once with the cache disabled and once enabled, asserting identical receipts, identical state roots and identical fuel.
+    - _Requirements: 39.1_
+  - [ ] 32.2 Build the host linker once per engine
+    - Hoist linker construction out of the per-instantiation path so the host function table is built once per engine rather than once per instantiation and once per nested call.
+    - Keep the linker immutable after construction, with per-execution state carried in the store rather than in the linker, so no execution can observe or mutate another's host state.
+    - Prove the hoist changes no observable behaviour: identical receipts, identical fuel and identical refusals across the whole conformance suite.
+    - Measure the improvement on the deep-composition benchmark, where the per-nested-call rebuild costs the most.
+    - Add the invariant test that a nested call reuses the engine's linker rather than constructing one.
+    - _Requirements: 39.2_
+  - [ ] 32.3 Make metering an engine-independent property of the module
+    - Move fuel accounting from an engine configuration flag onto an explicit, deterministic instrumentation of the module: charge points injected at function entry and at every loop back edge, with the schedule recorded in protocol state.
+    - Make the charge a property of the validated artifact so metered cost is identical under any execution strategy, and record the metering schedule version in every receipt.
+    - Keep byte-for-byte cost parity with the current schedule on the whole conformance corpus, so the change is a refactor of mechanism and not a repricing.
+    - Prove the injected instrumentation cannot itself be a divergence source: the same module yields the same charge points on every platform, frozen behind golden vectors.
+    - Document that this is what makes a faster execution strategy possible later without changing what anything costs.
+    - _Requirements: 39.3_
+  - [ ] 32.4 Move the fee schedule into governed protocol state
+    - Replace the hardcoded declared fee schedule with a versioned schedule read from protocol state, with every coefficient named and every unit stated.
+    - Record the schedule version in every execution receipt so a historical activity reprices under the schedule that was live when it ran, and replay selects by receipt rather than by node.
+    - Change the schedule only through a governed activity that is itself receipt-backed, with the change visible in state before it takes effect.
+    - Add a demand-responsive component adjusting a base price per unit of the scarce resource by a deterministic rule over recent batch occupancy, computed from protocol state alone with no node-local input.
+    - Prove monotonic bounds on the adjustment so the price cannot move more than a declared fraction per batch, and prove replay of a multi-schedule history reprices every activity correctly.
+    - _Requirements: 39.4_
+  - [ ] 32.5 Declare access sets ahead of execution
+    - Extend the call activity with a declared access set naming the namespaces, keys and accounts the execution may touch, in a canonical encoding covered by the activity digest.
+    - Enforce the declaration at execution: a read or write outside the declared set is a typed refusal, not a silent widening, so the declaration is a commitment rather than a hint.
+    - Allow a conservative over-declaration and charge for it, so declaring broadly is safe but not free.
+    - Derive the declaration automatically wherever the SDK can prove it, and let a program declare explicitly where it cannot.
+    - Test declaration enforcement against programs whose access depends on calldata, on prior state and on a callee's behaviour.
+    - _Requirements: 39.5_
+  - [ ] 32.6 Schedule non-conflicting program activities in parallel
+    - Add a deterministic scheduler partitioning a batch's program activities into non-conflicting groups from their declared access sets, with the partition a pure function of the batch contents.
+    - Execute groups concurrently and commit results in canonical activity order, so the state root and the receipt sequence are identical to serial execution.
+    - Make the parallel path a strategy rather than a semantic: refusing to parallelise must always be safe and must never change a result.
+    - Prove equivalence with a differential harness running large batches serially and in parallel, asserting identical state roots, identical receipts and identical fuel per activity.
+    - Measure the speedup on a low-conflict workload and on an adversarial all-conflicting workload, and publish both numbers rather than only the flattering one.
+    - _Requirements: 39.6_
+  - [ ] 32.7 Establish the program execution performance baseline
+    - Benchmark cold and warm validation, instantiation, a trivial call, a storage-heavy call, a compute-heavy call, a deep composition chain and a wide fan-out, on fixed hardware with the methodology recorded.
+    - Benchmark the sustained program-activity throughput of a full batch, reported as activities per second and as fuel per second, with the workload mix stated.
+    - Record every number in the performance ledger beside the existing kernel and service measurements, in the same format, with no number reported without its conditions.
+    - Set release gates from the measurements and fail the build on a regression beyond the declared tolerance.
+    - State plainly where the runtime is slower than a native EVM or SVM implementation and why the tradeoff was taken.
+    - Wire the suite into make programs-bench so the measurements run from the same entry point as every other workspace suite.
+    - _Requirements: 39.7, 43.5_
+
+## Wave 19 - Interfaces and Agent-Native Authoring
+
+- [ ] 33. Make programs discoverable, callable and authorable without a compiler
+  - Parallel lanes: 33.1 and 33.2 are two independent agents defining the interface record and the calldata convention. 33.3 follows both. 33.4 and 33.5 are an independent pair on the interpreter. 33.6 joins everything.
+  - [ ] 33.1 Publish program interfaces as protocol state
+    - Define an interface description naming each callable entry point, its parameters, its return shape, its typed failures and the capabilities it requires, in a canonical encoding with a stable digest.
+    - Bind the description to the deployed code hash at deployment so an interface cannot drift from the program it describes, and refuse a deployment whose declared entry points the module does not export.
+    - Make the description readable from protocol state under the receipt-verification path, so an agent discovers what a program accepts without a side channel or an off-platform registry.
+    - Carry interface changes through the upgrade path with the compatibility rules stated: a widening is allowed, a narrowing is a refusal unless the upgrade declares it a breaking change.
+    - Test interface binding, drift refusal and upgrade compatibility across the registry conformance suite.
+    - _Requirements: 40.1_
+  - [ ] 33.2 Freeze the calldata encoding convention
+    - Define one canonical calldata encoding for the platform covering integers, byte strings, fixed arrays, variable arrays, options and tagged unions, with exactly one valid encoding per value.
+    - Refuse a non-canonical encoding of a representable value rather than accepting it leniently, so two encodings can never produce two digests for one call.
+    - Bound the decoded size and the nesting depth so decoding cannot be a denial-of-service surface, and charge decoding by decoded bytes.
+    - Freeze the convention behind golden vectors covering every type, every boundary, every rejection case and the empty call.
+    - Keep the EVM head-only layout supported as a distinct, explicitly tagged convention so a ported contract keeps its selectors byte-identical.
+    - _Requirements: 40.3_
+  - [ ] 33.3 Generate typed bindings from a published interface
+    - Generate Rust and TypeScript client bindings from a published interface, with a malformed call unconstructable and every typed failure represented in the return type.
+    - Generate the guest-side dispatch skeleton so a program author writes the entry-point bodies and never the decoding, and a missing entry point is a compile error.
+    - Bind generated code to the interface digest so a stale binding is detected rather than silently mismatched at call time.
+    - Wire generation into the CLI beside build and deploy, and into the SDK build so bindings regenerate as part of an ordinary build.
+    - Test round-tripping across every type in the convention and prove a stale binding is refused.
+    - _Requirements: 40.2_
+  - [ ] 33.4 Ship a deterministic interpreter program
+    - Write an interpreter program executing a bounded, deterministic instruction set submitted as data, so an agent can deploy behaviour without a compiler in the loop.
+    - Give the instruction set integer arithmetic, comparison, bounded control flow, storage access through the interpreter's own namespaces, and the ability to stage transfer requests through capabilities the invocation actually granted.
+    - Bound every loop and every allocation statically so an interpreted script cannot exceed the budget its caller declared, and refuse an unbounded construct at submission rather than at execution.
+    - Give the interpreter no authority the ordinary ABI does not: it is an ordinary program, subject to the same monetary law, the same namespaces and the same composition bounds.
+    - Freeze the instruction set behind golden vectors and prove determinism across the differential.
+    - _Requirements: 40.4_
+  - [ ] 33.5 Price interpretation honestly against compilation
+    - Meter interpreted execution by the work the interpreter actually performs, so an interpreted script and an equivalent compiled program are priced by cost rather than by authoring route.
+    - Measure the interpretation overhead on a representative script set and publish the multiplier rather than implying parity.
+    - Document when to interpret and when to compile, with the tradeoff stated in cost terms an agent can act on.
+    - Add the release gate that the published multiplier stays within its declared tolerance.
+    - Test that an interpreted script and its compiled equivalent produce identical state changes and identical receipts modulo cost.
+    - Add the interpreter measurements to make programs-bench beside the execution baseline.
+    - _Requirements: 40.5_
+  - [ ] 33.6 Make programs first-class on the agent plane
+    - Add agent-plane operations to discover a program, read its interface, simulate a call against current state and submit a call, under the existing agent-plane freshness and receipt-verification rules.
+    - Make simulation honest: it returns the same refusals, the same typed failures and the same metered cost the real execution would, and it commits nothing.
+    - Expose deployment, interface publication and calling through the platform CLI in the same shape as the existing program commands.
+    - Extend the emulator to execute program calls with real runtime semantics so an agent can develop against it and get real refusals.
+    - Ship an end-to-end walkthrough of an agent discovering an unknown program and calling it correctly with no human in the loop.
+    - _Requirements: 40.6_
+
+## Wave 20 - Ephemeral Metered Sandboxes
+
+- [ ] 34. Rent a sandbox through a program, pay only for the compute used, and have it destroyed
+  - Parallel lanes: 34.1 defines the lease record every other lane addresses. Then 34.2, 34.3 and 34.6 are three independent agents on escrow, execution and snapshotting, with 34.4 and 34.5 following the first two, and 34.7 and 34.8 closing the wave.
+  - [ ] 34.1 Model the sandbox lease as protocol state
+    - Define a lease record naming the renting principal, the sandbox program image by code hash, the funded escrow amount and asset, the resource ceilings, the expiry height and the current lifecycle state.
+    - Make the lifecycle explicit and one-way through its terminal states: requested, funded, active, settling, expired, destroyed, with every transition receipt-backed and no transition reachable except through a declared activity.
+    - Derive the sandbox's ephemeral namespaces from the lease identifier so the state a sandbox creates is addressable, isolated from every other lease, and reclaimable as a unit.
+    - Bound the number of concurrent leases per principal and the total resource ceiling one lease may declare.
+    - Test every transition, every refused transition and the impossibility of reviving a destroyed lease.
+    - _Requirements: 41.1, 41.7_
+  - [ ] 34.2 Escrow lease funds in a program-owned account
+    - Fund a lease by a 402LXP transfer into an account the sandbox program derives from the lease identifier, so the escrow is real protocol balance rather than a bookkeeping entry.
+    - Make the escrow the hard ceiling on the lease: execution stops when the escrow is exhausted, and no execution proceeds against unfunded compute.
+    - Refund the unspent remainder to the renting principal at settlement through the same authorised transfer path, with the refund a leg of the settling transfer set rather than a separate promise.
+    - Prove conservation across the whole lease lifecycle: funded equals spent plus refunded, exactly, with the kernel primitive enforcing it.
+    - Test escrow exhaustion mid-execution, a zero-usage lease, and a lease whose refund is attempted twice.
+    - _Requirements: 41.2_
+  - [ ] 34.3 Execute sandbox work under lease-scoped capabilities
+    - Execute a sandbox activity as an ordinary program call whose capability set is derived from the lease and can reach only the lease's own ephemeral namespaces and nothing else.
+    - Refuse by construction every attempt to read or write outside the lease's namespaces, to call a program the lease did not authorise, to spend from an account the lease does not own, or to observe another lease's state.
+    - Charge every unit of fuel, memory, storage and host-call work against the lease escrow through the ordinary meter, with no separate pricing path.
+    - Return typed refusals for ceiling exhaustion distinguishable from program failure, so a renter can tell a budget end from a bug.
+    - Test a hostile sandbox image attempting each escape and prove every attempt refused with no state escaping the lease.
+    - _Requirements: 41.3, 41.7_
+  - [ ] 34.4 Settle usage incrementally as work is performed
+    - Debit the escrow per sandbox activity in the same atomic settlement that applies the activity's effects, so usage and payment cannot diverge.
+    - Emit a per-activity usage receipt naming the resources consumed and the price applied, verifiable offline like every other receipt.
+    - Make the running total readable from protocol state so a renter can see spend accrue without trusting the sandbox operator.
+    - Prove that a failed sandbox activity still charges for the work performed before the failure, and charges nothing beyond it.
+    - Test settlement across a long lease with many activities, asserting the sum of usage receipts equals the escrow debit exactly.
+    - _Requirements: 41.4_
+  - [ ] 34.5 Destroy the sandbox and reclaim its state
+    - Sweep expired leases deterministically at a declared batch boundary, with the sweep a function of protocol state and never of node-local timing.
+    - Drop every ephemeral namespace of a destroyed lease, refund the remainder and release the occupancy charge in one atomic settlement.
+    - Bound sweep work per batch and carry the remainder forward, so a large expiry cohort cannot stall a batch.
+    - Make destruction final: after it, the lease's state is unreadable by any party, and no activity can reference the lease except to read its terminal record.
+    - Test destruction under a full escrow, an exhausted escrow, an active-at-expiry execution and a cohort large enough to span several batches.
+    - _Requirements: 41.5_
+  - [ ] 34.6 Snapshot and restore sandbox state under the renter's authority
+    - Let a renter commit a digest of the lease's state at a point in execution, computed deterministically from the lease's namespaces alone.
+    - Let a renter restore a new lease from a prior snapshot digest by supplying the state, verified against the committed digest before the lease becomes active.
+    - Charge snapshotting and restoration by bytes committed and bytes restored, through the ordinary meter.
+    - Refuse a restoration whose supplied state does not match the digest, and refuse a snapshot reference from a principal that did not own the lease.
+    - Test snapshot, destroy, restore and continue as one end-to-end journey, asserting the restored lease's state is byte-identical to the snapshot.
+    - _Requirements: 41.6_
+  - [ ] 34.7 Run the sandbox escape gauntlet
+    - Add hostile sandbox images attempting to read another lease's namespace, to survive expiry, to spend past the escrow, and to call an unauthorised program.
+    - Add hostile images attempting to consume unbounded resources, to recurse into their own lease, and to leave state behind after destruction.
+    - Add a hostile renter attempting to restore a lease from a snapshot they do not own or from a forged digest.
+    - Prove every attack defeated by construction, with an escape a build-breaking defect, and extend the recorded attack inventory.
+    - Run the gauntlet under the parallel scheduler as well as serially, so isolation holds under concurrency.
+    - _Requirements: 43.1, 30.7_
+  - [ ] 34.8 Document what an on-platform sandbox is and is not
+    - Document the sandbox as deterministic, replicated, metered compute: every node executes every sandbox activity, and the price reflects that replication.
+    - Publish the measured cost per unit of sandbox compute beside the ordinary program cost, so the premium is visible rather than implied.
+    - State plainly which workloads belong here - deterministic, small, settlement-adjacent - and which belong in the off-platform market of the next wave.
+    - Ship a worked example of an agent renting a sandbox, running work, reading its accruing spend and having it destroyed, end to end.
+    - Add the sandbox capabilities to the enforced-by tables in the same shape as every other documented capability.
+    - _Requirements: 41.8_
+
+## Wave 21 - Verifiable Off-Platform Compute
+
+- [ ] 35. Settle rented compute the platform did not execute, without trusting the provider
+  - Parallel lanes: 35.1 lands the commitment scheme first. Then 35.2 and 35.4 are two independent agents on verification and the marketplace, with 35.7 running independently beside them. 35.3 follows 35.2, 35.5 and 35.6 follow 35.4, and 35.8 closes.
+  - [ ] 35.1 Commit to execution state per step
+    - Define a canonical commitment to the complete execution state at a step boundary, covering the instruction pointer, the value stack, the call frames, linear memory, the storage overlay and the fuel remaining.
+    - Make the commitment reproducible by any party from the module, the inputs and the step index alone, with no node-local input reachable in the digest.
+    - Emit commitments at declared step intervals during ordinary execution so a recorded run carries its own commitment chain.
+    - Bound the cost of commitment so recording is affordable and the interval is a declared, receipt-recorded parameter.
+    - Freeze the commitment encoding behind golden vectors and prove reproducibility across platforms on the determinism differential.
+    - _Requirements: 42.4_
+  - [ ] 35.2 Verify a single execution step on-platform
+    - Implement a verifier taking a pre-state commitment, one instruction and a post-state commitment, and deciding whether the transition is correct, in bounded work independent of the length of the disputed execution.
+    - Cover the whole permitted instruction set including every host call, with an unreachable instruction a refusal rather than a gap.
+    - Make the verifier itself deterministic, integer-only and bounded so it can run inside the ordinary execution budget.
+    - Prove the verifier agrees with the runtime on every step of the conformance corpus, so a correct execution is never judged incorrect.
+    - Freeze the verifier behind golden vectors covering every instruction, every host call and every trap.
+    - _Requirements: 42.3, 42.4_
+  - [ ] 35.3 Arbitrate disputes by bisection
+    - Implement a bisection game in which a challenger and a defender narrow a disputed execution to a single step in a logarithmic number of receipt-backed rounds.
+    - Bound each round by a declared response deadline in batch heights, with a party that fails to respond losing by default and the outcome settled automatically.
+    - Resolve the final step through the single-step verifier and settle stakes atomically with the verdict.
+    - Make the game safe for the honest party: an honest defender with a correct execution always wins, and an honest challenger facing a wrong execution always wins, with the argument recorded.
+    - Test the game against a lying defender, a lying challenger, an absent party, a dispute over a host call and a dispute over a trap.
+    - _Requirements: 42.3_
+  - [ ] 35.4 Build the compute marketplace program
+    - Write a marketplace program in which a provider registers capacity and a price, a renter opens a funded lease, and both parties' obligations are protocol state rather than an agreement off-platform.
+    - Escrow renter funds and provider stake in program-owned accounts, released only through the declared settlement paths.
+    - Publish the offer, the lease and the settlement as readable protocol state so a third party can audit the market without the operator.
+    - Keep the marketplace an ordinary program with no privileged authority, subject to the same monetary law and the same composition bounds as any other.
+    - Test the full lifecycle including a provider that never delivers, a renter that never funds and a lease that expires mid-work.
+    - _Requirements: 42.1, 42.8_
+  - [ ] 35.5 Settle usage against commitments inside a challenge window
+    - Have the provider commit to a usage claim and an output commitment, and settle it optimistically after a declared challenge window measured in batch heights.
+    - Let any party open a dispute inside the window by posting a stake and a contradicting commitment, freezing settlement until the dispute resolves.
+    - Make an unchallenged claim final and its settlement irreversible, so finality is a declared property rather than an indefinite maybe.
+    - Prove settlement conserves value across every path: honest settlement, successful challenge, failed challenge and expiry.
+    - Test a challenge posted on the last permitted height and one posted one height late.
+    - _Requirements: 42.2_
+  - [ ] 35.6 Stake and slash providers through the ordinary monetary law
+    - Require a provider stake proportional to the value at risk, held in a program-owned account and locked for the challenge window.
+    - Slash a provider proven wrong by the arbiter and compensate the challenger, as an ordinary atomic transfer set the kernel applies.
+    - Slash a challenger proven wrong and compensate the provider by the same mechanism, so a frivolous challenge has a real cost.
+    - Never create or destroy value in a slash: every slashed unit lands somewhere, proven by the conservation suite over dispute-heavy histories.
+    - Test stake locking, partial slashing, unlock at window close and slashing against a provider with several concurrent leases.
+    - _Requirements: 42.5, 42.8_
+  - [ ] 35.7 Accept attested inputs from non-deterministic work
+    - Define an attested-input record carrying a signed statement from a named attester about work performed off-platform, verified on-platform through the signature primitives.
+    - Let a program declare which attesters it accepts and refuse an attestation from any other, so trust is explicit protocol state rather than an implicit default.
+    - Distinguish attested inputs from verified execution everywhere they appear, so no interface can present a trusted claim as a proven one.
+    - Verify the attestation itself deterministically, so accepting an attested input never makes the transition non-deterministic.
+    - Test acceptance, refusal of an unnamed attester, refusal of a malformed attestation and a replayed attestation.
+    - _Requirements: 42.6_
+  - [ ] 35.8 State the verification model plainly wherever compute is sold
+    - Label every compute lease with its verification model: replicated execution, fraud-proof arbitration or attestation, in the same words everywhere it appears.
+    - State what each model costs and what each model assumes, including the assumption a fraud proof makes about at least one honest watcher.
+    - Refuse to present an attested result as a verified one anywhere in the agent plane, the CLI or the documentation.
+    - Document the arbiter for an implementer: what it proves, what it does not, and where a zero-knowledge or attested-enclave model would slot in later.
+    - Add the compute-market capabilities to the enforced-by tables in the same shape as every other documented capability.
+    - _Requirements: 42.7_
+
+## Wave 22 - Programs Plane Qualification
+
+- [ ] 36. Gate the whole programs plane on adversarial evidence before release
+  - Parallel lanes: 36.1, 36.2, 36.3, 36.4 and 36.5 are five independent agents, each owning one evidence class and one gate. 36.6 is the only join and it writes nothing it has not measured.
+  - [ ] 36.1 Extend the hostile-program gauntlet to every capability added after version one
+    - Consolidate the shared-state, custody, sandbox and composition gauntlets into one inventory covering every capability waves fourteen through twenty-one added, with each attack named, its target capability named and its defence named.
+    - Add the attacks the new capabilities create that no earlier gauntlet covered: context spoofing across a call edge, precompile abuse as a metering-evasion route, access-set evasion, iteration used to escape the resource budget, occupancy charged to the wrong account, and arbiter fraud through a forged step commitment.
+    - Run the whole inventory under the parallel scheduler as well as serially, so no defence depends on serial execution order.
+    - Treat an escape as a build-breaking defect and prove every attack defeated by construction rather than by a check a future refactor could delete.
+    - Publish the inventory and its outcomes as a release artifact in the same shape the existing gauntlet report uses.
+    - _Requirements: 43.1, 30.7_
+  - [ ] 36.2 Run the determinism differential across every added surface
+    - Extend the differential to every host function added in waves fourteen through seventeen, asserting byte-identical results across operating systems, architectures and optimisation levels.
+    - Run the differential across both metering paths - engine fuel and injected instrumentation - asserting identical charges per vector, so the mechanism change is provably not a repricing.
+    - Run the differential across serial and parallel scheduling, asserting identical state roots, identical receipts, identical event order and identical fuel per activity.
+    - Run the differential across the restored-sandbox continuation set, asserting a restored lease continues byte-identically to an uninterrupted one.
+    - Fail the release on any divergence, with the diverging vector, the diverging tier and the diverging field named in the failure rather than a bare mismatch.
+    - _Requirements: 43.2, 28.2_
+  - [ ] 36.3 Extend the fuzz corpora to every new input surface
+    - Add fuzz targets over calldata decoding, response encoding, iteration cursors, context field addressing, hash and signature and wide-integer inputs, access-set declarations, snapshot restoration and step proofs.
+    - Seed each corpus from the golden vectors of the surface it covers so fuzzing starts from valid structure rather than from noise.
+    - Treat a panic, a hang, a non-deterministic result or an unbounded allocation as a build-breaking defect on every target.
+    - Wire the targets into make programs-fuzz alongside the existing programs-fuzz-smoke target, run them for the declared duration as a release gate, and keep every reproducer that has ever fired as a permanent regression case.
+    - Report coverage per surface rather than one aggregate number, so an untouched surface is visible.
+    - _Requirements: 43.3, 28.8_
+  - [ ] 36.4 Re-prove the monetary law over program-heavy histories
+    - Generate long histories mixing derived-account custody, sandbox escrow, incremental usage settlement, marketplace stakes and slashing, and replay each one from genesis.
+    - Assert balance conservation over every history: total supply unchanged, every slashed unit landing somewhere, every escrow funded equal to spent plus refunded.
+    - Assert that no history contains a balance change outside a kernel-applied 402LXP transfer, checked against the state transition record rather than against the code.
+    - Include adversarial histories: a failed dispute, an expired lease mid-execution, a deprecated program holding value and a settlement racing an expiry sweep.
+    - Fail the release on any conservation failure and record the failing history as a permanent regression case.
+    - _Requirements: 43.4, 30.2_
+  - [ ] 36.5 Make the performance measurements release gates
+    - Set declared thresholds for cold and warm call latency, fuel throughput, parallel speedup at the declared conflict distribution, interpreter overhead and arbiter step cost.
+    - Fail the release when any threshold is unmet, naming the measurement, the threshold and the observed value.
+    - Record every measurement with its hardware, its workload mix and its methodology, so a number without its conditions is never published.
+    - Track each measurement across releases so a slow regression accumulating over several releases is visible rather than absorbed.
+    - Wire the gates into the programs qualification target beside the correctness gates.
+    - _Requirements: 43.5, 39.7_
+  - [ ] 36.6 Report the programs plane in the platform release report
+    - Add the programs plane to the platform release report under the same rules as every other pillar, with each gate named, its evidence linked and its outcome stated.
+    - Record every unmet gate explicitly and refuse the release while any remains unmet, so the report is a gate rather than a summary.
+    - State the plane's honest limits alongside its guarantees: what replicated execution costs, what a fraud proof assumes, what an attestation does not prove, and which workloads do not belong here.
+    - Publish the capability tables for programs, sandboxes and the compute market in the same shape as every other documented capability.
+    - Prove the report is generated from measured evidence rather than authored by hand, with a claim that has no backing artifact failing the build.
+    - _Requirements: 43.6, 27.5_
+
 ## Engineering ground rules
 
 These apply to **every** task in this plan. They are standing conditions for
@@ -1161,6 +1657,7 @@ superseding the human-interface spec with ids and statuses carried
 | `make platform-test-docs` | The docs build with sample execution and the reference-application runs |
 | `make platform-qualify-adoption` / `make platform-qualify` | The benchmark gates and the all-up platform qualification report |
 | `make programs-build` / `make programs-test` / `make programs-qualify` | The `programs/` workspace, runtime, module, registry and SDK suites; the hostile-program gauntlet and security qualification |
+| `make programs-bench` / `make programs-fuzz` | The execution and interpreter performance baselines; the full programs fuzz corpora beyond the smoke target |
 | `make interop-build` / `make interop-test-x402` / `make interop-test-mandates` / `make interop-test-migration` | The `interop/` workspace and the adapter conformance suites |
 | `make interop-test-mirrors` / `make interop-test-ramps` / `make interop-qualify` | Mirror publication and verification, the ramp suites, and the interop and multichain release gates |
 
@@ -1185,7 +1682,16 @@ violation.
     { "id": 10, "tasks": ["19.1", "19.2", "19.3", "19.4", "19.5", "20.1", "20.2", "20.3", "21.1", "21.2", "21.3", "21.4", "21.5", "21.6"] },
     { "id": 11, "tasks": ["22.1", "22.2", "22.3", "23.1", "23.2", "23.3", "24.1", "24.2", "24.3"] },
     { "id": 12, "tasks": ["25.1", "25.2", "25.3", "26.1", "26.2"] },
-    { "id": 13, "tasks": ["27.1", "27.2", "27.3", "27.4", "27.5"] }
+    { "id": 13, "tasks": ["27.1", "27.2", "27.3", "27.4", "27.5"] },
+    { "id": 14, "tasks": ["28.1", "28.2", "28.3", "28.4", "28.5", "28.6", "28.7", "28.8"] },
+    { "id": 15, "tasks": ["29.1", "29.2", "29.3", "29.4", "29.5", "29.6", "29.7"] },
+    { "id": 16, "tasks": ["30.1", "30.2", "30.3", "30.4", "30.5", "30.6", "30.7"] },
+    { "id": 17, "tasks": ["31.1", "31.2", "31.3", "31.4", "31.5", "31.6", "31.7"] },
+    { "id": 18, "tasks": ["32.1", "32.2", "32.3", "32.4", "32.5", "32.6", "32.7"] },
+    { "id": 19, "tasks": ["33.1", "33.2", "33.3", "33.4", "33.5", "33.6"] },
+    { "id": 20, "tasks": ["34.1", "34.2", "34.3", "34.4", "34.5", "34.6", "34.7", "34.8"] },
+    { "id": 21, "tasks": ["35.1", "35.2", "35.3", "35.4", "35.5", "35.6", "35.7", "35.8"] },
+    { "id": 22, "tasks": ["36.1", "36.2", "36.3", "36.4", "36.5", "36.6"] }
   ]
 }
 ```

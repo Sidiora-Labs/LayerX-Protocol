@@ -521,3 +521,131 @@ The LayerX Platform is the complete product surface of LayerX: the human control
 6. WHERE a third-party ramp is surfaced anywhere in the platform THE surface SHALL label it external custody in plain language, SHALL NOT present it on the human plane's default surfaces, and SHALL never render a ramp outcome as Done except against the verified LayerX receipt of the LayerX-side leg.
 7. THE schemas SHALL reserve domain-tagged claim and receipt vocabulary - every custody-boundary claim naming its settlement domain, with Paxeer as the sole valid domain in this version - so that adding a settlement domain later is an additive schema change, and the conformance suite SHALL reject an untagged custody claim.
 
+## Requirement 35: Program Execution as a Protocol Activity
+
+**User Story:** As a developer whose program is deployed and source-verified, I want the network to actually execute it against protocol state with an input I supply and an output I can read, so that a deployed program is a running application rather than a registry entry.
+
+### Acceptance Criteria
+
+1. THE programs module SHALL declare a call activity that executes deployed guest code against protocol state through the deterministic runtime, and a deployment that verifies SHALL be invocable by that activity without any further governance, allow-listing or operator action.
+2. THE call activity SHALL carry a bounded calldata payload into the invoked export through the same reservation protocol program-to-program composition already uses, and an activity SHALL be able to address a program by identifier and entry point without encoding integers by hand.
+3. THE runtime SHALL return bounded response bytes from an invoked program to its caller - both to a program-to-program caller and to the activity boundary - and a call whose response exceeds its declared capacity SHALL fail typed rather than truncate.
+4. WHEN a program refuses or faults THE runtime SHALL carry a typed failure payload naming the refusing program, the refusal class and the program-supplied reason bytes, and that payload SHALL appear in the activity receipt so a caller can diagnose a failure without a node log.
+5. THE invoking activity SHALL declare the execution budget it is willing to pay for, THE runtime SHALL refuse an execution that would exceed the declared budget with a typed resource result, and THE protocol SHALL charge only the metered usage actually consumed within that ceiling.
+6. THE call path SHALL apply module failure semantics exactly as the deploy path does: a failed call consumes its sequence, charges its metered fee, discards every storage write and every staged effect of the whole call graph, and emits a receipt bearing the typed failure.
+7. THE agent layer, the CLI and the local emulator SHALL each expose the call activity with machine-readable output, and the emulator SHALL execute it through the real transition function so a local call and a network call diverge only in their state.
+8. THE runtime SHALL ship the adversarial isolation and composition suites its capability and composition rules claim: no guest reaching kernel state, another program's namespace or another principal's data, and no call graph escaping its declared depth, fan-out, edge, visit or reentrancy rules.
+
+## Requirement 36: The Program State Model
+
+**User Story:** As a developer building an application with more than one participant, I want state my program owns collectively as well as state scoped to each caller, so that an order book, a pool, a supply total or a shared registry has an honest representation instead of no representation.
+
+### Acceptance Criteria
+
+1. EACH program SHALL own two storage namespaces - one scoped to the invoking principal and one shared across every caller of that program - and THE runtime SHALL fix both before guest code runs so a program can address neither another program's namespace nor another principal's principal-scoped cells.
+2. THE shared namespace SHALL be reachable only through explicit capabilities distinct from the principal-scoped grants, so an activity can invoke a program with read-only access to shared state, and a program holding no shared-write grant SHALL fail typed rather than silently write elsewhere.
+3. THE storage ABI SHALL support ordered iteration over a bounded key prefix within a namespace the program already holds a grant for, returning a resumable cursor, metered per byte returned, with a declared per-call ceiling so iteration can never be used to escape the resource budget.
+4. THE storage ABI SHALL support dropping an entire namespace as one committed operation with its cost metered against the declared budget, so ephemeral state has a bounded, provable end rather than an unbounded sequence of deletions.
+5. THE meter SHALL account storage occupancy over time as its own resource class - namespace bytes held across batches - priced by the fee schedule and charged to the account declared responsible for that namespace, so state that persists is paid for as long as it persists.
+6. THE isolation suite SHALL prove the shared namespace does not weaken isolation: no program SHALL read or write another program's shared namespace, no principal-scoped grant SHALL confer shared access, and no capability narrowing SHALL widen namespace reach across a program-to-program call.
+7. THE Rust SDK and every porting kit SHALL express shared state in the source ecosystem's own vocabulary - a Solidity storage slot that is not caller-indexed, a Solana program-owned account, a CosmWasm item or map - and the EVM porting kit SHALL retire its declaration that shared state has no representation.
+
+## Requirement 37: Program-Owned Accounts and Program Spending Authority
+
+**User Story:** As a developer building escrow, a vault, a pool or a subscription, I want my program to hold and disburse value under its own authority, so that applications where the program is the counterparty are possible without any program ever gaining a balance-writing primitive.
+
+### Acceptance Criteria
+
+1. THE protocol SHALL derive program-owned accounts deterministically from the program identifier and a program-supplied seed, THE derivation SHALL be reproducible by any party from public inputs, and no principal SHALL be able to derive or claim the authority of a program-owned account.
+2. A program SHALL be able to authorise a 402LXP transfer out of an account it derives under its own authority rather than the invoking principal's, and THE kernel transfer primitive SHALL remain the only balance mutation: INVARIANT 1 applies unchanged and no new balance-writing primitive is added anywhere.
+3. THE transfer law SHALL bind every program-authorised leg to the deriving program and the exact derivation seed, SHALL refuse any leg whose account the calling program cannot derive, and SHALL refuse a program-authorised leg staged by any frame of the call graph other than the deriving program itself.
+4. THE capability model SHALL keep program spending narrowable downward only: a program-to-program call SHALL be able to convey a bounded spending grant over the caller's own derived accounts, and an attempted widening SHALL fail typed exactly as principal-scoped narrowing already does.
+5. THE registry's program value accounts SHALL be bound to real derived accounts with real balances rather than declared bookkeeping, and THE deprecation and wind-down rules SHALL prove no exit path strands value held in a derived account.
+6. THE hostile-program gauntlet SHALL extend to program custody: programs attempting to derive another program's account, to spend from an account they cannot derive, to stage a derived-account leg from a callee frame, or to escape the atomic transfer set, with every attack defeated by construction.
+7. THE Rust SDK and the porting kits SHALL ship working escrow and vault reference programs exercised end to end, and the EVM porting kit SHALL retire its refusal of contract-funded value flows where a derived account now carries them honestly.
+
+## Requirement 38: Execution Context and Deterministic Compute Primitives
+
+**User Story:** As a developer porting real contracts, I want my program to know who called it and to reach the cryptographic and wide-integer primitives every chain provides, so that access control, proof verification and financial arithmetic are ordinary code rather than impossible code.
+
+### Acceptance Criteria
+
+1. THE ABI SHALL expose a versioned execution context to guest code - the executing program, the immediate calling program, the invoking principal, the activity sequence, the batch height, the runtime and ABI versions, the remaining fuel and the effective fee schedule - through a single frozen field-addressed host function, and no context field SHALL derive from wall-clock time, host entropy or any node-local value.
+2. THE context SHALL be honest at every frame of a call graph: a callee SHALL observe its own program identifier and its immediate caller's, never a spoofed value, and the composition suite SHALL prove the caller field cannot be forged across any edge.
+3. THE ABI SHALL expose receipt-verified balance reads under an explicit capability, so a program can read a balance it has been granted sight of without gaining any authority to change it.
+4. THE ABI SHALL expose deterministic hash primitives covering at least sha256, keccak256 and blake3, metered per input byte, producing byte-identical digests across every operating system, architecture and optimisation level.
+5. THE ABI SHALL expose deterministic signature primitives covering at least ed25519 verification and secp256k1 verification and public-key recovery, metered per operation, with every failure a typed refusal rather than a trap.
+6. THE ABI SHALL expose wide-integer primitives covering at least 256-bit multiplication, division, remainder and modular exponentiation, metered by operand width, with no floating point reachable in any implementation path.
+7. THE additions of this requirement SHALL constitute a single ABI version bump: the frozen manifest, the host-function table and the golden vectors SHALL move together, version one modules SHALL keep executing under their recorded version, and an ABI change without a version bump SHALL fail the build.
+8. THE Rust SDK and every porting kit SHALL bind the context and the primitives in the source ecosystem's vocabulary, and the EVM kit SHALL map msg.sender, address(this), block.number, keccak256 and ecrecover onto them directly.
+
+## Requirement 39: Program Economics, Performance and Parallel Execution
+
+**User Story:** As an operator and as a developer paying for execution, I want programs to run fast enough to be worth deploying and priced by what they actually cost the network, so that the programs plane is economically honest under load rather than only correct at rest.
+
+### Acceptance Criteria
+
+1. THE runtime SHALL cache validated and compiled modules keyed by code hash so a repeated call does not re-link from bytes, and THE cache SHALL be provably semantics-neutral: a cached execution and a cold execution SHALL produce identical outputs, identical metered usage and identical evidence.
+2. THE runtime SHALL construct its host linker once per engine rather than once per instantiation, and the composition path SHALL not re-register the host surface for each nested frame.
+3. THE metering SHALL be engine-independent: instruction cost SHALL be determined by the module and the declared cost table rather than by an engine's internal fuel accounting, so a faster execution tier can never diverge in gas from the reference tier, proven by differential execution across both tiers on the conformance vector set.
+4. THE fee schedule SHALL be governed protocol state carrying its own version rather than a compiled constant, THE receipt SHALL record the schedule version each execution was priced under, and replay SHALL price historical activities under their recorded schedule.
+5. THE protocol SHALL admit a declared access list on a program activity naming the namespaces it will read and write, SHALL refuse at execution any access outside the declared list with a typed result, and SHALL treat an absent list as declaring the whole reachable set.
+6. THE sequencer SHALL schedule program activities whose declared access lists do not conflict for parallel execution, and THE result SHALL be indistinguishable from serial execution in canonical order: identical state root, identical receipts, identical event order.
+7. THE platform SHALL publish execution benchmarks as release artifacts - cold and warm call latency, fuel throughput, parallel speedup against the declared conflict distribution - and a regression past the declared threshold SHALL fail the release gate.
+
+## Requirement 40: Program Interfaces and Agent-Native Authoring
+
+**User Story:** As an agent that wants to use or publish a program without a human toolchain, I want a machine-readable interface description and a way to deploy logic without compiling anything, so that programmability is reachable by software rather than only by developers with a build environment.
+
+### Acceptance Criteria
+
+1. EACH program SHALL be able to publish an interface description as protocol state - entry points, calldata and response schemas, required capabilities, emitted event topics and declared error space - bound to its code hash, and THE registry SHALL surface it through receipt-verified reads.
+2. THE platform SHALL generate client bindings from an interface description in every SDK language, so calling a program is a typed call rather than hand-encoded bytes, and a description that does not match the deployed code hash SHALL be refused rather than rendered.
+3. THE calldata convention SHALL be canonical and frozen: a declared entry-point discriminator followed by a schema-described payload, byte-identical across every SDK, covered by golden vectors.
+4. THE platform SHALL ship at least one interpreter program - a deterministic scripting runtime compiled to the programs ABI - so an agent can deploy logic as a script under an existing interpreter's code hash without operating a compiler toolchain, with the interpreter subject to every determinism, metering and isolation law unchanged.
+5. THE interpreter path SHALL be honest about its costs: script execution SHALL be metered through the same resource classes, and the documentation SHALL state its overhead against a compiled program rather than presenting the two as equivalent.
+6. THE agent layer SHALL expose program discovery, interface reads and program calls as first-class operations, so an agent can find a program, learn its interface and call it within the declared adoption benchmark.
+
+## Requirement 41: Ephemeral Metered Sandboxes
+
+**User Story:** As an agent that needs a bounded, private, disposable execution environment, I want to open a sandbox against a program, pay only for the compute and state I actually used through 402LXP, and have the environment provably destroyed when my lease ends, so that renting execution is an ordinary protocol operation.
+
+### Acceptance Criteria
+
+1. THE programs module SHALL declare a sandbox lease as protocol state: a tenant principal, a host program, an ephemeral namespace, a declared resource ceiling, an escrowed prepayment held in a program-owned account, and an expiry expressed in batch sequence rather than wall-clock time.
+2. WHEN a tenant opens a lease THE protocol SHALL escrow the prepayment through an ordinary 402LXP transfer into the host program's derived account, and no sandbox SHALL begin execution against an unfunded lease.
+3. THE sandbox SHALL execute as ordinary metered program execution against its ephemeral namespace, and every resource class the meter already enforces - cpu fuel, memory, storage read, storage write, output values and namespace occupancy - SHALL be charged to the lease rather than to the invoking activity alone.
+4. THE protocol SHALL settle a lease incrementally against metered usage through the existing streaming mechanism, so a tenant pays for consumption as it occurs and an abandoned lease cannot accumulate unbilled usage.
+5. WHEN a lease closes or expires THE protocol SHALL drop the ephemeral namespace, settle the final metered usage, and return the unconsumed escrow to the tenant, and THE teardown SHALL be enforced by the transition function through an expiry sweep rather than requested by guest code, so an abandoned or hostile sandbox is still destroyed on schedule.
+6. WHERE a sandbox must survive across activities THE runtime SHALL persist and restore its execution state - linear memory, globals and declared continuation point - into the ephemeral namespace under the metering and determinism laws, and a restored sandbox SHALL produce byte-identical continuation to an uninterrupted one on the conformance vector set.
+7. THE lease SHALL be bounded in every dimension it can consume - resource ceiling, namespace bytes, lifetime in batches and total escrow - and exceeding any bound SHALL close the lease with a typed result rather than extend it.
+8. THE documentation SHALL state plainly what an in-consensus sandbox is and is not: a trustless bounded ephemeral state machine executed by every validator, priced accordingly, and not a venue for general off-platform computation.
+
+## Requirement 42: Verifiable Off-Platform Compute and the Dispute Arbiter
+
+**User Story:** As an agent that needs real computation rather than replicated computation, I want to rent a sandbox from an operator at native speed and pay for exactly what I used, with the protocol able to adjudicate a dishonest operator, so that rented compute inherits LayerX's settlement law without asking consensus to run the work.
+
+### Acceptance Criteria
+
+1. THE platform SHALL ship a compute marketplace program in which operators register capacity under a slashable bond, tenants open leases against advertised terms, and every lease's escrow, metered usage commitments and settlement move through ordinary 402LXP transfers with no new authority anywhere.
+2. AN operator SHALL commit, per billing interval, to the exact inputs, the resulting output digest, the metered usage claimed and the execution state root reached, and a settlement SHALL be payable only against a commitment that has passed its challenge window unrefuted.
+3. THE deterministic programs runtime SHALL serve as the dispute arbiter: a challenger SHALL be able to force bisection of a disputed interval down to a single execution step, and THE protocol SHALL adjudicate that step on-chain by executing it under the recorded runtime and ABI version.
+4. THE runtime SHALL expose a canonical per-step execution state commitment - program counter, value stack, locals, linear memory, globals and metered usage - so a single step can be executed and verified from a proof without replaying the whole interval.
+5. WHEN a challenge succeeds THE protocol SHALL slash the operator's bond and refund the tenant through ordinary transfers, and WHEN a challenge fails THE protocol SHALL charge the challenger's stake, so both sides of a dispute are economically bounded.
+6. ANY input the sandbox reads from outside the protocol SHALL enter as signed attested data committed in the lease, and no off-platform execution SHALL be settleable whose inputs were not committed before execution, so determinism holds across the adjudication boundary.
+7. THE marketplace SHALL present operator trust honestly: the verification model in force for each lease - bonded, attested or fraud-provable - SHALL be stated wherever a lease is shown, and no surface SHALL present an unverified operator claim as settled.
+8. THE off-platform compute plane SHALL hold no custody: escrow lives in program-owned accounts under the transfer law, the one-ledger invariant is unchanged, and the custody guarantee remains Paxeer exclusively.
+
+## Requirement 43: Programs Plane Qualification
+
+**User Story:** As the party accountable for what this network runs, I want the whole programs plane gated by adversarial evidence before release, so that permissionless execution ships proven rather than hoped.
+
+### Acceptance Criteria
+
+1. THE hostile-program gauntlet SHALL extend to every capability added after version one - shared state, program custody, context spoofing, precompile abuse, access-list evasion, sandbox escape and arbiter fraud - with every attack defeated by construction and an escape a build-breaking defect.
+2. THE determinism differential SHALL run across both execution tiers, both metering paths, every added host function and the restored-sandbox continuation set, asserting identical state roots, receipts, events and metered usage per vector.
+3. THE fuzz corpora SHALL cover calldata, response bytes, iteration cursors, context field addressing, precompile inputs, access lists, snapshot restoration and step proofs, with a panic, hang, non-determinism or unbounded allocation treated as a build-breaking defect.
+4. THE monetary law SHALL be re-proven over program-heavy histories including derived-account custody, sandbox escrow and marketplace settlement, with balance conservation holding across every one.
+5. THE performance gates SHALL be release gates: cold and warm latency, fuel throughput, parallel speedup and arbiter step cost SHALL each meet their declared threshold or refuse the release.
+6. THE programs plane SHALL report its qualification in the platform release report under the same rules as every other pillar, with every unmet gate recorded and the release refused while any remains.
+
