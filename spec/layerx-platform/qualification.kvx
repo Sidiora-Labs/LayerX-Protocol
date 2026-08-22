@@ -53,3 +53,11 @@ symbol = "cargo fmt --all -- --check"
 observed = "The workspace-wide formatting check reports pre-existing formatting drift in programs-registry, porting kits and runtime validation files outside task 29.5; none is changed by the occupancy diff. Targeted rustfmt checks for every Rust file changed by 29.5 remain clean."
 assumption = "Human qualification or the owning tasks will normalize the unrelated files; task 29.5 does not repair inherited formatting drift across other task boundaries."
 severity = "inherited"
+
+[observation.21.1.1]
+task = "21.1"
+file = "programs/crates/layerx-programs-runtime/src/transfer.rs"
+symbol = "KernelTransferPrimitive"
+observed = "The Rust runtime has no production implementation of KernelTransferPrimitive; the only real transactional 402LXP primitive is owned by the C kernel. Task 28.7 owns the C Programs CALL ingress and must map one prepared activity transfer set into one lxp_ctx_emit_transfer_set call inside the same journal. A Rust test implementation would necessarily be a test double or a second ledger, while implementing the real C bridge here would cross the explicitly reserved 28.7 boundary."
+assumption = "Task 21.1 supplies the sealed prepared settlement and strict evidence-verification seam; task 28.7 supplies and qualifies the sole real transactional implementation against the C kernel without introducing a second activity or global map. The actual C program-event envelope and its public receipt/batch publication are task-28.7-owned."
+severity = "dependency-boundary"

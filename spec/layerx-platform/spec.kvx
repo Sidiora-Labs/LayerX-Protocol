@@ -2273,7 +2273,7 @@ status = "pending"
 
 [task.21.1]
 title = "Enforce the 402LXP-only monetary law for programs"
-status = "pending"
+status = "implemented"
 wave = 10
 requires = ["19.3"]
 do_1 = "Route every program monetary effect through 402LXP transfer requests applied by the kernel transfer primitive within the invoking activity's authority."

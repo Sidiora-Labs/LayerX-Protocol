@@ -186,6 +186,28 @@ impl CapabilitySet {
         )
     }
 
+    /// Returns whether every grant in `requested` is a non-escalating subset
+    /// of this exact frame's authority.
+    pub(crate) fn contains_narrowed(&self, requested: &Self) -> bool {
+        requested
+            .0
+            .iter()
+            .all(|(key, request)| match (self.0.get(key), request) {
+                (
+                    Some(Capability::Transfer402 {
+                        maximum_amount: parent,
+                        ..
+                    }),
+                    Capability::Transfer402 {
+                        maximum_amount: child,
+                        ..
+                    },
+                ) => child <= parent,
+                (Some(_), _) => true,
+                (None, _) => false,
+            })
+    }
+
     pub(crate) fn decode_canonical(bytes: &[u8]) -> Result<Vec<Capability>, AbiError> {
         if bytes.len() < 2 {
             return Err(AbiError::InvalidEncoding);
@@ -218,6 +240,10 @@ impl CapabilitySet {
             grants.push(grant);
         }
         if cursor != bytes.len() {
+            return Err(AbiError::InvalidEncoding);
+        }
+        let canonical = Self::new(grants.clone())?.canonical_encoding();
+        if canonical != bytes {
             return Err(AbiError::InvalidEncoding);
         }
         Ok(grants)

@@ -67,8 +67,10 @@ pub use execute::{
     BudgetedResourceFailureRecord, BudgetedV1ActivityOutcome, BudgetedV1FailureCause,
     BudgetedV1FailureRecord, CandidateActivityOutcome, CandidateActivityReceipt,
     CandidateAuthorizedExecutionRecord, CandidateExecutionRecord, CandidateReceiptOutcome,
-    ExecutionError, ExecutionFault, ExecutionRecord, Executor, ProgramInstance, WasmValue,
-    ABI_VERSION, RUNTIME_VERSION,
+    ExecutionError, ExecutionFault, ExecutionRecord, Executor, PreparedAuthorizedActivity,
+    PreparedAuthorizedActivityOutcome, PreparedMonetarySummary, PreparedTransferLegSummary,
+    ProgramInstance, SettlementFailure, VerifiedStorageAssignment, WasmValue, ABI_VERSION,
+    RUNTIME_VERSION,
 };
 pub use fault::{
     FailureEncodingError, ProgramFailure, RefusalClass, RefusalReason, CANDIDATE_REFUSAL_SENTINEL,
@@ -96,8 +98,8 @@ pub use storage::{
     StorageNamespace, StorageScan,
 };
 pub use transfer::{
-    AtomicTransferSet, KernelTransferPrimitive, TransferCapability, TransferLawError,
-    VerifiedProgramSettlement,
+    AtomicTransferSet, KernelTransferEvidence, KernelTransferPrimitive, TransferCapability,
+    TransferLawError, VerifiedProgramSettlement,
 };
 pub use validate::{AbiRevision, ValidatedModule, ValidationRefusal};
 
@@ -113,7 +115,7 @@ pub const fn programs_wasm_engine() -> &'static str {
     "wasmi 0.31.2 vendored at programs/vendor/wasmi"
 }
 pub use abi::{
-    Abi, AbiCommit, AbiEffects, AbiError, AuthorizationContext, Capability, CapabilitySet,
-    HostFunction, ProgramCall, ProgramEvent, ReceiptOracle, ReceiptView, StorageSelector,
-    TransferRequest, ABI_MANIFEST, ABI_MODULE, HOST_FUNCTIONS,
+    Abi, AbiCommit, AbiEffects, AbiError, AuthorizationContext, CallFrameId, Capability,
+    CapabilitySet, HostFunction, ProgramCall, ProgramEvent, ReceiptOracle, ReceiptView,
+    StorageSelector, TransferRequest, ABI_MANIFEST, ABI_MODULE, HOST_FUNCTIONS,
 };

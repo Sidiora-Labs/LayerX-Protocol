@@ -872,7 +872,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - _Requirements: 29.6_
 
 - [ ] 21. Enforce the monetary law, composition and multi-language authoring
-  - [ ] 21.1 Enforce the 402LXP-only monetary law for programs
+  - [ ] 21.1 Enforce the 402LXP-only monetary law for programs — **Implemented - qualification pending**
     - Route every program monetary effect through 402LXP transfer requests applied by the kernel transfer primitive within the invoking activity's authority.
     - Make a direct balance write by a program impossible by construction, with INVARIANT 1 aborting any violation.
     - Execute multi-call, multi-transfer program activities as one atomic transfer set with a single receipt and full rollback on any failed leg.
