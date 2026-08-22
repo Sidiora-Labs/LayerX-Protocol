@@ -2874,6 +2874,9 @@ fn legacy_resource_taxonomy_remains_exhaustive_and_budget_conversion_is_exact() 
             ResourceKind::StorageWrite => 3,
             ResourceKind::Output => 4,
             ResourceKind::OutputBytes => 5,
+            ResourceKind::StorageOccupancy => {
+                panic!("occupancy is not part of the frozen activity-budget taxonomy")
+            }
         }
     }
 
@@ -2907,6 +2910,14 @@ fn legacy_resource_taxonomy_remains_exhaustive_and_budget_conversion_is_exact() 
     assert_eq!(
         BudgetMeterRefusal::try_from(MeterRefusal::FeeOverflow),
         Err(MeterRefusal::FeeOverflow)
+    );
+    assert_eq!(
+        BudgetMeterRefusal::try_from(MeterRefusal::CounterOverflow {
+            resource: ResourceKind::StorageOccupancy,
+        }),
+        Err(MeterRefusal::CounterOverflow {
+            resource: ResourceKind::StorageOccupancy,
+        })
     );
 }
 

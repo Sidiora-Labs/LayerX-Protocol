@@ -29,3 +29,27 @@ symbol = "AbiEffects::namespace_drops"
 observed = "Task 29.4 asks to credit released occupancy against the rent class, while task 29.5 independently owns creation of that resource class, its fee schedule, responsible account, durable ledger and canonical receipt evidence. Task 29.4 therefore records an exact success-only provisional NamespaceDrop fact but does not settle a rent credit or alter receipt pricing before the owning resource class exists."
 assumption = "Task 29.5 consumes committed reclamation facts and final storage, derives the net pre-to-post occupancy delta, and records the durable canonical credit without over-crediting drop-then-write activities."
 severity = "dependency-boundary"
+
+[observation.29.5.1]
+task = "29.5"
+file = "programs/crates/layerx-programs-runtime/src/occupancy.rs"
+symbol = "OccupancyLedger"
+observed = "The Rust programs runtime has no production batch-transition, account-debit, state-root or snapshot bridge; the real programs call bridge in task 28.7 is still pending. Task 29.5 can implement a canonical staged occupancy ledger and debit allocation, but cannot honestly claim that the C kernel already atomically debits balances and commits this ledger."
+assumption = "The task 28.7 programs transition bridge will apply prepared occupancy debits and the bound ledger state in one kernel transaction, and the state/snapshot owners will commit the ledger canonical bytes before production qualification."
+severity = "dependency-boundary"
+
+[observation.29.5.2]
+task = "29.5"
+file = "programs/crates/layerx-programs-runtime/src/meter.rs"
+symbol = "MeteredUsage"
+observed = "Occupancy is charged once per protocol batch to multiple namespace-responsible accounts, while MeteredUsage is one guest execution charged to one activity payer and its v1 and candidate-v2 evidence layouts are frozen. Folding occupancy into that activity record would misattribute charges and silently change frozen encodings."
+assumption = "Task 29.5 records a separate versioned metered occupancy usage and canonical settlement evidence; task 31.6 or the production batch-receipt owner binds that evidence into the versioned protocol receipt without modifying prior layouts."
+severity = "version-boundary"
+
+[observation.29.5.3]
+task = "29.5"
+file = "programs/Cargo.toml"
+symbol = "cargo fmt --all -- --check"
+observed = "The workspace-wide formatting check reports pre-existing formatting drift in programs-registry, porting kits and runtime validation files outside task 29.5; none is changed by the occupancy diff. Targeted rustfmt checks for every Rust file changed by 29.5 remain clean."
+assumption = "Human qualification or the owning tasks will normalize the unrelated files; task 29.5 does not repair inherited formatting drift across other task boundaries."
+severity = "inherited"

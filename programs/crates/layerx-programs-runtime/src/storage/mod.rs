@@ -171,6 +171,19 @@ impl Storage {
             })
     }
 
+    /// Returns every nonempty namespace and its exact persistent bytes in
+    /// canonical namespace order. Protocol state transitions use this to prove
+    /// that no occupied namespace escaped responsibility accounting.
+    pub fn namespace_sizes(&self) -> Result<Vec<(StorageNamespace, u64)>, StorageError> {
+        let mut sizes = BTreeMap::<StorageNamespace, u64>::new();
+        for (address, value) in &self.cells {
+            let bytes = metered_bytes(&address.key, Some(value))?;
+            let size = sizes.entry(address.namespace).or_default();
+            *size = size.checked_add(bytes).ok_or(StorageError::SizeOverflow)?;
+        }
+        Ok(sizes.into_iter().collect())
+    }
+
     /// Computes exact facts for dropping one namespace without mutating this
     /// storage snapshot. The caller charges this preview before committing the
     /// corresponding reclamation.

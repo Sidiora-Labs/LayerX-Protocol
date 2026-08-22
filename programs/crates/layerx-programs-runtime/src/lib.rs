@@ -37,6 +37,8 @@ pub mod limits;
 #[deny(unsafe_code)]
 pub mod meter;
 #[deny(unsafe_code)]
+pub mod occupancy;
+#[deny(unsafe_code)]
 pub mod qualification;
 #[deny(unsafe_code)]
 pub mod storage;
@@ -80,6 +82,10 @@ pub use limits::{DeclaredLimit, LimitsRefusal, ValidationLimits};
 pub use meter::{
     BudgetMeterRefusal, BudgetResourceKind, FeeSchedule, Meter, MeterRefusal, MeteredUsage,
     ResourceBudget, ResourceKind,
+};
+pub use occupancy::{
+    OccupancyCharge, OccupancyError, OccupancyLedger, OccupancyResponsibility, OccupancySettlement,
+    OccupancyUsage, PreparedOccupancySettlement,
 };
 pub use qualification::{
     programs_differential_gate, programs_fuzz_targets, replay_recorded_execution,
