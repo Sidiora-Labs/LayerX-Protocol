@@ -266,7 +266,8 @@ pub struct Abi {
     version: u16,
     program: ProgramId,
     authorization: AuthorizationContext,
-    namespace: StorageNamespace,
+    principal_namespace: StorageNamespace,
+    shared_namespace: StorageNamespace,
     storage: Storage,
     receipts: BTreeMap<[u8; 32], ReceiptView>,
     effects: AbiEffects,
@@ -288,7 +289,8 @@ impl Abi {
         if version != ABI_VERSION {
             return Err(AbiError::WrongVersion);
         }
-        let namespace = StorageNamespace::new(program, authorization.principal());
+        let principal_namespace = StorageNamespace::principal(program, authorization.principal());
+        let shared_namespace = StorageNamespace::shared(program);
         let mut verified = BTreeMap::new();
         for digest in authorization.capabilities().receipt_digests() {
             let view = receipts.verified_receipt(digest)?;
@@ -301,7 +303,8 @@ impl Abi {
             version,
             program,
             authorization,
-            namespace,
+            principal_namespace,
+            shared_namespace,
             storage,
             receipts: verified,
             effects: AbiEffects::default(),
@@ -318,7 +321,8 @@ impl Abi {
         if version != ABI_VERSION {
             return Err(AbiError::WrongVersion);
         }
-        let namespace = StorageNamespace::new(program, authorization.principal());
+        let principal_namespace = StorageNamespace::principal(program, authorization.principal());
+        let shared_namespace = StorageNamespace::shared(program);
         for digest in authorization.capabilities().receipt_digests() {
             if receipts.get(&digest).map(|view| view.receipt_digest) != Some(digest) {
                 return Err(AbiError::ReceiptMismatch);
@@ -328,7 +332,8 @@ impl Abi {
             version,
             program,
             authorization,
-            namespace,
+            principal_namespace,
+            shared_namespace,
             storage,
             receipts,
             effects: AbiEffects::default(),
@@ -346,6 +351,18 @@ impl Abi {
 
     pub(crate) const fn program(&self) -> ProgramId {
         self.program
+    }
+
+    /// Returns the principal-scoped namespace fixed before guest entry.
+    #[must_use]
+    pub const fn principal_namespace(&self) -> StorageNamespace {
+        self.principal_namespace
+    }
+
+    /// Returns the program-shared namespace fixed before guest entry.
+    #[must_use]
+    pub const fn shared_namespace(&self) -> StorageNamespace {
+        self.shared_namespace
     }
 
     pub(crate) fn storage_snapshot(&self) -> Storage {

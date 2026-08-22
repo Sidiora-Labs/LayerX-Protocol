@@ -396,7 +396,7 @@ pub fn import_state(
     for (cell, exported) in cells {
         let principal = PrincipalId::new(cell.principal)?;
         let value = schema.transcode(exported)?;
-        let mut transaction = storage.transaction(StorageNamespace::new(program, principal));
+        let mut transaction = storage.transaction(StorageNamespace::principal(program, principal));
         transaction.write(&cell.layerx_key, &value)?;
         changed = changed.saturating_add(transaction.commit());
     }

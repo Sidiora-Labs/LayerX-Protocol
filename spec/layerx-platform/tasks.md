@@ -1132,7 +1132,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
 
 - [ ] 29. Give programs shared state, iteration and bounded state lifetimes
   - Parallel lanes: 29.1 fixes the namespace model first because every other lane addresses it. Then 29.2, 29.3, 29.4 and 29.5 are four independent agents on disjoint files, and 29.6 and 29.7 close behind them.
-  - [ ] 29.1 Extend the namespace model with a program-shared namespace
+  - [ ] 29.1 Extend the namespace model with a program-shared namespace — **Implemented - qualification pending**
     - Model StorageNamespace as a closed enum over a principal-scoped namespace and a program-shared namespace, both carrying the owning program, so a namespace names its scope in the type rather than by convention.
     - Fix both namespaces before guest code runs exactly as the principal-scoped namespace is fixed today, so no guest-visible operation can choose, widen or construct a namespace.
     - Keep the address ordering canonical and stable across both variants so state roots and iteration order are deterministic everywhere.

@@ -1,10 +1,14 @@
-//! Persistent program storage whose address space is structurally scoped by
-//! both program and invoking principal. Guest-facing APIs never accept an
-//! arbitrary namespace, so neither adjacent programs nor adjacent principals
-//! can be reached by choosing a key.
+//! Persistent program storage whose address space is structurally scoped to
+//! either one program/principal pair or one program-shared plane. Guest-facing
+//! APIs never accept an arbitrary namespace, so neither adjacent programs nor
+//! adjacent principals can be reached by choosing a key.
 
 use core::fmt::{self, Display};
 use std::collections::BTreeMap;
+
+mod namespace;
+
+pub use namespace::StorageNamespace;
 
 /// Maximum key length admitted by the version-one storage ABI.
 pub const MAX_STORAGE_KEY_BYTES: usize = 256;
@@ -59,33 +63,6 @@ impl PrincipalId {
     }
 }
 
-/// One storage namespace, fixed before guest code begins.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct StorageNamespace {
-    program: ProgramId,
-    principal: PrincipalId,
-}
-
-impl StorageNamespace {
-    /// Constructs the exact program/principal namespace.
-    #[must_use]
-    pub const fn new(program: ProgramId, principal: PrincipalId) -> Self {
-        Self { program, principal }
-    }
-
-    /// Returns the program owning this namespace.
-    #[must_use]
-    pub const fn program(self) -> ProgramId {
-        self.program
-    }
-
-    /// Returns the principal owning this namespace.
-    #[must_use]
-    pub const fn principal(self) -> PrincipalId {
-        self.principal
-    }
-}
-
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct StorageAddress {
     namespace: StorageNamespace,
@@ -118,8 +95,8 @@ impl Display for StorageError {
 
 impl std::error::Error for StorageError {}
 
-/// Durable storage shared by program executions. Its map key always includes
-/// both owning program and invoking principal.
+/// Durable storage shared by program executions. Every map key includes a
+/// closed namespace value carrying its owning program and declared scope.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Storage {
     cells: BTreeMap<StorageAddress, Vec<u8>>,

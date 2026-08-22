@@ -2461,7 +2461,7 @@ fn sibling_calls_share_storage_and_output_ceilings_and_rollback_atomically() {
     assert_eq!(record.execution.usage.output_values, 3);
     assert_eq!(record.execution.usage.memory_bytes, 131_072);
     assert_eq!(record.call_graph.edges().len(), 2);
-    let namespace = StorageNamespace::new(child_program, payer);
+    let namespace = StorageNamespace::principal(child_program, payer);
     assert_eq!(
         committed.transaction(namespace).read(b"key"),
         Ok(Some(b"data".to_vec()))
@@ -2914,7 +2914,7 @@ fn legacy_resource_taxonomy_remains_exhaustive_and_budget_conversion_is_exact() 
 fn budgeted_storage_read_is_exact_unbilled_on_rejection_and_fee_priced_on_success() {
     let payer = principal(200);
     let program = ProgramId::new([201; 32]).unwrap_or_else(|error| panic!("program: {error}"));
-    let namespace = StorageNamespace::new(program, payer);
+    let namespace = StorageNamespace::principal(program, payer);
     let mut seeded = Storage::new();
     {
         let mut transaction = seeded.transaction(namespace);

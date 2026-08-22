@@ -2806,7 +2806,7 @@ note = "Parallel lanes: 29.1 fixes the namespace model first because every other
 
 [task.29.1]
 title = "Extend the namespace model with a program-shared namespace"
-status = "pending"
+status = "implemented"
 wave = 15
 requires = ["28.1"]
 do_1 = "Model StorageNamespace as a closed enum over a principal-scoped namespace and a program-shared namespace, both carrying the owning program, so a namespace names its scope in the type rather than by convention."

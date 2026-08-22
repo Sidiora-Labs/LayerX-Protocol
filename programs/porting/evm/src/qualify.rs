@@ -385,7 +385,7 @@ pub fn import_state(
     let mut changed = 0_usize;
     for (cell, value) in cells {
         let principal = PrincipalId::new(cell.principal)?;
-        let mut transaction = storage.transaction(StorageNamespace::new(program, principal));
+        let mut transaction = storage.transaction(StorageNamespace::principal(program, principal));
         transaction.write(&cell.layerx_key, value)?;
         changed = changed.saturating_add(transaction.commit());
     }

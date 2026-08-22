@@ -20,7 +20,7 @@ impl Abi {
         self.authorization
             .capabilities()
             .grant(&CapabilityKey::StorageRead)?;
-        let value = self.storage.read(self.namespace, key)?;
+        let value = self.storage.read(self.principal_namespace(), key)?;
         meter.charge_storage_read(metered_bytes(key, value.as_deref())?)?;
         Ok(value)
     }
@@ -41,7 +41,7 @@ impl Abi {
             .grant(&CapabilityKey::StorageWrite)?;
         let bytes = metered_bytes(key, Some(value))?;
         meter.charge_storage_write(bytes)?;
-        self.storage.write(self.namespace, key, value)?;
+        self.storage.write(self.principal_namespace(), key, value)?;
         Ok(())
     }
 
@@ -55,7 +55,7 @@ impl Abi {
             .capabilities()
             .grant(&CapabilityKey::StorageWrite)?;
         meter.charge_storage_write(metered_bytes(key, None)?)?;
-        self.storage.delete(self.namespace, key)?;
+        self.storage.delete(self.principal_namespace(), key)?;
         Ok(())
     }
 }

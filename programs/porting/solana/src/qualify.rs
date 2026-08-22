@@ -390,7 +390,7 @@ pub fn import_accounts(
     let mut changed = 0_usize;
     for (cell, data) in cells {
         let principal = PrincipalId::new(cell.principal)?;
-        let mut transaction = storage.transaction(StorageNamespace::new(program, principal));
+        let mut transaction = storage.transaction(StorageNamespace::principal(program, principal));
         transaction.write(&cell.layerx_key, data)?;
         changed = changed.saturating_add(transaction.commit());
     }
