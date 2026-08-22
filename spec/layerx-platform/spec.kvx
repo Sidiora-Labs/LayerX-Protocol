@@ -2190,7 +2190,7 @@ reqs = ["30.1","29.2","28.6"]
 
 [task.19.4]
 title = "Register the programs module in the core"
-status = "pending"
+status = "implemented"
 wave = 10
 requires = ["19.3"]
 do_1 = "Register the programs module through the existing module system as a versioned transition-function change, declaring its activity types: deploy, upgrade, call, and registry operations."

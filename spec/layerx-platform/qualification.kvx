@@ -1,0 +1,15 @@
+[observation.19.4.1]
+task = "19.4"
+file = "src/state/lxp_state_root.c"
+symbol = "universal_leaves"
+observed = "The Programs transition expands module-registration commitments to include activation epochs and exact activity types while kernels without a Programs registration retain the legacy commitment format."
+assumption = "Human qualification will replay roots immediately before and after Programs activation to confirm the intended version boundary."
+severity = "note"
+
+[observation.19.4.2]
+task = "19.4"
+file = "include/layerx/lxp_receipt.h"
+symbol = "lxp_receipt"
+observed = "Program events are carried as module-namespaced receipt effects, but the receipt has no explicit batch event-root field; batch-root qualification must establish the existing external accumulator path."
+assumption = "Task 19.4 keeps the existing receipt shape and emits only through lxp_ctx_emit_event."
+severity = "note"

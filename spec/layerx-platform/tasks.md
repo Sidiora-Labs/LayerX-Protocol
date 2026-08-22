@@ -833,7 +833,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Prove isolation adversarially: no guest can reach kernel state, another program's namespace or another principal's data outside declared capabilities.
     - Freeze the ABI behind golden vectors so an ABI change without a version bump fails the build.
     - _Requirements: 30.1, 29.2, 28.6_
-  - [ ] 19.4 Register the programs module in the core
+  - [ ] 19.4 Register the programs module in the core — **Implemented - qualification pending**
     - Register the programs module through the existing module system as a versioned transition-function change, declaring its activity types: deploy, upgrade, call, and registry operations.
     - Keep the kernel unchanged: no new balance-mutation primitive, no new authority model, module-namespace writes only.
     - Apply module failure semantics exactly: failed program activities consume sequence, charge fees, roll back writes and emit typed-failure receipts.
