@@ -1,7 +1,7 @@
 //! Namespaced storage operations exposed by the ABI transaction.
 
 use crate::meter::Meter;
-use crate::storage::{metered_bytes, StorageNamespace};
+use crate::storage::{metered_bytes, ScanLimits, StorageNamespace, StorageScan};
 
 use super::capability::CapabilityKey;
 use super::{Abi, AbiError};
@@ -116,6 +116,56 @@ impl Abi {
         self.authorization.capabilities().grant(&capability)?;
         meter.charge_storage_write(metered_bytes(key, None)?)?;
         self.storage.delete(namespace, key)?;
+        Ok(())
+    }
+
+    /// Returns one bounded, canonically ordered storage page from a host-fixed
+    /// namespace. The returned cursor is valid only for this namespace,
+    /// prefix, and declared page contract.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a missing matching read grant, malformed or foreign cursor,
+    /// invalid bounds, or exhausted storage-read meter.
+    pub fn storage_scan_selected(
+        &mut self,
+        meter: &mut Meter,
+        selector: StorageSelector,
+        prefix: &[u8],
+        cursor: &[u8],
+        limits: ScanLimits,
+    ) -> Result<StorageScan, AbiError> {
+        let page = self.storage_scan_preview(selector, prefix, cursor, limits)?;
+        self.charge_storage_scan(meter, selector, &page)?;
+        Ok(page)
+    }
+
+    /// Builds an authorised storage page without consuming meter state. The
+    /// host uses this preflight only after validating its output range, then
+    /// charges exactly once immediately before its single guaranteed write.
+    pub(crate) fn storage_scan_preview(
+        &self,
+        selector: StorageSelector,
+        prefix: &[u8],
+        cursor: &[u8],
+        limits: ScanLimits,
+    ) -> Result<StorageScan, AbiError> {
+        let (capability, namespace) = self.storage_access(selector, false);
+        self.authorization.capabilities().grant(&capability)?;
+        Ok(self.storage.scan(namespace, prefix, cursor, limits)?)
+    }
+
+    /// Charges one preflighted page under the matching namespace read grant.
+    /// Rechecking the grant keeps both phases at the ABI authority seam.
+    pub(crate) fn charge_storage_scan(
+        &self,
+        meter: &mut Meter,
+        selector: StorageSelector,
+        page: &StorageScan,
+    ) -> Result<(), AbiError> {
+        let (capability, _) = self.storage_access(selector, false);
+        self.authorization.capabilities().grant(&capability)?;
+        meter.charge_storage_read(page.metered_bytes())?;
         Ok(())
     }
 

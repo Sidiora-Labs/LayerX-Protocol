@@ -7,8 +7,12 @@ use core::fmt::{self, Display};
 use std::collections::BTreeMap;
 
 mod namespace;
+#[path = "scan.rs"]
+mod ordered_scan;
 
 pub use namespace::StorageNamespace;
+pub(crate) use ordered_scan::scan_cells;
+pub use ordered_scan::{ScanEntry, ScanLimits, StorageScan, MAX_STORAGE_SCAN_CURSOR_BYTES};
 
 /// Maximum key length admitted by the version-one storage ABI.
 pub const MAX_STORAGE_KEY_BYTES: usize = 256;
@@ -77,6 +81,10 @@ pub enum StorageError {
     EmptyKey,
     KeyTooLarge,
     ValueTooLarge,
+    PrefixTooLarge,
+    InvalidScanCursor,
+    InvalidScanLimits,
+    ScanCeilingExceeded,
     SizeOverflow,
 }
 
@@ -88,6 +96,15 @@ impl Display for StorageError {
             Self::EmptyKey => formatter.write_str("storage key is empty"),
             Self::KeyTooLarge => formatter.write_str("storage key exceeds the ABI bound"),
             Self::ValueTooLarge => formatter.write_str("storage value exceeds the ABI bound"),
+            Self::PrefixTooLarge => {
+                formatter.write_str("storage scan prefix exceeds the ABI bound")
+            }
+            Self::InvalidScanCursor => {
+                formatter.write_str("storage scan cursor is invalid or belongs to another scan")
+            }
+            Self::InvalidScanLimits => formatter.write_str("storage scan limits are invalid"),
+            Self::ScanCeilingExceeded => formatter
+                .write_str("storage scan entry exceeds the declared complete page byte ceiling"),
             Self::SizeOverflow => formatter.write_str("storage accounting overflowed"),
         }
     }
@@ -198,6 +215,26 @@ impl Storage {
             key: key.to_vec(),
         });
         Ok(())
+    }
+
+    /// Scans one fixed namespace in canonical key order. The cursor is an
+    /// externally portable, self-describing continuation token; it is checked
+    /// against this exact namespace, prefix, and declared page contract before
+    /// any entries are returned.
+    ///
+    /// # Errors
+    ///
+    /// Refuses malformed, foreign, or non-canonical cursors, invalid limits,
+    /// and an entry that cannot fit the caller-declared complete canonical
+    /// page byte ceiling.
+    pub(crate) fn scan(
+        &self,
+        namespace: StorageNamespace,
+        prefix: &[u8],
+        cursor: &[u8],
+        limits: ScanLimits,
+    ) -> Result<StorageScan, StorageError> {
+        scan_cells(&self.cells, namespace, prefix, cursor, limits)
     }
 }
 

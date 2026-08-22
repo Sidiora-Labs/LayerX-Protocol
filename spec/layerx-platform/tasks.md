@@ -1146,7 +1146,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Meter shared access on the same per-byte basis as principal-scoped access so no namespace is cheaper to abuse.
     - Test a two-participant program end to end - a shared total mutated by two different principals - which has no representation before this task.
     - _Requirements: 36.2, 30.1, 30.3_
-  - [ ] 29.3 Implement ordered iteration with a resumable cursor
+  - [ ] 29.3 Implement ordered iteration with a resumable cursor — **Implemented - qualification pending**
     - Add a storage scan host function taking a namespace selector, a bounded key prefix and a cursor, returning entries in canonical key order with a resumable cursor.
     - Meter every returned byte against the storage read class and enforce a declared per-call entry and byte ceiling so iteration can never outrun the budget.
     - Refuse a scan into a namespace the program holds no read grant for, and refuse a cursor that does not belong to the scan that issued it.

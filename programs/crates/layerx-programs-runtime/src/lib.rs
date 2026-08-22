@@ -85,7 +85,10 @@ pub use qualification::{
     programs_differential_gate, programs_fuzz_targets, replay_recorded_execution,
     DifferentialMismatch, FuzzTarget, RecordedExecution, ReplayRefusal,
 };
-pub use storage::{PrincipalId, ProgramId, Storage, StorageError, StorageNamespace};
+pub use storage::{
+    PrincipalId, ProgramId, ScanEntry, ScanLimits, Storage, StorageError, StorageNamespace,
+    StorageScan,
+};
 pub use transfer::{
     AtomicTransferSet, KernelTransferPrimitive, TransferCapability, TransferLawError,
     VerifiedProgramSettlement,

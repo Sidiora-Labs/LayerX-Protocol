@@ -2836,7 +2836,7 @@ reqs = ["36.2","30.1","30.3"]
 
 [task.29.3]
 title = "Implement ordered iteration with a resumable cursor"
-status = "pending"
+status = "implemented"
 wave = 15
 requires = ["29.1"]
 do_1 = "Add a storage scan host function taking a namespace selector, a bounded key prefix and a cursor, returning entries in canonical key order with a resumable cursor."
