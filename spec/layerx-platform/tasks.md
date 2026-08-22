@@ -1167,7 +1167,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Record occupancy in the metered usage and the canonical evidence so it replays identically under a recorded fee schedule.
     - Property-test that occupancy is monotone in bytes and in batches held, and that a dropped namespace stops accruing at the batch it was dropped in.
     - _Requirements: 36.5_
-  - [ ] 29.6 Extend the isolation gauntlet to the shared namespace
+  - [ ] 29.6 Extend the isolation gauntlet to the shared namespace — **Implemented - qualification pending**
     - Add hostile programs attempting to read and write another program's shared namespace by every reachable route: forged selector, forged capability encoding, crafted key, and a narrowed grant across a call edge.
     - Add hostile programs attempting to reach principal-scoped cells of a principal other than the invoker through the shared surface.
     - Add hostile programs attempting to escape the budget through iteration and through repeated drop and rewrite.

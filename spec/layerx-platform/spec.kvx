@@ -2881,7 +2881,7 @@ reqs = ["36.5"]
 
 [task.29.6]
 title = "Extend the isolation gauntlet to the shared namespace"
-status = "pending"
+status = "implemented"
 wave = 15
 requires = ["29.2","29.3","29.4"]
 do_1 = "Add hostile programs attempting to read and write another program's shared namespace by every reachable route: forged selector, forged capability encoding, crafted key, and a narrowed grant across a call edge."

@@ -13,6 +13,8 @@ use layerx_programs_runtime::{
 
 const ABI_V1_GOLDEN: &str = include_str!("../vectors/abi-v1.hex");
 const ATTACK_INVENTORY: &str = include_str!("../../../tests/gauntlet/attack-inventory.tsv");
+#[path = "../../../tests/gauntlet/state.rs"]
+mod state_gauntlet;
 #[derive(Debug)]
 struct NoReceipts;
 
@@ -1020,6 +1022,7 @@ pub fn programs_isolation_suite() {
     guest_memory_bounds_refusal_cannot_write_or_emit_effects();
     candidate_linker_uses_the_same_bounded_guest_memory_boundary();
     capability_narrowing_rejects_missing_grants_and_limit_widening_without_effects();
+    state_gauntlet::shared_state_gauntlet_suite();
 
     let executed = vec![
         ("ISO-001", "unknown_and_ambient_kernel_imports_are_rejected"),
@@ -1055,6 +1058,31 @@ pub fn programs_isolation_suite() {
         (
             "ISO-010",
             "capability_narrowing_rejects_missing_grants_and_limit_widening_without_effects",
+        ),
+        (
+            "ISO-011",
+            "foreign_shared_selectors_are_structurally_closed",
+        ),
+        (
+            "ISO-012",
+            "forged_shared_capability_bytes_never_enter_the_child",
+        ),
+        ("ISO-013", "crafted_keys_cannot_name_a_foreign_namespace"),
+        (
+            "ISO-014",
+            "narrowing_never_widens_shared_authority_across_a_call",
+        ),
+        (
+            "ISO-015",
+            "shared_surface_cannot_reach_another_principal_cells",
+        ),
+        (
+            "ISO-016",
+            "repeated_iteration_exhaustion_has_no_partial_output",
+        ),
+        (
+            "ISO-017",
+            "repeated_drop_rewrite_exhaustion_rolls_back_atomically",
         ),
     ];
     assert_eq!(inventory_rows("isolation"), executed);
