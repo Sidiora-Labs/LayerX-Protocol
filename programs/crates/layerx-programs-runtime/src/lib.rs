@@ -105,6 +105,6 @@ pub const fn programs_wasm_engine() -> &'static str {
 }
 pub use abi::{
     Abi, AbiCommit, AbiEffects, AbiError, AuthorizationContext, Capability, CapabilitySet,
-    HostFunction, ProgramCall, ProgramEvent, ReceiptOracle, ReceiptView, TransferRequest,
-    ABI_MANIFEST, ABI_MODULE, HOST_FUNCTIONS,
+    HostFunction, ProgramCall, ProgramEvent, ReceiptOracle, ReceiptView, StorageSelector,
+    TransferRequest, ABI_MANIFEST, ABI_MODULE, HOST_FUNCTIONS,
 };

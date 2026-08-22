@@ -1139,7 +1139,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Migrate the existing storage plane and its tests to the enum with no behavioural change to principal-scoped access.
     - Prove by construction that no program can name another program's namespace of either kind, with the type system carrying the guarantee rather than a runtime check.
     - _Requirements: 36.1_
-  - [ ] 29.2 Grant and enforce shared-namespace access through explicit capabilities
+  - [ ] 29.2 Grant and enforce shared-namespace access through explicit capabilities — **Implemented - qualification pending**
     - Add distinct shared-read and shared-write capabilities so an activity can invoke a program with read-only access to shared state, and keep principal-scoped grants conferring no shared access whatsoever.
     - Extend the storage host functions with a namespace selector, refusing an unselected or out-of-range selector with a typed invalid result before any access occurs.
     - Keep narrowing downward only across a program-to-program edge for the new grants exactly as it holds for the existing ones, with an attempted widening failing typed.

@@ -12,6 +12,7 @@ mod storage_ops;
 use capability::CapabilityKey;
 pub use capability::{Capability, CapabilitySet};
 pub use response::{CallResponse, ResponseRefusal, MAX_CALL_RESPONSE_BYTES};
+pub use storage_ops::StorageSelector;
 
 use crate::execute::ABI_VERSION;
 use crate::meter::MeterRefusal;

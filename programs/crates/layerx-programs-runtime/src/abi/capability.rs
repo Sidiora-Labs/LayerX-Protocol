@@ -14,6 +14,8 @@ pub(super) enum CapabilityKey {
     Call(ProgramId),
     Transfer { asset: [u8; 32], to: [u8; 32] },
     ReceiptRead([u8; 32]),
+    SharedStorageRead,
+    SharedStorageWrite,
 }
 
 /// One explicit authority granted by the invoking activity.
@@ -21,6 +23,8 @@ pub(super) enum CapabilityKey {
 pub enum Capability {
     StorageRead,
     StorageWrite,
+    SharedStorageRead,
+    SharedStorageWrite,
     EmitEvent,
     Call {
         program: ProgramId,
@@ -40,6 +44,8 @@ impl Capability {
         match self {
             Self::StorageRead => CapabilityKey::StorageRead,
             Self::StorageWrite => CapabilityKey::StorageWrite,
+            Self::SharedStorageRead => CapabilityKey::SharedStorageRead,
+            Self::SharedStorageWrite => CapabilityKey::SharedStorageWrite,
             Self::EmitEvent => CapabilityKey::EmitEvent,
             Self::Call { program } => CapabilityKey::Call(*program),
             Self::Transfer402 { asset, to, .. } => CapabilityKey::Transfer {
@@ -58,7 +64,12 @@ impl Capability {
                 maximum_amount,
             } => asset != &[0; 32] && to != &[0; 32] && *maximum_amount != 0,
             Self::ReceiptRead { receipt_digest } => receipt_digest != &[0; 32],
-            Self::StorageRead | Self::StorageWrite | Self::EmitEvent | Self::Call { .. } => true,
+            Self::StorageRead
+            | Self::StorageWrite
+            | Self::SharedStorageRead
+            | Self::SharedStorageWrite
+            | Self::EmitEvent
+            | Self::Call { .. } => true,
         }
     }
 }
@@ -101,6 +112,8 @@ impl CapabilitySet {
             match capability {
                 Capability::StorageRead => encoded.push(1),
                 Capability::StorageWrite => encoded.push(2),
+                Capability::SharedStorageRead => encoded.push(7),
+                Capability::SharedStorageWrite => encoded.push(8),
                 Capability::EmitEvent => encoded.push(3),
                 Capability::Call { program } => {
                     encoded.push(4);
@@ -186,6 +199,8 @@ impl CapabilitySet {
             let grant = match tag {
                 1 => Capability::StorageRead,
                 2 => Capability::StorageWrite,
+                7 => Capability::SharedStorageRead,
+                8 => Capability::SharedStorageWrite,
                 3 => Capability::EmitEvent,
                 4 => Capability::Call {
                     program: ProgramId::new(take_array::<32>(bytes, &mut cursor)?)?,

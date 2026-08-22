@@ -48,9 +48,9 @@ pub const MAX_REFUSAL_REASON_BYTES: usize = 4_096;
 /// Candidate-only entry return for a published refusal.
 pub const CANDIDATE_REFUSAL_SENTINEL: i32 = -64;
 /// Exact qualification-only candidate manifest.
-pub const CANDIDATE_ABI_MANIFEST: &str = "layerx_v2_candidate\0response_write(i32,i32,i32)->i32\0program_call_response(i32,i32,i32,i32,i32,i32,i32,i32)->i64\0refusal_write(i32,i32,i32)->i32\0";
+pub const CANDIDATE_ABI_MANIFEST: &str = "layerx_v2_candidate\0response_write(i32,i32,i32)->i32\0program_call_response(i32,i32,i32,i32,i32,i32,i32,i32)->i64\0refusal_write(i32,i32,i32)->i32\0storage_read_scoped(i32,i32,i32,i32,i32)->i32\0storage_write_scoped(i32,i32,i32,i32,i32)->i32\0storage_delete_scoped(i32,i32,i32)->i32\0";
 /// Exact qualification-only response extension table.
-pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 3] = [
+pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 6] = [
     HostFunction {
         name: "response_write",
         signature: "(i32,i32,i32)->i32",
@@ -61,6 +61,18 @@ pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 3] = [
     },
     HostFunction {
         name: "refusal_write",
+        signature: "(i32,i32,i32)->i32",
+    },
+    HostFunction {
+        name: "storage_read_scoped",
+        signature: "(i32,i32,i32,i32,i32)->i32",
+    },
+    HostFunction {
+        name: "storage_write_scoped",
+        signature: "(i32,i32,i32,i32,i32)->i32",
+    },
+    HostFunction {
+        name: "storage_delete_scoped",
         signature: "(i32,i32,i32)->i32",
     },
 ];
@@ -125,6 +137,9 @@ mod tests {
                 "(i32,i32,i32,i32,i32,i32,i32,i32)->i64",
             ),
             ("refusal_write", "(i32,i32,i32)->i32"),
+            ("storage_read_scoped", "(i32,i32,i32,i32,i32)->i32"),
+            ("storage_write_scoped", "(i32,i32,i32,i32,i32)->i32"),
+            ("storage_delete_scoped", "(i32,i32,i32)->i32"),
         ];
         assert_eq!(CANDIDATE_HOST_FUNCTIONS.len(), expected.len());
         for (actual, expected) in CANDIDATE_HOST_FUNCTIONS.iter().zip(expected) {

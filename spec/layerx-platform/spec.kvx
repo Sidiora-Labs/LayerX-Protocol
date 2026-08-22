@@ -2821,7 +2821,7 @@ reqs = ["36.1"]
 
 [task.29.2]
 title = "Grant and enforce shared-namespace access through explicit capabilities"
-status = "pending"
+status = "implemented"
 wave = 15
 requires = ["29.1"]
 do_1 = "Add distinct shared-read and shared-write capabilities so an activity can invoke a program with read-only access to shared state, and keep principal-scoped grants conferring no shared access whatsoever."

@@ -283,6 +283,7 @@ pub(crate) fn linker(
     calls::register(&mut linker)?;
     if revision == AbiRevision::CandidateV2 {
         calls::register_candidate(&mut linker)?;
+        storage::register_candidate(&mut linker)?;
     }
     transfer::register(&mut linker)?;
     linker
