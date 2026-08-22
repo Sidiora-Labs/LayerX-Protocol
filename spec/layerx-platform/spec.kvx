@@ -2851,7 +2851,7 @@ reqs = ["36.3"]
 
 [task.29.4]
 title = "Implement namespace drop and reclamation"
-status = "pending"
+status = "implemented"
 wave = 15
 requires = ["29.1"]
 do_1 = "Add a namespace drop operation removing every cell of one namespace as a single committed change, refusing a namespace the program does not own."

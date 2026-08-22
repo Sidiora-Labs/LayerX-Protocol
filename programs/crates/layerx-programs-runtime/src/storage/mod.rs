@@ -9,10 +9,12 @@ use std::collections::BTreeMap;
 mod namespace;
 #[path = "scan.rs"]
 mod ordered_scan;
+pub mod reclaim;
 
 pub use namespace::StorageNamespace;
 pub(crate) use ordered_scan::scan_cells;
 pub use ordered_scan::{ScanEntry, ScanLimits, StorageScan, MAX_STORAGE_SCAN_CURSOR_BYTES};
+pub use reclaim::NamespaceDrop;
 
 /// Maximum key length admitted by the version-one storage ABI.
 pub const MAX_STORAGE_KEY_BYTES: usize = 256;
@@ -68,7 +70,7 @@ impl PrincipalId {
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-struct StorageAddress {
+pub(crate) struct StorageAddress {
     namespace: StorageNamespace,
     key: Vec<u8>,
 }
@@ -167,6 +169,23 @@ impl Storage {
                     .checked_add(cell_bytes)
                     .ok_or(StorageError::SizeOverflow)
             })
+    }
+
+    /// Computes exact facts for dropping one namespace without mutating this
+    /// storage snapshot. The caller charges this preview before committing the
+    /// corresponding reclamation.
+    pub(crate) fn namespace_drop_preview(
+        &self,
+        namespace: StorageNamespace,
+    ) -> Result<NamespaceDrop, StorageError> {
+        reclaim::preview(&self.cells, namespace)
+    }
+
+    /// Removes every cell of a preflighted namespace from this storage
+    /// snapshot. Only the ABI can obtain a namespace drop fact from a
+    /// guest-selected scope and matching write authority.
+    pub(crate) fn reclaim_namespace(&mut self, drop: NamespaceDrop) {
+        reclaim::apply(&mut self.cells, drop);
     }
 
     pub(crate) fn read(

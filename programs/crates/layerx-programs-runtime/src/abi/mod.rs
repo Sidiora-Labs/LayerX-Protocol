@@ -16,7 +16,9 @@ pub use storage_ops::StorageSelector;
 
 use crate::execute::ABI_VERSION;
 use crate::meter::MeterRefusal;
-use crate::storage::{PrincipalId, ProgramId, Storage, StorageError, StorageNamespace};
+use crate::storage::{
+    NamespaceDrop, PrincipalId, ProgramId, Storage, StorageError, StorageNamespace,
+};
 
 pub const ABI_MODULE: &str = "layerx_v1";
 pub const MAX_EVENT_TOPIC_BYTES: usize = 64;
@@ -201,6 +203,10 @@ pub struct AbiEffects {
     pub events: Vec<ProgramEvent>,
     pub calls: Vec<ProgramCall>,
     pub transfers: Vec<TransferRequest>,
+    /// Provisional exact released-occupancy facts from committed drops. Task
+    /// 29.5 owns durable occupancy accounting and nets these facts against the
+    /// activity's final namespace occupancy.
+    pub namespace_drops: Vec<NamespaceDrop>,
 }
 
 /// Successful atomic ABI state returned to the executor for durable commit.
@@ -382,6 +388,7 @@ impl Abi {
         self.effects.events.extend(effects.events);
         self.effects.calls.extend(effects.calls);
         self.effects.transfers.extend(effects.transfers);
+        self.effects.namespace_drops.extend(effects.namespace_drops);
     }
 
     #[must_use]

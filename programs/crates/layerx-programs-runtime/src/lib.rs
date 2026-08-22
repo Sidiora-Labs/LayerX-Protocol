@@ -86,8 +86,8 @@ pub use qualification::{
     DifferentialMismatch, FuzzTarget, RecordedExecution, ReplayRefusal,
 };
 pub use storage::{
-    PrincipalId, ProgramId, ScanEntry, ScanLimits, Storage, StorageError, StorageNamespace,
-    StorageScan,
+    NamespaceDrop, PrincipalId, ProgramId, ScanEntry, ScanLimits, Storage, StorageError,
+    StorageNamespace, StorageScan,
 };
 pub use transfer::{
     AtomicTransferSet, KernelTransferPrimitive, TransferCapability, TransferLawError,

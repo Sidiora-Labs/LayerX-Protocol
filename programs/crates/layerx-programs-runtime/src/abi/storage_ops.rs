@@ -1,7 +1,7 @@
 //! Namespaced storage operations exposed by the ABI transaction.
 
 use crate::meter::Meter;
-use crate::storage::{metered_bytes, ScanLimits, StorageNamespace, StorageScan};
+use crate::storage::{metered_bytes, NamespaceDrop, ScanLimits, StorageNamespace, StorageScan};
 
 use super::capability::CapabilityKey;
 use super::{Abi, AbiError};
@@ -117,6 +117,29 @@ impl Abi {
         meter.charge_storage_write(metered_bytes(key, None)?)?;
         self.storage.delete(namespace, key)?;
         Ok(())
+    }
+
+    /// Drops every cell in one host-fixed namespace selected by the candidate
+    /// ABI and records provisional exact released-occupancy facts for the
+    /// committed activity.
+    ///
+    /// # Errors
+    ///
+    /// Refuses a missing matching write grant or an exhausted meter before
+    /// storage changes. Guest code never supplies a program, principal, or
+    /// namespace identity.
+    pub fn storage_drop_selected(
+        &mut self,
+        meter: &mut Meter,
+        selector: StorageSelector,
+    ) -> Result<NamespaceDrop, AbiError> {
+        let (capability, namespace) = self.storage_access(selector, true);
+        self.authorization.capabilities().grant(&capability)?;
+        let drop = self.storage.namespace_drop_preview(namespace)?;
+        meter.charge_storage_write(drop.metered_work())?;
+        self.storage.reclaim_namespace(drop);
+        self.effects.namespace_drops.push(drop);
+        Ok(drop)
     }
 
     /// Returns one bounded, canonically ordered storage page from a host-fixed

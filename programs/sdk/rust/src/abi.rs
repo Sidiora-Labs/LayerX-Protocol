@@ -48,9 +48,9 @@ pub const MAX_REFUSAL_REASON_BYTES: usize = 4_096;
 /// Candidate-only entry return for a published refusal.
 pub const CANDIDATE_REFUSAL_SENTINEL: i32 = -64;
 /// Exact qualification-only candidate manifest.
-pub const CANDIDATE_ABI_MANIFEST: &str = "layerx_v2_candidate\0response_write(i32,i32,i32)->i32\0program_call_response(i32,i32,i32,i32,i32,i32,i32,i32)->i64\0refusal_write(i32,i32,i32)->i32\0storage_read_scoped(i32,i32,i32,i32,i32)->i32\0storage_write_scoped(i32,i32,i32,i32,i32)->i32\0storage_delete_scoped(i32,i32,i32)->i32\0storage_scan_scoped(i32,i32,i32,i32,i32,i32,i32,i32,i32)->i32\0";
+pub const CANDIDATE_ABI_MANIFEST: &str = "layerx_v2_candidate\0response_write(i32,i32,i32)->i32\0program_call_response(i32,i32,i32,i32,i32,i32,i32,i32)->i64\0refusal_write(i32,i32,i32)->i32\0storage_read_scoped(i32,i32,i32,i32,i32)->i32\0storage_write_scoped(i32,i32,i32,i32,i32)->i32\0storage_delete_scoped(i32,i32,i32)->i32\0storage_drop_scoped(i32)->i32\0storage_scan_scoped(i32,i32,i32,i32,i32,i32,i32,i32,i32)->i32\0";
 /// Exact qualification-only response extension table.
-pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 7] = [
+pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 8] = [
     HostFunction {
         name: "response_write",
         signature: "(i32,i32,i32)->i32",
@@ -74,6 +74,10 @@ pub const CANDIDATE_HOST_FUNCTIONS: [HostFunction; 7] = [
     HostFunction {
         name: "storage_delete_scoped",
         signature: "(i32,i32,i32)->i32",
+    },
+    HostFunction {
+        name: "storage_drop_scoped",
+        signature: "(i32)->i32",
     },
     HostFunction {
         name: "storage_scan_scoped",
@@ -144,6 +148,7 @@ mod tests {
             ("storage_read_scoped", "(i32,i32,i32,i32,i32)->i32"),
             ("storage_write_scoped", "(i32,i32,i32,i32,i32)->i32"),
             ("storage_delete_scoped", "(i32,i32,i32)->i32"),
+            ("storage_drop_scoped", "(i32)->i32"),
             (
                 "storage_scan_scoped",
                 "(i32,i32,i32,i32,i32,i32,i32,i32,i32)->i32",

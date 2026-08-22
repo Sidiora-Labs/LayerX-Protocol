@@ -1153,7 +1153,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Make iteration order independent of insertion order, host allocator and platform, proven on the determinism differential.
     - Test iteration over an empty prefix, a single entry, a prefix spanning the per-call ceiling, and a resumption across two activities.
     - _Requirements: 36.3_
-  - [ ] 29.4 Implement namespace drop and reclamation
+  - [ ] 29.4 Implement namespace drop and reclamation — **Implemented - qualification pending**
     - Add a namespace drop operation removing every cell of one namespace as a single committed change, refusing a namespace the program does not own.
     - Meter the drop by the bytes and cells reclaimed rather than as a constant, so the cost tracks the work, and credit the released occupancy against the rent class.
     - Keep the drop atomic with the rest of the activity: a later refusal discards the drop exactly as it discards a write.

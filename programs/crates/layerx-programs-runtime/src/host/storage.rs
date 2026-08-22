@@ -211,5 +211,24 @@ pub(super) fn register_candidate(linker: &mut Linker<RuntimeState>) -> Result<()
             },
         )
         .map_err(|error| linker_fault(&error))?;
+    linker
+        .func_wrap(
+            CANDIDATE_ABI_MODULE,
+            "storage_drop_scoped",
+            |mut caller: Caller<'_, RuntimeState>, raw_selector: i32| -> i32 {
+                let selected = match selector(raw_selector) {
+                    Ok(selected) => selected,
+                    Err(status) => return status,
+                };
+                match caller
+                    .data_mut()
+                    .with_abi(|abi, meter| abi.storage_drop_selected(meter, selected))
+                {
+                    Ok(_) => 0,
+                    Err(error) => error_status(error),
+                }
+            },
+        )
+        .map_err(|error| linker_fault(&error))?;
     Ok(())
 }

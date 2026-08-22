@@ -13,3 +13,19 @@ symbol = "lxp_receipt"
 observed = "Program events are carried as module-namespaced receipt effects, but the receipt has no explicit batch event-root field; batch-root qualification must establish the existing external accumulator path."
 assumption = "Task 19.4 keeps the existing receipt shape and emits only through lxp_ctx_emit_event."
 severity = "note"
+
+[observation.29.4.1]
+task = "29.4"
+file = "programs/crates/layerx-programs-runtime/tests/namespace_drop.rs"
+symbol = "candidate_drop_reclaims_every_cell_at_the_declared_cell_ceiling"
+observed = "Task 29.4 asks for a namespace at a declared cell ceiling, but the runtime and requirement 36.4 declare only activity resource budgets and storage key/value ceilings; no durable per-namespace cell-count ceiling exists. The implementation artifact uses a declared 64-cell boundary fixture without inventing a new storage-occupancy policy or making larger namespaces impossible to drop."
+assumption = "Human qualification will decide whether the intended ceiling is the activity's declared reclamation-work budget or a future protocol namespace-occupancy limit; task 29.5 owns the latter resource policy."
+severity = "ambiguity"
+
+[observation.29.4.2]
+task = "29.4"
+file = "programs/crates/layerx-programs-runtime/src/abi/mod.rs"
+symbol = "AbiEffects::namespace_drops"
+observed = "Task 29.4 asks to credit released occupancy against the rent class, while task 29.5 independently owns creation of that resource class, its fee schedule, responsible account, durable ledger and canonical receipt evidence. Task 29.4 therefore records an exact success-only provisional NamespaceDrop fact but does not settle a rent credit or alter receipt pricing before the owning resource class exists."
+assumption = "Task 29.5 consumes committed reclamation facts and final storage, derives the net pre-to-post occupancy delta, and records the durable canonical credit without over-crediting drop-then-write activities."
+severity = "dependency-boundary"
