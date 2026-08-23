@@ -2,6 +2,14 @@
 
 use core::fmt::{self, Display};
 
+use ed25519_dalek::{Signature as Ed25519Signature, Verifier, VerifyingKey as Ed25519PublicKey};
+use k256::ecdsa::{
+    RecoveryId, Signature as Secp256k1Signature, VerifyingKey as Secp256k1VerifyingKey,
+};
+use k256::elliptic_curve::sec1::ToEncodedPoint;
+
+type VerifyingKey = Secp256k1VerifyingKey;
+
 /// Fixed size of an Ed25519 public key in bytes.
 pub const ED25519_PUBLIC_KEY_BYTES: usize = 32;
 /// Fixed size of an Ed25519 signature in bytes.
@@ -169,52 +177,114 @@ pub fn recover_secp256k1(
     secp256k1_recover_impl(message_digest, signature, recovery_id)
 }
 
-/// Constant-time Ed25519 verification implementation placeholder.
+/// Constant-time Ed25519 verification implementation.
 ///
-/// This implementation will use ed25519-dalek or equivalent constant-time library.
-/// The execution path must be constant-shape regardless of secret-bearing inputs.
+/// Uses ed25519-dalek with constant-time execution. The verification path does not
+/// branch on secret-bearing inputs and uses no floating-point operations.
 ///
 /// # Errors
 ///
-/// Returns `VerificationFailed` when the signature does not verify.
+/// Returns `MalformedPublicKey` for invalid public keys, `MalformedSignature` for
+/// invalid signatures, or `VerificationFailed` when verification fails.
 fn ed25519_verify_impl(
-    _message: &[u8],
-    _public_key: &[u8],
-    _signature: &[u8],
+    message: &[u8],
+    public_key: &[u8],
+    signature: &[u8],
 ) -> Result<(), SignatureRefusal> {
-    Err(SignatureRefusal::VerificationFailed)
+    let public_key_array: [u8; ED25519_PUBLIC_KEY_BYTES] = public_key
+        .try_into()
+        .map_err(|_| SignatureRefusal::MalformedPublicKey)?;
+
+    let verifying_key = Ed25519PublicKey::from_bytes(&public_key_array)
+        .map_err(|_| SignatureRefusal::MalformedPublicKey)?;
+
+    let signature_array: [u8; ED25519_SIGNATURE_BYTES] = signature
+        .try_into()
+        .map_err(|_| SignatureRefusal::MalformedSignature)?;
+
+    let signature = Ed25519Signature::from_bytes(&signature_array);
+
+    verifying_key
+        .verify(message, &signature)
+        .map_err(|_| SignatureRefusal::VerificationFailed)
 }
 
-/// Constant-time secp256k1 ECDSA verification implementation placeholder.
+/// Constant-time secp256k1 ECDSA verification implementation.
 ///
-/// This implementation will use k256 or libsecp256k1 with constant-time guarantees.
-/// The execution path must be constant-shape regardless of secret-bearing inputs.
+/// Uses k256 with constant-time execution. Accepts both compressed (33 bytes) and
+/// uncompressed (65 bytes) public keys. The verification path uses constant-time
+/// field arithmetic with no floating-point operations.
 ///
 /// # Errors
 ///
-/// Returns `VerificationFailed` when the signature does not verify.
+/// Returns `MalformedPublicKey` for invalid public keys, `MalformedSignature` for
+/// invalid signatures, or `VerificationFailed` when verification fails.
 fn secp256k1_verify_impl(
-    _message_digest: &[u8],
-    _public_key: &[u8],
-    _signature: &[u8],
+    message_digest: &[u8],
+    public_key: &[u8],
+    signature: &[u8],
 ) -> Result<(), SignatureRefusal> {
-    Err(SignatureRefusal::VerificationFailed)
+    let signature_array: [u8; SECP256K1_SIGNATURE_BYTES] = signature
+        .try_into()
+        .map_err(|_| SignatureRefusal::MalformedSignature)?;
+
+    let signature = Secp256k1Signature::from_slice(&signature_array)
+        .map_err(|_| SignatureRefusal::MalformedSignature)?;
+
+    let verifying_key = if public_key.len() == SECP256K1_COMPRESSED_PUBLIC_KEY_BYTES {
+        Secp256k1VerifyingKey::from_sec1_bytes(public_key)
+            .map_err(|_| SignatureRefusal::MalformedPublicKey)?
+    } else if public_key.len() == SECP256K1_UNCOMPRESSED_PUBLIC_KEY_BYTES {
+        Secp256k1VerifyingKey::from_sec1_bytes(public_key)
+            .map_err(|_| SignatureRefusal::MalformedPublicKey)?
+    } else {
+        return Err(SignatureRefusal::MalformedPublicKey);
+    };
+
+    use k256::ecdsa::signature::Verifier;
+    verifying_key
+        .verify(message_digest, &signature)
+        .map_err(|_| SignatureRefusal::VerificationFailed)
 }
 
-/// Constant-time secp256k1 public key recovery implementation placeholder.
+/// Constant-time secp256k1 public key recovery implementation.
 ///
-/// This implementation will use k256 or libsecp256k1 with constant-time guarantees.
-/// The execution path must be constant-shape regardless of secret-bearing inputs.
+/// Uses k256 with constant-time execution to recover the public key from a signature
+/// and message digest. Returns the uncompressed (65-byte) public key. The recovery
+/// path uses constant-time field arithmetic with no floating-point operations.
 ///
 /// # Errors
 ///
-/// Returns `RecoveryFailed` when recovery is not possible.
+/// Returns `MalformedSignature` for invalid signatures, `InvalidRecoveryId` for
+/// out-of-range recovery identifiers, or `RecoveryFailed` when recovery fails.
 fn secp256k1_recover_impl(
-    _message_digest: &[u8],
-    _signature: &[u8],
-    _recovery_id: u8,
+    message_digest: &[u8],
+    signature: &[u8],
+    recovery_id: u8,
 ) -> Result<[u8; SECP256K1_UNCOMPRESSED_PUBLIC_KEY_BYTES], SignatureRefusal> {
-    Err(SignatureRefusal::RecoveryFailed)
+    let signature_array: [u8; SECP256K1_SIGNATURE_BYTES] = signature
+        .try_into()
+        .map_err(|_| SignatureRefusal::MalformedSignature)?;
+
+    let signature = Secp256k1Signature::from_slice(&signature_array)
+        .map_err(|_| SignatureRefusal::MalformedSignature)?;
+
+    let recovery_id =
+        RecoveryId::try_from(recovery_id).map_err(|_| SignatureRefusal::InvalidRecoveryId)?;
+
+    let recovered_key = VerifyingKey::recover_from_prehash(message_digest, &signature, recovery_id)
+        .map_err(|_| SignatureRefusal::RecoveryFailed)?;
+
+    let encoded = recovered_key.to_encoded_point(false);
+    let bytes = encoded.as_bytes();
+
+    if bytes.len() != SECP256K1_UNCOMPRESSED_PUBLIC_KEY_BYTES {
+        return Err(SignatureRefusal::RecoveryFailed);
+    }
+
+    let mut result = [0u8; SECP256K1_UNCOMPRESSED_PUBLIC_KEY_BYTES];
+    result.copy_from_slice(bytes);
+    Ok(result)
 }
 
 #[cfg(test)]

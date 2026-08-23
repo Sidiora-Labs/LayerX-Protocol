@@ -78,14 +78,6 @@ observed = "The production Programs CALL adapter currently returns AbiError::Rec
 assumption = "Task 28.7 remains incomplete until the adapter resolves and verifies canonical receipts from protocol state through an activity-owned scalar callback, or the protocol explicitly removes receipt-read from CALL admission with a typed versioned refusal. An always-mismatch oracle is not treated as implemented host functionality."
 severity = "dependency-boundary"
 
-[observation.31.4.1]
-task = "31.4"
-file = "programs/crates/layerx-programs-runtime/src/crypto/signature.rs"
-symbol = "ed25519_verify_impl, secp256k1_verify_impl, secp256k1_recover_impl"
-observed = "Task 31.4 requires constant-time execution with no floating point, but the workspace has no ed25519-dalek, k256, or libsecp256k1 dependencies yet. The implementation provides complete type signatures, metering coefficients, malformed-input rejection, golden test vectors covering published vectors and malleable signatures, and host-function registration, but the three *_impl functions are placeholders returning typed refusals."
-assumption = "Human qualification will add ed25519-dalek and k256 (or equivalent no_std constant-time libraries) to programs/Cargo.toml, implement the three verification functions using only constant-time operations, prove determinism on the differential with the golden vectors, and measure that metered fuel coefficients match actual execution cost."
-severity = "dependency-boundary"
-
 [observation.workflow.1]
 task = "28.7"
 file = "spec/layerx-platform/spec.kvx"
