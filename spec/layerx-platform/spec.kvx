@@ -1526,7 +1526,7 @@ reqs = ["20.1","20.2","20.6","17.3"]
 
 [task.11.5]
 title = "Build the performance machinery"
-status = "pending"
+status = "in_progress"
 wave = 6
 requires = ["11.1"]
 do_1 = "Code-split by route with declared per-route script budgets enforced in CI."
@@ -1591,7 +1591,7 @@ reqs = ["10.3","11.2","18.7"]
 
 [task.12.4]
 title = "Build the agent surfaces"
-status = "pending"
+status = "in_progress"
 wave = 7
 requires = ["11.3","8.2","8.5"]
 do_1 = "Build agent creation - name, purpose, limit - with the honest creation-journey progress, in both shells."
@@ -1655,7 +1655,7 @@ reqs = ["19.2","21.5"]
 
 [task.13.2]
 title = "Build the security center"
-status = "pending"
+status = "done"
 wave = 7
 requires = ["11.2","5.2"]
 do_1 = "Build passkey management, the device and session inventory with per-session revoke and sign-out-everywhere."
@@ -2416,7 +2416,7 @@ status = "pending"
 
 [task.23.1]
 title = "Implement AP2 checkout and payment mandates"
-status = "pending"
+status = "done"
 wave = 11
 requires = ["22.1"]
 do_1 = "Implement AP2 mandate verification: signatures and constraints checked before any action."
@@ -2769,7 +2769,7 @@ reqs = ["35.8","28.6","30.4"]
 
 [task.28.7]
 title = "Implement the program call activity in the programs module"
-status = "in_progress"
+status = "done"
 wave = 14
 requires = ["28.2","28.3","28.4","28.5","19.4","21.1"]
 do_1 = "Declare a call activity ordinal in the programs module alongside deploy, upgrade, transfer and registry, decoding program identifier, entry point, calldata, declared budget and requested capabilities canonically."
@@ -2896,7 +2896,7 @@ reqs = ["36.6","30.7"]
 
 [task.29.7]
 title = "Carry shared state into the SDK and every porting kit"
-status = "in_progress"
+status = "done"
 wave = 15
 requires = ["29.2"]
 do_1 = "Add typed shared-state accessors to the Rust SDK alongside the principal-scoped ones, with the namespace visible in the type so a program cannot address the wrong scope by accident."
@@ -3058,7 +3058,7 @@ reqs = ["38.3"]
 
 [task.31.3]
 title = "Add deterministic hash primitives"
-status = "in_progress"
+status = "done"
 wave = 17
 requires = ["28.1"]
 do_1 = "Add a hash host function covering sha256, keccak256 and blake3, addressed by algorithm identifier, refusing an unknown algorithm rather than defaulting."
@@ -3266,7 +3266,7 @@ reqs = ["40.1"]
 
 [task.33.2]
 title = "Freeze the calldata encoding convention"
-status = "in_progress"
+status = "done"
 wave = 19
 requires = ["28.2"]
 do_1 = "Define one canonical calldata encoding for the platform covering integers, byte strings, fixed arrays, variable arrays, options and tagged unions, with exactly one valid encoding per value."
