@@ -12,6 +12,10 @@ crate-type = ["rlib", "staticlib"]
 wasmi.workspace = true
 wasmparser-nostd.workspace = true
 
+[dev-dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
 [lints.rust]
 unsafe_code = "allow"
 
