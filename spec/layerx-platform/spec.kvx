@@ -1546,7 +1546,7 @@ status = "pending"
 
 [task.12.1]
 title = "Build onboarding and account activation"
-status = "done"
+status = "pending"
 wave = 7
 requires = ["11.3","5.4"]
 do_1 = "Build account creation in both shells: email, passkey ceremony, honest activation progress, ready only on verified activation."
@@ -1576,7 +1576,7 @@ reqs = ["2.1","2.2","9.3"]
 
 [task.12.3]
 title = "Build the custody journey surfaces"
-status = "done"
+status = "pending"
 wave = 7
 requires = ["11.3","7.3","7.4","7.5"]
 do_1 = "Build deposit: binding-folded start, single wallet hand-off with designed in-progress, failure and cancel states, the staged timeline, safe-to-close statement and receipt-gated completion."
@@ -1606,7 +1606,7 @@ reqs = ["12.1","12.6","2.2"]
 
 [task.12.5]
 title = "Build the approval and notification surfaces"
-status = "done"
+status = "pending"
 wave = 7
 requires = ["11.3","9.3","9.5"]
 do_1 = "Build the approval inbox and detail in both shells - the mobile screen and the desktop split view - from the rendered disclosure only, with the expiry countdown."
@@ -1621,7 +1621,7 @@ reqs = ["13.1","13.3","19.4"]
 
 [task.12.6]
 title = "Build the activity surfaces"
-status = "done"
+status = "pending"
 wave = 7
 requires = ["11.3","10.3"]
 do_1 = "Build the feed in both shells: the mobile stacked rows with month bands and subtotals, the desktop sortable table, with the deferred-apply filters echoed in content."
@@ -1640,7 +1640,7 @@ status = "pending"
 
 [task.13.1]
 title = "Build settings and preferences"
-status = "in_progress"
+status = "pending"
 wave = 7
 requires = ["11.2","9.4"]
 do_1 = "Build the settings hub sectioned as profile, security, linked wallet, notifications, advanced and help, with current values on rows."
@@ -1685,7 +1685,7 @@ reqs = ["5.3","5.4","5.7"]
 
 [task.13.4]
 title = "Build the support surface"
-status = "done"
+status = "pending"
 wave = 7
 requires = ["11.3"]
 do_1 = "Build support chat seeded with topic suggestion chips, as the mobile screen and the desktop docked panel."
@@ -1844,7 +1844,7 @@ reqs = ["24.1","24.6"]
 
 [task.15.2]
 title = "Harden the Rust, TypeScript and Python SDKs to production"
-status = "done"
+status = "pending"
 wave = 9
 requires = ["15.1"]
 do_1 = "Bring the existing Rust, TypeScript and Python SDKs to production grade: complete operation coverage from both schemas, idiomatic packaging, typed error taxonomy with stable machine codes and retriability classes."
@@ -2480,7 +2480,7 @@ reqs = ["33.1","33.2"]
 
 [task.24.2]
 title = "Build the card, bank and RTP adapter interfaces"
-status = "done"
+status = "pending"
 wave = 11
 requires = ["22.1"]
 do_1 = "Define the fiat adapter interface: settlement evidence classes, pending presentation, reversal and chargeback states with declared holds."
