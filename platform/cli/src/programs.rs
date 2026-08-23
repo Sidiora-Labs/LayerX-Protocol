@@ -540,3 +540,131 @@ fn discover_artifact(project: &Path) -> Result<PathBuf, String> {
         _ => Err("multiple .wasm artifacts were produced; select one with --artifact".into()),
     }
 }
+
+#[cfg(test)]
+mod call_tests {
+    use super::{build_call, classify_outcome, render_call_result, CallRequest};
+    use crate::encoding::hex_encode;
+    use layerx_types::amount::Amount;
+    use layerx_types::intent::{
+        CallBudget, Calldata, CapabilityRequest, ProgramCall, ProgramId, RequestedCapabilities,
+    };
+    use serde_json::json;
+
+    /// The shared canonical program-call payload the agent layer, the CLI and
+    /// the emulator all encode for the same call, so the same call yields the
+    /// same receipt on every surface.
+    const GOLDEN_PAYLOAD_HEX: &str = "4c61796572582f70726f6772616d732f63616c6c2f763100111111111111111111111111111111111111111111111111111111111111111100000000000003e8000000000000000000000000000000fa0002010300000002aabb";
+
+    fn golden_request() -> CallRequest<'static> {
+        CallRequest {
+            program_id: "1111111111111111111111111111111111111111111111111111111111111111",
+            calldata: "aabb",
+            fuel: 1000,
+            fee_limit: "250",
+            capabilities: &[],
+            idempotency_key: "call-idem-key-0001",
+        }
+    }
+
+    fn agent_layer_call() -> ProgramCall {
+        let program = ProgramId::new([0x11; 32]);
+        let Ok(calldata) = Calldata::new(&[0xAA, 0xBB]) else {
+            panic!("bounded calldata rejected");
+        };
+        let Ok(budget) = CallBudget::new(1000, Amount::from_u128(250)) else {
+            panic!("non-zero fuel rejected");
+        };
+        let Ok(capabilities) = RequestedCapabilities::new(&[
+            CapabilityRequest::Transfer,
+            CapabilityRequest::StorageRead,
+        ]) else {
+            panic!("unique capabilities rejected");
+        };
+        ProgramCall::new(program, calldata, budget, capabilities)
+    }
+
+    #[test]
+    fn cli_and_agent_layer_encode_the_same_canonical_payload() {
+        let capabilities = ["transfer".to_string(), "storage-read".to_string()];
+        let request = CallRequest {
+            program_id: "1111111111111111111111111111111111111111111111111111111111111111",
+            calldata: "aabb",
+            fuel: 1000,
+            fee_limit: "250",
+            capabilities: &capabilities,
+            idempotency_key: "call-idem-key-0001",
+        };
+        let Ok(built) = build_call(&request) else {
+            panic!("valid call request rejected");
+        };
+        assert_eq!(hex_encode(&built.canonical_payload()), GOLDEN_PAYLOAD_HEX);
+        assert_eq!(
+            built.canonical_payload(),
+            agent_layer_call().canonical_payload()
+        );
+    }
+
+    #[test]
+    fn completed_outcome_is_bound_to_a_successful_receipt() {
+        let result = json!({
+            "result_code": 0,
+            "outcome": {"status": "completed", "code": 0, "response": "aabb"},
+        });
+        let Ok(outcome) = classify_outcome(&result, 0) else {
+            panic!("consistent completed outcome rejected");
+        };
+        assert_eq!(outcome["status"], "completed");
+        assert_eq!(outcome["code"], 0);
+    }
+
+    #[test]
+    fn completed_outcome_against_a_failed_receipt_is_refused() {
+        let result = json!({
+            "result_code": -736,
+            "outcome": {"status": "completed", "code": 0},
+        });
+        assert!(classify_outcome(&result, -736).is_err());
+    }
+
+    #[test]
+    fn refused_outcome_is_bound_to_a_failed_receipt() {
+        let result = json!({
+            "result_code": -736,
+            "outcome": {"status": "refused", "failure": {"class": "guest-refused"}},
+        });
+        let Ok(outcome) = classify_outcome(&result, -736) else {
+            panic!("consistent refused outcome rejected");
+        };
+        assert_eq!(outcome["status"], "refused");
+    }
+
+    #[test]
+    fn render_binds_the_typed_result_to_the_returned_receipt() {
+        let request = golden_request();
+        let payload = agent_layer_call().canonical_payload();
+        let response = json!({
+            "result": {
+                "receipt": "aabbccdd",
+                "result_code": 0,
+                "outcome": {"status": "completed", "code": 0, "response": "aabb"},
+            }
+        });
+        let Ok(rendered) = render_call_result(&request, &payload, &response) else {
+            panic!("valid program-call response rejected");
+        };
+        assert_eq!(rendered["result_code"], 0);
+        assert_eq!(rendered["outcome"]["status"], "completed");
+        assert_eq!(rendered["receipt"], "aabbccdd");
+        assert!(rendered["receipt_digest"].is_string());
+        assert_eq!(rendered["canonical_payload"], hex_encode(&payload));
+    }
+
+    #[test]
+    fn render_refuses_a_response_without_a_receipt() {
+        let request = golden_request();
+        let payload = agent_layer_call().canonical_payload();
+        let response = json!({"result": {"result_code": 0}});
+        assert!(render_call_result(&request, &payload, &response).is_err());
+    }
+}

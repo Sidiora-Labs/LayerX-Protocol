@@ -767,3 +767,59 @@ fn platform_emulator(config: Config) -> Result<(), String> {
 pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<(), String> {
     parse_config(arguments).and_then(platform_emulator)
 }
+
+#[cfg(test)]
+mod program_call_tests {
+    use super::{decode_activity, hex_decode, Request};
+
+    /// A representative canonical program-call activity. The value only has to
+    /// be the exact bytes both ingress forms carry unchanged; the emulator hands
+    /// these same bytes to the real transition on every path.
+    const CANONICAL_ACTIVITY_HEX: &str = "4c61796572582f70726f6772616d732f63616c6c2f763100111111111111111111111111111111111111111111111111111111111111111100000000000003e8000000000000000000000000000000fa0002010300000002aabb";
+
+    fn json_request(hex: &str) -> Request {
+        Request {
+            method: "POST".to_string(),
+            path: "/v1/programs/call".to_string(),
+            content_type: "application/json".to_string(),
+            body: format!("{{\"activity\":\"{hex}\"}}").into_bytes(),
+        }
+    }
+
+    fn octet_request(bytes: &[u8]) -> Request {
+        Request {
+            method: "POST".to_string(),
+            path: "/v1/programs/call".to_string(),
+            content_type: "application/octet-stream".to_string(),
+            body: bytes.to_vec(),
+        }
+    }
+
+    #[test]
+    fn both_ingress_forms_feed_identical_bytes_to_the_transition() {
+        let Ok(expected) = hex_decode(CANONICAL_ACTIVITY_HEX) else {
+            panic!("golden activity hex did not decode");
+        };
+        let Ok(from_json) = decode_activity(&json_request(CANONICAL_ACTIVITY_HEX)) else {
+            panic!("program-call activity hex did not decode");
+        };
+        let from_octets = match decode_activity(&octet_request(&expected)) {
+            Ok(bytes) => bytes,
+            Err(_) => panic!("octet-stream program-call activity did not decode"),
+        };
+        assert_eq!(from_json, expected);
+        assert_eq!(from_octets, expected);
+        assert_eq!(from_json, from_octets);
+    }
+
+    #[test]
+    fn missing_activity_is_rejected() {
+        let request = Request {
+            method: "POST".to_string(),
+            path: "/v1/programs/call".to_string(),
+            content_type: "application/json".to_string(),
+            body: b"{}".to_vec(),
+        };
+        assert!(decode_activity(&request).is_err());
+    }
+}
