@@ -344,6 +344,75 @@ fn submit(emulator: &mut Emulator, request: &Request, trace: u64) -> Response {
     success(trace, &format!("{{\"activity_id\":\"{activity_id}\",\"batch_id\":\"{}\",\"global_sequence\":{},\"result_code\":{},\"state_root\":\"{}\",\"receipt\":\"{receipt_hex}\"}}", hex_encode(&receipt.batch_id), receipt.global_sequence, receipt.result_code, hex_encode(&receipt.state_root)))
 }
 
+fn decode_activity(request: &Request) -> Result<Vec<u8>, String> {
+    if request.content_type.starts_with("application/octet-stream") {
+        Ok(request.body.clone())
+    } else {
+        json_string(&request.body, "activity")
+            .ok_or_else(|| "missing activity hex".to_string())
+            .and_then(|value| hex_decode(&value))
+    }
+}
+
+/// Runs one Programs CALL activity through the same real transition function as
+/// every other activity. The emulator holds no mock call path: a call submitted
+/// here and the identical canonical activity submitted to the network execute
+/// the exact same transition, so a local call and a network call differ only in
+/// the state they run against. The receipt is stored and the typed outcome is
+/// derived from the receipt's own result code, never invented beside it.
+fn program_call(emulator: &mut Emulator, request: &Request, trace: u64) -> Response {
+    let activity = match decode_activity(request) {
+        Ok(activity) if !activity.is_empty() => activity,
+        Ok(_) => {
+            return refusal(
+                trace,
+                400,
+                "invalid_argument",
+                "program call activity must not be empty",
+            )
+        }
+        Err(error) => return refusal(trace, 400, "invalid_argument", &error),
+    };
+    let mut receipt = CoreReceipt {
+        activity_id: [0; 32],
+        batch_id: [0; 32],
+        state_root: [0; 32],
+        global_sequence: 0,
+        result_code: 0,
+        bytes: ptr::null(),
+        length: 0,
+    };
+    let code = unsafe {
+        platform_emulator_execute(
+            emulator.core,
+            activity.as_ptr(),
+            activity.len(),
+            &raw mut receipt,
+        )
+    };
+    if code != 0 {
+        return core_response(trace, code);
+    }
+    let encoded = unsafe { slice::from_raw_parts(receipt.bytes, receipt.length) };
+    let receipt_hex = hex_encode(encoded);
+    let activity_id = hex_encode(&receipt.activity_id);
+    emulator
+        .receipts
+        .insert(activity_id.clone(), receipt_hex.clone());
+    let outcome = if receipt.result_code >= 0 {
+        format!(
+            "{{\"status\":\"completed\",\"code\":{}}}",
+            receipt.result_code
+        )
+    } else {
+        format!(
+            "{{\"status\":\"refused\",\"failure\":{{\"result_code\":{}}}}}",
+            receipt.result_code
+        )
+    };
+    success(trace, &format!("{{\"activity_kind\":\"program-call\",\"transition\":\"real\",\"activity_id\":\"{activity_id}\",\"batch_id\":\"{}\",\"global_sequence\":{},\"result_code\":{},\"state_root\":\"{}\",\"receipt\":\"{receipt_hex}\",\"outcome\":{outcome}}}", hex_encode(&receipt.batch_id), receipt.global_sequence, receipt.result_code, hex_encode(&receipt.state_root)))
+}
+
 fn inspect(emulator: &Emulator, trace: u64) -> Response {
     let mut state = CoreState {
         state_root: [0; 32],
@@ -529,6 +598,7 @@ fn route(emulator: &mut Emulator, request: &Request) -> Response {
     match (request.method.as_str(), request.path.as_str()) {
         ("GET", "/healthz") => success(trace, "{\"status\":\"ready\",\"core\":\"layerx\"}"),
         ("POST", "/v1/activities") => submit(emulator, request, trace),
+        ("POST", "/v1/programs/call") => program_call(emulator, request, trace),
         ("GET", "/v1/state") => inspect(emulator, trace),
         ("POST", "/__emulator/accounts/prefund") => prefund(emulator, &request.body, trace),
         ("POST", "/__emulator/time/set") => update_time(emulator, &request.body, trace, false),
@@ -558,6 +628,7 @@ fn route(emulator: &mut Emulator, request: &Request) -> Response {
         (
             _,
             "/v1/activities"
+            | "/v1/programs/call"
             | "/v1/state"
             | "/__emulator/accounts/prefund"
             | "/__emulator/time/set"
