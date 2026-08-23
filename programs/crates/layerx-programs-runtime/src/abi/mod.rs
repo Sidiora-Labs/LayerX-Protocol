@@ -6,11 +6,19 @@ use core::fmt::{self, Display};
 use std::collections::BTreeMap;
 
 mod capability;
+pub mod context;
 pub mod response;
 mod storage_ops;
 
 use capability::CapabilityKey;
 pub use capability::{Capability, CapabilitySet};
+pub use context::{
+    ContextField, ExecutionContext, CONTEXT_FIELD_ABI_VERSION, CONTEXT_FIELD_ACTIVITY_SEQUENCE,
+    CONTEXT_FIELD_BATCH_HEIGHT, CONTEXT_FIELD_CALLING_PROGRAM,
+    CONTEXT_FIELD_EXECUTING_PROGRAM, CONTEXT_FIELD_FEE_SCHEDULE_VERSION,
+    CONTEXT_FIELD_INVOKING_PRINCIPAL, CONTEXT_FIELD_REMAINING_FUEL, CONTEXT_FIELD_RUNTIME_VERSION,
+    CONTEXT_HOST_FUNCTION, CONTEXT_READ_NAME, CONTEXT_READ_SIGNATURE,
+};
 pub use response::{CallResponse, ResponseRefusal, MAX_CALL_RESPONSE_BYTES};
 pub use storage_ops::StorageSelector;
 

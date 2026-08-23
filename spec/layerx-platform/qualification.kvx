@@ -85,3 +85,19 @@ symbol = "task status"
 observed = "Twelve tasks (12.1-12.6, 13.1, 13.4, 13.5, 15.2, 25.1, 28.7) held every in_progress slot with no live agent on any of the first eleven. Their work sits on unmerged branches - notably worktree-task-12-6-activity, codex/task-25-1-mirror-publisher and codex/platform-11-x - which were never integrated into main."
 assumption = "The eleven pre-wave-14 claims were released to pending so the wave 14-22 lanes could be claimed under the max_in_progress limit of twelve. No code was deleted and no branch was removed; the unmerged branches named above still carry whatever those tasks produced and need a human integration pass."
 severity = "note"
+
+[observation.31.1.1]
+task = "31.1"
+file = "programs/crates/layerx-programs-runtime/src/ffi_call.rs"
+symbol = "layerx_programs_call_begin"
+observed = "The execution context carries the activity sequence and batch height as ambient ExecutionContext fields threaded through CompositionContext, but the production C Programs CALL ingress (layerx_programs_call_begin) still constructs CompositionContext::catalog(...) without positioning them, so it defaults to ExecutionContext::declared() with a zero activity sequence and batch height. The runtime and ABI version and the fee-schedule version are honest (they match the crate constants and the ingress's fee_schedule_version==1 gate)."
+assumption = "The C kernel already knows the executing batch height and the activity's sequence within the batch; a follow-up in the 28.7/31.6 ingress-and-receipt lane will pass them into CompositionContext::with_execution_context so context_read reports real protocol state end to end. Task 31.1 supplies the runtime seam and the guest-reachable field-addressed ABI, and never invents a wall-clock or node-local source for either field."
+severity = "dependency-boundary"
+
+[observation.31.1.2]
+task = "31.1"
+file = "programs/crates/layerx-programs-runtime/src/host/context.rs"
+symbol = "context_read"
+observed = "context_read meters each returned byte through the existing storage-read resource class (Meter::charge_storage_read), because that is the only per-byte host-read meter the frozen v1 fee schedule and MeteredUsage layout already carry; the runtime has no dedicated context-read resource class. The read is therefore charged and bounded per byte returned, but its fee units are pooled with storage-read bytes rather than tracked as a distinct line."
+assumption = "If task 31.6 or the fee-schedule owner wants context reads accounted as their own resource class, they add it alongside the other v2 additions and its golden vectors; task 31.1 does not widen the frozen resource taxonomy on its own."
+severity = "note"

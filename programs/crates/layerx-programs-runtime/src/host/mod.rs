@@ -1,6 +1,7 @@
 //! Concrete `wasmi` bindings for the version-one capability ABI.
 
 mod calls;
+mod context;
 mod events;
 mod memory;
 mod scan;
@@ -9,6 +10,7 @@ mod transfer;
 
 use wasmi::{Caller, Engine, Linker};
 
+use crate::abi::context::ContextField;
 use crate::abi::response::{CallResponse, ResponseRefusal, ResponseRegion};
 use crate::abi::{Abi, AbiError, ReceiptView, ABI_MODULE};
 use crate::calls::{CallGraph, Composition, CompositionRefusal};
@@ -229,6 +231,30 @@ impl RuntimeState {
         self.abi.as_ref()
     }
 
+    /// Derives one execution-context field entirely from host-fixed protocol
+    /// state. The executing program and its immediate caller come from the
+    /// host-maintained call graph, the principal from the authority fixed
+    /// before guest entry, and the ambient sequence, height and versions from
+    /// the composition context carried unchanged into this frame. Guest code
+    /// supplies none of these values, so the caller field cannot be forged.
+    pub(crate) fn context_field_bytes(
+        &self,
+        field: ContextField,
+        remaining_fuel: u64,
+    ) -> Option<Vec<u8>> {
+        let composition = self.composition()?;
+        let abi = self.abi.as_ref()?;
+        let graph = composition.graph();
+        let executing = graph.current_program().unwrap_or_else(|| abi.program());
+        let caller = graph.immediate_caller();
+        let principal = abi.principal();
+        Some(
+            composition
+                .context()
+                .encode_field(field, executing, caller, principal, remaining_fuel),
+        )
+    }
+
     pub(crate) fn abi_mut(&mut self) -> Option<&mut Abi> {
         self.abi.as_mut()
     }
@@ -284,6 +310,7 @@ pub(crate) fn linker(
     calls::register(&mut linker)?;
     if revision == AbiRevision::CandidateV2 {
         calls::register_candidate(&mut linker)?;
+        context::register_candidate(&mut linker)?;
         scan::register_candidate(&mut linker)?;
         storage::register_candidate(&mut linker)?;
     }

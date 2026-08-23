@@ -10,7 +10,8 @@ use std::rc::Rc;
 
 use crate::abi::response::{CallResponse, ResponseRefusal};
 use crate::abi::{
-    Abi, AbiCommit, AbiError, AuthorizationContext, CallFrameId, Capability, MAX_CALL_INPUT_BYTES,
+    Abi, AbiCommit, AbiError, AuthorizationContext, CallFrameId, Capability, ExecutionContext,
+    MAX_CALL_INPUT_BYTES,
 };
 use crate::entrypoint::{self, EntrypointRefusal};
 use crate::execute::{ExecutionFault, ABI_VERSION};
@@ -302,6 +303,29 @@ impl CallGraph {
         self.frames.last().copied()
     }
 
+    /// Returns the program executing in the current frame. The value is
+    /// host-maintained: it is written when a frame is entered and can never be
+    /// supplied by guest code.
+    #[must_use]
+    pub fn current_program(&self) -> Option<ProgramId> {
+        self.frames.last().map(|frame| frame.program)
+    }
+
+    /// Returns the program of the immediate caller of the current frame, or
+    /// `None` at the activity's entry frame where no program is the caller.
+    /// The graph is host-maintained, so a callee always observes its true
+    /// immediate caller and can neither spoof its own identifier nor forge its
+    /// caller's on any edge, at any depth, or across re-entry.
+    #[must_use]
+    pub fn immediate_caller(&self) -> Option<ProgramId> {
+        let depth = self.frames.len();
+        if depth >= 2 {
+            Some(self.frames[depth - 2].program)
+        } else {
+            None
+        }
+    }
+
     /// Returns the nesting depth of the frame currently executing.
     #[must_use]
     pub fn depth(&self) -> u32 {
@@ -486,13 +510,21 @@ impl ProgramResolver for ProgramCatalog {
 pub struct CompositionContext {
     resolver: Rc<dyn ProgramResolver>,
     rules: CompositionRules,
+    execution_context: ExecutionContext,
 }
 
 impl CompositionContext {
-    /// Builds a context over an explicit resolver.
+    /// Builds a context over an explicit resolver. The ambient execution
+    /// context defaults to the declared runtime, ABI and fee-schedule versions
+    /// at the origin of protocol time; production callers position it with
+    /// [`Self::with_execution_context`].
     #[must_use]
     pub fn new(resolver: Rc<dyn ProgramResolver>, rules: CompositionRules) -> Self {
-        Self { resolver, rules }
+        Self {
+            resolver,
+            rules,
+            execution_context: ExecutionContext::declared(),
+        }
     }
 
     /// Builds a context over an owned catalog of validated modules.
@@ -501,6 +533,7 @@ impl CompositionContext {
         Self {
             resolver: Rc::new(catalog),
             rules,
+            execution_context: ExecutionContext::declared(),
         }
     }
 
@@ -511,13 +544,28 @@ impl CompositionContext {
         Self {
             resolver: Rc::new(ProgramCatalog::new()),
             rules: CompositionRules::declared(),
+            execution_context: ExecutionContext::declared(),
         }
+    }
+
+    /// Positions the ambient execution context with real protocol facts,
+    /// leaving the resolver and rules unchanged.
+    #[must_use]
+    pub fn with_execution_context(mut self, execution_context: ExecutionContext) -> Self {
+        self.execution_context = execution_context;
+        self
     }
 
     /// Returns the declared rules enforced on graphs built from this context.
     #[must_use]
     pub const fn rules(&self) -> CompositionRules {
         self.rules
+    }
+
+    /// Returns the ambient execution context carried into every frame.
+    #[must_use]
+    pub const fn execution_context(&self) -> ExecutionContext {
+        self.execution_context
     }
 
     /// Returns a handle to the deployed-code boundary.
@@ -706,6 +754,7 @@ pub(crate) struct Composition {
     resolver: Rc<dyn ProgramResolver>,
     graph: CallGraph,
     revision: AbiRevision,
+    context: ExecutionContext,
 }
 
 impl Composition {
@@ -713,16 +762,22 @@ impl Composition {
         resolver: Rc<dyn ProgramResolver>,
         graph: CallGraph,
         revision: AbiRevision,
+        context: ExecutionContext,
     ) -> Self {
         Self {
             resolver,
             graph,
             revision,
+            context,
         }
     }
 
     pub(crate) fn resolver(&self) -> Rc<dyn ProgramResolver> {
         Rc::clone(&self.resolver)
+    }
+
+    pub(crate) const fn context(&self) -> ExecutionContext {
+        self.context
     }
 
     pub(crate) const fn graph(&self) -> &CallGraph {
@@ -873,12 +928,17 @@ fn execute_nested(
     }
     let authorization = AuthorizationContext::nested(principal, capabilities, callee_frame);
     let child_abi = Abi::nested(ABI_VERSION, callee, authorization, storage, receipts)?;
+    let parent_context = state
+        .composition()
+        .ok_or(CompositionRefusal::NotComposable)?
+        .context();
     let child_graph = state
         .composition()
         .ok_or(CompositionRefusal::NotComposable)?
         .graph()
         .clone();
-    let child_composition = Composition::new(Rc::clone(&resolver), child_graph, expected);
+    let child_composition =
+        Composition::new(Rc::clone(&resolver), child_graph, expected, parent_context);
     let mut instance = if expected == AbiRevision::CandidateV2 {
         let retained = module
             .instantiate_composed_response_retained(
@@ -1187,5 +1247,80 @@ fn instantiation_refusal(
     match fault {
         ExecutionFault::Resource { refusal } => CompositionRefusal::Resource(refusal),
         other => CompositionRefusal::Fault(other),
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod caller_honesty_tests {
+    //! The execution context derives the executing program and its immediate
+    //! caller from the host-maintained call graph alone. These tests exercise
+    //! that derivation across an edge, at depth, and across re-entry, proving a
+    //! callee can only ever observe its true immediate caller. Guest code never
+    //! touches `enter`, `leave` or the frame stack, so it has no way to spoof
+    //! either identifier; the runtime writes both when a frame is entered.
+
+    use super::{CallGraph, CompositionRules};
+    use crate::storage::{PrincipalId, ProgramId};
+
+    fn program(byte: u8) -> ProgramId {
+        ProgramId::new([byte; 32]).unwrap_or_else(|error| panic!("program id: {error}"))
+    }
+
+    fn principal(byte: u8) -> PrincipalId {
+        PrincipalId::new([byte; 32]).unwrap_or_else(|error| panic!("principal id: {error}"))
+    }
+
+    #[test]
+    fn entry_frame_reports_itself_and_no_caller() {
+        let root = program(1);
+        let graph = CallGraph::root(CompositionRules::declared(), root, principal(9));
+        assert_eq!(graph.current_program(), Some(root));
+        assert_eq!(graph.immediate_caller(), None);
+    }
+
+    #[test]
+    fn callee_observes_its_true_caller_on_an_edge() {
+        let caller = program(1);
+        let callee = program(2);
+        let mut graph = CallGraph::root(CompositionRules::declared(), caller, principal(9));
+        graph.enter(callee).expect("enter callee");
+        assert_eq!(graph.current_program(), Some(callee));
+        assert_eq!(graph.immediate_caller(), Some(caller));
+    }
+
+    #[test]
+    fn every_frame_observes_its_immediate_caller_at_depth() {
+        let a = program(1);
+        let b = program(2);
+        let c = program(3);
+        let mut graph = CallGraph::root(CompositionRules::declared(), a, principal(9));
+        graph.enter(b).expect("enter b");
+        graph.enter(c).expect("enter c");
+        assert_eq!(graph.current_program(), Some(c));
+        assert_eq!(graph.immediate_caller(), Some(b));
+        graph.leave();
+        assert_eq!(graph.current_program(), Some(b));
+        assert_eq!(graph.immediate_caller(), Some(a));
+        graph.leave();
+        assert_eq!(graph.current_program(), Some(a));
+        assert_eq!(graph.immediate_caller(), None);
+    }
+
+    #[test]
+    fn re_entry_reports_the_present_caller_never_a_departed_one() {
+        let a = program(1);
+        let b = program(2);
+        let c = program(3);
+        let mut graph = CallGraph::root(CompositionRules::declared(), a, principal(9));
+        graph.enter(b).expect("enter b");
+        graph.leave();
+        graph.enter(c).expect("enter c after b left");
+        assert_eq!(graph.immediate_caller(), Some(a));
+        assert_eq!(graph.current_program(), Some(c));
+        graph.leave();
+        graph.enter(b).expect("re-enter b");
+        assert_eq!(graph.immediate_caller(), Some(a));
+        assert_eq!(graph.visits(b), 2);
     }
 }

@@ -1438,6 +1438,7 @@ impl Executor {
             request.composition.resolver(),
             CallGraph::root(request.composition.rules(), request.program, principal),
             AbiRevision::V1,
+            request.composition.execution_context(),
         );
         let mut instance = request
             .module
@@ -1612,6 +1613,7 @@ impl Executor {
             request.composition.resolver(),
             CallGraph::root(request.composition.rules(), request.program, principal),
             AbiRevision::V1,
+            request.composition.execution_context(),
         );
         let mut instance =
             match request
@@ -1837,6 +1839,7 @@ impl Executor {
             request.composition.resolver(),
             CallGraph::root(request.composition.rules(), request.program, principal),
             AbiRevision::CandidateV2,
+            request.composition.execution_context(),
         );
         let retained = request
             .module

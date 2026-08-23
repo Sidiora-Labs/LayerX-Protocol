@@ -401,12 +401,12 @@ fn refuse_import(
     } else if revision == AbiRevision::CandidateV2
         && import.module == crate::abi::response::CANDIDATE_ABI_MODULE
     {
-        crate::abi::response::candidate_function_type(import.name).ok_or_else(|| {
-            ValidationRefusal::ForbiddenImport {
+        crate::abi::response::candidate_function_type(import.name)
+            .or_else(|| crate::abi::context::context_function_type(import.name))
+            .ok_or_else(|| ValidationRefusal::ForbiddenImport {
                 import_module: import.module.to_string(),
                 import_name: import.name.to_string(),
-            }
-        })?
+            })?
     } else {
         return Err(ValidationRefusal::ForbiddenImport {
             import_module: import.module.to_string(),

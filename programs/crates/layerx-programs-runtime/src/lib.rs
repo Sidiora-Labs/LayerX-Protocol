@@ -119,6 +119,7 @@ pub const fn programs_wasm_engine() -> &'static str {
 }
 pub use abi::{
     Abi, AbiCommit, AbiEffects, AbiError, AuthorizationContext, CallFrameId, Capability,
-    CapabilitySet, HostFunction, ProgramCall, ProgramEvent, ReceiptOracle, ReceiptView,
-    StorageSelector, TransferRequest, ABI_MANIFEST, ABI_MODULE, HOST_FUNCTIONS,
+    CapabilitySet, ContextField, ExecutionContext, HostFunction, ProgramCall, ProgramEvent,
+    ReceiptOracle, ReceiptView, StorageSelector, TransferRequest, ABI_MANIFEST, ABI_MODULE,
+    CONTEXT_HOST_FUNCTION, CONTEXT_READ_NAME, CONTEXT_READ_SIGNATURE, HOST_FUNCTIONS,
 };
