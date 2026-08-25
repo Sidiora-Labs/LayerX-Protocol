@@ -1,4 +1,5 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function Installation() {
@@ -9,7 +10,7 @@ export default function Installation() {
       </p>
 
       <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
-        <strong className="text-on-surface">Source:</strong> <code>paxeer-network/Makefile</code> and <code>paxeer-network/README.md</code>
+        <strong>Source:</strong> <code>paxeer-network/Makefile</code> and <code>paxeer-network/README.md</code>
       </div>
 
       <h2>Prerequisites</h2>
@@ -137,7 +138,7 @@ make ci       # Lint + test`}</code></pre>
 
 go 1.23`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Note:</strong> Paxeer maintains its own <code>go.mod</code>, <code>go.sum</code>, and dependency tree separate from the LayerX monorepo root.
       </div>
 
@@ -155,7 +156,7 @@ forge build`}</code></pre>
         See <code>paxeer-network/contracts/README.md</code> for contract-specific instructions.
       </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Important:</strong> <code>paxeer-network/contracts/</code> contains Paxeer-native contracts (WPAX, pointers, precompile interfaces). LayerX settlement contracts are at <code>contracts/</code> in the repository root.
       </div>
 
@@ -173,9 +174,9 @@ forge build`}</code></pre>
 
       <h2>Development vs Production</h2>
 
-      <div className="source-note">
-        <span className="badge badge-warning">Development Only</span>
-        <p style={{ marginTop: '0.5rem' }}>
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
+        <span className="inline-block px-2 py-0.5 rounded-xs text-xs font-medium uppercase tracking-wider bg-warning/20 text-warning">Development Only</span>
+        <p className="mt-2 mb-0">
           A successful local build is development evidence. It is <strong>not authorization</strong> to deploy validators, move custody, or handle real assets.
         </p>
       </div>
@@ -188,16 +189,10 @@ forge build`}</code></pre>
         <li><Link href="/docker">Use Docker for local testing</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/network-parameters">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Network Parameters</div>
-        </Link>
-        <Link href="/run-node">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Run a Node</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/network-parameters", title: "Network Parameters" }}
+        next={{ href: "/run-node", title: "Run a Node" }}
+      />
     </DocsLayout>
   )
 }
