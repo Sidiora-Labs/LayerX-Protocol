@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function Store() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Store Module</h1>
-        <p className="page-description">
-          Module-level store integration helpers for key formatting, iterators, and codec utilities.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Store Module">
+      <p className="text-on-surface-variant mb-6">
+        Module-level store integration helpers for key formatting, iterators, and codec utilities.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/modules/store/</code>
       </div>
 
@@ -158,16 +156,10 @@ func (k Keeper) SetAccount(ctx sdk.Context, addr common.Address, acc Account) {
         <li><Link href="/modules">Review other Paxeer modules</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/modules/oracle">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Oracle Module</div>
-        </Link>
-        <Link href="/modules/tokenfactory">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Token Factory Module</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/modules/oracle", title: "Oracle Module" }}
+        next={{ href: "/modules/tokenfactory", title: "Token Factory Module" }}
+      />
     </DocsLayout>
   )
 }

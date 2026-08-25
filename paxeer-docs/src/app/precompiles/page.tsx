@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function Precompiles() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Precompiles</h1>
-        <p className="page-description">
-          Paxeer-specific precompiled contracts exposing Cosmos modules to EVM contracts.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Precompiles">
+      <p className="text-on-surface-variant mb-6">
+        Paxeer-specific precompiled contracts exposing Cosmos modules to EVM contracts.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/</code>
       </div>
 
@@ -33,7 +31,7 @@ export default function Precompiles() {
 
       <h3>addr</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/addr/</code>
       </div>
 
@@ -43,7 +41,7 @@ export default function Precompiles() {
 
       <h3>bank</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/bank/</code>
       </div>
 
@@ -63,7 +61,7 @@ export default function Precompiles() {
 
       <h3>common</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/common/</code>
       </div>
 
@@ -79,7 +77,7 @@ export default function Precompiles() {
 
       <h3>distribution</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/distribution/</code>
       </div>
 
@@ -95,7 +93,7 @@ export default function Precompiles() {
 
       <h3>gov</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/gov/</code>
       </div>
 
@@ -115,7 +113,7 @@ export default function Precompiles() {
 
       <h3>ibc</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/ibc/</code>
       </div>
 
@@ -130,7 +128,7 @@ export default function Precompiles() {
 
       <h3>json</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/json/</code>
       </div>
 
@@ -140,7 +138,7 @@ export default function Precompiles() {
 
       <h3>oracle</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/oracle/</code>
       </div>
 
@@ -159,7 +157,7 @@ export default function Precompiles() {
 
       <h3>p256</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/p256/</code>
       </div>
 
@@ -173,7 +171,7 @@ export default function Precompiles() {
 
       <h3>pointer</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/pointer/</code>
       </div>
 
@@ -193,7 +191,7 @@ export default function Precompiles() {
 
       <h3>pointerview</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/pointerview/</code>
       </div>
 
@@ -209,7 +207,7 @@ export default function Precompiles() {
 
       <h3>solo</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/solo/</code>
       </div>
 
@@ -219,7 +217,7 @@ export default function Precompiles() {
 
       <h3>staking</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/staking/</code>
       </div>
 
@@ -237,7 +235,7 @@ export default function Precompiles() {
 
       <h3>wasmd</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/wasmd/</code>
       </div>
 
@@ -260,7 +258,7 @@ export default function Precompiles() {
         Precompile addresses are determined at chain initialization and registered in the EVM module. Addresses are not declared in the paxeer-network tree; they are assigned by the node application during setup.
       </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Note:</strong> Contract addresses for precompiles are not hardcoded in <code>paxeer-network/precompiles/</code>. They are registered at runtime in <code>node/app.go</code>.
       </div>
 
@@ -272,7 +270,7 @@ export default function Precompiles() {
 
       <h2>Setup and Registration</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/precompiles/setup.go</code>
       </div>
 
@@ -323,16 +321,10 @@ contract MyContract {
         <li><Link href="/wasm">Explore CosmWasm integration</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/modules/tokenfactory">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Token Factory Module</div>
-        </Link>
-        <Link href="/wasm">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">WASM</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/modules/tokenfactory", title: "Token Factory Module" }}
+        next={{ href: "/wasm", title: "WASM" }}
+      />
     </DocsLayout>
   )
 }

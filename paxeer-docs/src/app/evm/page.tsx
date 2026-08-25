@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function EVM() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">EVM Module</h1>
-        <p className="page-description">
-          Native EVM execution, address association, receipts, pointers, and precompile integration on chain ID 125.
-        </p>
-      </div>
+    <DocsLayout pageTitle="EVM Module">
+      <p className="text-on-surface-variant mb-6">
+        Native EVM execution, address association, receipts, pointers, and precompile integration on chain ID 125.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/modules/evm/</code>
       </div>
 
@@ -51,7 +49,7 @@ export default function EVM() {
 
       <h2>Address Association</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/deps/xevm/keeper/address.go</code>
       </div>
 
@@ -76,7 +74,7 @@ export default function EVM() {
 
       <h2>State Management</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/deps/xevm/keeper/state.go</code>
       </div>
 
@@ -113,7 +111,7 @@ export default function EVM() {
 
       <h2>Receipts</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/deps/xevm/keeper/receipt.go</code>
       </div>
 
@@ -151,7 +149,7 @@ export default function EVM() {
 
       <h2>Precompile Integration</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/deps/xevm/keeper/precompile.go</code>
       </div>
 
@@ -165,7 +163,7 @@ export default function EVM() {
 
       <h2>Fee Collection</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/deps/xevm/keeper/fee.go</code>
       </div>
 
@@ -186,7 +184,7 @@ export default function EVM() {
 
       <h2>Coinbase</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/deps/xevm/keeper/coinbase.go</code>
       </div>
 
@@ -202,7 +200,7 @@ export default function EVM() {
 
       <h2>Configuration</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/deps/xevm/config/</code>
       </div>
 
@@ -219,7 +217,7 @@ export default function EVM() {
 
       <h2>Genesis</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/deps/xevm/keeper/genesis.go</code>
       </div>
 
@@ -235,7 +233,7 @@ export default function EVM() {
 
       <h2>Logging</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/deps/xevm/keeper/log.go</code>
       </div>
 
@@ -245,7 +243,7 @@ export default function EVM() {
 
       <h2>Deferred Operations</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/deps/xevm/keeper/deferred.go</code>
       </div>
 
@@ -261,16 +259,10 @@ export default function EVM() {
         <li><Link href="/contracts">Deploy contracts</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/engine">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Engine</div>
-        </Link>
-        <Link href="/storage">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Storage</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/engine", title: "Engine" }}
+        next={{ href: "/storage", title: "Storage" }}
+      />
     </DocsLayout>
   )
 }

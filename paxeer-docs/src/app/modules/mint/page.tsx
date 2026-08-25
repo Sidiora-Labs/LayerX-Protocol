@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function Mint() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Mint Module</h1>
-        <p className="page-description">
-          Scheduled native token inflation, daily distribution, and governance-controlled minting policy.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Mint Module">
+      <p className="text-on-surface-variant mb-6">
+        Scheduled native token inflation, daily distribution, and governance-controlled minting policy.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/modules/mint/</code>
       </div>
 
@@ -213,7 +211,7 @@ total_mint_amount: "100000"`}</code></pre>
       <pre><code>{`paxd tx gov submit-proposal param-change ./param_change_prop.json \\
   --from admin -b block -y --gas 200000 --fees 200000uhpx`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Note:</strong> Changes to <code>total_mint_amount</code> or <code>remaining_mint_amount</code> after the start date do not affect tokens already minted.
       </div>
 
@@ -244,16 +242,10 @@ total_mint_amount: "100000"`}</code></pre>
         <li><Link href="/modules/oracle">Learn about the oracle module</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/modules/epoch">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Epoch Module</div>
-        </Link>
-        <Link href="/modules/oracle">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Oracle Module</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/modules/epoch", title: "Epoch Module" }}
+        next={{ href: "/modules/oracle", title: "Oracle Module" }}
+      />
     </DocsLayout>
   )
 }

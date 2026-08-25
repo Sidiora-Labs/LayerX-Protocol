@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function Modules() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Paxeer Modules</h1>
-        <p className="page-description">
-          Paxeer-specific chain modules that extend the Cosmos SDK base.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Paxeer Modules">
+      <p className="text-on-surface-variant mb-6">
+        Paxeer-specific chain modules that extend the Cosmos SDK base.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/modules/README.md</code>
       </div>
 
@@ -177,16 +175,10 @@ export default function Modules() {
         <li><strong>Query routing:</strong> Module-specific queries routed to keepers</li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/storage">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Storage</div>
-        </Link>
-        <Link href="/modules/epoch">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Epoch Module</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/storage", title: "Storage" }}
+        next={{ href: "/modules/epoch", title: "Epoch Module" }}
+      />
     </DocsLayout>
   )
 }

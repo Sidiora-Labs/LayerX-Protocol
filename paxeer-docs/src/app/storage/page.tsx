@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function Storage() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Storage</h1>
-        <p className="page-description">
-          PaxDB: Paxeer's next-generation storage engine with state commitment, state store, WAL, and performance optimizations.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Storage">
+      <p className="text-on-surface-variant mb-6">
+        PaxDB: Paxeer's next-generation storage engine with state commitment, state store, WAL, and performance optimizations.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/storage/</code>
       </div>
 
@@ -48,7 +46,7 @@ export default function Storage() {
 
       <h3>State Commitment (SC) Layer</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/storage/state_db/sc/</code>
       </div>
 
@@ -69,7 +67,7 @@ export default function Storage() {
 
       <h3>State Store (SS) Layer</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/storage/state_db/ss/</code>
       </div>
 
@@ -106,7 +104,7 @@ export default function Storage() {
 
       <h2>Database Engine</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/storage/db_engine/</code>
       </div>
 
@@ -140,7 +138,7 @@ export default function Storage() {
 
       <h2>Write-Ahead Log (WAL)</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/storage/wal/</code>
       </div>
 
@@ -150,7 +148,7 @@ export default function Storage() {
 
       <h2>Common Utilities</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/storage/common/</code>
       </div>
 
@@ -169,7 +167,7 @@ export default function Storage() {
 
       <h2>Benchmarking and Tools</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/storage/tools/</code>
       </div>
 
@@ -184,7 +182,7 @@ export default function Storage() {
 
       <h2>Protobuf Definitions</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/storage/proto/</code>
       </div>
 
@@ -237,16 +235,10 @@ export default function Storage() {
         <li><Link href="/modules">Understand module state storage</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/evm">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">EVM</div>
-        </Link>
-        <Link href="/modules">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Modules Overview</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/evm", title: "EVM" }}
+        next={{ href: "/modules", title: "Modules Overview" }}
+      />
     </DocsLayout>
   )
 }

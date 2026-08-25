@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function Oracle() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Oracle Module</h1>
-        <p className="page-description">
-          Validator-based exchange rate voting, weighted median price aggregation, and slashing for bad data.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Oracle Module">
+      <p className="text-on-surface-variant mb-6">
+        Validator-based exchange rate voting, weighted median price aggregation, and slashing for bad data.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/modules/oracle/</code>
       </div>
 
@@ -166,16 +164,10 @@ export default function Oracle() {
         <li><Link href="/precompiles">Use the oracle precompile from EVM contracts</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/modules/mint">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Mint Module</div>
-        </Link>
-        <Link href="/modules/store">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Store Module</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/modules/mint", title: "Mint Module" }}
+        next={{ href: "/modules/store", title: "Store Module" }}
+      />
     </DocsLayout>
   )
 }

@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function Wasm() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">WASM</h1>
-        <p className="page-description">
-          WebAssembly smart contract support via CosmWasm on Paxeer.
-        </p>
-      </div>
+    <DocsLayout pageTitle="WASM">
+      <p className="text-on-surface-variant mb-6">
+        WebAssembly smart contract support via CosmWasm on Paxeer.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/wasm/</code>
       </div>
 
@@ -195,7 +193,7 @@ export default function Wasm() {
 
       <h2>Contract Examples</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/example/cosmwasm/</code>
       </div>
 
@@ -205,7 +203,7 @@ export default function Wasm() {
 
       <h2>Testing</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/integration_test/wasm_module/</code>
       </div>
 
@@ -221,16 +219,10 @@ export default function Wasm() {
         <li><Link href="/precompiles">Use the wasmd precompile from EVM</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/precompiles">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Precompiles</div>
-        </Link>
-        <Link href="/wasm-runtime">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">WASM Runtime</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/precompiles", title: "Precompiles" }}
+        next={{ href: "/wasm-runtime", title: "WASM Runtime" }}
+      />
     </DocsLayout>
   )
 }

@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function Consensus() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Consensus</h1>
-        <p className="page-description">
-          Paxeer's BFT consensus engine with Autobahn, ABCI, node management, state machine, light client, and validator key handling.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Consensus">
+      <p className="text-on-surface-variant mb-6">
+        Paxeer's BFT consensus engine with Autobahn, ABCI, node management, state machine, light client, and validator key handling.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/consensus/</code>
       </div>
 
@@ -36,7 +34,7 @@ export default function Consensus() {
 
       <h2>Autobahn Consensus</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/consensus/autobahn/</code>
       </div>
 
@@ -85,7 +83,7 @@ export default function Consensus() {
 
       <h2>Node</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/consensus/node/</code>
       </div>
 
@@ -108,7 +106,7 @@ export default function Consensus() {
 
       <h2>State Management</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/consensus/internal/state/</code> and <code>consensus/state/</code>
       </div>
 
@@ -129,7 +127,7 @@ export default function Consensus() {
 
       <h2>Light Client</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/consensus/light/</code>
       </div>
 
@@ -156,7 +154,7 @@ export default function Consensus() {
 
       <h2>Validator Key Management (PrivVal)</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/consensus/privval/</code>
       </div>
 
@@ -176,7 +174,7 @@ export default function Consensus() {
 
       <h2>Configuration</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/consensus/config/</code>
       </div>
 
@@ -198,7 +196,7 @@ export default function Consensus() {
 
       <h2>RPC</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/consensus/rpc/</code>
       </div>
 
@@ -218,7 +216,7 @@ export default function Consensus() {
 
       <h2>Network (P2P)</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/consensus/internal/p2p/</code>
       </div>
 
@@ -235,7 +233,7 @@ export default function Consensus() {
 
       <h2>Utilities</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/consensus/libs/</code>
       </div>
 
@@ -259,16 +257,10 @@ export default function Consensus() {
         <li><Link href="/configuration">Configure consensus parameters</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/operators">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Operators Guide</div>
-        </Link>
-        <Link href="/engine">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Engine</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/operators", title: "Operators Guide" }}
+        next={{ href: "/engine", title: "Engine" }}
+      />
     </DocsLayout>
   )
 }
