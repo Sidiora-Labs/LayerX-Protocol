@@ -1,33 +1,20 @@
-# LayerX Ecosystem
+# Welcome to LayerX
 
-Welcome to the LayerX Ecosystem documentation. This repository is the canonical Sidiora Labs monorepo for LayerX and the Paxeer Network.
+LayerX is a deterministic execution and accounting network built for autonomous agents.
 
-## What is LayerX?
-
-LayerX is a deterministic execution and accounting network built for autonomous agents. It provides infrastructure for agent identity, delegated authority, payments, budgets, escrow, streams, trading, and settlement as one coherent system.
+**Limited beta opens September 7, 2026.** The source is available for inspection under a temporary license that does not yet grant deployment rights.
 
 Ordinary agent activity is executed and ordered inside LayerX. Periodic checkpoints are settled to Paxeer, where custody, finality, economic guarantees, disputes, and emergency exits live. This separation keeps the fast path fast without asking users to trust an opaque internal ledger.
 
+## Repository and monorepo structure
+
+This is the canonical Sidiora Labs monorepo for LayerX and the Paxeer Network. The Paxeer settlement node source lives under `paxeer-network/` with independent build, release tags (`paxeer-network/vX.Y.Z`), and trust boundaries. Co-location keeps the protocol, settlement network, and their automation auditable in one place while preserving separate deployment authority.
+
+LayerX Programs is a programmable surface—not a separate module ID—where guest code runs inside the `programs` module's namespace. Every monetary effect is forced through 402LXP; no program ever holds direct balance-writing authority.
+
 ## What is Paxeer?
 
-Paxeer is the settlement layer that handles custody, checkpoint registration, guarantor bonds, challenges, withdrawals, and emergency exits for LayerX. While LayerX handles thousands or millions of activities, Paxeer registers periodic checkpoints and provides the custody guarantee.
-
-The Paxeer Network node source is co-located in this repository under `paxeer-network/` as part of the LayerX ecosystem monorepo. Co-location keeps the protocol, settlement network, and their automation auditable in one place while preserving separate build, release, and trust boundaries.
-
-## What is LayerX Programs?
-
-Programs is a programmable surface within LayerX that allows developers to deploy economic applications with capability-based kernel APIs, namespaced storage, explicit metering, and versioned ABIs. Programs is not a separate module ID—it is a runtime surface where guest code runs inside the `programs` module's namespace, with every monetary effect forced through 402LXP and no program ever holding direct balance-writing authority.
-
-## Development status
-
-LayerX is currently in **limited beta** (opening September 7, 2026). The protocol is source-available for inspection and security review under a temporary license that does not grant deployment rights.
-
-- Source code is open for inspection
-- Limited beta opens September 7, 2026
-- No public RPC endpoint yet
-- Inspection-only license until qualification completes
-
-Sidiora Labs intends to publish LayerX under an open-source license after protocol development and release qualification are complete.
+Paxeer handles custody, checkpoint registration, guarantor bonds, challenges, withdrawals, and emergency exits. While LayerX processes thousands or millions of activities, Paxeer registers periodic checkpoints and provides the custody guarantee.
 
 ## Key properties
 
@@ -51,16 +38,9 @@ Three rules sit at the center of LayerX:
 
 ## Fees
 
-LayerX charges a base fee of approximately ½¢ per 5,000 µUSDX of activity volume for network operation, sequencing, and data availability.
+LayerX charges a base fee of 5,000 µUSDX per activity (approximately ½¢) for network operation, sequencing, and data availability. Congestion applies a 1×–64× multiplier measured from network load.
 
-## Repository structure
-
-This monorepo contains:
-
-- **LayerX protocol** (`src/`, `include/`, `agent/`, `human/`, `platform/`, `programs/`, `interop/`, `contracts/`, `spec/`)
-- **Paxeer Network** (`paxeer-network/`) with independent build, release tags (`paxeer-network/vX.Y.Z`), and trust boundaries
-
-Co-location keeps the ecosystem auditable while preserving separate deployment authority. See `docs/MONOREPO.md` for details.
+See `docs/MONOREPO.md` for build boundaries, workflow naming, and tag conventions.
 
 ## Resources
 

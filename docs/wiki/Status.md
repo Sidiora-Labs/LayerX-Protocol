@@ -34,36 +34,15 @@ This repository contains both LayerX and Paxeer Network as a unified ecosystem m
 
 ## Limited beta (September 7, 2026)
 
-The limited beta will provide:
-
-- Early access for approved participants
-- Controlled environment for testing agent workflows
-- Opportunity to provide feedback before broader release
-- Real protocol activity under controlled conditions
-
-Limited beta does not mean production-ready. The system remains under qualification, and breaking changes may still occur.
+Limited beta opens September 7, 2026. Limited beta does not mean production-ready. The system remains under qualification, and breaking changes may still occur.
 
 ## Fees
 
-When operational, LayerX will charge a base fee of approximately ½¢ per 5,000 µUSDX of activity volume for network operation, sequencing, and data availability. This is not zero-fee; it reflects the real cost of operating a deterministic accounting network with data availability and replay guarantees.
+LayerX charges a base fee of 5,000 µUSDX per activity (approximately ½¢) for network operation, sequencing, and data availability. Congestion applies a 1×–64× multiplier measured from network load. This is not zero-fee; it reflects the real cost of operating a deterministic accounting network with data availability and replay guarantees.
 
 ## Qualification status
 
-LayerX qualification is layered by risk. Current status:
-
-| Evidence level | Status |
-| --- | --- |
-| Source integrity | ✅ In place |
-| Build and unit behavior | ✅ In place |
-| Runtime safety | 🔄 In progress |
-| Deterministic replay | 🔄 In progress |
-| Fault and adversarial behavior | 🔄 In progress |
-| Settlement qualification | ⏳ Pending |
-| Deployment evidence | ⏳ Pending |
-
-See [docs/QUALIFICATION.md](https://github.com/Sidiora-Labs/LayerX-Protocol/blob/main/docs/QUALIFICATION.md) for the complete qualification framework.
-
-## Paxeer Network qualification
+LayerX qualification is layered by risk. The authoritative acceptance criteria and current completion state are in [docs/QUALIFICATION.md](https://github.com/Sidiora-Labs/LayerX-Protocol/blob/main/docs/QUALIFICATION.md) and [spec/layerx-protocol/tasks.md](https://github.com/Sidiora-Labs/LayerX-Protocol/blob/main/spec/layerx-protocol/tasks.md).
 
 Paxeer has its own independent qualification gates (`make paxeer-ci`, `make monorepo-ci`). Paxeer qualification is separate from LayerX qualification—one does not imply the other.
 
@@ -79,11 +58,6 @@ Sidiora Labs intends to publish LayerX under an open-source license after protoc
 - Inspect the source code
 - Review the specifications and design documents
 - Report security issues via [SECURITY.md](https://github.com/Sidiora-Labs/LayerX-Protocol/blob/main/SECURITY.md)
-
-**Limited beta (September 7):**
-- Apply for early access (details to be announced)
-- Test agent workflows in a controlled environment
-- Provide feedback on developer experience
 
 **After qualification:**
 - Use LayerX in production environments
