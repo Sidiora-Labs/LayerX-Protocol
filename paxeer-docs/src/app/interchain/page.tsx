@@ -1,298 +1,133 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { Callout, FactChips, JumpNav, MethodTable, PageLead, PageNav, Section, SnippetBlock, Subhead, m3 } from '@/components/api/ApiPage'
 import Link from 'next/link'
 
 export default function Interchain() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Interchain (IBC)</h1>
-        <p className="page-description">
-          Inter-Blockchain Communication protocol implementation on Paxeer.
+    <DocsLayout pageTitle="Interchain">
+      <PageLead overline="paxeer-network/interchain/ · ibc-go fork · hyperpax_125-1" source="paxeer-network/interchain/">
+        <p>
+          In-tree ibc-go fork for <code>paxd</code>. Not a published module. IBC is Cosmos-level: client, connection, channel, then packets. EVM contracts do not send or receive IBC packets directly.
         </p>
-      </div>
+        <p>
+          Relayers need chain ID <code>hyperpax_125-1</code> (EVM 125) and a Paxeer RPC you operate. There is no public LayerX RPC on this page.
+        </p>
+      </PageLead>
 
-      <div className="source-note">
-        <strong>Source:</strong> <code>paxeer-network/interchain/</code>
-      </div>
+      <FactChips
+        items={[
+          { label: 'Tree', value: 'paxeer-network/interchain/' },
+          { label: 'Chain ID', value: 'hyperpax_125-1' },
+          { label: 'EVM chain ID', value: '125' },
+          { label: 'Transfer app', value: 'ICS-20' },
+        ]}
+      />
 
-      <h2>Overview</h2>
+      <JumpNav
+        items={[
+          { id: 'core', label: 'Core' },
+          { id: 'apps', label: 'Apps' },
+          { id: 'clients', label: 'Light clients' },
+          { id: 'tree', label: 'Tree' },
+          { id: 'cli', label: 'CLI' },
+          { id: 'evm', label: 'IBC and EVM' },
+        ]}
+      />
 
-      <p>
-        Paxeer includes an in-tree fork of <a href="https://github.com/cosmos/ibc-go">ibc-go</a>, the Cosmos SDK's Inter-Blockchain Communication (IBC) protocol implementation. This enables Paxeer to connect with other IBC-enabled chains for cross-chain asset transfers and messaging.
-      </p>
+      <Section id="core" title="Core stack">
+        <MethodTable
+          columns={['Component', 'ICS', 'Purpose']}
+          rows={[
+            ['Client', 'ICS-02', 'Light-client verification of a remote chain'],
+            ['Connection', 'ICS-03', 'Authenticated connection'],
+            ['Channel', 'ICS-04', 'Ordered or unordered packet delivery'],
+            ['Port', 'ICS-05', 'Module registration and routing'],
+            ['Commitment', 'ICS-23', 'Proofs'],
+            ['Host', 'ICS-24', 'Host requirements'],
+          ]}
+        />
+      </Section>
 
-      <h3>What is IBC?</h3>
+      <Section id="apps" title="Applications">
+        <Subhead>ICS-20 transfer</Subhead>
+        <p className={m3.body}>
+          <code>modules/apps/transfer</code> moves tokens. Paxeer-origin assets leave as ICS-20 packets. Remote assets arrive as IBC-prefixed denoms.
+        </p>
+        <Subhead>ICS-27 interchain accounts</Subhead>
+        <p className={m3.body}>
+          One chain controls an account on another. Used for remote staking and governance, not for LayerX settlement.
+        </p>
+      </Section>
 
-      <p>
-        IBC is an end-to-end, connection-oriented, stateful protocol for reliable, ordered, and authenticated communication between heterogeneous blockchains. It handles transport across different sovereign blockchains without relying on a trusted third party.
-      </p>
+      <Section id="clients" title="Light clients">
+        <MethodTable
+          columns={['Client', 'ICS', 'Purpose']}
+          rows={[
+            ['Tendermint', 'ICS-07', 'Tendermint / CometBFT counterparties'],
+            ['Solo machine', 'ICS-06', 'Single-signer counterparties'],
+          ]}
+        />
+        <Callout label="09-localhost">
+          <code>paxeer-network/interchain/README.md</code> states the localhost client is currently non-functional in this fork.
+        </Callout>
+      </Section>
 
-      <h2>Location</h2>
+      <Section id="tree" title="Tree">
+        <MethodTable
+          columns={['Path', 'Purpose']}
+          rows={[
+            ['modules/core/', 'Client, connection, channel'],
+            ['modules/apps/', 'transfer, interchain accounts'],
+            ['modules/light-clients/', 'ICS-07, ICS-06, 09-localhost'],
+            ['proto/', 'IBC protobufs'],
+          ]}
+        />
+        <p className={m3.body}>
+          Upstream version is the ibc-go pin in <code>paxeer-network/interchain/go.mod</code>. Do not assume latest upstream ibc-go.
+        </p>
+      </Section>
 
-      <p>
-        The IBC implementation is vendored under <code>paxeer-network/interchain/</code> within the monorepo. This is <strong>not</strong> a standalone published module but an in-tree dependency for <code>paxd</code>.
-      </p>
-
-      <h2>Core IBC Components</h2>
-
-      <p>
-        Paxeer's IBC implementation includes the standard IBC stack:
-      </p>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Component</th>
-            <th>ICS Spec</th>
-            <th>Purpose</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Client</strong></td>
-            <td>ICS-02</td>
-            <td>Light client verification of remote chain state</td>
-          </tr>
-          <tr>
-            <td><strong>Connection</strong></td>
-            <td>ICS-03</td>
-            <td>Establish authenticated connections between chains</td>
-          </tr>
-          <tr>
-            <td><strong>Channel</strong></td>
-            <td>ICS-04</td>
-            <td>Packet delivery over connections (ordered/unordered)</td>
-          </tr>
-          <tr>
-            <td><strong>Port</strong></td>
-            <td>ICS-05</td>
-            <td>Module registration and packet routing</td>
-          </tr>
-          <tr>
-            <td><strong>Commitment</strong></td>
-            <td>ICS-23</td>
-            <td>Cryptographic commitment proofs</td>
-          </tr>
-          <tr>
-            <td><strong>Host</strong></td>
-            <td>ICS-24</td>
-            <td>Chain-specific requirements and interfaces</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h2>IBC Applications</h2>
-
-      <p>
-        Paxeer supports standard IBC applications:
-      </p>
-
-      <h3>Fungible Token Transfers (ICS-20)</h3>
-
-      <p>
-        The <code>transfer</code> module enables cross-chain token transfers. Assets originating on Paxeer can be sent to other IBC chains, and assets from remote chains can be received on Paxeer as IBC-wrapped tokens.
-      </p>
-
-      <h3>Interchain Accounts (ICS-27)</h3>
-
-      <p>
-        Interchain Accounts allow one chain to control an account on another chain. This enables cross-chain governance, remote staking, and other advanced use cases.
-      </p>
-
-      <h2>Light Clients</h2>
-
-      <p>
-        Paxeer includes light client implementations for verifying remote chain state:
-      </p>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Client</th>
-            <th>ICS Spec</th>
-            <th>Purpose</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Tendermint</strong></td>
-            <td>ICS-07</td>
-            <td>Light client for Tendermint/CometBFT chains</td>
-          </tr>
-          <tr>
-            <td><strong>Solo Machine</strong></td>
-            <td>ICS-06</td>
-            <td>Light client for single-signer accounts (e.g., hardware wallets)</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div className="source-note">
-        <strong>Note:</strong> The localhost client is currently non-functional in this fork.
-      </div>
-
-      <h2>IBC Module Structure</h2>
-
-      <p>
-        The <code>interchain/</code> directory mirrors the structure of upstream <code>ibc-go</code>:
-      </p>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Path</th>
-            <th>Purpose</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>modules/core/</code></td>
-            <td>Core IBC protocol (client, connection, channel)</td>
-          </tr>
-          <tr>
-            <td><code>modules/apps/</code></td>
-            <td>IBC applications (transfer, interchain accounts)</td>
-          </tr>
-          <tr>
-            <td><code>modules/light-clients/</code></td>
-            <td>Light client implementations</td>
-          </tr>
-          <tr>
-            <td><code>proto/</code></td>
-            <td>Protobuf definitions for IBC types</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h2>Using IBC on Paxeer</h2>
-
-      <h3>Establishing a Connection</h3>
-
-      <p>
-        To connect Paxeer with another IBC-enabled chain:
-      </p>
-
-      <ol>
-        <li>Create a light client for the remote chain</li>
-        <li>Establish a connection using the client</li>
-        <li>Create a channel over the connection</li>
-        <li>Begin sending packets</li>
-      </ol>
-
-      <p>
-        Use the <code>paxd tx ibc</code> CLI commands or relayer software (e.g., Hermes, Go Relayer).
-      </p>
-
-      <h3>Cross-Chain Token Transfers</h3>
-
-      <pre><code>{`# Send 1000upax from Paxeer to another chain
-paxd tx ibc-transfer transfer \\
+      <Section id="cli" title="CLI">
+        <p className={m3.body}>
+          Open a client, a connection, a channel, then send packets. Relayers (Hermes, Go Relayer) ferry proofs. Query live channel IDs; do not assume <code>channel-0</code>.
+        </p>
+        <SnippetBlock
+          method="paxd tx ibc-transfer transfer"
+          args="port channel recipient amount --chain-id hyperpax_125-1"
+          source="paxeer-network/interchain/modules/apps/transfer/"
+          purpose="ICS-20 send. Replace channel, recipient, and amount. Native microdenom in-tree is uhpx; PAX is gas."
+          code={`paxd tx ibc-transfer transfer \\
   transfer \\
-  channel-0 \\
-  cosmos1recipient... \\
-  1000upax \\
-  --from mykey \\
-  --chain-id hyperpax_125-1`}</code></pre>
-
-      <h3>Querying IBC State</h3>
-
-      <pre><code>{`# List all IBC clients
-paxd query ibc client states
-
-# List all connections
+  <channel-id> \\
+  <recipient> \\
+  <amount>uhpx \\
+  --from <key> \\
+  --chain-id hyperpax_125-1`}
+        />
+        <SnippetBlock
+          method="paxd query ibc"
+          args="client | connection | channel"
+          source="paxeer-network/interchain/"
+          purpose="Read IBC clients, connections, and channels from a running node."
+          code={`paxd query ibc client states
 paxd query ibc connection connections
+paxd query ibc channel channels`}
+        />
+        <p className={m3.body}>
+          Relayer security depends on light-client correctness, relayer liveness (timeouts), and each chain's own IBC upgrades. Coordinate upgrades with counterparties.
+        </p>
+      </Section>
 
-# List all channels
-paxd query ibc channel channels`}</code></pre>
+      <Section id="evm" title="IBC and EVM">
+        <p className={m3.body}>
+          Solidity cannot emit IBC packets. Bridge paths that exist in this repo: pointer contracts for Cosmos tokens, precompiles for module calls, or a Cosmos tx that talks to IBC. See <Link href="/contracts">Contracts</Link>.
+        </p>
+      </Section>
 
-      <h2>Relayers</h2>
-
-      <p>
-        IBC requires off-chain relayer software to ferry packets between chains. Relayers monitor both chains and submit proof-carrying packets to complete cross-chain transfers.
-      </p>
-
-      <h3>Supported Relayers</h3>
-
-      <ul>
-        <li><a href="https://github.com/informalsystems/hermes">Hermes</a> (Rust)</li>
-        <li><a href="https://github.com/cosmos/relayer">Go Relayer</a> (Go)</li>
-      </ul>
-
-      <p>
-        Relayers must be configured with Paxeer's chain ID (<code>hyperpax_125-1</code>) and RPC endpoints.
-      </p>
-
-      <h2>IBC and EVM</h2>
-
-      <p>
-        IBC operates at the Cosmos SDK level. EVM contracts on Paxeer cannot directly send or receive IBC packets. To bridge EVM and IBC:
-      </p>
-
-      <ul>
-        <li>Use pointer contracts to expose Cosmos tokens to EVM</li>
-        <li>Use precompiles to call Cosmos modules from EVM</li>
-        <li>Deploy bridge contracts that interact with IBC via Cosmos transactions</li>
-      </ul>
-
-      <p>
-        See <Link href="/contracts">Contracts</Link> for pointer contract details.
-      </p>
-
-      <h2>IBC Protocol Versions</h2>
-
-      <p>
-        Paxeer's IBC fork is based on <code>ibc-go</code> but may diverge from upstream. Check the version in <code>interchain/go.mod</code> or the README.
-      </p>
-
-      <div className="source-note">
-        <strong>Warning:</strong> Paxeer's IBC fork may not be compatible with the latest upstream <code>ibc-go</code> releases. Test cross-chain compatibility carefully.
-      </div>
-
-      <h2>Security Considerations</h2>
-
-      <p>
-        IBC is a trust-minimized protocol, but security depends on:
-      </p>
-
-      <ul>
-        <li><strong>Light client correctness:</strong> Remote chain state must be correctly verified</li>
-        <li><strong>Relayer liveness:</strong> Packets must be relayed promptly to avoid timeouts</li>
-        <li><strong>Chain sovereignty:</strong> Each chain controls its own IBC modules and upgrades</li>
-      </ul>
-
-      <p>
-        Ensure relayers are operated by trusted parties or use multiple independent relayers.
-      </p>
-
-      <h2>IBC Upgrades</h2>
-
-      <p>
-        IBC modules can be upgraded via on-chain governance. Upgrades must be coordinated with connected chains to avoid breaking connections.
-      </p>
-
-      <h2>Resources</h2>
-
-      <ul>
-        <li><a href="https://ibcprotocol.org/">IBC Protocol Website</a></li>
-        <li><a href="https://github.com/cosmos/ibc">IBC Specification</a></li>
-        <li><a href="https://ibc.cosmos.network/">IBC Documentation</a></li>
-        <li><a href="https://github.com/cosmos/ibc-go">ibc-go Repository</a> (upstream)</li>
-      </ul>
-
-      <div className="source-note">
-        <strong>Source:</strong> <code>paxeer-network/interchain/README.md</code>
-      </div>
-
-      <div className="prev-next">
-        <Link href="/sdk">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">SDK</div>
-        </Link>
-        <Link href="/admin-hpx">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Admin & HPX</div>
-        </Link>
-      </div>
+      <PageNav
+        prev={{ href: '/sdk', title: 'SDK' }}
+        next={{ href: '/admin-hpx', title: 'Admin & HPX' }}
+      />
     </DocsLayout>
   )
 }

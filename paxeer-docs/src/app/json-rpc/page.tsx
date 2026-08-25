@@ -1,313 +1,224 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { Callout, FactChips, JumpNav, MethodTable, PageLead, PageNav, Section, SnippetBlock, Subhead, m3 } from '@/components/api/ApiPage'
 import Link from 'next/link'
 
 export default function JsonRpc() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">JSON-RPC API</h1>
-        <p className="page-description">
-          Paxeer's EVM JSON-RPC interface with standard Ethereum compatibility and Paxeer-specific enhancements.
+    <DocsLayout pageTitle="JSON-RPC">
+      <PageLead overline="eth_ · pax_ · pax2_ · debug_ · EVM HTTP :8545" source="paxeer-network/rpc/README.md, paxeer-network/rpc/AGENTS.md, paxeer-network/rpc/pax_legacy.go">
+        <p>
+          EVM JSON-RPC on the node HTTP port. Docker localnet node0 publishes it at <code>127.0.0.1:8545</code> (<code>paxeer-network/docker/docker-compose.yml</code>). There is no public LayerX RPC on this surface.
         </p>
-      </div>
-
-      <div className="source-note">
-        <strong>Source:</strong> <code>paxeer-network/rpc/README.md</code> and <code>paxeer-network/rpc/AGENTS.md</code>
-      </div>
-
-      <h2>Architecture Overview</h2>
-
-      <p>
-        Paxeer provides a comprehensive RPC interface that combines standard <a href="https://ethereum.org/en/developers/docs/apis/json-rpc/">Ethereum JSON-RPC</a> compatibility with Paxeer-specific enhancements. The API is organized into three namespaces:
-      </p>
-
-      <h3>Namespace Summary</h3>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Namespace</th>
-            <th>Transaction Visibility</th>
-            <th>Use Case</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>eth_</code></td>
-            <td>EVM transactions only</td>
-            <td>Pure EVM applications, Ethereum tooling compatibility</td>
-          </tr>
-          <tr>
-            <td><code>pax_</code></td>
-            <td>EVM + Cosmos transactions (synthetic receipts)</td>
-            <td>Full chain visibility, cross-chain event indexing</td>
-          </tr>
-          <tr>
-            <td><code>pax2_</code></td>
-            <td>EVM + Cosmos + bank transfers</td>
-            <td>Complete transaction view including native transfers</td>
-          </tr>
-          <tr>
-            <td><code>debug_</code></td>
-            <td>EVM tracing and debugging</td>
-            <td>Transaction replay, gas profiling, state inspection</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h2>eth_ Endpoints</h2>
-
-      <p>
-        The <code>eth_</code> prefixed endpoints provide a pure EVM-compatible view:
-      </p>
-
-      <ul>
-        <li><strong>EVM-only:</strong> Only process and return EVM transactions</li>
-        <li><strong>Ethereum tooling:</strong> Full compatibility with ethers.js, viem, web3.js, Hardhat, Foundry</li>
-        <li><strong>Cosmos-blind:</strong> Ignore Cosmos-native transactions</li>
-        <li><strong>Standard behavior:</strong> Follow Ethereum JSON-RPC spec</li>
-      </ul>
-
-      <h3>Key eth_ Methods</h3>
-
-      <ul>
-        <li><code>eth_blockNumber</code></li>
-        <li><code>eth_getBlockByNumber</code>, <code>eth_getBlockByHash</code></li>
-        <li><code>eth_getTransactionByHash</code></li>
-        <li><code>eth_getTransactionReceipt</code></li>
-        <li><code>eth_getLogs</code></li>
-        <li><code>eth_call</code>, <code>eth_estimateGas</code></li>
-        <li><code>eth_sendRawTransaction</code></li>
-        <li><code>eth_getBalance</code>, <code>eth_getCode</code></li>
-      </ul>
-
-      <h2>pax_ Endpoints</h2>
-
-      <p>
-        The <code>pax_</code> prefixed endpoints provide an enhanced view that includes both EVM and relevant Cosmos transactions:
-      </p>
-
-      <ul>
-        <li><strong>Synthetic transactions:</strong> Cosmos events (CW20, CW721) exposed as EVM logs</li>
-        <li><strong>Full visibility:</strong> See both EVM and Cosmos activity</li>
-        <li><strong>Cross-chain events:</strong> Index pointer contracts and token transfers</li>
-        <li><strong>Trace filtering:</strong> Variants to exclude pre-state check failures</li>
-      </ul>
-
-      <h3>Synthetic Transaction Endpoints</h3>
-
-      <p>
-        These endpoints bridge Cosmos and EVM by exposing Cosmos-native events as EVM-compatible logs:
-      </p>
-
-      <ul>
-        <li><code>pax_getLogs</code> — Enhanced <code>eth_getLogs</code> with synthetic logs</li>
-        <li><code>pax_getFilterLogs</code> — Enhanced <code>eth_getFilterLogs</code> with synthetic logs</li>
-        <li><code>pax_getBlockByNumber</code>, <code>pax_getBlockByHash</code> — Include synthetic transactions</li>
-        <li><code>pax_getBlockReceipts</code> — Include receipts for synthetic transactions</li>
-      </ul>
-
-      <div className="source-note">
-        <strong>Note:</strong> For synthetic transactions, use <code>eth_getTransactionReceipt</code> with the synthetic transaction hash. There is no <code>pax_getTransactionByReceipt</code>.
-      </div>
-
-      <h3>Trace Failure Filtering</h3>
-
-      <p>
-        Paxeer's unique mempool implementation means some transactions fail pre-state checks (nonce mismatches, insufficient funds, panic conditions). These are included in blocks but not executed. The following endpoints exclude them:
-      </p>
-
-      <ul>
-        <li><code>pax_traceBlockByNumberExcludeTraceFail</code></li>
-        <li><code>pax_traceBlockByHashExcludeTraceFail</code></li>
-        <li><code>pax_getTransactionReceiptExcludeTraceFail</code></li>
-        <li><code>pax_getBlockByNumberExcludeTraceFail</code></li>
-        <li><code>pax_getBlockByHashExcludeTraceFail</code></li>
-      </ul>
-
-      <h2>pax2_ Endpoints (Bank Transfers)</h2>
-
-      <p>
-        The <code>pax2_</code> namespace exposes the same block shape as <code>pax_</code> but includes <strong>bank transfers</strong> in block payloads:
-      </p>
-
-      <ul>
-        <li>Seven methods: block, block receipts, transaction counts, <code>ExcludeTraceFail</code> variants</li>
-        <li>No <code>pax2_</code> transaction or filter API</li>
-        <li>HTTP only (not WebSocket)</li>
-      </ul>
-
-      <h3>Legacy API Gating</h3>
-
-      <p>
-        Both <code>pax_*</code> and <code>pax2_*</code> are <strong>legacy APIs</strong> gated by <code>[evm].enabled_legacy_pax_apis</code> in <code>app.toml</code>:
-      </p>
-
-      <ul>
-        <li><strong>Deprecated:</strong> Scheduled for removal</li>
-        <li><strong>Allow list:</strong> Only methods in the config array are enabled</li>
-        <li><strong>Default config:</strong> Three <code>pax_*</code> address/Cosmos helpers pre-filled</li>
-        <li><strong>Docker localnet:</strong> Enables all gated methods except <code>pax_sign</code></li>
-        <li><strong>Disabled response:</strong> JSON-RPC error <code>-32601</code>, message explains deprecation</li>
-      </ul>
-
-      <div className="source-note">
-        <strong>Coverage:</strong> <code>rpc/pax_legacy_test.go</code> and <code>integration_test/evm_module/rpc_io_test/testdata/pax_legacy_deprecation/*.iox</code>
-      </div>
-
-      <h2>Transaction Index Mismatches</h2>
-
-      <p>
-        <strong>Important:</strong> Transaction indices differ between <code>eth_</code> and <code>pax_</code> endpoints.
-      </p>
-
-      <h3>Example</h3>
-
-      <p>
-        Consider a block with:
-      </p>
-
-      <ol>
-        <li>EVM Transaction 1</li>
-        <li>Cosmos Transaction 1</li>
-        <li>EVM Transaction 2</li>
-      </ol>
-
-      <h4>eth_getBlockReceipts</h4>
-
-      <p>
-        Returns only EVM transactions with sequential indices:
-      </p>
-
-      <ul>
-        <li>EVM Transaction 1 (tx index: 0)</li>
-        <li>EVM Transaction 2 (tx index: 1)</li>
-      </ul>
-
-      <h4>pax_getBlockReceipts</h4>
-
-      <p>
-        Returns all transactions (EVM + Cosmos) with sequential indices:
-      </p>
-
-      <ul>
-        <li>EVM Transaction 1 (tx index: 0)</li>
-        <li>Cosmos Transaction 1 (tx index: 1)</li>
-        <li>EVM Transaction 2 (tx index: 2)</li>
-      </ul>
-
-      <h3>Receipts and Logs</h3>
-
-      <ul>
-        <li><strong>EVM-originating:</strong> Synthetic events included in both <code>eth_getLogs</code> and <code>eth_getTransactionReceipt</code></li>
-        <li><strong>Cosmos-originating:</strong> Synthetic events <em>not</em> in <code>eth_</code> methods; use <code>pax_getLogs</code> and <code>pax_getBlockReceipts</code></li>
-        <li><strong>logIndex values:</strong> Strictly increasing and consistent within each namespace</li>
-      </ul>
-
-      <h3>Best Practice</h3>
-
-      <ul>
-        <li>Use the same endpoint consistently within your application</li>
-        <li>Account for index differences when switching endpoints</li>
-        <li>Prefer transaction hashes over indices (hashes are consistent across endpoints)</li>
-      </ul>
-
-      <h2>debug_ Endpoints</h2>
-
-      <p>
-        <code>debug_trace*</code> endpoints faithfully replay historical execution:
-      </p>
-
-      <ul>
-        <li>If a transaction errored during execution, the trace reflects that error</li>
-        <li>Gas consumption matches the actual execution gas used</li>
-        <li>State changes are replayed exactly as they occurred</li>
-      </ul>
-
-      <h3>Key debug_ Methods</h3>
-
-      <ul>
-        <li><code>debug_traceBlockByNumber</code>, <code>debug_traceBlockByHash</code></li>
-        <li><code>debug_traceTransaction</code></li>
-        <li><code>debug_traceCall</code></li>
-      </ul>
-
-      <h2>Paxeer RPC Distinctions</h2>
-
-      <p>
-        Paxeer's RPC deviates from Ethereum in several areas:
-      </p>
-
-      <h3>No Pending State</h3>
-
-      <ul>
-        <li>Paxeer has instant finality and no pending blocks</li>
-        <li><code>pending</code> parameter is accepted but treated as <code>latest</code>/<code>safe</code>/<code>final</code></li>
-      </ul>
-
-      <h3>No Uncle Blocks</h3>
-
-      <ul>
-        <li>BFT consensus means no uncle blocks or reorgs</li>
-        <li>Uncle-related endpoints are not supported</li>
-      </ul>
-
-      <h3>No Trie Endpoints</h3>
-
-      <ul>
-        <li>Paxeer does not store state in Ethereum-style tries</li>
-        <li>Trie-related endpoints are not supported</li>
-      </ul>
-
-      <h3>No Proof-of-Work</h3>
-
-      <ul>
-        <li><code>eth_mining</code>, <code>eth_hashrate</code> not supported</li>
-        <li>Paxeer uses BFT consensus, not PoW</li>
-      </ul>
-
-      <h3>No Blobs</h3>
-
-      <ul>
-        <li>EIP-4844 blob transactions not supported</li>
-        <li><code>eth_blobBaseFee</code> returns error <code>-32000</code>: "blobs not supported on this chain"</li>
-      </ul>
-
-      <p>
-        See <Link href="/json-rpc-unsupported">Unsupported Methods</Link> for the complete list.
-      </p>
-
-      <h2>Consistency Guarantee</h2>
-
-      <p>
-        <strong>RPC responses for historical heights never change</strong> as the blockchain progresses or as code upgrades. This is a stability guarantee for indexers and applications.
-      </p>
-
-      <h2>WebSocket Support</h2>
-
-      <p>
-        Paxeer RPC supports WebSocket for:
-      </p>
-
-      <ul>
-        <li><code>eth_subscribe</code> (newHeads, logs, newPendingTransactions)</li>
-        <li><code>eth_unsubscribe</code></li>
-      </ul>
-
-      <p>
-        Legacy <code>pax2_*</code> endpoints are HTTP-only.
-      </p>
-
-      <div className="prev-next">
-        <Link href="/wasm-runtime">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">WASM Runtime</div>
-        </Link>
-        <Link href="/json-rpc-unsupported">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Unsupported Methods</div>
-        </Link>
-      </div>
+        <p>
+          <code>eth_</code> sees EVM transactions only. <code>pax_</code> adds Cosmos transactions with synthetic receipts. <code>pax2_</code> is the same block shape as <code>pax_</code> plus bank transfers, HTTP only. <code>debug_trace*</code> replays historical execution.
+        </p>
+      </PageLead>
+
+      <FactChips
+        items={[
+          { label: 'Local EVM HTTP', value: '127.0.0.1:8545' },
+          { label: 'Chain ID', value: '125' },
+          { label: 'Gas token', value: 'PAX' },
+          { label: 'Legacy gate', value: '[evm].enabled_legacy_pax_apis' },
+        ]}
+      />
+
+      <JumpNav
+        items={[
+          { id: 'namespaces', label: 'Namespaces' },
+          { id: 'eth', label: 'eth_' },
+          { id: 'pax', label: 'pax_' },
+          { id: 'pax2', label: 'pax2_' },
+          { id: 'indices', label: 'Tx indices' },
+          { id: 'debug', label: 'debug_' },
+          { id: 'distinctions', label: 'Distinctions' },
+          { id: 'websocket', label: 'WebSocket' },
+        ]}
+      />
+
+      <Section id="namespaces" title="Namespaces">
+        <MethodTable
+          columns={['Prefix', 'Visibility', 'Use']}
+          rows={[
+            ['eth_', 'EVM transactions only', 'Ethereum tooling: ethers, viem, web3.js, Hardhat, Foundry'],
+            ['pax_', 'EVM + Cosmos with synthetic receipts', 'Indexers that need Cosmos events as EVM logs'],
+            ['pax2_', 'EVM + Cosmos + bank transfers in blocks', 'Seven HTTP block methods; no tx or filter API'],
+            ['debug_', 'EVM trace replay', 'Historical gas, errors, and state as executed'],
+          ]}
+        />
+      </Section>
+
+      <Section id="eth" title="eth_">
+        <p className={m3.body}>
+          Pure EVM view. Cosmos-native transactions are omitted. Method names follow the Ethereum JSON-RPC spec except where <Link href="/json-rpc-unsupported">unsupported methods</Link> return <code>-32000</code>.
+        </p>
+        <MethodTable
+          columns={['Method', 'Args', 'Purpose']}
+          rows={[
+            ['eth_blockNumber', '[]', 'Current EVM head as a hex quantity'],
+            ['eth_getBlockByNumber', '[block, fullTx]', 'Block by number or tag'],
+            ['eth_getBlockByHash', '[hash, fullTx]', 'Block by hash'],
+            ['eth_getTransactionByHash', '[hash]', 'EVM transaction'],
+            ['eth_getTransactionReceipt', '[hash]', 'Receipt; also accepts a synthetic hash'],
+            ['eth_getLogs', '[filter]', 'EVM logs in a range'],
+            ['eth_call', '[tx, block]', 'Read-only call'],
+            ['eth_estimateGas', '[tx]', 'Gas estimate'],
+            ['eth_sendRawTransaction', '[raw]', 'Submit a signed EVM tx'],
+            ['eth_getBalance', '[addr, block]', 'Account balance'],
+            ['eth_getCode', '[addr, block]', 'Contract bytecode'],
+          ]}
+        />
+        <SnippetBlock
+          method="eth_blockNumber"
+          args="[]"
+          source="paxeer-network/rpc/"
+          purpose="Read the EVM head on the local Docker node0 port."
+          code={`curl -s -X POST http://127.0.0.1:8545 \\
+  -H 'content-type: application/json' \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}'`}
+        />
+      </Section>
+
+      <Section id="pax" title="pax_">
+        <p className={m3.body}>
+          Cosmos events (CW20, CW721) appear as synthetic EVM logs. For a synthetic transaction, call <code>eth_getTransactionReceipt</code> with that hash. There is no <code>pax_getTransactionByReceipt</code>.
+        </p>
+        <Subhead>Synthetic logs and blocks</Subhead>
+        <MethodTable
+          columns={['Method', 'Args', 'Purpose']}
+          rows={[
+            ['pax_getLogs', '[filter]', 'eth_getLogs plus synthetic logs'],
+            ['pax_getFilterLogs', '[id]', 'eth_getFilterLogs plus synthetic logs'],
+            ['pax_getBlockByNumber', '[block, fullTx]', 'Block including synthetic txs'],
+            ['pax_getBlockByHash', '[hash, fullTx]', 'Block including synthetic txs'],
+            ['pax_getBlockReceipts', '[block]', 'Receipts including synthetic txs'],
+            ['pax_getPaxAddress', '[evmAddr]', 'Cosmos bech32 from EVM address'],
+            ['pax_getEVMAddress', '[paxAddr]', 'EVM address from Cosmos bech32'],
+            ['pax_getCosmosTx', '[hash]', 'Cosmos tx by hash'],
+          ]}
+        />
+        <Subhead>ExcludeTraceFail</Subhead>
+        <p className={m3.body}>
+          Some mempool txs fail pre-state checks (nonce, funds, panic) and land in a block without executing. These methods drop them:
+        </p>
+        <MethodTable
+          columns={['Method', 'Args', 'Purpose']}
+          rows={[
+            ['pax_traceBlockByNumberExcludeTraceFail', '[block]', 'Trace block, skip pre-state failures'],
+            ['pax_traceBlockByHashExcludeTraceFail', '[hash]', 'Trace block by hash, skip failures'],
+            ['pax_getTransactionReceiptExcludeTraceFail', '[hash]', 'Receipt if the tx actually executed'],
+            ['pax_getBlockByNumberExcludeTraceFail', '[block, fullTx]', 'Block without failed pre-state txs'],
+            ['pax_getBlockByHashExcludeTraceFail', '[hash, fullTx]', 'Block without failed pre-state txs'],
+          ]}
+        />
+        <Callout label="Receipt lookup">
+          Synthetic txs use <code>eth_getTransactionReceipt</code> with the synthetic hash. Do not invent a <code>pax_</code> receipt-by-receipt method.
+        </Callout>
+      </Section>
+
+      <Section id="pax2" title="pax2_">
+        <p className={m3.body}>
+          Seven HTTP methods. Same block JSON as <code>pax_</code>, with bank transfers in the payload. No transaction API, no filter API, no WebSocket.
+        </p>
+        <MethodTable
+          columns={['Method', 'Args', 'Purpose']}
+          rows={[
+            ['pax2_getBlockByHash', '[hash, fullTx]', 'Block plus bank transfers'],
+            ['pax2_getBlockByNumber', '[block, fullTx]', 'Block plus bank transfers'],
+            ['pax2_getBlockReceipts', '[block]', 'Receipts plus bank transfers'],
+            ['pax2_getBlockTransactionCountByHash', '[hash]', 'Tx count including bank transfers'],
+            ['pax2_getBlockTransactionCountByNumber', '[block]', 'Tx count including bank transfers'],
+            ['pax2_getBlockByHashExcludeTraceFail', '[hash, fullTx]', 'Block minus pre-state failures'],
+            ['pax2_getBlockByNumberExcludeTraceFail', '[block, fullTx]', 'Block minus pre-state failures'],
+          ]}
+        />
+        <Subhead>Legacy gate</Subhead>
+        <p className={m3.body}>
+          Every gated <code>pax_*</code> and <code>pax2_*</code> name is allowlisted by <code>[evm].enabled_legacy_pax_apis</code> in <code>app.toml</code>. Both prefixes share one list. The surfaces are deprecated and scheduled for removal. <code>paxd init</code> pre-fills <code>pax_getPaxAddress</code>, <code>pax_getEVMAddress</code>, and <code>pax_getCosmosTx</code>. Docker localnet enables every gated method except <code>pax_sign</code> (<code>paxeer-network/docker/localnode/config/app.toml</code>).
+        </p>
+        <p className={m3.body}>
+          A disabled method returns HTTP 200 with JSON-RPC <code>-32601</code>, <code>data: "legacy_pax_deprecated"</code>. Allowed single-object bodies pass through unchanged. Allowed responses may set header <code>Pax-Legacy-RPC-Deprecation</code>.
+        </p>
+        <SnippetBlock
+          method="pax_getLogs"
+          args="[filter]"
+          source="paxeer-network/rpc/pax_legacy.go"
+          purpose="Legacy pax_* call. Fails with -32601 unless the method is on the allowlist."
+          code={`# Disabled methods (not on enabled_legacy_pax_apis):
+# { "jsonrpc":"2.0", "id":1, "error": { "code":-32601, "data":"legacy_pax_deprecated" } }
+#
+# Coverage: paxeer-network/rpc/pax_legacy_test.go
+# and integration_test/evm_module/rpc_io_test/testdata/pax_legacy_deprecation/*.iox`}
+        />
+      </Section>
+
+      <Section id="indices" title="Transaction indices">
+        <p className={m3.body}>
+          Indices are namespace-local. Hashes are stable across namespaces; indices are not.
+        </p>
+        <div className="grid grid-cols-2 gap-3 my-6">
+          <div className="rounded-lg bg-surface-container shadow-1 px-4 py-4">
+            <div className={m3.overline}>eth_getBlockReceipts</div>
+            <p className={`${m3.body} mt-3`}>EVM Transaction 1 → index 0</p>
+            <p className={m3.body}>EVM Transaction 2 → index 1</p>
+            <p className={`${m3.label} mt-3`}>Cosmos tx omitted</p>
+          </div>
+          <div className="rounded-lg bg-surface-container shadow-1 px-4 py-4">
+            <div className={m3.overline}>pax_getBlockReceipts</div>
+            <p className={`${m3.body} mt-3`}>EVM Transaction 1 → index 0</p>
+            <p className={m3.body}>Cosmos Transaction 1 → index 1</p>
+            <p className={m3.body}>EVM Transaction 2 → index 2</p>
+          </div>
+        </div>
+        <ul>
+          <li>EVM-originating synthetic events appear in both <code>eth_getLogs</code> and <code>eth_getTransactionReceipt</code>.</li>
+          <li>Cosmos-originating synthetic events are not in <code>eth_</code> methods. Use <code>pax_getLogs</code> and <code>pax_getBlockReceipts</code>.</li>
+          <li><code>logIndex</code> is strictly increasing inside one namespace.</li>
+        </ul>
+      </Section>
+
+      <Section id="debug" title="debug_">
+        <p className={m3.body}>
+          <code>debug_trace*</code> replays the historical execution. If the tx errored, the trace errors. Gas used matches the executed amount.
+        </p>
+        <MethodTable
+          columns={['Method', 'Args', 'Purpose']}
+          rows={[
+            ['debug_traceBlockByNumber', '[block, opts]', 'Replay every tx in a block'],
+            ['debug_traceBlockByHash', '[hash, opts]', 'Replay by block hash'],
+            ['debug_traceTransaction', '[hash, opts]', 'Replay one tx'],
+            ['debug_traceCall', '[tx, block, opts]', 'Trace a call against a block'],
+          ]}
+        />
+      </Section>
+
+      <Section id="distinctions" title="Distinctions from Ethereum">
+        <MethodTable
+          columns={['Rule', 'Behavior']}
+          rows={[
+            ['No pending state', 'pending is accepted and treated as latest / safe / final'],
+            ['No uncle blocks', 'BFT finality. Uncle methods are unsupported'],
+            ['No trie', 'State is not an Ethereum trie. Trie methods are unsupported'],
+            ['No PoW', 'eth_mining and eth_hashrate are unsupported'],
+            ['No blobs', 'eth_blobBaseFee returns -32000: blobs not supported on this chain'],
+            ['Historical stability', 'Responses at a height do not change after upgrades'],
+          ]}
+        />
+        <p className={m3.body}>
+          Registered failures live on <Link href="/json-rpc-unsupported">Unsupported Methods</Link>.
+        </p>
+      </Section>
+
+      <Section id="websocket" title="WebSocket">
+        <p className={m3.body}>
+          <code>eth_subscribe</code> and <code>eth_unsubscribe</code> accept <code>newHeads</code>, <code>logs</code>, and <code>newPendingTransactions</code>. <code>pax2_*</code> is HTTP only.
+        </p>
+      </Section>
+
+      <PageNav
+        prev={{ href: '/wasmbinding', title: 'WASM Bindings' }}
+        next={{ href: '/json-rpc-unsupported', title: 'Unsupported Methods' }}
+      />
     </DocsLayout>
   )
 }
