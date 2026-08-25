@@ -1,176 +1,104 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { FactChips, JumpNav, MethodTable, PageLead, PageNav, Section, SnippetBlock, Subhead, m3 } from '@/components/api/ApiPage'
 import Link from 'next/link'
 
 export default function JsonRpcUnsupported() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Unsupported JSON-RPC Methods</h1>
-        <p className="page-description">
-          Ethereum JSON-RPC methods that are explicitly unsupported on Paxeer EVM.
+    <DocsLayout pageTitle="Unsupported Methods">
+      <PageLead overline="-32000 · registered failures · not -32601" source="paxeer-network/docs/evm_jsonrpc_unsupported.md, paxeer-network/rpc/AGENTS.md">
+        <p>
+          These Ethereum JSON-RPC names are registered on the Paxeer EVM endpoint and return a JSON-RPC error. Clients get <code>-32000</code> instead of <code>-32601</code> method-not-found.
         </p>
-      </div>
+      </PageLead>
 
-      <div className="source-note">
-        <strong>Source:</strong> <code>paxeer-network/docs/evm_jsonrpc_unsupported.md</code> and <code>paxeer-network/rpc/AGENTS.md</code>
-      </div>
+      <FactChips
+        items={[
+          { label: 'Error code', value: '-32000' },
+          { label: 'Not-found code (not used)', value: '-32601' },
+          { label: 'Local EVM HTTP', value: '127.0.0.1:8545' },
+          { label: 'Fixtures', value: 'testdata/<method>/not-supported.iox' },
+        ]}
+      />
 
-      <h2>Overview</h2>
+      <JumpNav
+        items={[
+          { id: 'methods', label: 'Methods' },
+          { id: 'error', label: 'Error body' },
+          { id: 'notes', label: 'Notes' },
+          { id: 'broader', label: 'Broader rules' },
+        ]}
+      />
 
-      <p>
-        Some Ethereum JSON-RPC methods are <strong>registered</strong> on Paxeer's EVM endpoint but return a <strong>JSON-RPC error</strong> instead of a result. This gives clients and tools a stable, documented failure (code <code>-32000</code>) rather than "method not found" (<code>-32601</code>).
-      </p>
+      <Section id="methods" title="Registered unsupported methods">
+        <MethodTable
+          columns={['Method', 'error.message', 'Reason']}
+          rows={[
+            ['eth_blobBaseFee', 'blobs not supported on this chain', 'No EIP-4844 blobs'],
+            ['eth_syncing', 'eth_syncing is not supported on Pax EVM RPC', 'BFT sync is not Ethereum sync'],
+            ['eth_newPendingTransactionFilter', 'eth_newPendingTransactionFilter is not supported on Pax EVM RPC', 'No Ethereum-style pending filter'],
+            ['debug_getRawBlock', 'debug_getRawBlock is not supported on Pax EVM RPC', 'No raw RLP block'],
+            ['debug_getRawHeader', 'debug_getRawHeader is not supported on Pax EVM RPC', 'No raw RLP header'],
+            ['debug_getRawReceipts', 'debug_getRawReceipts is not supported on Pax EVM RPC', 'No raw RLP receipts'],
+            ['debug_getRawTransaction', 'debug_getRawTransaction is not supported on Pax EVM RPC', 'No raw RLP transaction'],
+          ]}
+        />
+      </Section>
 
-      <h2>Explicitly Unsupported Methods</h2>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Method</th>
-            <th>Typical Error Message</th>
-            <th>Reason</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>eth_blobBaseFee</code></td>
-            <td>"blobs not supported on this chain"</td>
-            <td>EIP-4844 blob transactions not supported</td>
-          </tr>
-          <tr>
-            <td><code>eth_syncing</code></td>
-            <td>"eth_syncing is not supported on Pax EVM RPC"</td>
-            <td>Consensus model differs from Ethereum sync semantics</td>
-          </tr>
-          <tr>
-            <td><code>eth_newPendingTransactionFilter</code></td>
-            <td>"eth_newPendingTransactionFilter is not supported on Pax EVM RPC"</td>
-            <td>Instant finality, no Ethereum-style pending tx filters</td>
-          </tr>
-          <tr>
-            <td><code>debug_getRawBlock</code></td>
-            <td>"debug_getRawBlock is not supported on Pax EVM RPC"</td>
-            <td>Raw RLP block payloads not served</td>
-          </tr>
-          <tr>
-            <td><code>debug_getRawHeader</code></td>
-            <td>"debug_getRawHeader is not supported on Pax EVM RPC"</td>
-            <td>Raw RLP header payloads not served</td>
-          </tr>
-          <tr>
-            <td><code>debug_getRawReceipts</code></td>
-            <td>"debug_getRawReceipts is not supported on Pax EVM RPC"</td>
-            <td>Raw RLP receipt payloads not served</td>
-          </tr>
-          <tr>
-            <td><code>debug_getRawTransaction</code></td>
-            <td>"debug_getRawTransaction is not supported on Pax EVM RPC"</td>
-            <td>Raw RLP transaction payloads not served</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h2>Error Response Format</h2>
-
-      <p>
-        Unsupported methods return a standard JSON-RPC error:
-      </p>
-
-      <pre><code>{`{
+      <Section id="error" title="Error body">
+        <SnippetBlock
+          method="eth_blobBaseFee"
+          args="[]"
+          source="paxeer-network/docs/evm_jsonrpc_unsupported.md"
+          purpose="Stable -32000 failure for blob fee. Same code for every method in the table."
+          code={`{
   "jsonrpc": "2.0",
   "id": 1,
   "error": {
     "code": -32000,
     "message": "blobs not supported on this chain"
   }
-}`}</code></pre>
+}`}
+        />
+      </Section>
 
-      <h2>Behavior Notes</h2>
+      <Section id="notes" title="Method notes">
+        <Subhead>eth_syncing</Subhead>
+        <p className={m3.body}>
+          BFT consensus is not Ethereum sync. Do not poll this method for node catch-up.
+        </p>
+        <Subhead>eth_newPendingTransactionFilter</Subhead>
+        <p className={m3.body}>
+          Instant finality. A tx is in a finalized block or it is not yet submitted. There is no pending-filter surface.
+        </p>
+        <Subhead>debug_getRaw*</Subhead>
+        <p className={m3.body}>
+          Raw RLP payloads are not served. Use structured <code>eth_*</code> JSON.
+        </p>
+        <Subhead>eth_blobBaseFee</Subhead>
+        <p className={m3.body}>
+          EIP-4844 blob transactions are not on this chain.
+        </p>
+      </Section>
 
-      <h3>eth_syncing</h3>
+      <Section id="broader" title="Broader compatibility">
+        <MethodTable
+          columns={['Rule', 'Behavior']}
+          rows={[
+            ['pending tag', 'Accepted, treated as latest / safe / final'],
+            ['Uncle methods', 'Unsupported'],
+            ['Trie methods', 'Unsupported (state is not an Ethereum trie)'],
+            ['eth_mining / eth_hashrate', 'Unsupported (BFT, not PoW)'],
+          ]}
+        />
+        <p className={m3.body}>
+          Integration fixtures: <code>paxeer-network/integration_test/evm_module/rpc_io_test/testdata/&lt;method&gt;/not-supported.iox</code>. Full namespace notes: <Link href="/json-rpc">JSON-RPC</Link>.
+        </p>
+      </Section>
 
-      <p>
-        Paxeer's BFT consensus model differs fundamentally from Ethereum's sync semantics. Callers should not rely on this method to determine node sync status.
-      </p>
-
-      <h3>eth_newPendingTransactionFilter</h3>
-
-      <p>
-        Paxeer has instant finality with no Ethereum-style pending state. Transactions are either included in a finalized block or not yet submitted.
-      </p>
-
-      <h3>debug_getRaw* Methods</h3>
-
-      <p>
-        Raw RLP-encoded block, header, receipt, and transaction payloads are not served on this RPC surface. Use the standard <code>eth_*</code> endpoints which return structured JSON.
-      </p>
-
-      <h3>eth_blobBaseFee</h3>
-
-      <p>
-        Paxeer does not support EIP-4844 blob transactions. This is a permanent architectural decision, not a temporary limitation.
-      </p>
-
-      <h2>Broader Compatibility Notes</h2>
-
-      <p>
-        Beyond explicitly unsupported methods, Paxeer's RPC diverges from Ethereum in several conceptual areas:
-      </p>
-
-      <h3>No Pending Blocks</h3>
-
-      <ul>
-        <li>The <code>pending</code> block tag is accepted but treated as <code>latest</code>/<code>safe</code>/<code>final</code></li>
-        <li>All blocks are instantly finalized (BFT consensus)</li>
-      </ul>
-
-      <h3>No Uncle Blocks</h3>
-
-      <ul>
-        <li>Instant BFT finality means no uncle blocks</li>
-        <li>Uncle-related endpoints are not supported</li>
-      </ul>
-
-      <h3>No Trie Endpoints</h3>
-
-      <ul>
-        <li>Paxeer does not store state in Ethereum-style tries</li>
-        <li>Trie-related endpoints (<code>eth_getProof</code>, etc.) are not supported</li>
-      </ul>
-
-      <h3>No Proof-of-Work</h3>
-
-      <ul>
-        <li><code>eth_mining</code> and <code>eth_hashrate</code> are not supported</li>
-        <li>Paxeer uses BFT consensus, not PoW</li>
-      </ul>
-
-      <p>
-        See <Link href="/json-rpc">JSON-RPC API</Link> for full compatibility details.
-      </p>
-
-      <h2>Integration Coverage</h2>
-
-      <p>
-        Each unsupported method has dedicated integration test coverage:
-      </p>
-
-      <pre><code>{`integration_test/evm_module/rpc_io_test/testdata/<method>/not-supported.iox`}</code></pre>
-
-      <p>
-        This ensures the error responses remain stable and documented.
-      </p>
-
-      <div className="prev-next">
-        <Link href="/json-rpc">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">JSON-RPC API</div>
-        </Link>
-        <Link href="/rest-grpc">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">REST & gRPC</div>
-        </Link>
-      </div>
+      <PageNav
+        prev={{ href: '/json-rpc', title: 'JSON-RPC' }}
+        next={{ href: '/rest-grpc', title: 'REST & gRPC' }}
+      />
     </DocsLayout>
   )
 }
