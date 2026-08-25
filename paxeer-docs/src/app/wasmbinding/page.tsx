@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function WasmBinding() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">WASM Bindings</h1>
-        <p className="page-description">
-          Custom Paxeer message types and queries for CosmWasm contracts.
-        </p>
-      </div>
+    <DocsLayout pageTitle="WASM Bindings">
+      <p className="text-on-surface-variant mb-6">
+        Custom Paxeer message types and queries for CosmWasm contracts.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/wasmbinding/</code>
       </div>
 
@@ -154,16 +152,10 @@ pub fn query_pax_usd_rate(deps: Deps) -> StdResult<ExchangeRateResponse> {
         <li><Link href="/precompiles">Compare with EVM precompiles</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/wasm-runtime">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">WASM Runtime</div>
-        </Link>
-        <Link href="/json-rpc">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">JSON-RPC API</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/wasm-runtime", title: "WASM Runtime" }}
+        next={{ href: "/json-rpc", title: "JSON-RPC API" }}
+      />
     </DocsLayout>
   )
 }

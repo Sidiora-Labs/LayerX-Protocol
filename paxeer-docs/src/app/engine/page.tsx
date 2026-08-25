@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function Engine() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Engine</h1>
-        <p className="page-description">
-          Paxeer's EVM execution engine, transaction processing, and state transition management.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Engine">
+      <p className="text-on-surface-variant mb-6">
+        Paxeer's EVM execution engine, transaction processing, and state transition management.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/</code>
       </div>
 
@@ -23,7 +21,7 @@ export default function Engine() {
 
       <h2>Executor</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/executor/</code>
       </div>
 
@@ -83,7 +81,7 @@ func NewEvmoneExecutor(evmoneVM *evmc.VM, blockCtx vm.BlockContext,
 
       <h3>Internal Components</h3>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/executor/internal/</code>
       </div>
 
@@ -99,7 +97,7 @@ func NewEvmoneExecutor(evmoneVM *evmc.VM, blockCtx vm.BlockContext,
 
       <h2>Precompiles</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/executor/precompiles/</code>
       </div>
 
@@ -113,7 +111,7 @@ func NewEvmoneExecutor(evmoneVM *evmc.VM, blockCtx vm.BlockContext,
 
       <h2>Dependencies (xbank, xevm)</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/deps/</code>
       </div>
 
@@ -152,7 +150,7 @@ func NewEvmoneExecutor(evmoneVM *evmc.VM, blockCtx vm.BlockContext,
 
       <h2>Configuration</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/executor/config/</code>
       </div>
 
@@ -168,7 +166,7 @@ func NewEvmoneExecutor(evmoneVM *evmc.VM, blockCtx vm.BlockContext,
 
       <h2>Testing</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/tests/</code>
       </div>
 
@@ -190,7 +188,7 @@ func NewEvmoneExecutor(evmoneVM *evmc.VM, blockCtx vm.BlockContext,
 
       <h2>Utilities</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/engine/executor/utils/</code>
       </div>
 
@@ -225,16 +223,10 @@ func NewEvmoneExecutor(evmoneVM *evmc.VM, blockCtx vm.BlockContext,
         <li><Link href="/json-rpc">Use the JSON-RPC API</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/consensus">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Consensus</div>
-        </Link>
-        <Link href="/evm">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">EVM</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/consensus", title: "Consensus" }}
+        next={{ href: "/evm", title: "EVM" }}
+      />
     </DocsLayout>
   )
 }

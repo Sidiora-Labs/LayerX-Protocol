@@ -287,6 +287,32 @@ pre {
   margin: 1rem 0;
 }
 
+pre .copy-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.5rem;
+  border: none;
+  border-radius: var(--shape-sm);
+  background: var(--surface-container);
+  color: var(--on-surface-variant);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity var(--duration-short) var(--ease-standard),
+    background var(--duration-short) var(--ease-standard),
+    color var(--duration-short) var(--ease-standard);
+}
+
+pre:hover .copy-button,
+pre:focus-within .copy-button {
+  opacity: 1;
+}
+
+pre .copy-button:hover {
+  background: var(--surface-high);
+  color: var(--on-surface);
+}
+
 pre code {
   background: none;
   padding: 0;
@@ -340,6 +366,112 @@ hr {
   border: none;
   border-top: 1px solid var(--outline-variant);
   margin: 2rem 0;
+}
+
+/* Shared docs chrome remapped to M3 tokens from #89.
+   Keeps leftover page-header / source-note / prev-next / badge classes
+   on Gideon and Ultron pages without rewriting those files. */
+.page-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.page-title {
+  font-size: 3rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.5rem;
+  color: var(--on-surface);
+}
+
+.page-description {
+  font-size: 1.125rem;
+  color: var(--on-surface-variant);
+  margin-bottom: 0;
+}
+
+.source-note {
+  background: var(--surface-high);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--shape-lg);
+  padding: 0.75rem 1rem;
+  margin: 1.5rem 0;
+  font-size: 0.875rem;
+  color: var(--on-surface-variant);
+}
+
+.source-note code {
+  color: var(--ink-text);
+}
+
+.prev-next {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.prev-next a {
+  background: var(--surface-high);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--shape-lg);
+  padding: 1.25rem;
+  transition: border-color var(--duration-short) var(--ease-standard),
+    transform var(--duration-short) var(--ease-standard);
+}
+
+.prev-next a:hover {
+  border-color: var(--ink-text);
+  transform: translateY(-2px);
+  color: var(--on-surface);
+}
+
+.prev-next-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--on-surface-variant);
+  margin-bottom: 0.5rem;
+}
+
+.prev-next-title {
+  color: var(--on-surface);
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--shape-xs);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-warning {
+  background: color-mix(in oklch, var(--warning) 18%, transparent);
+  color: var(--warning);
+}
+
+.badge-info {
+  background: color-mix(in oklch, var(--ink-text) 18%, transparent);
+  color: var(--ink-text);
+}
+
+.badge-success {
+  background: color-mix(in oklch, var(--success) 18%, transparent);
+  color: var(--success);
+}
+
+@media (max-width: 1024px) {
+  .page-title {
+    font-size: 2rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

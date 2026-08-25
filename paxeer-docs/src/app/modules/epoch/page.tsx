@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function Epoch() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Epoch Module</h1>
-        <p className="page-description">
-          Time-based hooks and epoch lifecycle management for coordinating periodic chain operations.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Epoch Module">
+      <p className="text-on-surface-variant mb-6">
+        Time-based hooks and epoch lifecycle management for coordinating periodic chain operations.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/modules/epoch/</code>
       </div>
 
@@ -140,16 +138,10 @@ export default function Epoch() {
         <li><Link href="/modules">Review all Paxeer modules</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/modules">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Modules Overview</div>
-        </Link>
-        <Link href="/modules/mint">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Mint Module</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/modules", title: "Modules Overview" }}
+        next={{ href: "/modules/mint", title: "Mint Module" }}
+      />
     </DocsLayout>
   )
 }

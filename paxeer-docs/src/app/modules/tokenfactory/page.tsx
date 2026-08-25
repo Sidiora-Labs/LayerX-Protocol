@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function TokenFactory() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Token Factory Module</h1>
-        <p className="page-description">
-          Permissionless creation and management of native token denominations with namespace protection.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Token Factory Module">
+      <p className="text-on-surface-variant mb-6">
+        Permissionless creation and management of native token denominations with namespace protection.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/modules/tokenfactory/</code>
       </div>
 
@@ -228,16 +226,10 @@ export default function TokenFactory() {
         <li><Link href="/modules">Review other Paxeer modules</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/modules/store">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Store Module</div>
-        </Link>
-        <Link href="/precompiles">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Precompiles</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/modules/store", title: "Store Module" }}
+        next={{ href: "/precompiles", title: "Precompiles" }}
+      />
     </DocsLayout>
   )
 }

@@ -1,17 +1,15 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function WasmRuntime() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">WASM Runtime</h1>
-        <p className="page-description">
-          The CosmWasm VM, libwasmvm linking, CGO vs no-CGO builds, and WASM execution internals.
-        </p>
-      </div>
+    <DocsLayout pageTitle="WASM Runtime">
+      <p className="text-on-surface-variant mb-6">
+        The CosmWasm VM, libwasmvm linking, CGO vs no-CGO builds, and WASM execution internals.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/wasm-runtime/</code>
       </div>
 
@@ -23,7 +21,7 @@ export default function WasmRuntime() {
 
       <h2>libwasmvm</h2>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/wasm-runtime/libwasmvm/</code>
       </div>
 
@@ -260,16 +258,10 @@ CGO_ENABLED=0 go build .  # Compiles, but WASM calls fail`}</code></pre>
         <li><Link href="/wasmbinding">Review Paxeer-specific bindings</Link></li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/wasm">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">WASM</div>
-        </Link>
-        <Link href="/wasmbinding">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">WASM Bindings</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/wasm", title: "WASM" }}
+        next={{ href: "/wasmbinding", title: "WASM Bindings" }}
+      />
     </DocsLayout>
   )
 }
