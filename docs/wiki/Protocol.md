@@ -114,6 +114,8 @@ Per activity the kernel, in fixed order:
 
 Receipts are evidence produced by the protocol. No receipt field is supplied by a client.
 
+You pay for the work an activity does — bytes, signatures, state — not a zero-fee line. The specified base fee is 5,000 µUSDX per activity (about half a cent). See Payments and Fees.
+
 ---
 
 ## Status
