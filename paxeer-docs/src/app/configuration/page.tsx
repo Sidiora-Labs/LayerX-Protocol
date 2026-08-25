@@ -1,17 +1,14 @@
 import { DocsLayout } from '@/components/DocsLayout'
-import Link from 'next/link'
+import { PrevNext } from '@/components/PrevNext'
 
 export default function Configuration() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Configuration</h1>
-        <p className="page-description">
-          Configuring paxd through config.toml, app.toml, node modes, and environment variables.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Configuration">
+      <p className="text-on-surface-variant mb-6">
+        Configuring paxd through config.toml, app.toml, node modes, and environment variables.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/node/params/config.go</code>, <code>docker/localnode/config/</code>, <code>config.yml</code>
       </div>
 
@@ -91,7 +88,7 @@ export default function Configuration() {
         </tbody>
       </table>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Implementation:</strong> <code>node/params/config.go</code> — <code>SetTendermintConfigByMode</code>, <code>SetAppConfigByMode</code>
       </div>
 
@@ -160,7 +157,7 @@ size = 5000
 # Max transaction bytes
 max-txs-bytes = 1073741824`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Template:</strong> <code>docker/localnode/config/config.toml</code>
       </div>
 
@@ -191,7 +188,7 @@ concurrency-workers = 4
 # Optimistic Concurrency Control (OCC)
 occ-enabled = true`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>OCC:</strong> Enables parallel transaction execution with conflict detection
       </div>
 
@@ -281,7 +278,7 @@ enabled-legacy-pax-apis = [
   "pax_getEVMInfo"
 ]`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>docker/localnode/config/app.toml</code>, <code>rpc/config</code>
       </div>
 
@@ -351,7 +348,7 @@ min-retain-blocks = 0  # Keep all Tendermint blocks
 
 pruning = "nothing"  # Keep all state`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Implementation:</strong> <code>node/params/config.go:180-196</code>
       </div>
 
@@ -367,7 +364,7 @@ pruning = "nothing"  # Keep all state`}</code></pre>
         <li><strong>Consensus node:</strong> <code>paxvalcons...</code></li>
       </ul>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>node/params/config.go:20-39</code>
       </div>
 
@@ -399,7 +396,7 @@ pruning = "nothing"  # Keep all state`}</code></pre>
         1 hpx = 1,000,000 uhpx
       </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>node/params/config.go:13-18</code>
       </div>
 
@@ -430,7 +427,7 @@ HPX_MIRROR=https://node.hyperpaxeer.com
 # Runtime config source
 HPX_RUNTIME_CONFIG_DIR=/root/.paxeer/config`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>hpx/README.md</code>
       </div>
 
@@ -455,16 +452,10 @@ HPX_RUNTIME_CONFIG_DIR=/root/.paxeer/config`}</code></pre>
         This checks configuration syntax and module initialization without starting the node.
       </p>
 
-      <div className="prev-next">
-        <Link href="/run-node">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Run a Node</div>
-        </Link>
-        <Link href="/operators">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Operators Guide</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/run-node", title: "Run a Node" }}
+        next={{ href: "/operators", title: "Operators Guide" }}
+      />
     </DocsLayout>
   )
 }

@@ -1,19 +1,17 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function RunNode() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Run a Node</h1>
-        <p className="page-description">
-          How to run a Paxeer node (paxd) for validation, archiving, or RPC.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Run a Node">
+      <p className="text-on-surface-variant mb-6">
+        How to run a Paxeer node (paxd) for validation, archiving, or RPC.
+      </p>
 
-      <div className="source-note">
-        <span className="badge badge-warning">Limited Beta</span>
-        <p style={{ marginTop: '0.5rem' }}>
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
+        <span className="inline-block px-2 py-0.5 rounded-xs text-xs font-medium uppercase tracking-wider bg-warning/20 text-warning">Limited Beta</span>
+        <p className="mt-2 mb-0">
           LayerX limited beta opens September 7, 2026. Validator onboarding and public endpoints not yet available.
         </p>
       </div>
@@ -93,7 +91,7 @@ export default function RunNode() {
       <pre><code>{`# Mainnet genesis (when available)
 curl -o ~/.paxd/config/genesis.json https://...`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Note:</strong> Genesis URL will be published when mainnet launches.
       </div>
 
@@ -234,16 +232,10 @@ make docker-cluster-start`}</code></pre>
         See <Link href="/docker">Docker documentation</Link> for compose configurations.
       </p>
 
-      <div className="prev-next">
-        <Link href="/installation">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Installation & Build</div>
-        </Link>
-        <Link href="/configuration">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Configuration</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/installation", title: "Installation & Build" }}
+        next={{ href: "/configuration", title: "Configuration" }}
+      />
     </DocsLayout>
   )
 }

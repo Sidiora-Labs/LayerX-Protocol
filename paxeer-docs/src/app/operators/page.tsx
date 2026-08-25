@@ -1,17 +1,14 @@
 import { DocsLayout } from '@/components/DocsLayout'
-import Link from 'next/link'
+import { PrevNext } from '@/components/PrevNext'
 
 export default function Operators() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Operators Guide</h1>
-        <p className="page-description">
-          Production best practices for running Paxeer validators and full nodes.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Operators Guide">
+      <p className="text-on-surface-variant mb-6">
+        Production best practices for running Paxeer validators and full nodes.
+      </p>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/docker/README.md</code>, <code>hpx/README.md</code>, <code>Makefile</code>
       </div>
 
@@ -104,7 +101,7 @@ hpx register        # Register node in public peer registry
 hpx statesync       # Get state-sync parameters
 hpx remove          # Uninstall node`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>hpx/README.md:10-31</code>
       </div>
 
@@ -161,7 +158,7 @@ docker exec -it pax-node-0 /bin/bash`}</code></pre>
 
       <pre><code>{`make build-docker-node && make run-local-node`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>docker/README.md:23-54</code>
       </div>
 
@@ -198,7 +195,7 @@ docker exec -it pax-node-0 /bin/bash`}</code></pre>
 ./docker/monitornode/scripts/stop-prometheus.sh
 ./docker/monitornode/scripts/stop-grafana.sh`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>docker/README.md:55-82</code>
       </div>
 
@@ -226,7 +223,7 @@ paxd status | jq
 # Start state sync node
 make run-rpc-node`}</code></pre>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>docker/README.md:84-95</code>
       </div>
 
@@ -466,16 +463,10 @@ paxd tx slashing unjail --from=validator`}</code></pre>
         <li>Reduce <code>cache-size</code> settings</li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/configuration">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Configuration</div>
-        </Link>
-        <Link href="/consensus">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Consensus</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/configuration", title: "Configuration" }}
+        next={{ href: "/consensus", title: "Consensus" }}
+      />
     </DocsLayout>
   )
 }

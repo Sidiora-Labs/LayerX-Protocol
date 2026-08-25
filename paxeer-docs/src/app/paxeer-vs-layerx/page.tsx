@@ -1,15 +1,12 @@
 import { DocsLayout } from '@/components/DocsLayout'
-import Link from 'next/link'
+import { PrevNext } from '@/components/PrevNext'
 
 export default function PaxeerVsLayerX() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Paxeer vs LayerX</h1>
-        <p className="page-description">
-          Understanding the relationship and boundaries between Paxeer L1 and the LayerX agent channel.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Paxeer vs LayerX">
+      <p className="text-on-surface-variant mb-6">
+        Understanding the relationship and boundaries between Paxeer L1 and the LayerX agent channel.
+      </p>
 
       <h2>Two Distinct Systems</h2>
 
@@ -31,7 +28,7 @@ export default function PaxeerVsLayerX() {
         <li><strong>Standard finality:</strong> Block-based Byzantine Fault Tolerant consensus</li>
       </ul>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Repository path:</strong> <code>paxeer-network/</code> (this documentation)
       </div>
 
@@ -49,7 +46,7 @@ export default function PaxeerVsLayerX() {
         <li><strong>Settlement unit:</strong> USDX (backed by USDL on Paxeer L1)</li>
       </ul>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Repository paths:</strong> Root directories <code>src/</code>, <code>include/</code>, <code>agent/</code>, <code>human/</code>, <code>platform/</code>, <code>programs/</code>, <code>interop/</code>
       </div>
 
@@ -122,7 +119,7 @@ export default function PaxeerVsLayerX() {
         <li><strong>Emergency exits:</strong> Protocol-level safety when LayerX is degraded</li>
       </ul>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Contracts path:</strong> <code>contracts/</code> at repository root (not <code>paxeer-network/contracts/</code>)
       </div>
 
@@ -168,16 +165,10 @@ export default function PaxeerVsLayerX() {
         Ethereum and Solana mirrors in <code>interop/</code> are <strong>archives</strong>, not settlement venues or custody domains. They publish batch commitments for independent verification but hold no vaults, portals, or custody semantics. <strong>Paxeer remains the exclusive custody and withdrawal guarantee.</strong>
       </p>
 
-      <div className="prev-next">
-        <Link href="/">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Introduction</div>
-        </Link>
-        <Link href="/network-parameters">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Network Parameters</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/", title: "Introduction" }}
+        next={{ href: "/network-parameters", title: "Network Parameters" }}
+      />
     </DocsLayout>
   )
 }

@@ -1,15 +1,13 @@
 import { DocsLayout } from '@/components/DocsLayout'
+import { PrevNext } from '@/components/PrevNext'
 import Link from 'next/link'
 
 export default function NetworkParameters() {
   return (
-    <DocsLayout>
-      <div className="page-header">
-        <h1 className="page-title">Network Parameters</h1>
-        <p className="page-description">
-          Key parameters and configuration for Paxeer Network chain ID 125.
-        </p>
-      </div>
+    <DocsLayout pageTitle="Network Parameters">
+      <p className="text-on-surface-variant mb-6">
+        Key parameters and configuration for Paxeer Network chain ID 125.
+      </p>
 
       <h2>Chain Identifiers</h2>
 
@@ -127,7 +125,7 @@ export default function NetworkParameters() {
         </tbody>
       </table>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Important:</strong> LayerX does <strong>not</strong> have zero fees. The paxeer.app marketing site incorrectly states "zero LayerX fees." LayerX charges 5,000 µUSDX base fee with congestion multiplier.
       </div>
 
@@ -143,7 +141,7 @@ export default function NetworkParameters() {
         <li><strong>Module basics:</strong> EVM, epoch, mint, oracle, store, tokenfactory</li>
       </ul>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/node/genesis.go</code>
       </div>
 
@@ -161,7 +159,7 @@ export default function NetworkParameters() {
         <li><strong>No pending state:</strong> Transactions finalize immediately</li>
       </ul>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/consensus/</code>
       </div>
 
@@ -198,15 +196,15 @@ export default function NetworkParameters() {
         <li><strong><Link href="/modules/tokenfactory">tokenfactory</Link>:</strong> Permissioned creation and management of native token denominations</li>
       </ul>
 
-      <div className="source-note">
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
         <strong>Source:</strong> <code>paxeer-network/modules/</code>
       </div>
 
       <h2>Public Endpoints</h2>
 
-      <div className="source-note">
-        <span className="badge badge-warning">Limited Beta</span>
-        <p style={{ marginTop: '0.5rem' }}>
+      <div className="bg-surface-high border border-outline-variant rounded-lg px-4 py-3 mb-6">
+        <span className="inline-block px-2 py-0.5 rounded-xs text-xs font-medium uppercase tracking-wider bg-warning/20 text-warning">Limited Beta</span>
+        <p className="mt-2 mb-0">
           LayerX limited beta opens September 7, 2026. Public RPC endpoints are not yet available. Do not invent or document public LayerX RPC URLs.
         </p>
       </div>
@@ -226,16 +224,10 @@ export default function NetworkParameters() {
         <li><strong>Chain ID:</strong> 125</li>
       </ul>
 
-      <div className="prev-next">
-        <Link href="/paxeer-vs-layerx">
-          <div className="prev-next-label">Previous</div>
-          <div className="prev-next-title">Paxeer vs LayerX</div>
-        </Link>
-        <Link href="/installation">
-          <div className="prev-next-label">Next</div>
-          <div className="prev-next-title">Installation & Build</div>
-        </Link>
-      </div>
+      <PrevNext
+        prev={{ href: "/paxeer-vs-layerx", title: "Paxeer vs LayerX" }}
+        next={{ href: "/installation", title: "Installation & Build" }}
+      />
     </DocsLayout>
   )
 }
