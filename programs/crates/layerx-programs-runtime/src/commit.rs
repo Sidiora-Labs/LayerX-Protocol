@@ -17,6 +17,12 @@ pub const ARBITRATION_STEP_COMMITMENT_VERSION: u16 = 2;
 /// Domain separating complete arbitration commitments from legacy v1 state.
 pub const ARBITRATION_STEP_COMMITMENT_DOMAIN: &[u8] =
     b"layerx-programs-arbitration-step-commitment-v2\0";
+/// Restorable arbitration state version. Version two is frozen receipt
+/// evidence but omits interpreter frame restoration metadata.
+pub const RESTORABLE_ARBITRATION_STEP_COMMITMENT_VERSION: u16 = 3;
+/// Domain separating restorable v3 state from frozen v1 and v2 evidence.
+pub const RESTORABLE_ARBITRATION_STEP_COMMITMENT_DOMAIN: &[u8] =
+    b"layerx-programs-arbitration-step-commitment-v3\0";
 /// Fuel charged for the fixed work of producing one commitment.
 pub const STEP_COMMITMENT_BASE_FUEL: u64 = 32;
 /// Fuel charged for each byte in the committed canonical state.
@@ -71,6 +77,61 @@ pub struct ArbitrationExecutionState {
     pub engine_state: Vec<u8>,
     pub host_state_root: [u8; 32],
     pub host_state_bytes: u64,
+}
+
+/// Immutable identity for a restorable v3 arbitration boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ArbitrationExecutionIdentityV3 {
+    pub module_code_hash: [u8; 32],
+    pub input_digest: [u8; 32],
+    pub runtime_version: u16,
+    pub abi_version: u16,
+    pub fee_schedule_version: u32,
+    pub metering_schedule_version: u32,
+    pub trace_policy: TracePolicy,
+    pub host_base_state_root: [u8; 32],
+    pub receipt_oracle_root: [u8; 32],
+    pub balance_oracle_root: [u8; 32],
+}
+
+/// Value type partition retained for restoring an interpreter operand stack.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArbitrationValueTypeV3 { I32, I64 }
+
+/// Restorable interpreter frame, ordered from the oldest suspended caller to
+/// the current frame. `value_base` partitions the shared value stack and
+/// `operand_types` authenticates the live operand segment independently of
+/// function-local arity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArbitrationExecutionFrameV3 {
+    pub instance_index: u32,
+    pub function_index: u32,
+    pub value_base: u32,
+    pub return_program_counter: Option<u64>,
+    pub operand_types: Vec<ArbitrationValueTypeV3>,
+    pub current: bool,
+}
+
+/// Complete restorable v3 arbitration boundary. The frozen v2 bytes are not
+/// reused as a hash domain: v3 re-encodes all identity and state components
+/// and adds the frame metadata required for deterministic restoration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArbitrationExecutionStateV3 {
+    pub identity: ArbitrationExecutionIdentityV3,
+    pub legacy: Arc<ExecutionState>,
+    pub engine_state: Vec<u8>,
+    pub frames: Vec<ArbitrationExecutionFrameV3>,
+    pub host_state_root: [u8; 32],
+    pub host_state_bytes: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ArbitrationStepCommitmentV3 {
+    pub version: u16,
+    pub step_index: u64,
+    pub digest: [u8; 32],
+    pub encoded_state_bytes: u32,
+    pub commitment_fuel: u64,
 }
 
 /// Digest and exact accounting metadata for an arbitration-capable boundary.
@@ -171,6 +232,17 @@ pub struct ArbitrationExecutionStep {
     pub post_commitment: ArbitrationStepCommitment,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArbitrationExecutionStepV3 {
+    pub instruction: Vec<u8>,
+    pub instruction_fuel: u64,
+    pub memory_expansion_bytes: u64,
+    pub pre_state: Arc<ArbitrationExecutionStateV3>,
+    pub post_state: Arc<ArbitrationExecutionStateV3>,
+    pub pre_commitment: ArbitrationStepCommitmentV3,
+    pub post_commitment: ArbitrationStepCommitmentV3,
+}
+
 /// Digest and exact accounting metadata for one committed step boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StepCommitment {
@@ -229,6 +301,10 @@ pub struct ExecutionTrace {
     arbitration_steps: Vec<ArbitrationExecutionStep>,
     total_arbitration_commitment_fuel: u64,
     total_arbitration_state_bytes: u64,
+    restorable_commitments: Vec<ArbitrationStepCommitmentV3>,
+    restorable_steps: Vec<ArbitrationExecutionStepV3>,
+    total_restorable_commitment_fuel: u64,
+    total_restorable_state_bytes: u64,
 }
 
 impl ExecutionTrace {
@@ -244,6 +320,8 @@ impl ExecutionTrace {
             arbitration_steps: Vec::new(),
             total_arbitration_commitment_fuel: 0,
             total_arbitration_state_bytes: 0,
+            restorable_commitments: Vec::new(), restorable_steps: Vec::new(),
+            total_restorable_commitment_fuel: 0, total_restorable_state_bytes: 0,
         }
     }
 
@@ -258,6 +336,9 @@ impl ExecutionTrace {
             arbitration_steps: Vec::with_capacity(steps),
             total_arbitration_commitment_fuel: 0,
             total_arbitration_state_bytes: 0,
+            restorable_commitments: Vec::with_capacity(states),
+            restorable_steps: Vec::with_capacity(steps),
+            total_restorable_commitment_fuel: 0, total_restorable_state_bytes: 0,
         }
     }
 
@@ -298,8 +379,17 @@ impl ExecutionTrace {
 
     #[must_use]
     pub const fn is_arbitration_eligible(&self) -> bool {
-        !self.arbitration_steps.is_empty()
+        !self.restorable_steps.is_empty()
     }
+
+    #[must_use]
+    pub fn restorable_commitments(&self) -> &[ArbitrationStepCommitmentV3] { &self.restorable_commitments }
+    #[must_use]
+    pub fn restorable_steps(&self) -> &[ArbitrationExecutionStepV3] { &self.restorable_steps }
+    #[must_use]
+    pub const fn total_restorable_commitment_fuel(&self) -> u64 { self.total_restorable_commitment_fuel }
+    #[must_use]
+    pub const fn total_restorable_state_bytes(&self) -> u64 { self.total_restorable_state_bytes }
 
     pub fn record(&mut self, state: &ExecutionState) -> Result<Option<StepCommitment>, CommitmentError> {
         if state.step_index % self.policy.interval != 0 {
@@ -378,8 +468,8 @@ impl ExecutionTrace {
         if step.post_state.legacy.step_index != expected_post
             || step.pre_commitment.step_index != step.pre_state.legacy.step_index
             || step.post_commitment.step_index != step.post_state.legacy.step_index
-            || !step.pre_commitment.arbitration_eligible()
-            || !step.post_commitment.arbitration_eligible()
+            || step.pre_commitment.version != ARBITRATION_STEP_COMMITMENT_VERSION
+            || step.post_commitment.version != ARBITRATION_STEP_COMMITMENT_VERSION
         {
             return Err(CommitmentError::InvalidStepTransition);
         }
@@ -439,6 +529,60 @@ impl ExecutionTrace {
         Ok(())
     }
 
+    pub(crate) fn record_restorable_step(
+        &mut self,
+        step: ArbitrationExecutionStepV3,
+    ) -> Result<(), CommitmentError> {
+        let expected_post = step.pre_state.legacy.step_index.checked_add(1)
+            .ok_or(CommitmentError::InvalidStepTransition)?;
+        if step.instruction.is_empty() || step.instruction.len() > MAX_STEP_INSTRUCTION_BYTES
+            || step.post_state.legacy.step_index != expected_post
+            || step.pre_commitment.step_index != step.pre_state.legacy.step_index
+            || step.post_commitment.step_index != step.post_state.legacy.step_index
+            || !step.pre_commitment.arbitration_eligible()
+            || !step.post_commitment.arbitration_eligible()
+            || self.restorable_steps.len() >= MAX_TRACE_COMMITMENTS
+        {
+            return Err(CommitmentError::InvalidStepTransition);
+        }
+        let mut additions = [None, None];
+        let mut count = 0_usize;
+        let mut next_fuel = self.total_restorable_commitment_fuel;
+        let mut next_bytes = self.total_restorable_state_bytes;
+        for commitment in [step.pre_commitment, step.post_commitment] {
+            if self.restorable_commitments.last().is_some_and(|prior| prior.step_index == commitment.step_index)
+                || additions[..count].iter().flatten().any(|prior| prior.step_index == commitment.step_index)
+            { continue; }
+            let prior = additions[..count].iter().flatten().last().map(|value| value.step_index)
+                .or_else(|| self.restorable_commitments.last().map(|value| value.step_index));
+            if prior.is_some_and(|prior| prior >= commitment.step_index) {
+                return Err(CommitmentError::InvalidStepTransition);
+            }
+            next_fuel = next_fuel.checked_add(commitment.commitment_fuel).ok_or(CommitmentError::CostOverflow)?;
+            next_bytes = next_bytes.checked_add(u64::from(commitment.encoded_state_bytes)).ok_or(CommitmentError::CostOverflow)?;
+            additions[count] = Some(commitment);
+            count += 1;
+        }
+        if self.restorable_commitments.len().checked_add(count).map_or(
+            true,
+            |next| next > self.policy.maximum_commitments as usize,
+        ) {
+            return Err(CommitmentError::CommitmentLimit {
+                limit: self.policy.maximum_commitments as usize,
+            });
+        }
+        next_bytes = next_bytes.checked_add(u64::try_from(step.instruction.len()).map_err(|_| CommitmentError::CostOverflow)?)
+            .ok_or(CommitmentError::CostOverflow)?;
+        if next_bytes > MAX_TRACE_STATE_BYTES {
+            return Err(CommitmentError::TraceByteLimit { attempted: next_bytes, limit: MAX_TRACE_STATE_BYTES });
+        }
+        self.total_restorable_commitment_fuel = next_fuel;
+        self.total_restorable_state_bytes = next_bytes;
+        self.restorable_commitments.extend(additions.into_iter().flatten());
+        self.restorable_steps.push(step);
+        Ok(())
+    }
+
     /// Receipt encoding binds both declared policy and the ordered chain.
     pub fn canonical_bytes(&self) -> Result<Vec<u8>, CommitmentError> {
         let mut bytes = Vec::with_capacity(20 + self.commitments.len() * 52);
@@ -457,9 +601,8 @@ impl ExecutionTrace {
     }
 
 
-    /// Canonical arbitration evidence. Legacy commitments remain embedded for
-    /// receipt compatibility, but eligibility is established only by the
-    /// complete v2 chain appended here.
+    /// Canonical frozen v2 evidence. It is retained for receipt compatibility
+    /// but is not sufficient to restore and arbitrate a whole interpreter step.
     pub fn canonical_arbitration_bytes(&self) -> Result<Vec<u8>, CommitmentError> {
         if self.arbitration_commitments.is_empty() || self.arbitration_steps.is_empty() {
             return Err(CommitmentError::LegacyCommitmentNotArbitrable);
@@ -493,6 +636,35 @@ impl ExecutionTrace {
         }
         bytes.extend_from_slice(&self.total_arbitration_commitment_fuel.to_be_bytes());
         bytes.extend_from_slice(&self.total_arbitration_state_bytes.to_be_bytes());
+        Ok(bytes)
+    }
+
+    /// Canonical receipt evidence for the independently restorable v3 chain.
+    pub fn canonical_restorable_arbitration_bytes(&self) -> Result<Vec<u8>, CommitmentError> {
+        if self.restorable_commitments.is_empty() || self.restorable_steps.is_empty() {
+            return Err(CommitmentError::LegacyCommitmentNotArbitrable);
+        }
+        let legacy = self.canonical_arbitration_bytes()?;
+        let entries = self.restorable_commitments.len().checked_mul(54).ok_or(CommitmentError::CostOverflow)?;
+        let capacity = 2_usize.checked_add(4).and_then(|n| n.checked_add(legacy.len()))
+            .and_then(|n| n.checked_add(4)).and_then(|n| n.checked_add(entries))
+            .and_then(|n| n.checked_add(16)).ok_or(CommitmentError::CostOverflow)?;
+        if capacity > MAX_ARBITRATION_STATE_BYTES {
+            return Err(CommitmentError::ArbitrationStateTooLarge { bytes: capacity, limit: MAX_ARBITRATION_STATE_BYTES });
+        }
+        let mut bytes = Vec::with_capacity(capacity);
+        bytes.extend_from_slice(&RESTORABLE_ARBITRATION_STEP_COMMITMENT_VERSION.to_be_bytes());
+        put_bytes(&mut bytes, &legacy)?;
+        put_len(&mut bytes, self.restorable_commitments.len())?;
+        for commitment in &self.restorable_commitments {
+            bytes.extend_from_slice(&commitment.version.to_be_bytes());
+            bytes.extend_from_slice(&commitment.step_index.to_be_bytes());
+            bytes.extend_from_slice(&commitment.digest);
+            bytes.extend_from_slice(&commitment.encoded_state_bytes.to_be_bytes());
+            bytes.extend_from_slice(&commitment.commitment_fuel.to_be_bytes());
+        }
+        bytes.extend_from_slice(&self.total_restorable_commitment_fuel.to_be_bytes());
+        bytes.extend_from_slice(&self.total_restorable_state_bytes.to_be_bytes());
         Ok(bytes)
     }
 }
@@ -564,8 +736,55 @@ impl ArbitrationStepCommitment {
 
     #[must_use]
     pub const fn arbitration_eligible(self) -> bool {
-        self.version == ARBITRATION_STEP_COMMITMENT_VERSION
+        false
     }
+}
+
+impl ArbitrationStepCommitmentV3 {
+    pub fn from_state(state: &ArbitrationExecutionStateV3) -> Result<Self, CommitmentError> {
+        let encoded = state.canonical_bytes()?;
+        let encoded_state_bytes = u32::try_from(encoded.len()).map_err(|_| CommitmentError::ArbitrationStateTooLarge {
+            bytes: encoded.len(), limit: MAX_ARBITRATION_STATE_BYTES,
+        })?;
+        let commitment_fuel = restorable_arbitration_step_commitment_fuel(
+            u64::from(encoded_state_bytes),
+            u64::try_from(state.engine_state.len()).map_err(|_| CommitmentError::CostOverflow)?,
+            state.host_state_bytes,
+        )?;
+        let mut hasher = Sha256::new();
+        hasher.update(RESTORABLE_ARBITRATION_STEP_COMMITMENT_DOMAIN);
+        hasher.update(&encoded);
+        Ok(Self { version: RESTORABLE_ARBITRATION_STEP_COMMITMENT_VERSION,
+            step_index: state.legacy.step_index, digest: hasher.finalize().into(),
+            encoded_state_bytes, commitment_fuel })
+    }
+
+    #[must_use]
+    pub const fn arbitration_eligible(self) -> bool {
+        self.version == RESTORABLE_ARBITRATION_STEP_COMMITMENT_VERSION
+    }
+}
+
+pub fn restorable_arbitration_step_commitment_fuel(
+    encoded_state_bytes: u64,
+    engine_state_bytes: u64,
+    host_state_bytes: u64,
+) -> Result<u64, CommitmentError> {
+    let work = encoded_state_bytes.checked_add(engine_state_bytes).ok_or(CommitmentError::CostOverflow)?
+        .checked_add(host_state_bytes.checked_mul(3).ok_or(CommitmentError::CostOverflow)?)
+        .ok_or(CommitmentError::CostOverflow)?;
+    step_commitment_fuel(work)
+}
+
+pub fn restorable_arbitration_step_state_bytes(
+    legacy_state_bytes: u64,
+    engine_state_bytes: u64,
+    frame_state_bytes: u64,
+) -> Result<u64, CommitmentError> {
+    266_u64.checked_add(legacy_state_bytes)
+        .and_then(|bytes| bytes.checked_add(engine_state_bytes))
+        .and_then(|bytes| bytes.checked_add(frame_state_bytes))
+        .ok_or(CommitmentError::CostOverflow)
 }
 
 pub fn step_commitment_fuel(encoded_state_bytes: u64) -> Result<u64, CommitmentError> {
@@ -751,6 +970,214 @@ impl ArbitrationExecutionState {
     }
 }
 
+fn validate_v3_engine_graph(bytes: &[u8]) -> Result<Vec<Vec<bool>>, CommitmentError> {
+    struct Cursor<'a> { bytes: &'a [u8], offset: usize }
+    impl<'a> Cursor<'a> {
+        fn take(&mut self, count: usize) -> Result<&'a [u8], CommitmentError> {
+            let end = self.offset.checked_add(count).ok_or(CommitmentError::InvalidRestorableFrames)?;
+            let part = self.bytes.get(self.offset..end).ok_or(CommitmentError::InvalidRestorableFrames)?;
+            self.offset = end; Ok(part)
+        }
+        fn byte(&mut self) -> Result<u8, CommitmentError> { Ok(self.take(1)?[0]) }
+        fn u32(&mut self) -> Result<u32, CommitmentError> {
+            Ok(u32::from_be_bytes(self.take(4)?.try_into().map_err(|_| CommitmentError::InvalidRestorableFrames)?))
+        }
+        fn bounded_count(&self, count: u32, minimum_width: usize) -> Result<usize, CommitmentError> {
+            let count = usize::try_from(count).map_err(|_| CommitmentError::InvalidRestorableFrames)?;
+            let remaining = self.bytes.len().checked_sub(self.offset).ok_or(CommitmentError::InvalidRestorableFrames)?;
+            if minimum_width == 0 || count > remaining / minimum_width { return Err(CommitmentError::InvalidRestorableFrames); }
+            Ok(count)
+        }
+    }
+    fn reference(cursor: &mut Cursor<'_>, rosters: &[Vec<bool>]) -> Result<(), CommitmentError> {
+        match cursor.byte()? {
+            0 => Ok(()),
+            1 => {
+                let instance = usize::try_from(cursor.u32()?).map_err(|_| CommitmentError::InvalidRestorableFrames)?;
+                let function = usize::try_from(cursor.u32()?).map_err(|_| CommitmentError::InvalidRestorableFrames)?;
+                if rosters.get(instance).and_then(|roster| roster.get(function)) != Some(&true) {
+                    return Err(CommitmentError::InvalidRestorableFrames)
+                }
+                Ok(())
+            }
+            _ => Err(CommitmentError::InvalidRestorableFrames),
+        }
+    }
+    let mut cursor = Cursor { bytes, offset: 0 };
+    let raw_count = cursor.u32()?;
+    let count = cursor.bounded_count(raw_count, 28)?;
+    let mut rosters = Vec::new();
+    rosters.try_reserve_exact(count).map_err(|_| CommitmentError::InvalidRestorableFrames)?;
+    for expected_instance in 0..count {
+        if usize::try_from(cursor.u32()?).ok() != Some(expected_instance) { return Err(CommitmentError::InvalidRestorableFrames); }
+        let raw_functions = cursor.u32()?;
+        let functions = cursor.bounded_count(raw_functions, 1)?;
+        let mut roster = Vec::new();
+        roster.try_reserve_exact(functions).map_err(|_| CommitmentError::InvalidRestorableFrames)?;
+        for _ in 0..functions {
+            roster.push(match cursor.byte()? { 0 => false, 1 => true, _ => return Err(CommitmentError::InvalidRestorableFrames) });
+        }
+        rosters.push(roster);
+    }
+    for expected_instance in 0..count {
+        if usize::try_from(cursor.u32()?).ok() != Some(expected_instance) { return Err(CommitmentError::InvalidRestorableFrames); }
+        let raw_memories = cursor.u32()?;
+        let memories = cursor.bounded_count(raw_memories, 14)?;
+        for expected in 0..memories {
+            if usize::try_from(cursor.u32()?).ok() != Some(expected) { return Err(CommitmentError::InvalidRestorableFrames); }
+            cursor.take(4)?;
+            match cursor.byte()? { 0 => {}, 1 => { cursor.take(4)?; }, _ => return Err(CommitmentError::InvalidRestorableFrames) }
+            let length = usize::try_from(cursor.u32()?).map_err(|_| CommitmentError::InvalidRestorableFrames)?;
+            cursor.take(length)?;
+        }
+        let raw_globals = cursor.u32()?;
+        let globals = cursor.bounded_count(raw_globals, 10)?;
+        for expected in 0..globals {
+            if usize::try_from(cursor.u32()?).ok() != Some(expected) { return Err(CommitmentError::InvalidRestorableFrames); }
+            if cursor.byte()? > 1 { return Err(CommitmentError::InvalidRestorableFrames); }
+            match cursor.byte()? { 0 => { cursor.take(4)?; }, 1 => { cursor.take(8)?; }, _ => return Err(CommitmentError::InvalidRestorableFrames) }
+        }
+        let raw_tables = cursor.u32()?;
+        let tables = cursor.bounded_count(raw_tables, 17)?;
+        for expected in 0..tables {
+            if usize::try_from(cursor.u32()?).ok() != Some(expected) { return Err(CommitmentError::InvalidRestorableFrames); }
+            cursor.take(4)?;
+            match cursor.byte()? { 0 => {}, 1 => { cursor.take(4)?; }, _ => return Err(CommitmentError::InvalidRestorableFrames) }
+            let raw_elements = cursor.u32()?;
+            let elements = cursor.bounded_count(raw_elements, 1)?;
+            for _ in 0..elements { reference(&mut cursor, &rosters)?; }
+        }
+        let raw_data = cursor.u32()?;
+        let data = cursor.bounded_count(raw_data, 9)?;
+        for expected in 0..data {
+            if usize::try_from(cursor.u32()?).ok() != Some(expected) || cursor.byte()? > 1 { return Err(CommitmentError::InvalidRestorableFrames); }
+            let length = usize::try_from(cursor.u32()?).map_err(|_| CommitmentError::InvalidRestorableFrames)?;
+            cursor.take(length)?;
+        }
+        let raw_elements = cursor.u32()?;
+        let elements = cursor.bounded_count(raw_elements, 9)?;
+        for expected in 0..elements {
+            if usize::try_from(cursor.u32()?).ok() != Some(expected) || cursor.byte()? > 1 { return Err(CommitmentError::InvalidRestorableFrames); }
+            let raw_items = cursor.u32()?;
+            let items = cursor.bounded_count(raw_items, 1)?;
+            for _ in 0..items { reference(&mut cursor, &rosters)?; }
+        }
+    }
+    if cursor.offset != bytes.len() { return Err(CommitmentError::InvalidRestorableFrames); }
+    Ok(rosters)
+}
+
+impl ArbitrationExecutionStateV3 {
+    pub fn canonical_bytes(&self) -> Result<Vec<u8>, CommitmentError> {
+        if self.legacy.module_code_hash != self.identity.module_code_hash
+            || self.legacy.input_digest != self.identity.input_digest
+        { return Err(CommitmentError::ArbitrationIdentityMismatch); }
+        if self.engine_state.len() > MAX_ARBITRATION_ENGINE_STATE_BYTES {
+            return Err(CommitmentError::ArbitrationComponentTooLarge {
+                component: "engine", bytes: self.engine_state.len(), limit: MAX_ARBITRATION_ENGINE_STATE_BYTES,
+            });
+        }
+        let host_bytes = usize::try_from(self.host_state_bytes).map_err(|_| CommitmentError::ArbitrationComponentTooLarge {
+            component: "host", bytes: usize::MAX, limit: MAX_ARBITRATION_HOST_STATE_BYTES,
+        })?;
+        if host_bytes > MAX_ARBITRATION_HOST_STATE_BYTES {
+            return Err(CommitmentError::ArbitrationComponentTooLarge {
+                component: "host", bytes: host_bytes, limit: MAX_ARBITRATION_HOST_STATE_BYTES,
+            });
+        }
+        let function_rosters = validate_v3_engine_graph(&self.engine_state)?;
+        if self.frames.len() > MAX_TRACE_COMMITMENTS
+            || (self.frames.is_empty() && self.legacy.program_counter != u64::MAX)
+            || self.frames.len() != self.legacy.call_frames.len()
+        {
+            return Err(CommitmentError::InvalidRestorableFrames);
+        }
+        for (index, frame) in self.frames.iter().enumerate() {
+            let last = index + 1 == self.frames.len();
+            let legacy_frame = &self.legacy.call_frames[index];
+            let instance_index = usize::try_from(frame.instance_index)
+                .map_err(|_| CommitmentError::InvalidRestorableFrames)?;
+            let function_index = usize::try_from(frame.function_index)
+                .map_err(|_| CommitmentError::InvalidRestorableFrames)?;
+            let value_base = usize::try_from(frame.value_base)
+                .map_err(|_| CommitmentError::InvalidRestorableFrames)?;
+            let locals_end = value_base.checked_add(legacy_frame.locals.len())
+                .ok_or(CommitmentError::InvalidRestorableFrames)?;
+            let frame_end = locals_end.checked_add(frame.operand_types.len())
+                .ok_or(CommitmentError::InvalidRestorableFrames)?;
+            let expected_end = self.frames.get(index + 1)
+                .map_or(self.legacy.value_stack.len(), |next| usize::try_from(next.value_base).unwrap_or(usize::MAX));
+            if frame.current != last
+                || (last && frame.return_program_counter.is_some())
+                || (!last && frame.return_program_counter.is_none())
+                || index.checked_sub(1).is_some_and(|prior| self.frames[prior].value_base > frame.value_base)
+                || frame.function_index != legacy_frame.function_index
+                || function_rosters.get(instance_index)
+                    .and_then(|functions| functions.get(function_index)) != Some(&true)
+                || frame_end != expected_end
+                || self.legacy.value_stack.get(value_base..locals_end) != Some(legacy_frame.locals.as_slice())
+                || self.legacy.value_stack.get(locals_end..frame_end).is_none_or(|values| {
+                    values.iter().zip(&frame.operand_types).any(|(value, value_type)| !matches!(
+                        (value, value_type),
+                        (ExecutionValue::I32(_), ArbitrationValueTypeV3::I32)
+                            | (ExecutionValue::I64(_), ArbitrationValueTypeV3::I64)
+                    ))
+                })
+            { return Err(CommitmentError::InvalidRestorableFrames); }
+        }
+        drop(function_rosters);
+        let legacy = self.legacy.canonical_bytes()?;
+        let mut total = 218_usize.checked_add(4).and_then(|n| n.checked_add(legacy.len()))
+            .and_then(|n| n.checked_add(4)).and_then(|n| n.checked_add(self.engine_state.len()))
+            .and_then(|n| n.checked_add(4)).ok_or(CommitmentError::CostOverflow)?;
+        for frame in &self.frames {
+            let frame_bytes = 18_usize.checked_add(frame.return_program_counter.map_or(0, |_| 8))
+                .and_then(|n| n.checked_add(frame.operand_types.len())).ok_or(CommitmentError::CostOverflow)?;
+            total = total.checked_add(frame_bytes).ok_or(CommitmentError::CostOverflow)?;
+        }
+        total = total.checked_add(40).ok_or(CommitmentError::CostOverflow)?;
+        if total > MAX_ARBITRATION_STATE_BYTES {
+            return Err(CommitmentError::ArbitrationStateTooLarge { bytes: total, limit: MAX_ARBITRATION_STATE_BYTES });
+        }
+        let mut bytes = Vec::with_capacity(total);
+        bytes.extend_from_slice(&RESTORABLE_ARBITRATION_STEP_COMMITMENT_VERSION.to_be_bytes());
+        bytes.extend_from_slice(&self.identity.runtime_version.to_be_bytes());
+        bytes.extend_from_slice(&self.identity.abi_version.to_be_bytes());
+        bytes.extend_from_slice(&self.identity.fee_schedule_version.to_be_bytes());
+        bytes.extend_from_slice(&self.identity.metering_schedule_version.to_be_bytes());
+        bytes.extend_from_slice(&self.identity.trace_policy.canonical_bytes());
+        bytes.extend_from_slice(&self.identity.module_code_hash);
+        bytes.extend_from_slice(&self.identity.input_digest);
+        bytes.extend_from_slice(&self.legacy.execution_parameters_digest);
+        bytes.extend_from_slice(&self.identity.host_base_state_root);
+        bytes.extend_from_slice(&self.identity.receipt_oracle_root);
+        bytes.extend_from_slice(&self.identity.balance_oracle_root);
+        put_bytes(&mut bytes, &legacy)?;
+        put_bytes(&mut bytes, &self.engine_state)?;
+        put_len(&mut bytes, self.frames.len())?;
+        for frame in &self.frames {
+            bytes.extend_from_slice(&frame.instance_index.to_be_bytes());
+            bytes.extend_from_slice(&frame.function_index.to_be_bytes());
+            bytes.extend_from_slice(&frame.value_base.to_be_bytes());
+            bytes.push(u8::from(frame.current));
+            match frame.return_program_counter {
+                Some(pc) => { bytes.push(1); bytes.extend_from_slice(&pc.to_be_bytes()); }
+                None => bytes.push(0),
+            }
+            put_len(&mut bytes, frame.operand_types.len())?;
+            for value_type in &frame.operand_types {
+                bytes.push(match value_type { ArbitrationValueTypeV3::I32 => 0, ArbitrationValueTypeV3::I64 => 1 });
+            }
+        }
+        bytes.extend_from_slice(&self.host_state_root);
+        bytes.extend_from_slice(&self.host_state_bytes.to_be_bytes());
+        if bytes.len() != total {
+            return Err(CommitmentError::CanonicalLengthMismatch { measured: total, encoded: bytes.len() });
+        }
+        Ok(bytes)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommitmentError {
     ZeroInterval,
@@ -769,6 +1196,7 @@ pub enum CommitmentError {
     ArbitrationStateTooLarge { bytes: usize, limit: usize },
     CanonicalLengthMismatch { measured: usize, encoded: usize },
     LegacyCommitmentNotArbitrable,
+    InvalidRestorableFrames,
 }
 
 impl Display for CommitmentError {
@@ -789,7 +1217,8 @@ impl Display for CommitmentError {
             Self::ArbitrationComponentTooLarge { component, bytes, limit } => write!(formatter, "arbitration {component} state {bytes} exceeds {limit}"),
             Self::ArbitrationStateTooLarge { bytes, limit } => write!(formatter, "encoded arbitration state {bytes} exceeds {limit}"),
             Self::CanonicalLengthMismatch { measured, encoded } => write!(formatter, "canonical state measured {measured} bytes but encoded {encoded}"),
-            Self::LegacyCommitmentNotArbitrable => formatter.write_str("version-one execution commitment is not eligible for arbitration"),
+            Self::LegacyCommitmentNotArbitrable => formatter.write_str("execution evidence does not contain a restorable arbitration chain"),
+            Self::InvalidRestorableFrames => formatter.write_str("restorable arbitration frames are not canonical or complete"),
         }
     }
 }
@@ -975,7 +1404,7 @@ mod tests {
         };
         let original = ArbitrationStepCommitment::from_state(&state)
             .expect("complete state commits");
-        assert!(original.arbitration_eligible());
+        assert!(!original.arbitration_eligible());
         for changed in [
             ArbitrationExecutionState { engine_state: vec![0x01, 0x03], ..state.clone() },
             ArbitrationExecutionState { host_state_root: [0x78; 32], ..state.clone() },

@@ -1,0 +1,15 @@
+[vector]
+format = "layerx_programs_runtime::TracedExecutionRecord::canonical_evidence-v3"
+protocol_status = "reconstructible-single-step"
+source_case = "tests/execution_trace.rs::ordinary_observer_emits_reconstructible_v3_arbitration_state"
+module_factory = "tests/execution_trace.rs::state_rich_module"
+entrypoint = "run"
+arguments = ["i32:7"]
+trace_interval = 3
+maximum_commitments = 256
+expected_outputs = ["i32:18"]
+evidence_hex_status = "qualification-required"
+evidence_hex = ""
+
+[qualification]
+required = "Populate evidence_hex only from ordinary validated execution after human qualification of v3 restoration and independent single-step derivation."

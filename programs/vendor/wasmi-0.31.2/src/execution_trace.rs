@@ -24,6 +24,22 @@ pub struct ExecutionFrame {
     pub locals: Vec<ExecutionValue>,
 }
 
+/// A restorable Wasm activation frame for arbitration state version 3.
+///
+/// Frames are ordered from the oldest suspended caller to the current frame.
+/// The current frame is the unique final entry and has no return program
+/// counter. Function indices are local to `instance_index` in the canonical
+/// `arbitration_instances` graph.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExecutionFrameV3 {
+    pub instance_index: u32,
+    pub function_index: u32,
+    pub value_base: u32,
+    pub return_program_counter: Option<u64>,
+    pub operand_types: Vec<ExecutionValueType>,
+    pub current: bool,
+}
+
 /// One global in module-index order. Mutability is retained as consensus state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ExecutionGlobal {
@@ -81,6 +97,9 @@ pub struct ExecutionElementSegment {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExecutionInstanceState {
     pub instance_index: u32,
+    /// Module function-index roster; true entries are Wasm functions and can
+    /// own restorable interpreter frames. V2 encoding deliberately ignores it.
+    pub functions: Vec<bool>,
     pub memories: Vec<ExecutionMemory>,
     pub globals: Vec<ExecutionGlobal>,
     pub tables: Vec<ExecutionTable>,
@@ -99,6 +118,10 @@ pub struct ObservationCharge {
     pub memory_bytes: u64,
     pub instance_state_bytes: u64,
     pub arbitration_engine_canonical_bytes: u64,
+    pub arbitration_frame_retained_bytes: u64,
+    pub arbitration_frame_canonical_bytes: u64,
+    pub arbitration_v3_instance_retained_bytes: u64,
+    pub arbitration_v3_instance_canonical_bytes: u64,
     pub host_state_bytes: u64,
     pub storage_overlay_bytes: u64,
     pub instruction_bytes: u64,
@@ -110,13 +133,17 @@ impl ObservationCharge {
         self.value_bytes.checked_add(self.frame_bytes)?
             .checked_add(self.local_bytes)?.checked_add(self.global_bytes)?
             .checked_add(self.memory_bytes)?.checked_add(self.instance_state_bytes)?
+            .checked_add(self.arbitration_frame_retained_bytes)?
+            .checked_add(self.arbitration_v3_instance_retained_bytes)?
             .checked_add(self.host_state_bytes)?
             .checked_add(self.storage_overlay_bytes)?
             .checked_add(self.instruction_bytes)?.checked_add(self.retained_instruction_bytes)
     }
 
     pub fn total_work(self) -> Option<u64> {
-        self.total_bytes()?.checked_add(self.arbitration_engine_canonical_bytes)
+        self.total_bytes()?.checked_add(self.arbitration_engine_canonical_bytes)?
+            .checked_add(self.arbitration_frame_canonical_bytes)
+            ?.checked_add(self.arbitration_v3_instance_canonical_bytes)
     }
 }
 
@@ -144,8 +171,14 @@ pub struct ExecutionSupplement {
     pub arbitration_balance_oracle_root: [u8; 32],
     pub arbitration_engine_canonical_bytes: u64,
     pub arbitration_instance_retained_bytes: u64,
+    pub arbitration_frame_retained_bytes: u64,
+    pub arbitration_frame_canonical_bytes: u64,
+    pub arbitration_v3_instance_retained_bytes: u64,
+    pub arbitration_v3_instance_canonical_bytes: u64,
     pub arbitration_canonical_state_bytes: u64,
     pub arbitration_commitment_fuel: u64,
+    pub restorable_canonical_state_bytes: u64,
+    pub restorable_commitment_fuel: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -171,6 +204,8 @@ pub struct ExecutionSnapshot {
     pub linear_memory: Vec<u8>,
     pub globals: Vec<ExecutionGlobal>,
     pub arbitration_instances: Vec<ExecutionInstanceState>,
+    pub arbitration_frames_v3: Vec<ExecutionFrameV3>,
+    pub arbitration_instances_v3: Vec<ExecutionInstanceState>,
     pub control_stack: Vec<ExecutionControlFrame>,
     pub canonical_instruction: Vec<u8>,
     pub instruction_fuel: u64,
@@ -186,15 +221,29 @@ impl ExecutionSnapshot {
         }
         let mut total = vec_bytes(&self.value_stack)?.checked_add(vec_bytes(&self.call_frames)?)?
             .checked_add(vec_bytes(&self.linear_memory)?)?.checked_add(vec_bytes(&self.globals)?)?
-            .checked_add(vec_bytes(&self.arbitration_instances)?)?.checked_add(vec_bytes(&self.control_stack)?)?
+            .checked_add(vec_bytes(&self.arbitration_instances)?)?.checked_add(vec_bytes(&self.arbitration_frames_v3)?)?
+            .checked_add(vec_bytes(&self.arbitration_instances_v3)?)?
+            .checked_add(vec_bytes(&self.control_stack)?)?
             .checked_add(vec_bytes(&self.canonical_instruction)?)?.checked_add(vec_bytes(&self.supplement.storage_overlay)?)?;
         for frame in &self.call_frames { total = total.checked_add(vec_bytes(&frame.locals)?)?; }
+        for frame in &self.arbitration_frames_v3 { total = total.checked_add(vec_bytes(&frame.operand_types)?)?; }
         for (key, value) in &self.supplement.storage_overlay {
             total = total.checked_add(vec_bytes(key)?)?;
             if let Some(value) = value { total = total.checked_add(vec_bytes(value)?)?; }
         }
         for instance in &self.arbitration_instances {
             total = total.checked_add(vec_bytes(&instance.memories)?)?.checked_add(vec_bytes(&instance.globals)?)?
+                .checked_add(vec_bytes(&instance.functions)?)?
+                .checked_add(vec_bytes(&instance.tables)?)?.checked_add(vec_bytes(&instance.data_segments)?)?
+                .checked_add(vec_bytes(&instance.element_segments)?)?;
+            for memory in &instance.memories { total = total.checked_add(vec_bytes(&memory.bytes)?)?; }
+            for table in &instance.tables { total = total.checked_add(vec_bytes(&table.elements)?)?; }
+            for data in &instance.data_segments { total = total.checked_add(vec_bytes(&data.bytes)?)?; }
+            for element in &instance.element_segments { total = total.checked_add(vec_bytes(&element.elements)?)?; }
+        }
+        for instance in &self.arbitration_instances_v3 {
+            total = total.checked_add(vec_bytes(&instance.memories)?)?.checked_add(vec_bytes(&instance.globals)?)?
+                .checked_add(vec_bytes(&instance.functions)?)?
                 .checked_add(vec_bytes(&instance.tables)?)?.checked_add(vec_bytes(&instance.data_segments)?)?
                 .checked_add(vec_bytes(&instance.element_segments)?)?;
             for memory in &instance.memories { total = total.checked_add(vec_bytes(&memory.bytes)?)?; }

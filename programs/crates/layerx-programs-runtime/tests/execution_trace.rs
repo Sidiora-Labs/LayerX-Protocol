@@ -4,6 +4,7 @@ use layerx_programs_runtime::test_support::{
 };
 use layerx_programs_runtime::{
     ExecutionError, ExecutionFault, Executor, TracePolicy,
+    RESTORABLE_ARBITRATION_STEP_COMMITMENT_VERSION,
     ValidatedModule, WasmEngine, WasmValue,
 };
 
@@ -150,9 +151,9 @@ fn ordinary_observer_trace_is_the_complete_canonical_record() {
     let evidence = record.canonical_evidence()
         .unwrap_or_else(|error| panic!("ordinary trace evidence refused: {error}"));
     let execution = record.execution.canonical_evidence();
-    let trace = record.trace.canonical_arbitration_bytes()
+    let trace = record.trace.canonical_restorable_arbitration_bytes()
         .unwrap_or_else(|error| panic!("ordinary trace encoding refused: {error}"));
-    let mut complete = b"LXP/program-traced-execution/v2\0".to_vec();
+    let mut complete = b"LXP/program-traced-execution/v3\0".to_vec();
     complete.extend_from_slice(&u32::try_from(execution.len())
         .unwrap_or_else(|_| panic!("execution evidence exceeds u32")).to_be_bytes());
     complete.extend_from_slice(&execution);
@@ -163,7 +164,7 @@ fn ordinary_observer_trace_is_the_complete_canonical_record() {
 }
 
 #[test]
-fn ordinary_observer_emits_complete_v2_arbitration_state() {
+fn ordinary_observer_preserves_historical_v2_arbitration_state() {
     let record = traced_state_rich_call();
     assert!(record.trace.is_arbitration_eligible());
     assert_eq!(
@@ -171,8 +172,8 @@ fn ordinary_observer_emits_complete_v2_arbitration_state() {
         record.trace.steps().len(),
     );
     for step in record.trace.arbitration_steps() {
-        assert!(step.pre_commitment.arbitration_eligible());
-        assert!(step.post_commitment.arbitration_eligible());
+        assert!(!step.pre_commitment.arbitration_eligible());
+        assert!(!step.post_commitment.arbitration_eligible());
         assert!(!step.pre_state.engine_state.is_empty());
         assert!(!step.post_state.engine_state.is_empty());
         assert_ne!(step.pre_state.identity.module_code_hash, [0; 32]);
@@ -189,6 +190,49 @@ fn ordinary_observer_emits_complete_v2_arbitration_state() {
                 step.post_state.as_ref(),
             ).unwrap_or_else(|error| panic!("post-state v2 commitment refused: {error}")),
         );
+    }
+}
+
+#[test]
+fn ordinary_observer_emits_reconstructible_v3_arbitration_state() {
+    let record = traced_state_rich_call();
+    assert!(record.trace.is_arbitration_eligible());
+    assert_eq!(record.trace.restorable_steps().len(), record.trace.steps().len());
+    assert!(!record.trace.restorable_commitments().is_empty());
+    assert!(record.trace.restorable_commitments().len() <= record.trace.restorable_steps().len() + 1);
+    assert_eq!(
+        record.trace.total_restorable_commitment_fuel(),
+        record.trace.restorable_commitments().iter()
+            .map(|commitment| commitment.commitment_fuel)
+            .sum(),
+    );
+    assert_eq!(
+        record.trace.total_restorable_state_bytes(),
+        record.trace.restorable_commitments().iter()
+            .map(|commitment| u64::from(commitment.encoded_state_bytes))
+            .sum::<u64>()
+            + record.trace.restorable_steps().iter()
+                .map(|step| u64::try_from(step.instruction.len())
+                    .unwrap_or_else(|_| panic!("instruction length exceeds u64")))
+                .sum::<u64>(),
+    );
+    for step in record.trace.restorable_steps() {
+        assert_eq!(step.pre_commitment.version, RESTORABLE_ARBITRATION_STEP_COMMITMENT_VERSION);
+        assert_eq!(step.post_commitment.version, RESTORABLE_ARBITRATION_STEP_COMMITMENT_VERSION);
+        assert_eq!(step.pre_commitment.step_index, step.pre_state.legacy.step_index);
+        assert_eq!(step.post_commitment.step_index, step.post_state.legacy.step_index);
+        assert!(!step.pre_state.engine_state.is_empty());
+        assert!(!step.post_state.engine_state.is_empty());
+        assert!(!step.pre_state.frames.is_empty());
+        assert!(step.post_state.legacy.program_counter == u64::MAX || !step.post_state.frames.is_empty());
+        assert_eq!(step.pre_state.frames.iter().filter(|frame| frame.current).count(), 1);
+        assert_eq!(step.post_state.frames.iter().filter(|frame| frame.current).count(), usize::from(!step.post_state.frames.is_empty()));
+        assert!(step.pre_state.frames.windows(2).all(|frames| {
+            frames[0].value_base <= frames[1].value_base
+        }));
+        assert!(step.post_state.frames.windows(2).all(|frames| {
+            frames[0].value_base <= frames[1].value_base
+        }));
     }
 }
 

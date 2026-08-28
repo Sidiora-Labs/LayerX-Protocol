@@ -4,6 +4,8 @@ commitment_domain = "layerx-programs-arbitration-step-commitment-v2\\0"
 commitment_version = 2
 legacy_version = 1
 legacy_arbitration_eligible = false
+superseded_by = "arbitration-step-state-v3.kvx"
+reconstructible_single_step = false
 source_case = "tests/execution_trace.rs::ordinary_observer_emits_complete_v2_arbitration_state"
 evidence_hex_status = "qualification-required"
 evidence_hex = ""
@@ -20,4 +22,4 @@ cases = ["storage-baseline", "storage-overlay", "receipt-oracle", "balance-oracl
 cases = ["module-code", "input", "runtime-version", "abi-version", "fee-schedule", "metering-schedule", "trace-policy", "host-base-root", "receipt-oracle-root", "balance-oracle-root"]
 
 [qualification]
-required = "Populate evidence_hex only by executing the named ordinary observer source case, then compare exact bytes across separately attested supported runners."
+required = "Historical v2 compatibility vector only. Populate evidence_hex only from its named ordinary observer source case; do not use v2 as reconstructible single-step evidence."

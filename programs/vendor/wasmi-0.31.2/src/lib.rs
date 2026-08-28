@@ -167,7 +167,7 @@ pub use self::{
 pub use self::execution_trace::{
     ExecutionFrame as ExecutionTraceFrame, ExecutionGlobal as ExecutionTraceGlobal,
     ExecutionControlFrame, ExecutionControlKind, ExecutionDataSegment, ExecutionElementSegment,
-    ExecutionFunctionRef, ExecutionInstanceState, ExecutionMemory, ExecutionMeteredUsage,
+    ExecutionFrameV3, ExecutionFunctionRef, ExecutionInstanceState, ExecutionMemory, ExecutionMeteredUsage,
     ExecutionObserverError, ExecutionSnapshot, ExecutionSupplement, ExecutionTable,
     ExecutionTransition, ExecutionValue as ExecutionTraceValue, ObservationCharge,
     ExecutionValueType,

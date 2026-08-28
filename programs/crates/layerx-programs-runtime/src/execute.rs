@@ -237,8 +237,8 @@ fn trace_identity(
 }
 
 fn canonical_trace_bytes(trace: &crate::ExecutionTrace) -> Vec<u8> {
-    trace.canonical_arbitration_bytes().unwrap_or_else(|_| {
-        unreachable!("ordinary traced execution is constructed with a validated v2 chain")
+    trace.canonical_restorable_arbitration_bytes().unwrap_or_else(|_| {
+        unreachable!("ordinary traced execution is constructed with a validated v3 chain")
     })
 }
 
@@ -283,8 +283,15 @@ fn converted_state_retained_bytes(snapshot: &WasmiExecutionSnapshot) -> Option<u
         bytes = bytes.checked_add(u64::try_from(key.len()).ok()?)?;
         if let Some(value) = value { bytes = bytes.checked_add(u64::try_from(value.len()).ok()?)?; }
     }
-    bytes.checked_add((std::mem::size_of::<crate::ArbitrationExecutionState>() + 2 * std::mem::size_of::<usize>()) as u64)?
-        .checked_add(snapshot.supplement.arbitration_engine_canonical_bytes)
+    bytes = bytes.checked_add((std::mem::size_of::<crate::ArbitrationExecutionState>() + 2 * std::mem::size_of::<usize>()) as u64)?
+        .checked_add(snapshot.supplement.arbitration_engine_canonical_bytes)?;
+    bytes = bytes.checked_add((std::mem::size_of::<crate::ArbitrationExecutionStateV3>() + 2 * std::mem::size_of::<usize>()) as u64)?
+        .checked_add(snapshot.supplement.arbitration_v3_instance_canonical_bytes)?
+        .checked_add(allocation::<crate::ArbitrationExecutionFrameV3>(snapshot.arbitration_frames_v3.len())?)?;
+    for frame in &snapshot.arbitration_frames_v3 {
+        bytes = bytes.checked_add(allocation::<crate::ArbitrationValueTypeV3>(frame.operand_types.len())?)?;
+    }
+    Some(bytes)
 }
 
 fn execution_state_from_snapshot(
@@ -356,6 +363,17 @@ fn execution_state_from_snapshot(
 fn arbitration_engine_state_bytes(
     snapshot: &WasmiExecutionSnapshot,
 ) -> Result<Vec<u8>, ExecutionFault> {
+    arbitration_instances_state_bytes(&snapshot.arbitration_instances, false)
+}
+
+fn restorable_engine_state_bytes(snapshot: &WasmiExecutionSnapshot) -> Result<Vec<u8>, ExecutionFault> {
+    arbitration_instances_state_bytes(&snapshot.arbitration_instances_v3, true)
+}
+
+fn arbitration_instances_state_bytes(
+    instances: &[wasmi::ExecutionInstanceState],
+    include_function_roster: bool,
+) -> Result<Vec<u8>, ExecutionFault> {
     fn add(total: &mut usize, amount: usize) -> Result<(), ExecutionFault> {
         *total = total.checked_add(amount).ok_or_else(|| ExecutionFault::EngineFault {
             reason: "arbitration engine-state length overflowed".to_string(),
@@ -371,8 +389,11 @@ fn arbitration_engine_state_bytes(
         if reference.is_some() { 9 } else { 1 }
     }
     let mut measured = 4_usize;
-    for instance in &snapshot.arbitration_instances {
+    for instance in instances {
         add(&mut measured, 4 + 4)?;
+        if include_function_roster {
+            add(&mut measured, 8 + instance.functions.len())?;
+        }
         for memory in &instance.memories {
             add(&mut measured, 4 + 4 + 1 + memory.maximum_pages.map_or(0, |_| 4) + 4)?;
             add(&mut measured, memory.bytes.len())?;
@@ -418,8 +439,15 @@ fn arbitration_engine_state_bytes(
         }
     }
     let mut bytes = Vec::with_capacity(measured);
-    put_len(&mut bytes, snapshot.arbitration_instances.len())?;
-    for instance in &snapshot.arbitration_instances {
+    put_len(&mut bytes, instances.len())?;
+    if include_function_roster {
+        for instance in instances {
+            bytes.extend_from_slice(&instance.instance_index.to_be_bytes());
+            put_len(&mut bytes, instance.functions.len())?;
+            for is_wasm in &instance.functions { bytes.push(u8::from(*is_wasm)); }
+        }
+    }
+    for instance in instances {
         bytes.extend_from_slice(&instance.instance_index.to_be_bytes());
         put_len(&mut bytes, instance.memories.len())?;
         for memory in &instance.memories {
@@ -508,6 +536,48 @@ fn arbitration_state_from_snapshot(
     })
 }
 
+fn restorable_arbitration_state_from_snapshot(
+    snapshot: &WasmiExecutionSnapshot,
+    identities: TraceIdentities,
+    policy: crate::TracePolicy,
+    legacy: std::sync::Arc<crate::ExecutionState>,
+    engine_state: Vec<u8>,
+) -> Result<crate::ArbitrationExecutionStateV3, ExecutionFault> {
+    let frames = snapshot.arbitration_frames_v3.iter().map(|frame| {
+        let operand_types = frame.operand_types.iter().map(|value_type| match value_type {
+            WasmiExecutionValueType::I32 => crate::ArbitrationValueTypeV3::I32,
+            WasmiExecutionValueType::I64 => crate::ArbitrationValueTypeV3::I64,
+        }).collect();
+        crate::ArbitrationExecutionFrameV3 {
+            instance_index: frame.instance_index,
+            function_index: frame.function_index,
+            value_base: frame.value_base,
+            return_program_counter: frame.return_program_counter,
+            operand_types,
+            current: frame.current,
+        }
+    }).collect();
+    Ok(crate::ArbitrationExecutionStateV3 {
+        identity: crate::ArbitrationExecutionIdentityV3 {
+            module_code_hash: identities.legacy.module_code_hash,
+            input_digest: identities.legacy.input_digest,
+            runtime_version: identities.runtime_version,
+            abi_version: identities.abi_version,
+            fee_schedule_version: identities.fee_schedule_version,
+            metering_schedule_version: identities.metering_schedule_version,
+            trace_policy: policy,
+            host_base_state_root: snapshot.supplement.arbitration_base_state_root,
+            receipt_oracle_root: snapshot.supplement.arbitration_receipt_oracle_root,
+            balance_oracle_root: snapshot.supplement.arbitration_balance_oracle_root,
+        },
+        legacy,
+        engine_state,
+        frames,
+        host_state_root: snapshot.supplement.arbitration_host_state_root,
+        host_state_bytes: snapshot.supplement.arbitration_host_state_bytes,
+    })
+}
+
 impl ProgramInstance {
     pub(crate) const fn new(store: Store<RuntimeState>, instance: Instance) -> Self {
         Self { store, instance, resumable_globals: None, validated_code_hash: [0; 32] }
@@ -590,7 +660,7 @@ impl ProgramInstance {
         for transition in &transitions {
             duplicated_instruction_bytes = duplicated_instruction_bytes.checked_add(
                 u64::try_from(transition.pre.canonical_instruction.len()).ok()
-                    .and_then(|bytes| bytes.checked_mul(2))
+                    .and_then(|bytes| bytes.checked_mul(3))
                     .ok_or_else(|| ExecutionFault::EngineFault { reason: "execution trace instruction allocation accounting overflowed".to_string() })?,
             ).ok_or_else(|| ExecutionFault::EngineFault { reason: "execution trace instruction allocation accounting overflowed".to_string() })?;
             if previous_post.map_or(true, |post| !std::sync::Arc::ptr_eq(post, &transition.pre)) {
@@ -605,7 +675,7 @@ impl ProgramInstance {
                 )
                     .ok_or_else(|| ExecutionFault::EngineFault { reason: "execution trace converted-byte accounting overflowed".to_string() })?;
                 maximum_encoding_bytes = maximum_encoding_bytes.max(
-                    transition.pre.supplement.arbitration_canonical_state_bytes,
+                    transition.pre.supplement.restorable_canonical_state_bytes,
                 );
                 maximum_nested_legacy_encoding_bytes = maximum_nested_legacy_encoding_bytes
                     .max(state_bytes);
@@ -621,7 +691,7 @@ impl ProgramInstance {
             )
                 .ok_or_else(|| ExecutionFault::EngineFault { reason: "execution trace converted-byte accounting overflowed".to_string() })?;
             maximum_encoding_bytes = maximum_encoding_bytes.max(
-                transition.post.supplement.arbitration_canonical_state_bytes,
+                transition.post.supplement.restorable_canonical_state_bytes,
             );
             maximum_nested_legacy_encoding_bytes = maximum_nested_legacy_encoding_bytes
                 .max(state_bytes);
@@ -630,8 +700,10 @@ impl ProgramInstance {
         let state_count = unique_state_count;
         let collection_bytes = transition_count.checked_mul(std::mem::size_of::<crate::ExecutionStep>())
             .and_then(|bytes| bytes.checked_add(transition_count.checked_mul(std::mem::size_of::<crate::ArbitrationExecutionStep>())?))
+            .and_then(|bytes| bytes.checked_add(transition_count.checked_mul(std::mem::size_of::<crate::ArbitrationExecutionStepV3>())?))
             .and_then(|bytes| bytes.checked_add(state_count.checked_mul(std::mem::size_of::<crate::StepCommitment>())?))
             .and_then(|bytes| bytes.checked_add(state_count.checked_mul(std::mem::size_of::<crate::ArbitrationStepCommitment>())?))
+            .and_then(|bytes| bytes.checked_add(state_count.checked_mul(std::mem::size_of::<crate::ArbitrationStepCommitmentV3>())?))
             .and_then(|bytes| bytes.checked_add(state_count.checked_mul(std::mem::size_of::<crate::ExecutionState>() + 2 * std::mem::size_of::<usize>())?))
             .and_then(|bytes| bytes.checked_add(state_count.checked_mul(std::mem::size_of::<crate::ArbitrationExecutionState>() + 2 * std::mem::size_of::<usize>())?))
             .and_then(|bytes| u64::try_from(bytes).ok())
@@ -656,6 +728,7 @@ impl ProgramInstance {
         let mut last_recorded_step = None;
         let mut last_state: Option<std::sync::Arc<crate::ExecutionState>> = None;
         let mut last_arbitration_state: Option<std::sync::Arc<crate::ArbitrationExecutionState>> = None;
+        let mut last_restorable_state: Option<std::sync::Arc<crate::ArbitrationExecutionStateV3>> = None;
         let mut last_snapshot: Option<std::sync::Arc<wasmi::ExecutionSnapshot>> = None;
         for transition in transitions {
             let pre_state = match (&last_snapshot, &last_state) {
@@ -700,6 +773,17 @@ impl ProgramInstance {
                 policy,
                 std::sync::Arc::clone(&post_state),
             )?);
+            let restorable_pre_state = match (&last_snapshot, &last_restorable_state) {
+                (Some(snapshot), Some(state)) if std::sync::Arc::ptr_eq(snapshot, &transition.pre) => std::sync::Arc::clone(state),
+                _ => std::sync::Arc::new(restorable_arbitration_state_from_snapshot(
+                    &transition.pre, identities, policy, std::sync::Arc::clone(&pre_state),
+                    restorable_engine_state_bytes(&transition.pre)?,
+                )?),
+            };
+            let restorable_post_state = std::sync::Arc::new(restorable_arbitration_state_from_snapshot(
+                &transition.post, identities, policy, std::sync::Arc::clone(&post_state),
+                restorable_engine_state_bytes(&transition.post)?,
+            )?);
             let arbitration_pre_commitment = crate::ArbitrationStepCommitment::from_state(
                 arbitration_pre_state.as_ref(),
             ).map_err(commitment_fault)?;
@@ -726,6 +810,18 @@ impl ProgramInstance {
                     });
                 }
             }
+            let restorable_pre_commitment = crate::ArbitrationStepCommitmentV3::from_state(&restorable_pre_state)
+                .map_err(commitment_fault)?;
+            let restorable_post_commitment = crate::ArbitrationStepCommitmentV3::from_state(&restorable_post_state)
+                .map_err(commitment_fault)?;
+            for (snapshot, commitment) in [
+                (transition.pre.as_ref(), restorable_pre_commitment),
+                (transition.post.as_ref(), restorable_post_commitment),
+            ] {
+                if u64::from(commitment.encoded_state_bytes) != snapshot.supplement.restorable_canonical_state_bytes
+                    || commitment.commitment_fuel != snapshot.supplement.restorable_commitment_fuel
+                { return Err(ExecutionFault::EngineFault { reason: "preauthorized v3 commitment accounting diverged from canonical state".to_string() }); }
+            }
             trace.record_step(crate::ExecutionStep {
                 instruction: transition.pre.canonical_instruction.clone(),
                 instruction_fuel: transition.pre.instruction_fuel,
@@ -744,8 +840,18 @@ impl ProgramInstance {
                 pre_commitment: arbitration_pre_commitment,
                 post_commitment: arbitration_post_commitment,
             }).map_err(commitment_fault)?;
+            trace.record_restorable_step(crate::ArbitrationExecutionStepV3 {
+                instruction: transition.pre.canonical_instruction.clone(),
+                instruction_fuel: transition.pre.instruction_fuel,
+                memory_expansion_bytes: transition.memory_expansion_bytes,
+                pre_state: restorable_pre_state,
+                post_state: std::sync::Arc::clone(&restorable_post_state),
+                pre_commitment: restorable_pre_commitment,
+                post_commitment: restorable_post_commitment,
+            }).map_err(commitment_fault)?;
             last_state = Some(std::sync::Arc::clone(&post_state));
             last_arbitration_state = Some(arbitration_post_state);
+            last_restorable_state = Some(restorable_post_state);
             last_snapshot = Some(std::sync::Arc::clone(&transition.post));
         }
         Ok(trace)
@@ -1040,10 +1146,10 @@ impl TracedExecutionRecord {
         Ok(evidence)
     }
 
-    /// Canonical v2 receipt evidence binding the complete arbitration chain.
+    /// Canonical v3 receipt evidence binding the complete restorable arbitration chain.
     pub fn canonical_evidence(&self) -> Result<Vec<u8>, crate::CommitmentError> {
         let execution = self.execution.canonical_evidence();
-        let trace = self.trace.canonical_arbitration_bytes()?;
+        let trace = self.trace.canonical_restorable_arbitration_bytes()?;
         let capacity = 32_usize.checked_add(execution.len())
             .and_then(|bytes| bytes.checked_add(trace.len()))
             .ok_or(crate::CommitmentError::CostOverflow)?;
@@ -1054,7 +1160,7 @@ impl TracedExecutionRecord {
             });
         }
         let mut evidence = Vec::with_capacity(capacity);
-        evidence.extend_from_slice(b"LXP/program-traced-execution/v2\0");
+        evidence.extend_from_slice(b"LXP/program-traced-execution/v3\0");
         let execution_length = u32::try_from(execution.len())
             .map_err(|_| crate::CommitmentError::LengthOutOfRange { bytes: execution.len() })?;
         evidence.extend_from_slice(&execution_length.to_be_bytes());

@@ -1,0 +1,36 @@
+[vector]
+format = "layerx_programs_runtime::ArbitrationExecutionStateV3 collision corpus"
+commitment_domain = "layerx-programs-arbitration-step-commitment-v3\\0"
+commitment_version = 3
+source_case_status = "qualification-fixture-required"
+source_case = "ordinary validated multi-instance and imported-host executions described below"
+evidence_hex_status = "qualification-required"
+evidence_hex = ""
+
+[case.cross-instance-global]
+equal_plane = "integer global value and all root-instance state"
+distinct_plane = "defining instance identity of the global selected by the next instruction"
+required_result = "distinct-pre-commitment-and-distinct-derived-post-commitment"
+
+[case.cross-instance-memory]
+equal_plane = "memory bytes, limits, address operand, and all root-instance state"
+distinct_plane = "defining instance identity of the memory selected by the next instruction"
+required_result = "distinct-pre-commitment-and-distinct-derived-post-commitment"
+
+[case.cross-instance-table]
+equal_plane = "table limits, elements, index operand, and all root-instance state"
+distinct_plane = "defining instance identity of the table selected by the next instruction"
+required_result = "distinct-pre-commitment-and-distinct-derived-post-commitment"
+
+[case.host-caller]
+equal_plane = "host state, host arguments, imported function, and metering state"
+distinct_plane = "Caller instance identity presented to the host function"
+required_result = "distinct-pre-commitment-and-distinct-derived-post-commitment"
+
+[case.identical-value-frame-partition]
+equal_plane = "flat typed value stack, local values, instruction, and program counter"
+distinct_plane = "suspended frame value_base and operand-type partition"
+required_result = "distinct-pre-commitment-and-distinct-derived-post-commitment"
+
+[qualification]
+required = "Construct each pair through ordinary validated execution. Compare the legacy v2 projections without assuming they collide, prove that v3 commitments differ, and prove that independently restored single steps produce the stated distinct post commitments. Record any plane already separated by v2 instead of manufacturing a collision. Do not populate evidence from hand-authored state."

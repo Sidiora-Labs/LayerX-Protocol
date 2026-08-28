@@ -308,8 +308,14 @@ impl RuntimeState {
                 arbitration_balance_oracle_root: [0; 32],
                 arbitration_engine_canonical_bytes: 0,
                 arbitration_instance_retained_bytes: 0,
+                arbitration_frame_retained_bytes: 0,
+                arbitration_frame_canonical_bytes: 0,
+                arbitration_v3_instance_retained_bytes: 0,
+                arbitration_v3_instance_canonical_bytes: 0,
                 arbitration_canonical_state_bytes: 0,
                 arbitration_commitment_fuel: 0,
+                restorable_canonical_state_bytes: 0,
+                restorable_commitment_fuel: 0,
             });
         }
         let (overlay_entries, overlay_bytes) = if let Some(abi) = self.abi.as_ref() {
@@ -340,19 +346,27 @@ impl RuntimeState {
         };
         let retained_instruction_bytes = charge.retained_instruction_bytes;
         let arbitration_instance_retained_bytes = charge.instance_state_bytes;
+        let arbitration_frame_retained_bytes = charge.arbitration_frame_retained_bytes;
+        let arbitration_v3_instance_retained_bytes = charge.arbitration_v3_instance_retained_bytes;
         let engine_bytes = charge.total_bytes()
             .and_then(|bytes| bytes.checked_sub(retained_instruction_bytes))
             .and_then(|bytes| bytes.checked_sub(charge.host_state_bytes))
             .and_then(|bytes| bytes.checked_sub(arbitration_instance_retained_bytes))
+            .and_then(|bytes| bytes.checked_sub(arbitration_frame_retained_bytes))
+            .and_then(|bytes| bytes.checked_sub(arbitration_v3_instance_retained_bytes))
             .ok_or(wasmi::ExecutionObserverError::SupplementRejected)?;
         let snapshot_bytes = 214_u64.checked_add(engine_bytes)
             .ok_or(wasmi::ExecutionObserverError::SupplementRejected)?;
         let retained_bytes = snapshot_bytes.checked_add(retained_instruction_bytes)
             .and_then(|bytes| bytes.checked_add(arbitration_instance_retained_bytes))
+            .and_then(|bytes| bytes.checked_add(arbitration_frame_retained_bytes))
+            .and_then(|bytes| bytes.checked_add(arbitration_v3_instance_retained_bytes))
             .and_then(|bytes| bytes.checked_add(charge.host_state_bytes))
             .and_then(|bytes| bytes.checked_add(charge.arbitration_engine_canonical_bytes))
             .ok_or(wasmi::ExecutionObserverError::SupplementRejected)?;
-        if retained_bytes > remaining_bytes || retained_bytes > remaining_work {
+        let measured_work = charge.total_work()
+            .ok_or(wasmi::ExecutionObserverError::SupplementRejected)?;
+        if retained_bytes > remaining_bytes || measured_work > remaining_work {
             return Err(wasmi::ExecutionObserverError::SnapshotLimitExceeded);
         }
         let snapshot_fuel = crate::step_commitment_fuel(snapshot_bytes)
@@ -364,7 +378,14 @@ impl RuntimeState {
             host_state_bytes,
         )
             .map_err(|_| wasmi::ExecutionObserverError::SupplementRejected)?;
+        let restorable_state_bytes = crate::restorable_arbitration_step_state_bytes(
+            snapshot_bytes, charge.arbitration_v3_instance_canonical_bytes, charge.arbitration_frame_canonical_bytes,
+        ).map_err(|_| wasmi::ExecutionObserverError::SupplementRejected)?;
+        let restorable_fuel = crate::restorable_arbitration_step_commitment_fuel(
+            restorable_state_bytes, charge.arbitration_v3_instance_canonical_bytes, host_state_bytes,
+        ).map_err(|_| wasmi::ExecutionObserverError::SupplementRejected)?;
         let total_fuel = snapshot_fuel.checked_add(arbitration_fuel)
+            .and_then(|fuel| fuel.checked_add(restorable_fuel))
             .ok_or(wasmi::ExecutionObserverError::SupplementRejected)?;
         self.meter.charge_cpu(total_fuel)
             .map_err(|_| wasmi::ExecutionObserverError::SupplementRejected)?;
@@ -415,8 +436,14 @@ impl RuntimeState {
             arbitration_balance_oracle_root: host_identity.map_or([0; 32], |identity| identity.balance_oracle_root),
             arbitration_engine_canonical_bytes: arbitration_engine_bytes,
             arbitration_instance_retained_bytes,
+            arbitration_frame_retained_bytes,
+            arbitration_frame_canonical_bytes: charge.arbitration_frame_canonical_bytes,
+            arbitration_v3_instance_retained_bytes,
+            arbitration_v3_instance_canonical_bytes: charge.arbitration_v3_instance_canonical_bytes,
             arbitration_canonical_state_bytes: crate::arbitration_step_state_bytes(snapshot_bytes, arbitration_engine_bytes).map_err(|_| wasmi::ExecutionObserverError::SupplementRejected)?,
             arbitration_commitment_fuel: arbitration_fuel,
+            restorable_canonical_state_bytes: restorable_state_bytes,
+            restorable_commitment_fuel: restorable_fuel,
         })
     }
 

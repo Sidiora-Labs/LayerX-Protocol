@@ -246,7 +246,20 @@ impl StoreInner {
         &self,
         root: crate::Instance,
     ) -> Result<Vec<crate::Instance>, ExecutionObserverError> {
-        let mut instances = alloc::vec![root];
+        self.execution_reached_instances_from_roots(&[root])
+    }
+
+    fn execution_reached_instances_from_roots(
+        &self,
+        roots: &[crate::Instance],
+    ) -> Result<Vec<crate::Instance>, ExecutionObserverError> {
+        let mut instances = Vec::with_capacity(roots.len());
+        for root in roots {
+            if !instances.iter().any(|candidate| candidate == root) {
+                instances.push(*root);
+            }
+        }
+        if instances.is_empty() { return Err(ExecutionObserverError::UnsupportedState) }
         let mut cursor = 0_usize;
         while cursor < instances.len() {
             let instance = self.resolve_instance(&instances[cursor]);
@@ -265,9 +278,42 @@ impl StoreInner {
         Ok(instances)
     }
 
+    pub(crate) fn canonical_execution_function(
+        &self,
+        roots: &[crate::Instance],
+        defining_instance: crate::Instance,
+        compiled: crate::engine::CompiledFunc,
+    ) -> Result<crate::execution_trace::ExecutionFunctionRef, ExecutionObserverError> {
+        let instances = self.execution_reached_instances_from_roots(roots)?;
+        let instance_index = instances.iter().position(|candidate| candidate == &defining_instance)
+            .ok_or(ExecutionObserverError::UnsupportedState)?;
+        let instance = self.resolve_instance(&defining_instance);
+        let mut function_index = 0_u32;
+        while let Some(function) = instance.get_func(function_index) {
+            match self.resolve_func(&function) {
+                crate::FuncEntity::Wasm(entity) if entity.instance() == &defining_instance && entity.func_body() == compiled => {
+                    return Ok(crate::execution_trace::ExecutionFunctionRef {
+                        instance_index: u32::try_from(instance_index).map_err(|_| ExecutionObserverError::UnsupportedState)?,
+                        function_index,
+                    })
+                }
+                _ => {}
+            }
+            function_index = function_index.checked_add(1).ok_or(ExecutionObserverError::UnsupportedState)?;
+        }
+        Err(ExecutionObserverError::UnsupportedState)
+    }
+
     pub(crate) fn measure_execution_instance_states(
         &self,
         root: crate::Instance,
+    ) -> Result<u64, ExecutionObserverError> {
+        self.measure_execution_instance_states_from_roots(&[root])
+    }
+
+    pub(crate) fn measure_execution_instance_states_from_roots(
+        &self,
+        roots: &[crate::Instance],
     ) -> Result<u64, ExecutionObserverError> {
         use core::mem::size_of;
         use crate::execution_trace::{
@@ -283,7 +329,7 @@ impl StoreInner {
                 .and_then(|bytes| u64::try_from(bytes).ok())
                 .ok_or(ExecutionObserverError::SnapshotLimitExceeded)
         }
-        let instances = self.execution_reached_instances(root)?;
+        let instances = self.execution_reached_instances_from_roots(roots)?;
         let mut bytes = allocation::<ExecutionInstanceState>(instances.len())?;
         let mut function_scan_work = 0_u64;
         let mut reference_scan_work = 0_u64;
@@ -293,6 +339,9 @@ impl StoreInner {
             while instance.get_func(function_count).is_some() {
                 function_count = function_count.checked_add(1).ok_or(ExecutionObserverError::SnapshotLimitExceeded)?;
             }
+            bytes = bytes.checked_add(allocation::<bool>(usize::try_from(function_count)
+                .map_err(|_| ExecutionObserverError::SnapshotLimitExceeded)?)?)
+                .ok_or(ExecutionObserverError::SnapshotLimitExceeded)?;
             function_scan_work = function_scan_work.checked_add(u64::from(function_count))
                 .ok_or(ExecutionObserverError::SnapshotLimitExceeded)?;
             let mut count = 0_usize;
@@ -349,6 +398,13 @@ impl StoreInner {
         &self,
         root: crate::Instance,
     ) -> Result<u64, ExecutionObserverError> {
+        self.measure_execution_instance_canonical_bytes_from_roots(&[root])
+    }
+
+    pub(crate) fn measure_execution_instance_canonical_bytes_from_roots(
+        &self,
+        roots: &[crate::Instance],
+    ) -> Result<u64, ExecutionObserverError> {
         fn add(total: &mut u64, amount: u64) -> Result<(), ExecutionObserverError> {
             *total = total.checked_add(amount).ok_or(ExecutionObserverError::SnapshotLimitExceeded)?;
             Ok(())
@@ -356,7 +412,7 @@ impl StoreInner {
         fn len(value: usize) -> Result<u64, ExecutionObserverError> {
             u32::try_from(value).map(u64::from).map_err(|_| ExecutionObserverError::UnsupportedState)
         }
-        let instances = self.execution_reached_instances(root)?;
+        let instances = self.execution_reached_instances_from_roots(roots)?;
         let _ = u32::try_from(instances.len()).map_err(|_| ExecutionObserverError::UnsupportedState)?;
         let mut bytes = 4_u64;
         for handle in &instances {
@@ -418,9 +474,35 @@ impl StoreInner {
         Ok(bytes)
     }
 
+    pub(crate) fn measure_execution_instance_canonical_bytes_v3_from_roots(
+        &self,
+        roots: &[crate::Instance],
+    ) -> Result<u64, ExecutionObserverError> {
+        let instances = self.execution_reached_instances_from_roots(roots)?;
+        let mut bytes = self.measure_execution_instance_canonical_bytes_from_roots(roots)?;
+        for handle in instances {
+            bytes = bytes.checked_add(8).ok_or(ExecutionObserverError::SnapshotLimitExceeded)?;
+            let instance = self.resolve_instance(&handle);
+            let mut count = 0_u32;
+            while instance.get_func(count).is_some() {
+                count = count.checked_add(1).ok_or(ExecutionObserverError::UnsupportedState)?;
+            }
+            bytes = bytes.checked_add(u64::from(count)).ok_or(ExecutionObserverError::SnapshotLimitExceeded)?;
+        }
+        Ok(bytes)
+    }
+
     pub(crate) fn capture_execution_instance_states(
         &self,
         root: crate::Instance,
+        maximum_bytes: u64,
+    ) -> Result<Vec<crate::execution_trace::ExecutionInstanceState>, ExecutionObserverError> {
+        self.capture_execution_instance_states_from_roots(&[root], maximum_bytes)
+    }
+
+    pub(crate) fn capture_execution_instance_states_from_roots(
+        &self,
+        roots: &[crate::Instance],
         maximum_bytes: u64,
     ) -> Result<Vec<crate::execution_trace::ExecutionInstanceState>, ExecutionObserverError> {
         use crate::execution_trace::{
@@ -440,10 +522,10 @@ impl StoreInner {
             Ok(())
         }
 
-        let measured = self.measure_execution_instance_states(root)?;
+        let measured = self.measure_execution_instance_states_from_roots(roots)?;
         if measured > maximum_bytes { return Err(ExecutionObserverError::SnapshotLimitExceeded) }
         let mut retained = 0_u64;
-        let instances = self.execution_reached_instances(root)?;
+        let instances = self.execution_reached_instances_from_roots(roots)?;
 
         let canonical_ref = |function: crate::Func| -> Result<ExecutionFunctionRef, ExecutionObserverError> {
             for (instance_index, instance) in instances.iter().enumerate() {
@@ -467,6 +549,7 @@ impl StoreInner {
             let instance = self.resolve_instance(handle);
             let mut state = ExecutionInstanceState {
                 instance_index: u32::try_from(instance_index).map_err(|_| ExecutionObserverError::UnsupportedState)?,
+                functions: Vec::new(),
                 memories: Vec::new(),
                 globals: Vec::new(),
                 tables: Vec::new(),
@@ -474,6 +557,13 @@ impl StoreInner {
                 element_segments: Vec::new(),
             };
             retain(&mut retained, 16, maximum_bytes)?;
+
+            let mut function_index = 0_u32;
+            while let Some(function) = instance.get_func(function_index) {
+                retain(&mut retained, 1, maximum_bytes)?;
+                state.functions.push(matches!(self.resolve_func(&function), crate::FuncEntity::Wasm(_)));
+                function_index = function_index.checked_add(1).ok_or(ExecutionObserverError::UnsupportedState)?;
+            }
 
             let mut memory_index = 0_u32;
             while let Some(memory) = instance.get_memory(memory_index) {
@@ -621,6 +711,10 @@ impl StoreInner {
             memory_bytes: 4_u64.checked_add(u64::try_from(memory_bytes).map_err(|_| ExecutionObserverError::SnapshotLimitExceeded)?).ok_or(ExecutionObserverError::SnapshotLimitExceeded)?,
             instance_state_bytes,
             arbitration_engine_canonical_bytes,
+            arbitration_frame_retained_bytes: 0,
+            arbitration_frame_canonical_bytes: 4,
+            arbitration_v3_instance_retained_bytes: instance_state_bytes,
+            arbitration_v3_instance_canonical_bytes: arbitration_engine_canonical_bytes,
             host_state_bytes: pre.supplement.arbitration_host_state_bytes,
             storage_overlay_bytes: pre.supplement.storage_overlay.iter().try_fold(0_u64, |total, (key, value)| {
                 let value_len = value.as_ref().map_or(0, Vec::len);
@@ -648,6 +742,8 @@ impl StoreInner {
             linear_memory: Vec::new(),
             globals: Vec::new(),
             arbitration_instances: Vec::new(),
+            arbitration_frames_v3: Vec::new(),
+            arbitration_instances_v3: Vec::new(),
             control_stack: Vec::new(),
             canonical_instruction: alloc::vec![0xFF, 0xFF],
             instruction_fuel: 0,
@@ -691,6 +787,11 @@ impl StoreInner {
         }
         let instance_state_bytes = self.measure_execution_instance_states(root_instance)?;
         post.arbitration_instances = self.capture_execution_instance_states(root_instance, instance_state_bytes)?;
+        post.arbitration_instances_v3 = self.capture_execution_instance_states_from_roots(&[root_instance], instance_state_bytes)?;
+        post.supplement.arbitration_frame_retained_bytes = 0;
+        post.supplement.arbitration_frame_canonical_bytes = 4;
+        post.supplement.arbitration_v3_instance_retained_bytes = instance_state_bytes;
+        post.supplement.arbitration_v3_instance_canonical_bytes = self.measure_execution_instance_canonical_bytes_v3_from_roots(&[root_instance])?;
         let memory_expansion_bytes = post.linear_memory.len().checked_sub(pre.linear_memory.len())
             .and_then(|bytes| u64::try_from(bytes).ok())
             .ok_or(ExecutionObserverError::UnsupportedState)?;

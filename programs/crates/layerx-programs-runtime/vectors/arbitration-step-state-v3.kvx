@@ -1,0 +1,22 @@
+[vector]
+format = "layerx_programs_runtime::ArbitrationExecutionStateV3::canonical_bytes"
+commitment_domain = "layerx-programs-arbitration-step-commitment-v3\\0"
+commitment_version = 3
+supersedes = "arbitration-step-state-v2.kvx"
+source_case = "tests/execution_trace.rs::ordinary_observer_emits_reconstructible_v3_arbitration_state"
+evidence_hex_status = "qualification-required"
+evidence_hex = ""
+
+[coverage.engine]
+source = "ordinary-runtime-observer"
+cases = ["root-instance", "defining-instance-per-frame", "frame-value-base", "frame-operand-types", "current-frame-operand-types", "cross-instance-globals", "cross-instance-memories", "cross-instance-tables", "live-empty-data-segment", "dropped-data-segment", "live-empty-element-segment", "dropped-element-segment"]
+
+[coverage.host]
+source = "ordinary-authorized-runtime"
+cases = ["caller-instance", "storage-baseline", "storage-overlay", "receipt-oracle", "balance-oracle", "authorization", "protocol-context", "access-declaration", "events", "program-calls", "transfers", "namespace-drops", "response", "refusal", "composition"]
+
+[coverage.identity]
+cases = ["module-code", "input", "runtime-version", "abi-version", "fee-schedule", "metering-schedule", "trace-policy", "host-base-root", "receipt-oracle-root", "balance-oracle-root"]
+
+[qualification]
+required = "Populate evidence_hex only by executing the named ordinary observer source case, then compare exact bytes and independently derived next-step commitments across separately attested supported runners."

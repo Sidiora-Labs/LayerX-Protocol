@@ -539,12 +539,22 @@ impl<'ctx, 'engine> Executor<'ctx, 'engine> {
         for &value_type in &metadata.operand_types {
             value_bytes = value_bytes.checked_add(encoded_value_bytes(value_type)).ok_or(TrapCode::UnreachableCodeReached)?;
         }
+        let arbitration_root = *self.cache.instance();
         let instance_state_bytes = self.ctx
-            .measure_execution_instance_states(*self.cache.instance())
+            .measure_execution_instance_states(arbitration_root)
             .map_err(|_| TrapCode::UnreachableCodeReached)?;
         let arbitration_engine_canonical_bytes = self.ctx
-            .measure_execution_instance_canonical_bytes(*self.cache.instance())
+            .measure_execution_instance_canonical_bytes(arbitration_root)
             .map_err(|_| TrapCode::UnreachableCodeReached)?;
+        let arbitration_roots_v3 = self.arbitration_roots_v3()?;
+        let arbitration_v3_instance_retained_bytes = self.ctx
+            .measure_execution_instance_states_from_roots(&arbitration_roots_v3)
+            .map_err(|_| TrapCode::UnreachableCodeReached)?;
+        let arbitration_v3_instance_canonical_bytes = self.ctx
+            .measure_execution_instance_canonical_bytes_v3_from_roots(&arbitration_roots_v3)
+            .map_err(|_| TrapCode::UnreachableCodeReached)?;
+        let (arbitration_frame_retained_bytes, arbitration_frame_canonical_bytes) = self
+            .measure_arbitration_frames_v3(&arbitration_roots_v3, metadata)?;
         Ok(ObservationCharge {
             collect: true,
             value_bytes,
@@ -554,6 +564,10 @@ impl<'ctx, 'engine> Executor<'ctx, 'engine> {
             memory_bytes: 4_u64.checked_add(u64::try_from(memory_bytes).map_err(|_| TrapCode::UnreachableCodeReached)?).ok_or(TrapCode::UnreachableCodeReached)?,
             instance_state_bytes,
             arbitration_engine_canonical_bytes,
+            arbitration_frame_retained_bytes,
+            arbitration_frame_canonical_bytes,
+            arbitration_v3_instance_retained_bytes,
+            arbitration_v3_instance_canonical_bytes,
             host_state_bytes: 0,
             storage_overlay_bytes: 0,
             instruction_bytes: 4_u64.checked_add(u64::try_from(metadata.control_stack.len()).map_err(|_| TrapCode::UnreachableCodeReached)?.checked_mul(6).ok_or(TrapCode::UnreachableCodeReached)?).ok_or(TrapCode::UnreachableCodeReached)?,
@@ -615,6 +629,19 @@ impl<'ctx, 'engine> Executor<'ctx, 'engine> {
             .map_err(|_| TrapCode::UnreachableCodeReached)?;
         let arbitration_instances = self.ctx.capture_execution_instance_states(root_instance, instance_state_bytes)
             .map_err(|_| TrapCode::UnreachableCodeReached)?;
+        let arbitration_roots_v3 = self.arbitration_roots_v3()?;
+        let v3_instance_bytes = self.ctx.measure_execution_instance_states_from_roots(&arbitration_roots_v3)
+            .map_err(|_| TrapCode::UnreachableCodeReached)?;
+        let arbitration_instances_v3 = self.ctx.capture_execution_instance_states_from_roots(&arbitration_roots_v3, v3_instance_bytes)
+            .map_err(|_| TrapCode::UnreachableCodeReached)?;
+        let arbitration_frames_v3 = self.capture_arbitration_frames_v3(&arbitration_roots_v3, metadata)?;
+        let (arbitration_frame_retained_bytes, arbitration_frame_canonical_bytes) = Self::measure_captured_arbitration_frames_v3(&arbitration_frames_v3)?;
+        let mut supplement = self.ctx.execution_supplement();
+        supplement.arbitration_frame_retained_bytes = arbitration_frame_retained_bytes;
+        supplement.arbitration_frame_canonical_bytes = arbitration_frame_canonical_bytes;
+        supplement.arbitration_v3_instance_retained_bytes = v3_instance_bytes;
+        supplement.arbitration_v3_instance_canonical_bytes = self.ctx.measure_execution_instance_canonical_bytes_v3_from_roots(&arbitration_roots_v3)
+            .map_err(|_| TrapCode::UnreachableCodeReached)?;
         Ok(ExecutionSnapshot {
             step_index: self.ctx.execution_step_index().saturating_sub(1),
             program_counter: metadata.program_counter,
@@ -623,12 +650,105 @@ impl<'ctx, 'engine> Executor<'ctx, 'engine> {
             linear_memory,
             globals,
             arbitration_instances,
+            arbitration_frames_v3,
+            arbitration_instances_v3,
             control_stack: metadata.control_stack.clone(),
             canonical_instruction: metadata.canonical_instruction.clone(),
             instruction_fuel: metadata.instruction_fuel,
             memory_expansion_bytes: 0,
-            supplement: self.ctx.execution_supplement(),
+            supplement,
         })
+    }
+
+    fn measure_arbitration_frames_v3(
+        &self,
+        roots: &[crate::Instance],
+        metadata: &crate::execution_trace::InstructionMetadata,
+    ) -> Result<(u64, u64), TrapCode> {
+        let frame_count = self.call_stack.frames().len().checked_add(1).ok_or(TrapCode::UnreachableCodeReached)?;
+        let mut retained = frame_count.checked_mul(core::mem::size_of::<crate::execution_trace::ExecutionFrameV3>())
+            .ok_or(TrapCode::UnreachableCodeReached)?;
+        let mut canonical = 4_u64;
+        for frame in self.call_stack.frames() {
+            self.ctx.canonical_execution_function(roots, *frame.instance(), frame.function())
+                .map_err(|_| TrapCode::UnreachableCodeReached)?;
+            if self.code_map.metadata(frame.ip()).is_none() { return Err(TrapCode::UnreachableCodeReached) }
+            retained = retained.checked_add(frame.operand_types().len().checked_mul(core::mem::size_of::<crate::execution_trace::ExecutionValueType>()).ok_or(TrapCode::UnreachableCodeReached)?)
+                .ok_or(TrapCode::UnreachableCodeReached)?;
+            canonical = canonical.checked_add(26).and_then(|total| total.checked_add(u64::try_from(frame.operand_types().len()).ok()?))
+                .ok_or(TrapCode::UnreachableCodeReached)?;
+            let _ = u32::try_from(frame.value_base()).map_err(|_| TrapCode::UnreachableCodeReached)?;
+        }
+        self.ctx.canonical_execution_function(roots, *self.cache.instance(), self.current_func)
+            .map_err(|_| TrapCode::UnreachableCodeReached)?;
+        let _ = u32::try_from(self.value_base).map_err(|_| TrapCode::UnreachableCodeReached)?;
+        retained = retained.checked_add(metadata.operand_types.len().checked_mul(core::mem::size_of::<crate::execution_trace::ExecutionValueType>()).ok_or(TrapCode::UnreachableCodeReached)?)
+            .ok_or(TrapCode::UnreachableCodeReached)?;
+        canonical = canonical.checked_add(18).and_then(|total| total.checked_add(u64::try_from(metadata.operand_types.len()).ok()?))
+            .ok_or(TrapCode::UnreachableCodeReached)?;
+        Ok((u64::try_from(retained).map_err(|_| TrapCode::UnreachableCodeReached)?, canonical))
+    }
+
+    fn measure_captured_arbitration_frames_v3(
+        frames: &alloc::vec::Vec<crate::execution_trace::ExecutionFrameV3>,
+    ) -> Result<(u64, u64), TrapCode> {
+        let retained = frames.capacity().checked_mul(core::mem::size_of::<crate::execution_trace::ExecutionFrameV3>())
+            .and_then(|bytes| frames.iter().try_fold(bytes, |total, frame| {
+                total.checked_add(frame.operand_types.capacity().checked_mul(core::mem::size_of::<crate::execution_trace::ExecutionValueType>())?)
+            }))
+            .and_then(|bytes| u64::try_from(bytes).ok()).ok_or(TrapCode::UnreachableCodeReached)?;
+        let canonical = frames.iter().try_fold(4_u64, |total, frame| {
+            let fixed = if frame.return_program_counter.is_some() { 26_u64 } else { 18_u64 };
+            total.checked_add(fixed)?.checked_add(u64::try_from(frame.operand_types.len()).ok()?)
+        }).ok_or(TrapCode::UnreachableCodeReached)?;
+        Ok((retained, canonical))
+    }
+
+    fn capture_arbitration_frames_v3(
+        &self,
+        roots: &[crate::Instance],
+        metadata: &crate::execution_trace::InstructionMetadata,
+    ) -> Result<alloc::vec::Vec<crate::execution_trace::ExecutionFrameV3>, TrapCode> {
+        use crate::execution_trace::ExecutionFrameV3;
+        let mut captured = alloc::vec::Vec::with_capacity(self.call_stack.frames().len().checked_add(1).ok_or(TrapCode::UnreachableCodeReached)?);
+        for frame in self.call_stack.frames() {
+            let function = self.ctx.canonical_execution_function(roots, *frame.instance(), frame.function())
+                .map_err(|_| TrapCode::UnreachableCodeReached)?;
+            let return_program_counter = self.code_map.metadata(frame.ip())
+                .map(|metadata| metadata.program_counter).ok_or(TrapCode::UnreachableCodeReached)?;
+            captured.push(ExecutionFrameV3 {
+                instance_index: function.instance_index,
+                function_index: function.function_index,
+                value_base: u32::try_from(frame.value_base()).map_err(|_| TrapCode::UnreachableCodeReached)?,
+                return_program_counter: Some(return_program_counter),
+                operand_types: frame.operand_types().to_vec(),
+                current: false,
+            });
+        }
+        let function = self.ctx.canonical_execution_function(roots, *self.cache.instance(), self.current_func)
+            .map_err(|_| TrapCode::UnreachableCodeReached)?;
+        captured.push(ExecutionFrameV3 {
+            instance_index: function.instance_index,
+            function_index: function.function_index,
+            value_base: u32::try_from(self.value_base).map_err(|_| TrapCode::UnreachableCodeReached)?,
+            return_program_counter: None,
+            operand_types: metadata.operand_types.clone(),
+            current: true,
+        });
+        Ok(captured)
+    }
+
+    fn arbitration_roots_v3(&self) -> Result<alloc::vec::Vec<crate::Instance>, TrapCode> {
+        let mut roots = alloc::vec::Vec::with_capacity(self.call_stack.frames().len().checked_add(1).ok_or(TrapCode::UnreachableCodeReached)?);
+        for frame in self.call_stack.frames() {
+            if !roots.iter().any(|candidate| candidate == frame.instance()) {
+                roots.push(*frame.instance());
+            }
+        }
+        if !roots.iter().any(|candidate| candidate == self.cache.instance()) {
+            roots.push(*self.cache.instance());
+        }
+        Ok(roots)
     }
 
     fn capture_frame(&self, function: CompiledFunc, value_base: usize, return_ip: Option<InstructionPtr>) -> Result<crate::execution_trace::ExecutionFrame, TrapCode> {
@@ -866,7 +986,9 @@ impl<'ctx, 'engine> Executor<'ctx, 'engine> {
         self.ip = self.code_map.instr_ptr(header.iref());
         self.current_func = func;
         self.value_base = self.value_stack.len() - header.local_types().len();
-        self.retain_suspended_operand_types()?;
+        if matches!(kind, CallKind::Nested) {
+            self.retain_suspended_operand_types()?;
+        }
         Ok(())
     }
 
