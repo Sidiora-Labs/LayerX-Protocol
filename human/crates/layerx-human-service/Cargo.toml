@@ -5,6 +5,14 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[[bin]]
+name = "layerx-human-service"
+path = "src/main.rs"
+
+[[bin]]
+name = "layerx-human-components"
+path = "src/bin/layerx-human-components.rs"
+
 [dependencies]
 base64.workspace = true
 getrandom.workspace = true
@@ -25,6 +33,7 @@ k256.workspace = true
 subtle.workspace = true
 zeroize.workspace = true
 rustls = { version = "0.23.32", default-features = false, features = ["ring", "std", "tls12"] }
+rustix.workspace = true
 
 [dev-dependencies]
 ciborium = "=0.2.2"

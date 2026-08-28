@@ -17,7 +17,7 @@ use layerx_types::verify::VerificationLevel;
 use sha2::{Digest as _, Sha256};
 
 use crate::custody::{
-    AgentSessionContract, RevocationOutcome, SessionEntropySource, SessionKeyError,
+    AgentSessionContract, KeyId, RevocationOutcome, SessionEntropySource, SessionKeyError,
     SessionKeyProvisioner, SessionLease, SessionLeaseState,
 };
 use crate::store::PrincipalId;
@@ -607,6 +607,9 @@ impl<B: AgentControlContract> AgentControls<B> {
             intent,
             compiled,
             disclosure,
+            custody_key: KeyId::new(format!("agent-{}", short_hex(&self.profile.agent_id)))
+                .map_err(|_| AgentControlError::InvalidProfile)?,
+            started_at: observed_at,
         })?;
         if evidence.action_key != action_key || evidence.activity_id != action_key {
             return Err(AgentControlError::EvidenceConflict);
@@ -778,4 +781,9 @@ impl From<VerificationFailure> for AgentControlError {
     fn from(value: VerificationFailure) -> Self {
         Self::Receipt(value)
     }
+}
+
+fn short_hex(bytes: &[u8; 32]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    bytes[..8].iter().flat_map(|byte| [DIGITS[(byte >> 4) as usize] as char, DIGITS[(byte & 15) as usize] as char]).collect()
 }

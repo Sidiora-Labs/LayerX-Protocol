@@ -94,6 +94,22 @@ impl Default for Preferences {
 }
 
 impl Preferences {
+    /// Refuses a complete replacement that suppresses every delivery channel
+    /// for a security-critical event class.
+    pub fn validate(&self) -> Result<(), NotifyError> {
+        for class in NotificationClass::ALL {
+            if class.security_critical()
+                && Channel::ALL.into_iter().all(|channel| {
+                    let preference = self.channel(channel);
+                    !preference.enabled() || !preference.class_enabled(class)
+                })
+            {
+                return Err(NotifyError::NotSuppressible);
+            }
+        }
+        Ok(())
+    }
+
     /// Returns the notification detail level.
     #[must_use]
     pub const fn detail(&self) -> DetailLevel {

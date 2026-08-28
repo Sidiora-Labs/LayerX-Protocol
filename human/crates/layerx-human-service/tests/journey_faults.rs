@@ -749,6 +749,7 @@ impl Fixture {
         JourneyPlan::new(
             JourneyId::new("jrn_crashjourney")
                 .unwrap_or_else(|error| panic!("journey id: {error}")),
+            layerx_human_service::journeys::JourneyKind::Move,
             [0x31; 32],
             KeyId::new("human-primary").unwrap_or_else(|error| panic!("key: {error}")),
             Operation::ProtocolMutation,

@@ -499,7 +499,12 @@ struct SessionRecord {
     epoch: u64,
     revoked_at: Option<u64>,
     assurance: Assurance,
+    #[serde(default)]
+    protocol_grant_id: [u8; 32],
 }
+
+pub struct PreparedBrowserSession { assertion_id:String, record:SessionRecord, grant:SessionGrant }
+impl PreparedBrowserSession { pub fn session_id(&self)->&str{self.grant.session_id()} pub fn refresh_expires_at(&self)->u64{self.grant.refresh_expires_at()} pub fn bind_protocol_grant(&mut self,value:[u8;32])->Result<(),AuthError>{if value==[0;32]||self.record.protocol_grant_id!=[0;32]{return Err(AuthError::ForgeryRefused)}self.record.protocol_grant_id=value;Ok(())} }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct DeviceRecord {
@@ -704,6 +709,18 @@ impl Passkeys {
         Ok(passkeys)
     }
 
+    /// Lists safe passkey metadata after the privileged dispatcher consumed
+    /// an affine read authorization for this principal.
+    pub fn list_passkeys_authorized(
+        &self,
+        scope: &PrincipalScope<'_>,
+    ) -> Result<Vec<PasskeyRecord>, AuthError> {
+        let mut passkeys = load_passkeys(scope)?.into_iter()
+            .map(|(_, stored)| stored.record).collect::<Vec<_>>();
+        passkeys.sort_by(|left, right| left.passkey_id.cmp(&right.passkey_id));
+        Ok(passkeys)
+    }
+
     /// Starts an additional-passkey registration only after a fresh ceremony
     /// confirms this exact security mutation.
     #[allow(clippy::too_many_arguments)]
@@ -789,6 +806,24 @@ impl Passkeys {
             .filter(|(candidate, _)| candidate != &key)
             .map(|(_, stored)| stored.record)
             .collect::<Vec<_>>();
+        remaining.sort_by(|left, right| left.passkey_id.cmp(&right.passkey_id));
+        Ok(remaining)
+    }
+
+    /// Revokes one passkey after the privileged dispatcher consumed the
+    /// operation-bound security capability.
+    pub fn revoke_passkey_authorized(
+        &self, scope: &mut PrincipalScope<'_>, passkey_id: &str,
+    ) -> Result<Vec<PasskeyRecord>, AuthError> {
+        let passkeys = load_passkeys(scope)?;
+        if passkeys.len() <= 1 { return Err(AuthError::LastPasskey); }
+        let key = row_key(PASSKEY_ROW_PREFIX, passkey_id)?;
+        if !passkeys.iter().any(|(candidate, _)| candidate == &key) {
+            return Err(AuthError::CredentialNotFound);
+        }
+        scope.remove(Table::Cache, &key)?;
+        let mut remaining = passkeys.into_iter().filter(|(candidate, _)| candidate != &key)
+            .map(|(_, stored)| stored.record).collect::<Vec<_>>();
         remaining.sort_by(|left, right| left.passkey_id.cmp(&right.passkey_id));
         Ok(remaining)
     }
@@ -897,8 +932,13 @@ impl Passkeys {
         device: Device,
         now: u64,
     ) -> Result<SessionGrant, AuthError> {
+        let prepared=self.prepare_open_session(scope,assertion_id,device,now,[0;32])?;
+        self.commit_open_session(scope,prepared,now)
+    }
+
+    pub fn prepare_open_session(&self,scope:&PrincipalScope<'_>,assertion_id:&str,device:Device,now:u64,protocol_grant_id:[u8;32])->Result<PreparedBrowserSession,AuthError>{
         let key = row_key(VERIFIED_ASSERTION_ROW_PREFIX, assertion_id)?;
-        let mut assertion = get_json::<VerifiedAssertion>(scope, Table::Cache, &key)?
+        let assertion = get_json::<VerifiedAssertion>(scope, Table::Cache, &key)?
             .ok_or(AuthError::AssertionNotVerified)?;
         if assertion.consumed {
             return Err(AuthError::AssertionSpent);
@@ -906,9 +946,12 @@ impl Passkeys {
         if now > assertion.expires_at {
             return Err(AuthError::ChallengeExpired);
         }
-        assertion.consumed = true;
-        put_json(scope, Table::Cache, key, now, &assertion)?;
-        self.issue_session(scope, Assurance::Passkey, device, now)
+        let epoch=session_epoch(scope)?;let session_id=mint_identifier("ses_")?;let(access_token,access_digest)=mint_token(&session_id)?;let(refresh_token,refresh_digest)=mint_token(&session_id)?;let csrf_token=mint_secret()?;let csrf_digest=token_digest(csrf_token.expose());let access_expires_at=now.saturating_add(self.config.session_ttl_secs);let refresh_expires_at=now.saturating_add(self.config.refresh_ttl_secs);
+        let record=SessionRecord{session_id:session_id.clone(),device,opened_at:now,last_active_at:now,access_expires_at,refresh_expires_at,access_digest,refresh_digest,csrf_digest,epoch,revoked_at:None,assurance:Assurance::Passkey,protocol_grant_id};
+        Ok(PreparedBrowserSession{assertion_id:assertion_id.to_owned(),record,grant:SessionGrant{session_id,access_token,refresh_token,csrf_token,access_expires_at,refresh_expires_at}})
+    }
+
+    pub fn commit_open_session(&self,scope:&mut PrincipalScope<'_>,prepared:PreparedBrowserSession,now:u64)->Result<SessionGrant,AuthError>{let key=row_key(VERIFIED_ASSERTION_ROW_PREFIX,&prepared.assertion_id)?;let mut assertion=get_json::<VerifiedAssertion>(scope,Table::Cache,&key)?.ok_or(AuthError::AssertionNotVerified)?;if assertion.consumed||now>assertion.expires_at{return Err(if assertion.consumed{AuthError::AssertionSpent}else{AuthError::ChallengeExpired})}assertion.consumed=true;put_json(scope,Table::Cache,key,now,&assertion)?;record_device(scope,&prepared.record.device,now)?;put_json(scope,Table::Cache,row_key(SESSION_ROW_PREFIX,&prepared.record.session_id)?,now,&prepared.record)?;Ok(prepared.grant)
     }
 
     /// Rotates a valid refresh generation. Revoked, signed-out and expired
@@ -940,6 +983,32 @@ impl Passkeys {
         put_json(scope, Table::Cache, key, now, &record)?;
         touch_device(scope, &record.device, now)?;
         Ok(grant)
+    }
+
+    /// Validates a refresh generation without rotating it. The caller must
+    /// hold the returned reservation only inside an affine execution
+    /// capability and call `refresh_authorized` exactly once.
+    pub fn reserve_refresh(
+        &self, scope: &PrincipalScope<'_>, refresh_token: &str, csrf_token: &str, now: u64,
+    ) -> Result<String, AuthError> {
+        let session_id = token_session_id(refresh_token)?;
+        let key = row_key(SESSION_ROW_PREFIX, session_id)?;
+        let record = get_json::<SessionRecord>(scope, Table::Cache, &key)?
+            .ok_or(AuthError::Unauthenticated)?;
+        let epoch = session_epoch(scope)?;
+        if record.revoked_at.is_some() || record.epoch != epoch { return Err(AuthError::Unauthenticated); }
+        if now > record.refresh_expires_at { return Err(AuthError::SessionExpired); }
+        if !digest_matches(&record.refresh_digest, refresh_token)
+            || !digest_matches(&record.csrf_digest, csrf_token) { return Err(AuthError::ForgeryRefused); }
+        Ok(session_id.to_owned())
+    }
+
+    /// Atomically rotates the refresh generation after its affine execution
+    /// capability has been consumed by the privileged dispatcher.
+    pub fn refresh_authorized(
+        &self, scope: &mut PrincipalScope<'_>, refresh_token: &str, csrf_token: &str, now: u64,
+    ) -> Result<SessionGrant, AuthError> {
+        self.refresh_session(scope, refresh_token, csrf_token, now)
     }
 
     /// Authorizes one browser request, returning an explicit re-authentication
@@ -1034,6 +1103,71 @@ impl Passkeys {
         }
         sessions.sort_by(|left, right| left.session_id.cmp(&right.session_id));
         Ok(sessions)
+    }
+
+    /// Lists sessions after the privileged boundary has already consumed an
+    /// affine authorization capability for `session.list`.
+    pub fn list_sessions_authorized(
+        &self,
+        scope: &PrincipalScope<'_>,
+        current_session_id: &str,
+    ) -> Result<Vec<SessionView>, AuthError> {
+        let epoch = session_epoch(scope)?;
+        let current_key = row_key(SESSION_ROW_PREFIX, current_session_id)?;
+        let current = get_json::<SessionRecord>(scope, Table::Cache, &current_key)?
+            .ok_or(AuthError::Unauthenticated)?;
+        if current.revoked_at.is_some() || current.epoch != epoch {
+            return Err(AuthError::Unauthenticated);
+        }
+        let mut sessions = Vec::new();
+        for key in scope.keys(Table::Cache) {
+            if !key.as_str().starts_with(SESSION_ROW_PREFIX) { continue; }
+            if let Some(record) = get_json::<SessionRecord>(scope, Table::Cache, &key)? {
+                if record.revoked_at.is_none() && record.epoch == epoch {
+                    sessions.push(SessionView { current: record.session_id == current_session_id,
+                        session_id: record.session_id, device: record.device, opened_at: record.opened_at,
+                        last_active_at: record.last_active_at,
+                        restricted: record.assurance == Assurance::FallbackRestricted });
+                }
+            }
+        }
+        sessions.sort_by(|left, right| left.session_id.cmp(&right.session_id));
+        Ok(sessions)
+    }
+
+    /// Revokes a target after an affine security-settings authorization has
+    /// already been consumed by the privileged dispatcher.
+    pub fn revoke_session_authorized(
+        &self, scope: &mut PrincipalScope<'_>, target_session_id: &str, now: u64,
+    ) -> Result<SessionRevocation, AuthError> {
+        let key = row_key(SESSION_ROW_PREFIX, target_session_id)?;
+        let mut record = get_json::<SessionRecord>(scope, Table::Cache, &key)?
+            .ok_or(AuthError::SessionNotFound)?;
+        record.revoked_at = Some(now);
+        put_json(scope, Table::Cache, key, now, &record)?;
+        Ok(SessionRevocation { revoked_session_ids: vec![target_session_id.to_owned()], revoked_at: now })
+    }
+
+    pub fn protocol_grant_for_session(&self,scope:&PrincipalScope<'_>,target_session_id:&str)->Result<[u8;32],AuthError>{let key=row_key(SESSION_ROW_PREFIX,target_session_id)?;let record=get_json::<SessionRecord>(scope,Table::Cache,&key)?.ok_or(AuthError::SessionNotFound)?;if record.revoked_at.is_some()||record.protocol_grant_id==[0;32]{Err(AuthError::SessionNotFound)}else{Ok(record.protocol_grant_id)}}
+    pub fn active_protocol_session_grants(&self,scope:&PrincipalScope<'_>)->Result<Vec<(String,[u8;32])>,AuthError>{let epoch=session_epoch(scope)?;let mut values=Vec::new();for key in scope.keys(Table::Cache){if !key.as_str().starts_with(SESSION_ROW_PREFIX){continue}if let Some(record)=get_json::<SessionRecord>(scope,Table::Cache,&key)?{if record.revoked_at.is_none()&&record.epoch==epoch&&record.protocol_grant_id!=[0;32]{values.push((record.session_id,record.protocol_grant_id));}}}values.sort_by(|left,right|left.0.cmp(&right.0));Ok(values)}
+
+    /// Invalidates the current principal epoch after consumed affine
+    /// authorization, without requiring the raw bearer token a second time.
+    pub fn revoke_all_sessions_authorized(
+        &self, scope: &mut PrincipalScope<'_>, now: u64,
+    ) -> Result<SessionRevocation, AuthError> {
+        let current = session_epoch(scope)?;
+        let next = current.checked_add(1).ok_or(AuthError::SizeOverflow)?;
+        put_json(scope, Table::Cache, RowKey::new(SESSION_EPOCH_ROW)?, now, &SessionEpoch { value: next })?;
+        let mut revoked = Vec::new();
+        for key in scope.keys(Table::Cache) {
+            if !key.as_str().starts_with(SESSION_ROW_PREFIX) { continue; }
+            if let Some(record) = get_json::<SessionRecord>(scope, Table::Cache, &key)? {
+                if record.revoked_at.is_none() && record.epoch == current { revoked.push(record.session_id); }
+            }
+        }
+        revoked.sort();
+        Ok(SessionRevocation { revoked_session_ids: revoked, revoked_at: now })
     }
 
     /// Revokes one session after authenticating the caller and validating the
@@ -1316,6 +1450,7 @@ impl Passkeys {
             epoch,
             revoked_at: None,
             assurance,
+            protocol_grant_id: [0; 32],
         };
         put_json(
             scope,

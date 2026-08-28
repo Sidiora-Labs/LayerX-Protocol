@@ -141,20 +141,119 @@ pub struct SessionCredentials<'request> {
     pub csrf_token: Option<&'request str>,
     pub intended_destination: &'request str,
     pub refresh: bool,
+    pub request_digest: [u8; 32],
+    pub disclosure_digest: [u8; 32],
+    pub path_parameters: &'request BTreeMap<String, String>,
+    pub body: &'request Value,
+    pub idempotency_key: Option<&'request str>,
 }
 
 /// The principal and agent tenancy authenticated by the real session service.
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PrincipalContext {
     pub principal: PrincipalId,
     pub tenant: AgentTenantId,
     pub session_id: String,
+    capability: Zeroizing<String>,
+    request_digest: [u8; 32],
+    disclosure_digest: [u8; 32],
+    operation: String,
+    destination: String,
+    trace: String,
+    issued_at: u64,
+    expires_at: u64,
+    refresh_token: Option<Zeroizing<String>>,
+    refresh_csrf: Option<Zeroizing<String>>,
+}
+
+impl Debug for PrincipalContext {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("PrincipalContext")
+            .field("principal", &self.principal)
+            .field("tenant", &self.tenant)
+            .field("session_id", &self.session_id)
+            .field("capability", &"[REDACTED]")
+            .field("request_digest", &self.request_digest)
+            .field("disclosure_digest", &self.disclosure_digest)
+            .field("operation", &self.operation)
+            .field("destination", &self.destination)
+            .field("trace", &self.trace)
+            .field("issued_at", &self.issued_at)
+            .field("expires_at", &self.expires_at)
+            .field("refresh_token", &self.refresh_token.as_ref().map(|_| "[REDACTED]"))
+            .finish()
+    }
+}
+
+impl PrincipalContext {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn authorized(
+        principal: PrincipalId,
+        tenant: AgentTenantId,
+        session_id: String,
+        capability: String,
+        request_digest: [u8; 32],
+        disclosure_digest: [u8; 32],
+        operation: String,
+        destination: String,
+        trace: String,
+        issued_at: u64,
+        expires_at: u64,
+    ) -> Result<Self, ApiFailure> {
+        if session_id.is_empty()
+            || capability.len() != 43
+            || operation.is_empty()
+            || !destination.starts_with('/')
+            || destination.starts_with("//")
+            || trace.is_empty()
+            || trace.len() > 255
+            || expires_at <= issued_at
+            || expires_at.saturating_sub(issued_at) > 60
+        {
+            return Err(ApiFailure::upstream_degraded());
+        }
+        Ok(Self {
+            principal,
+            tenant,
+            session_id,
+            capability: Zeroizing::new(capability),
+            request_digest,
+            disclosure_digest,
+            operation,
+            destination,
+            trace,
+            issued_at,
+            expires_at,
+            refresh_token: None,
+            refresh_csrf: None,
+        })
+    }
+
+    pub(crate) fn with_refresh(mut self, token: String, csrf: String) -> Result<Self, ApiFailure> {
+        if token.is_empty() || token.len() > 4_096 || csrf.is_empty() || csrf.len() > 4_096 {
+            return Err(ApiFailure::unauthenticated());
+        }
+        self.refresh_token = Some(Zeroizing::new(token));
+        self.refresh_csrf = Some(Zeroizing::new(csrf));
+        Ok(self)
+    }
+
+    pub(crate) fn capability(&self) -> &str { self.capability.as_str() }
+    pub(crate) const fn request_digest(&self) -> [u8; 32] { self.request_digest }
+    pub(crate) const fn disclosure_digest(&self) -> [u8; 32] { self.disclosure_digest }
+    pub(crate) fn operation(&self) -> &str { &self.operation }
+    pub(crate) fn destination(&self) -> &str { &self.destination }
+    pub(crate) fn trace(&self) -> &str { &self.trace }
+    pub(crate) const fn issued_at(&self) -> u64 { self.issued_at }
+    pub(crate) const fn expires_at(&self) -> u64 { self.expires_at }
+    pub(crate) fn refresh_credentials(&self) -> Option<(&str, &str)> {
+        Some((self.refresh_token.as_ref()?.as_str(), self.refresh_csrf.as_ref()?.as_str()))
+    }
 }
 
 /// One schema-decoded request after session authentication and path binding.
 pub struct ScopedRequest<'operation> {
     pub operation: &'operation Operation,
-    pub principal: Option<&'operation PrincipalContext>,
+    pub principal: Option<PrincipalContext>,
     pub path_parameters: BTreeMap<String, String>,
     pub body: Value,
     pub idempotency_key: Option<String>,
@@ -230,11 +329,11 @@ pub struct Readiness {
 impl Readiness {
     #[must_use]
     pub const fn ready(self) -> bool {
-        !matches!(self.human_service, ComponentState::Unavailable)
-            && !matches!(self.custody, ComponentState::Unavailable)
-            && !matches!(self.agent, ComponentState::Unavailable)
-            && !matches!(self.core, ComponentState::Unavailable)
-            && !matches!(self.paxeer, ComponentState::Unavailable)
+        matches!(self.human_service, ComponentState::Ready)
+            && matches!(self.custody, ComponentState::Ready)
+            && matches!(self.agent, ComponentState::Ready)
+            && matches!(self.core, ComponentState::Ready)
+            && matches!(self.paxeer, ComponentState::Ready)
     }
 
     #[must_use]
@@ -268,6 +367,7 @@ pub trait HumanApiComponents: Send + Sync + 'static {
 
     /// Reads redacted component readiness without exposing endpoints or failure details.
     fn readiness(&self, trace: &str) -> Result<Readiness, ApiFailure>;
+
 }
 
 /// Production bounded adapter to the process that owns the concrete human services.
@@ -347,6 +447,11 @@ impl HumanApiComponents for UnixComponents {
             "csrf_token": credentials.csrf_token,
             "intended_destination": credentials.intended_destination,
             "refresh": credentials.refresh,
+            "request_digest": hex(&credentials.request_digest),
+            "disclosure_digest": hex(&credentials.disclosure_digest),
+            "path_parameters": credentials.path_parameters,
+            "body": credentials.body,
+            "idempotency_key": credentials.idempotency_key,
             "trace": trace
         }))?;
         let parsed = (|| {
@@ -374,23 +479,58 @@ impl HumanApiComponents for UnixComponents {
                 .filter(|value| !value.is_empty() && value.len() <= 255)
                 .ok_or_else(ApiFailure::upstream_degraded)?
                 .to_owned();
-            Ok(PrincipalContext {
+            let capability = bounded_secret(result, "capability")?;
+            let request_digest = digest(result, "request_digest")?;
+            let disclosure_digest = digest(result, "disclosure_digest")?;
+            let operation_name = bounded_result_text(result, "operation", 128)?;
+            let destination = bounded_result_text(result, "destination", 2_048)?;
+            let response_trace = bounded_result_text(result, "trace", 255)?;
+            let issued_at = result.get("issued_at").and_then(Value::as_u64)
+                .ok_or_else(ApiFailure::upstream_degraded)?;
+            let expires_at = result.get("expires_at").and_then(Value::as_u64)
+                .filter(|expires| *expires > issued_at)
+                .ok_or_else(ApiFailure::upstream_degraded)?;
+            if request_digest != credentials.request_digest
+                || disclosure_digest != credentials.disclosure_digest
+                || operation_name != operation.name
+                || destination != credentials.intended_destination
+                || response_trace != trace
+            {
+                return Err(ApiFailure::upstream_degraded());
+            }
+            PrincipalContext::authorized(
                 principal,
                 tenant,
                 session_id,
-            })
+                capability,
+                request_digest,
+                disclosure_digest,
+                operation_name,
+                destination,
+                response_trace,
+                issued_at,
+                expires_at,
+            )
         })();
         zeroize_value(&mut response);
         parsed
     }
 
     fn execute(&self, request: ScopedRequest<'_>) -> Result<BackendResponse, ApiFailure> {
-        let component = component_owner(&request.operation.name);
-        let principal = request.principal.map(|context| {
+        let component = component_owner(&request.operation.name)?;
+        let principal = request.principal.as_ref().map(|context| {
             json!({
                 "principal_id": context.principal.as_str(),
                 "tenant_id": context.tenant.as_str(),
-                "session_id": context.session_id.as_str()
+                "session_id": context.session_id.as_str(),
+                "capability": context.capability.as_str(),
+                "request_digest": hex(&context.request_digest),
+                "disclosure_digest": hex(&context.disclosure_digest),
+                "operation": context.operation.as_str(),
+                "destination": context.destination.as_str(),
+                "trace": context.trace.as_str(),
+                "issued_at": context.issued_at,
+                "expires_at": context.expires_at
             })
         });
         let mut response = self.round_trip(json!({
@@ -434,7 +574,7 @@ impl HumanApiComponents for UnixComponents {
                 .and_then(Value::as_object)
                 .ok_or_else(ApiFailure::upstream_degraded)?;
             Ok(Readiness {
-                human_service: ComponentState::Ready,
+                human_service: parse_component_state(result.get("human_service"))?,
                 custody: parse_component_state(result.get("custody"))?,
                 agent: parse_component_state(result.get("agent"))?,
                 core: parse_component_state(result.get("core"))?,
@@ -446,6 +586,50 @@ impl HumanApiComponents for UnixComponents {
     }
 }
 
+fn bounded_secret(result: &Map<String, Value>, name: &str) -> Result<String, ApiFailure> {
+    bounded_result_text(result, name, 4_096).and_then(|value| {
+        if value.len() < 43 || !value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')) {
+            Err(ApiFailure::upstream_degraded())
+        } else {
+            Ok(value)
+        }
+    })
+}
+
+fn bounded_result_text(result: &Map<String, Value>, name: &str, maximum: usize) -> Result<String, ApiFailure> {
+    result.get(name).and_then(Value::as_str)
+        .filter(|value| !value.is_empty() && value.len() <= maximum)
+        .map(str::to_owned).ok_or_else(ApiFailure::upstream_degraded)
+}
+
+fn digest(result: &Map<String, Value>, name: &str) -> Result<[u8; 32], ApiFailure> {
+    let text = result.get(name).and_then(Value::as_str)
+        .filter(|value| value.len() == 64).ok_or_else(ApiFailure::upstream_degraded)?;
+    let mut output = [0_u8; 32];
+    for (index, pair) in text.as_bytes().chunks_exact(2).enumerate() {
+        output[index] = hex_nibble(pair[0]).and_then(|high| hex_nibble(pair[1]).map(|low| high << 4 | low))?;
+    }
+    Ok(output)
+}
+
+fn hex_nibble(value: u8) -> Result<u8, ApiFailure> {
+    match value {
+        b'0'..=b'9' => Ok(value - b'0'),
+        b'a'..=b'f' => Ok(value - b'a' + 10),
+        _ => Err(ApiFailure::upstream_degraded()),
+    }
+}
+
+fn hex(value: &[u8; 32]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut output = String::with_capacity(64);
+    for byte in value {
+        output.push(char::from(DIGITS[usize::from(byte >> 4)]));
+        output.push(char::from(DIGITS[usize::from(byte & 0x0f)]));
+    }
+    output
+}
+
 fn zeroize_value(value: &mut Value) {
     match value {
         Value::String(text) => text.zeroize(),
@@ -455,25 +639,25 @@ fn zeroize_value(value: &mut Value) {
     }
 }
 
-fn component_owner(operation: &str) -> &'static str {
+pub(super) fn component_owner(operation: &str) -> Result<&'static str, ApiFailure> {
     if operation == "account.balance" {
-        return "agent";
+        return Ok("agent");
     }
     let root = operation.split('.').next().unwrap_or_default();
     match root {
         "account" | "authenticator" | "passkey" | "profile" | "security" | "session"
-        | "stepup" => "custody",
-        "binding" => "custody",
-        "deposit" | "exit" | "journey" | "move" | "withdraw" => "journeys",
-        "agent" => "agents",
-        "approval" => "approvals",
-        "activity" | "evidence" => "activity-explorer",
-        "notification" | "stream" => "notifications",
-        "onboarding" => "onboarding",
-        "support" => "support",
-        "home" => "home",
-        "version" => "service",
-        _ => "agent",
+        | "stepup" => Ok("custody"),
+        "binding" => Ok("custody"),
+        "deposit" | "exit" | "journey" | "move" | "withdraw" => Ok("journeys"),
+        "agent" => Ok("agents"),
+        "approval" => Ok("approvals"),
+        "activity" | "evidence" => Ok("activity-explorer"),
+        "notification" | "stream" => Ok("notifications"),
+        "onboarding" => Ok("onboarding"),
+        "support" => Ok("support"),
+        "home" => Ok("home"),
+        "version" => Ok("service"),
+        _ => Err(ApiFailure::not_found()),
     }
 }
 

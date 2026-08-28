@@ -60,6 +60,7 @@ pub struct Freshness {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReadValue {
     canonical_bytes: Vec<u8>,
+    proof_material: Vec<u8>,
     achieved: VerificationLevel,
     freshness: Freshness,
 }
@@ -69,6 +70,10 @@ impl ReadValue {
     pub fn canonical_bytes(&self) -> &[u8] {
         &self.canonical_bytes
     }
+
+    /// Returns the exact proof bytes independently verified for this value.
+    #[must_use]
+    pub fn proof_material(&self) -> &[u8] { &self.proof_material }
 
     #[must_use]
     pub const fn achieved(&self) -> VerificationLevel {
@@ -106,6 +111,10 @@ impl Balance {
     pub fn canonical_bytes(&self) -> &[u8] {
         self.value.canonical_bytes()
     }
+
+
+    #[must_use]
+    pub fn proof_material(&self) -> &[u8] { self.value.proof_material() }
 }
 
 /// A stable resume point bound to the head/checkpoint observed for the page.
@@ -338,6 +347,7 @@ fn verify_state_value(
         require_level(context.requested, VerificationLevel::UNVERIFIED)?;
         return Ok(ReadValue {
             canonical_bytes: canonical_bytes.to_vec(),
+            proof_material: Vec::new(),
             achieved: VerificationLevel::UNVERIFIED,
             freshness: Freshness {
                 global_sequence: context.head.chain_sequence,
@@ -361,6 +371,7 @@ fn verify_state_value(
     require_level(context.requested, achieved)?;
     Ok(ReadValue {
         canonical_bytes: canonical_bytes.to_vec(),
+        proof_material: proof_material.to_vec(),
         achieved,
         freshness: Freshness {
             global_sequence: evidence.header().header().last_sequence(),

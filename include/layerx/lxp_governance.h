@@ -2,12 +2,19 @@
 #define LAYERX_LXP_GOVERNANCE_H
 
 #include "layerx/lxp_receipt.h"
+#include "layerx/lxp_module.h"
+#include "layerx/lxp_authority.h"
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 enum {
+    LX_GOVERNANCE_SESSION_GRANT = 0x00070005,
+    LX_GOVERNANCE_SESSION_REVOKE = 0x00070006,
+    LX_GOVERNANCE_SESSION_GRANT_OPERATION = 5,
+    LX_GOVERNANCE_SESSION_REVOKE_OPERATION = 6,
+    LX_GOVERNANCE_SESSION_GRANT_MAX_BYTES = 1024,
     LXP_MAX_PARAMETERS = 64,
     LXP_MAX_PARAMETER_KEY_BYTES = 64,
     LXP_MAX_PARAMETER_HISTORY = 32,
@@ -18,6 +25,19 @@ enum {
     LXP_MAX_GOV_EMERGENCY_EVENTS = 128,
     LXP_MAX_GOV_MODULE_ID = 255
 };
+
+typedef struct lxp_governance_session_grant {
+    lxp_authority_grant grant;
+    lxp_byte_span canonical_grant;
+} lxp_governance_session_grant;
+
+typedef struct lxp_governance_session_revoke {
+    uint8_t grant_id[32];
+    uint8_t reason;
+    uint64_t effective_sequence;
+} lxp_governance_session_revoke;
+
+const lxp_module_iface *lxp_governance_module_iface(void);
 
 typedef enum lxp_gov_rollout_scope {
     LXP_GOV_ROLLOUT_ALL = 1,

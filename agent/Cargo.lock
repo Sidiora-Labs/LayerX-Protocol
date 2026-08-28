@@ -720,6 +720,7 @@ dependencies = [
  "layerx-proof",
  "layerx-types",
  "layerx-wire",
+ "rustix",
  "serde_json",
  "sha2",
  "ureq",

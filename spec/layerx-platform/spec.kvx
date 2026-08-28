@@ -3950,7 +3950,7 @@ reqs = ["46.2","1.1","1.10"]
 
 [task.38.3]
 title = "Ship the privileged human component server"
-status = "pending"
+status = "in_progress"
 wave = 19
 requires = ["13.6"]
 do_1 = "Implement the server side of session.authorize, human-api.execute and readiness over the existing bounded Unix component protocol."

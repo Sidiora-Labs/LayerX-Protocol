@@ -50,6 +50,8 @@ typedef struct lxp_authority_grant {
 
 lxp_result lxp_grant_encode(const lxp_authority_grant *grant,
                             lxp_arena *arena, lxp_byte_span *encoded);
+lxp_result lxp_grant_decode(const uint8_t *bytes, size_t length,
+                            lxp_authority_grant *grant);
 lxp_result lxp_grant_id_compute(const lxp_authority_grant *grant,
                                 uint8_t grant_id[32]);
 lxp_result lxp_session_key_bind(lxp_authority_grant *grant,

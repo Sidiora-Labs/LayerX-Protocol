@@ -94,6 +94,7 @@ pub enum Table {
     Support,
     Telemetry,
     Cache,
+    Stream,
 }
 
 impl Table {
@@ -104,6 +105,7 @@ impl Table {
             Self::Support => 6,
             Self::Telemetry => 4,
             Self::Cache => 5,
+            Self::Stream => 7,
         }
     }
 
@@ -114,6 +116,7 @@ impl Table {
             6 => Ok(Self::Support),
             4 => Ok(Self::Telemetry),
             5 => Ok(Self::Cache),
+            7 => Ok(Self::Stream),
             _ => Err(StoreError::Corrupt("unknown table code")),
         }
     }
@@ -377,6 +380,17 @@ pub struct PrincipalStore {
 }
 
 impl PrincipalStore {
+    /// Revalidates the durable store root and installed tenancy authority.
+    /// Readiness uses this to detect replacement, corruption, or loss after startup.
+    pub fn probe(&self) -> Result<(), StoreError> {
+        verify_principals_tree(&self.root)?;
+        let installed = tenancy::load_installed(&self.root)?;
+        if installed.digest()? != self.tenancy.digest()? {
+            return Err(StoreError::Tenancy(TenancyError::DigestMismatch));
+        }
+        Ok(())
+    }
+
     /// Opens the store at `root`, applying forward-only migrations, refusing
     /// versions this binary does not know, and authenticating the installed
     /// tenancy configuration against the digest recorded out of band.

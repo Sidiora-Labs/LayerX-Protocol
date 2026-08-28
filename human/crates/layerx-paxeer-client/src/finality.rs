@@ -6,6 +6,10 @@ use crate::client::{
 };
 use crate::rpc::{EndpointConfig, EndpointFailure, EndpointTransport};
 
+mod finality_wire;
+
+pub(crate) use finality_wire::{decode as decode_wire, encode as encode_wire};
+
 /// Declared tracking configuration: endpoints, depth, cadence and stall bound.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TrackerConfig {

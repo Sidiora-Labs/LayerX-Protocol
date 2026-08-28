@@ -153,6 +153,20 @@ pub(crate) struct QuorumBinding {
     minimum_agreement: usize,
 }
 
+impl QuorumBinding {
+    pub(crate) fn from_wire(
+        chain_id: u64,
+        endpoint_sources: Vec<(String, crate::rpc::EndpointTransport)>,
+        minimum_agreement: usize,
+    ) -> Self {
+        Self { chain_id, endpoint_sources, minimum_agreement }
+    }
+
+    pub(crate) const fn chain_id(&self) -> u64 { self.chain_id }
+    pub(crate) fn endpoint_sources(&self) -> &[(String, crate::rpc::EndpointTransport)] { &self.endpoint_sources }
+    pub(crate) const fn minimum_agreement(&self) -> usize { self.minimum_agreement }
+}
+
 /// Read-only Paxeer client over one or more declared endpoints.
 #[derive(Clone, Debug)]
 pub struct PaxeerClient {

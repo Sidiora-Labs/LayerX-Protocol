@@ -171,3 +171,52 @@ lxp_result lxp_grant_revoke(lxp_grant_store *store, const uint8_t grant_id[32],
     }
     return LXP_ERR_NO_PAYER_GRANT;
 }
+
+lxp_result lxp_session_grant_store_put(lxp_grant_store *store,
+                                       const lxp_authority_grant *grant)
+{
+    size_t index;
+    if (store == NULL || grant == NULL ||
+        grant->kind != LXP_AUTHORITY_SESSION_KEY || grant->revoked ||
+        lxp_ct_is_zero(grant->grant_id, 32U) ||
+        store->authority_grant_count > LXP_GRANT_STORE_CAPACITY)
+        return LXP_ERR_MALFORMED_GRANT;
+    for (index = 0U; index < store->authority_grant_count; ++index)
+        if (lxp_ct_memcmp(store->authority_grants[index].grant_id,
+                          grant->grant_id, 32U) == 0) {
+            store->authority_grants[index] = *grant;
+            return LXP_OK;
+        }
+    if (store->authority_grant_count == LXP_GRANT_STORE_CAPACITY)
+        return LXP_ERR_ARENA_EXHAUSTED;
+    store->authority_grants[store->authority_grant_count++] = *grant;
+    return LXP_OK;
+}
+
+lxp_result lxp_session_grant_store_revoke(
+    lxp_grant_store *store, const uint8_t grant_id[32], uint8_t reason,
+    uint64_t effective_sequence)
+{
+    size_t index;
+    if (store == NULL || grant_id == NULL || reason < 1U || reason > 4U ||
+        effective_sequence == 0U ||
+        store->authority_grant_count > LXP_GRANT_STORE_CAPACITY)
+        return LXP_ERR_MALFORMED_GRANT;
+    for (index = 0U; index < store->authority_grant_count; ++index)
+        if (lxp_ct_memcmp(store->authority_grants[index].grant_id,
+                          grant_id, 32U) == 0) {
+            if (store->authority_grants[index].revoked)
+                return store->authority_grants[index].revoked_at_sequence ==
+                               effective_sequence ?
+                           LXP_OK : LXP_ERR_STALE_REVOCATION;
+            if (store->authority_grants[index].grantor_revocation_sequence ==
+                UINT64_MAX)
+                return LXP_ERR_OVERFLOW;
+            return lxp_authority_revoke(
+                &store->authority_grants[index],
+                store->authority_grants[index].grantor_revocation_sequence +
+                    1U,
+                effective_sequence);
+        }
+    return LXP_ERR_NO_PAYER_GRANT;
+}

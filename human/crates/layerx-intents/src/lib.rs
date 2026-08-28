@@ -23,6 +23,7 @@ pub use vocabulary::{
     DidRegistration, EvmPayoutBinding, Intent, IntentError, IntentErrorReason, IntentField,
     IntentKind, IntentVersion, KeyRotation, LxpReceive, LxpSend, PayerGrantRegistration,
     RecoveryRegistration,
+    SessionGrant, SessionRevoke,
 };
 
 /// Stable identity of the sole human-plane payload authority.

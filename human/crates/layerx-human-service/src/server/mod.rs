@@ -1,8 +1,18 @@
 //! Production HTTPS+JSON boundary for the versioned human-api contract.
 
 pub mod backend;
+pub mod agent_runtime;
+pub mod agent_creation;
+pub mod component;
+mod executor;
 mod http;
+mod identity_dispatch;
 mod limits;
+pub mod movement_provider;
+pub mod production_auth;
+pub mod production_components;
+mod production_reads;
+mod stream_journal;
 pub mod schema;
 
 use std::io;
@@ -20,6 +30,9 @@ pub use backend::{
     default_component_limits, ApiFailure, ComponentState, HumanApiComponents, Readiness,
     UnixComponents,
 };
+pub use component::{ComponentConfig, ComponentMaintenance, HumanComponentServer};
+pub(crate) use executor::poll_once_ready;
+pub use production_components::{ProductionComponents, ProductionComponentsConfig};
 pub use http::{HttpConfig, Router};
 pub use limits::PrincipalLimits;
 

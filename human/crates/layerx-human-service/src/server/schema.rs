@@ -65,6 +65,51 @@ enum TypeDeclaration {
 }
 
 /// One operation compiled directly from the owner-supplied human-api schema.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuthorizationClass {
+    Read,
+    MoneyMovement,
+    Approval,
+    Withdrawal,
+    Exit,
+    SecuritySettings,
+    SecretReveal,
+    WalletRebind,
+    AgentArchive,
+}
+
+impl AuthorizationClass {
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "read" => Some(Self::Read),
+            "money-movement" => Some(Self::MoneyMovement),
+            "approval" => Some(Self::Approval),
+            "withdrawal" => Some(Self::Withdrawal),
+            "exit" => Some(Self::Exit),
+            "security-settings" => Some(Self::SecuritySettings),
+            "secret-reveal" => Some(Self::SecretReveal),
+            "wallet-rebind" => Some(Self::WalletRebind),
+            "agent-archive" => Some(Self::AgentArchive),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Read => "read",
+            Self::MoneyMovement => "money-movement",
+            Self::Approval => "approval",
+            Self::Withdrawal => "withdrawal",
+            Self::Exit => "exit",
+            Self::SecuritySettings => "security-settings",
+            Self::SecretReveal => "secret-reveal",
+            Self::WalletRebind => "wallet-rebind",
+            Self::AgentArchive => "agent-archive",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Operation {
     pub name: String,
@@ -73,6 +118,7 @@ pub struct Operation {
     pub request: String,
     pub response: String,
     pub idempotency: bool,
+    pub authorization_class: AuthorizationClass,
 }
 
 impl Operation {
@@ -211,6 +257,14 @@ impl ApiSchema {
                 let Some(name) = section.strip_prefix("operation.") else {
                     continue;
                 };
+                let authorization_class_value =
+                    required_quoted(file, section, values, "authorization_class")?;
+                let authorization_class = AuthorizationClass::parse(&authorization_class_value)
+                    .ok_or_else(|| {
+                        SchemaError::new(format!(
+                            "{file}.{section}.authorization_class is not a recognized closed class"
+                        ))
+                    })?;
                 let operation = Operation {
                     name: name.to_owned(),
                     method: required_quoted(file, section, values, "method")?,
@@ -218,6 +272,7 @@ impl ApiSchema {
                     request: required_quoted(file, section, values, "request")?,
                     response: required_quoted(file, section, values, "response")?,
                     idempotency: values.get("idempotency").is_some_and(|value| value == "true"),
+                    authorization_class,
                 };
                 let base_path = format!("/v{major}/");
                 if !matches!(operation.method.as_str(), "DELETE" | "GET" | "PATCH" | "POST" | "PUT")

@@ -1,0 +1,124 @@
+[suite]
+name = "privileged-human-component-boundary"
+server = "layerx-human-components"
+client = "layerx-human-service"
+transport = "unix-length-prefixed-json"
+qualification_only = true
+real_components_only = true
+
+[case.frame-zero]
+request = "raw"
+alter = "send a zero-length frame"
+expect = "the connection is refused before authorization, allocation of a request body or component execution"
+
+[case.frame-truncated]
+request = "raw"
+alter = "declare a nonzero frame length and close before all declared bytes arrive"
+expect = "the connection is refused before authorization or component execution"
+
+[case.frame-oversized]
+request = "raw"
+alter = "declare a frame one byte larger than the configured maximum"
+expect = "the connection is refused before allocating the declared body or dispatching an operation"
+
+[case.frame-malformed]
+request = "raw"
+alter = "send invalid JSON, a non-object root, duplicate security fields or an object with unknown fields"
+expect = "the frame is refused without schema coercion, fallback parsing or component execution"
+
+[case.frame-deadline-and-concurrency]
+request = "raw"
+alter = "hold a partial frame past the configured deadline and independently exceed the configured connection limit"
+expect = "the stalled and excess connections are refused while memory, tasks and open descriptors remain bounded by configuration"
+
+[case.peer-credentials]
+request = "readiness"
+alter = "connect with an effective uid or gid different from the exact configured SO_PEERCRED values"
+expect = "the peer is refused before a frame is accepted"
+
+[case.socket-path-security]
+request = "startup"
+alter = "use a relative path, symlinked ancestor or leaf, foreign owner or group, or a listener or parent mode outside the exact configured policy"
+expect = "startup fails closed without binding or replacing the unsafe path"
+
+[case.authorization-binding]
+request = "session.authorize then human-api.execute"
+alter = "after authorization replace exactly one of operation, destination, principal, tenant, session, trace, nonce, disclosure digest, request digest, body digest, issued_at or expires_at"
+expect = "the affine capability is refused before component execution and cannot authorize the altered request"
+
+[case.authorization-max-age]
+request = "session.authorize then human-api.execute"
+alter = "execute after the configured authorization maximum age while retaining an otherwise unexpired session"
+expect = "the capability is refused as stale before component execution"
+
+[case.authorization-replay]
+request = "session.authorize then human-api.execute twice"
+alter = "reuse the exact capability after its first consumption, including concurrently"
+expect = "exactly one execution may consume the durable one-use authorization and every replay is refused"
+
+[case.authorization-disclosure]
+request = "session.authorize"
+alter = "omit a required disclosure, add an undisclosed field, change a disclosed value, or present a disclosure for another operation, destination, principal, tenant, session or nonce"
+expect = "authorization is refused and no execution capability is minted"
+
+[case.step-up-durable-evidence]
+request = "session.authorize"
+alter = "present absent, expired, already-used, challenge-mismatched, principal-mismatched, tenant-mismatched, session-mismatched, operation-mismatched or signature-invalid step-up evidence"
+expect = "authorization is refused from the durable Passkeys evidence record; request JSON alone cannot establish step-up"
+
+[case.step-up-replay]
+request = "session.authorize twice"
+alter = "reuse the same otherwise valid durable step-up evidence"
+expect = "only its authorized single use may mint a capability and every later or concurrent use is refused"
+
+[case.required-readiness]
+request = "readiness"
+dependencies = ["principal-store","passkeys","journey-store","custody","remote-kms","agent","node-lni","authorized-batch-authority"]
+alter = "make each required dependency unavailable, degraded, malformed, unauthenticated or stale independently"
+expect = "human_service is not ready and aggregate readiness is not ready; degraded is never promoted to ready"
+
+[case.remote-kms-absence]
+request = "startup and readiness"
+alter = "omit the RemoteKmsProvider endpoint, trust roots, client identity, server name or provider reference, or make the LXKP peer unavailable"
+expect = "production startup or readiness fails closed and no local, exported, ephemeral or software signing key is substituted"
+
+[case.intent-prepare]
+request = "human-api.execute"
+operations = ["binding.submit","move.commit","withdraw.start","agent.create","approval.approve"]
+expect = "the concrete operation produces a typed canonical intent and agent prepare result bound to the authorized principal, tenant, operation, destination, trace, idempotency and disclosure"
+
+[case.intent-disclosure]
+request = "human-api.execute"
+alter = "change any prepared-intent field after authorization or supply disclosure for a different prepared intent"
+expect = "custody refuses signing and no submitted activity or receipt is produced"
+
+[case.intent-sign]
+request = "human-api.execute"
+dependencies = ["remote-kms"]
+expect = "CustodySigner signs only the exact disclosure-bound prepared intent through RemoteKmsProvider and returns typed signing evidence without exposing key material"
+
+[case.intent-submit]
+request = "human-api.execute"
+dependencies = ["agent","node-lni","authorized-batch-authority"]
+alter = "change the signed bytes, preparation identity, principal, tenant, destination, network, protocol, interface, idempotency or authorization evidence"
+expect = "typed submission is refused before node acceptance and no direct node or core mutation bypass is used"
+
+[case.intent-receipt]
+request = "human-api.execute"
+alter = "return a receipt for another activity, principal, tenant, trace, batch, network or submitted digest, or an unverifiable batch authority"
+expect = "the response is refused rather than projected as completed"
+
+[case.intent-unknown]
+request = "human-api.execute"
+alter = "the typed agent reports Unknown for preparation, submission tracking or receipt lookup"
+expect = "Unknown remains a typed non-success result and is never synthesized into accepted, pending, submitted or completed"
+
+[case.unknown-operation]
+request = "human-api.execute"
+alter = "supply an operation absent from the negotiated Human schema and agent module registry"
+expect = "the operation is refused before authorization or component execution without a generic JSON forwarding path"
+
+[case.registry-drift]
+request = "startup and human-api.execute"
+alter = "remove the requested module or activity from the live agent registry or change its canonical schema"
+expect = "startup or the exact request fails closed; no empty, static or permissive registry fallback is installed"

@@ -52,6 +52,7 @@ pub enum NotifyError {
     LinkStateMismatch,
     Corrupt(&'static str),
     SizeOverflow,
+    NotSuppressible,
 }
 
 impl Display for NotifyError {
@@ -71,6 +72,7 @@ impl Display for NotifyError {
             }
             Self::Corrupt(reason) => write!(formatter, "corrupt notification record: {reason}"),
             Self::SizeOverflow => formatter.write_str("notification record exceeds size bounds"),
+            Self::NotSuppressible => formatter.write_str("security-critical notification cannot be fully suppressed"),
         }
     }
 }
@@ -156,6 +158,7 @@ impl Dispatcher {
         now: u64,
         preferences: &Preferences,
     ) -> Result<(), NotifyError> {
+        preferences.validate()?;
         scope.put(
             Table::Notifications,
             preference_key()?,

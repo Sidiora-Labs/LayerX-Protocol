@@ -421,6 +421,9 @@ impl AgentCreationContract for RealAgentLayer {
     }
 }
 
+
+impl layerx_human_service::agents::ScopedAgentCreationContract for RealAgentLayer {}
+
 impl AgentControlAgent for RealAgentLayer {
     fn apply_app_limit(
         &mut self,

@@ -6,6 +6,10 @@ mod exit;
 mod move_money;
 mod resolver;
 mod withdraw;
+mod wire;
+pub(crate) use deposit::{decode_deposit_plan, encode_deposit_plan};
+pub(crate) use exit::{decode_exit_plan, encode_exit_plan};
+pub(crate) use withdraw::{decode_withdrawal_plan, encode_withdrawal_plan};
 
 pub use deposit::{
     DepositActivity, DepositAgentBoundary, DepositAgentPlan, DepositBoundaryError,
@@ -16,7 +20,7 @@ pub use deposit::{
 
 pub use engine::{
     AgentBoundary, AgentBoundaryError, AgentObservation, AgentPreparation, JourneyEngine,
-    JourneyError, JourneyLeg, JourneyPhase, JourneyPlan, JourneyProgress, JourneyState,
+    JourneyError, JourneyKind, JourneyLeg, JourneyPhase, JourneyPlan, JourneyProgress, JourneyState,
     JourneyStatus, ReceiptLookup, ReceiptMaterial, VerifiedLegEvidence,
 };
 
@@ -34,7 +38,7 @@ pub use exit::{
 };
 
 pub use resolver::{
-    BudgetCreation, BudgetRoute, ChangeSurface, CustodyRoute, Endpoint, EndpointKind, LimitRefusal,
+    BudgetCreation, BudgetRoute, ChangeSurface, CustodyRoute, Endpoint, EndpointConstructionError, EndpointKind, LimitRefusal,
     LimitRefusalError, LimitSource, Mechanism, MovementTerm, PayerGrantRoute, Relationship, Route,
     RouteError, RouteLeg, RouteRequest, RouteResolver, SendRoute,
 };
@@ -44,3 +48,7 @@ pub use withdraw::{
     WithdrawalPlan, WithdrawalReminder, WithdrawalRuntime, WithdrawalStage, WithdrawalStatus,
     WithdrawalTransactionRequest,
 };
+
+pub(crate) use deposit::{decode_deposit_plan, encode_deposit_plan};
+pub(crate) use exit::{decode_exit_plan, encode_exit_plan};
+pub(crate) use withdraw::{decode_withdrawal_plan, encode_withdrawal_plan};

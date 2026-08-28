@@ -3,6 +3,7 @@
 #include "layerx/lxp_admission.h"
 #include "layerx/lxp_crypto.h"
 #include "layerx/lxp_hash.h"
+#include "layerx/lxp_governance.h"
 #include "layerx/programs.h"
 
 #include "../modules/programs/event.h"
@@ -15,6 +16,7 @@ struct lxp_kernel_batch_snapshot {
     lxp_state_snapshot *state;
     lxp_identity_store identities;
     lxp_verified_receipt_index verified_receipts;
+    lxp_grant_store grants;
     lxp_kernel kernel;
     lxp_state_journal journal;
     lx_programs_transfer_runtime programs_runtime;
@@ -203,6 +205,8 @@ static lxp_result kernel_snapshot_finish(
     snapshot->programs_runtime.occupancy_parameter_context = snapshot;
     snapshot->kernel.module_runtime[LXP_MODULE_PROGRAMS] =
         &snapshot->programs_runtime;
+    snapshot->kernel.module_runtime[LXP_MODULE_GOVERNANCE] =
+        &snapshot->grants;
     status = lxp_state_store_bind_accounts(
         snapshot->kernel.state, snapshot->programs_runtime.accounts);
     if (status != LXP_OK) return status;
@@ -216,13 +220,18 @@ lxp_result lxp_kernel_batch_snapshot_create(
     lxp_kernel_batch_snapshot **snapshot_out)
 {
     const lx_programs_transfer_runtime *runtime;
+    const lxp_grant_store *grants;
     lxp_kernel_batch_snapshot *snapshot;
     lxp_result status;
+    grants = kernel == NULL ? NULL : (const lxp_grant_store *)
+        kernel->module_runtime[LXP_MODULE_GOVERNANCE];
     if (kernel == NULL || kernel->state == NULL || identities == NULL ||
         batch_execution == NULL || snapshot_out == NULL ||
         batch_execution->fee_parameters == NULL ||
         batch_execution->batch_number == 0U ||
         identities->count > LXP_IDENTITY_STORE_CAPACITY ||
+        grants == NULL || grants->count > LXP_GRANT_STORE_CAPACITY ||
+        grants->authority_grant_count > LXP_GRANT_STORE_CAPACITY ||
         (verified_receipts != NULL &&
          verified_receipts->count > LXP_VERIFIED_RECEIPT_INDEX_MAX) ||
         kernel->module_kv_count > LXP_KERNEL_MAX_MODULE_KV ||
@@ -244,6 +253,7 @@ lxp_result lxp_kernel_batch_snapshot_create(
     snapshot->kernel = *kernel;
     snapshot->fee_parameters = *batch_execution->fee_parameters;
     snapshot->identities = *identities;
+    snapshot->grants = *grants;
     if (verified_receipts != NULL) {
         snapshot->verified_receipts = *verified_receipts;
         snapshot->verified_receipts.fallback = NULL;
@@ -293,6 +303,8 @@ lxp_result lxp_kernel_batch_snapshot_clone(
     if (source == NULL || source->state == NULL || snapshot_out == NULL)
         return LXP_ERR_NON_CANONICAL;
     if (source->identities.count > LXP_IDENTITY_STORE_CAPACITY ||
+        source->grants.count > LXP_GRANT_STORE_CAPACITY ||
+        source->grants.authority_grant_count > LXP_GRANT_STORE_CAPACITY ||
         source->verified_receipts.count > LXP_VERIFIED_RECEIPT_INDEX_MAX ||
         source->kernel.module_kv_count > LXP_KERNEL_MAX_MODULE_KV ||
         source->kernel.blob_count > LXP_KERNEL_MAX_BLOBS ||
@@ -308,6 +320,7 @@ lxp_result lxp_kernel_batch_snapshot_clone(
     snapshot->kernel = source->kernel;
     snapshot->identities = source->identities;
     snapshot->verified_receipts = source->verified_receipts;
+    snapshot->grants = source->grants;
     snapshot->fee_schedule = source->fee_schedule;
     snapshot->metering_schedule = source->metering_schedule;
     snapshot->fee_parameters = source->fee_parameters;
@@ -2227,8 +2240,12 @@ static bool kernel_snapshot_matches_live(
     const lxp_kernel_batch_snapshot *base, const lxp_kernel *live,
     const lxp_identity_store *identities)
 {
+    const lxp_grant_store *grants;
     size_t index;
+    grants = live == NULL ? NULL : (const lxp_grant_store *)
+        live->module_runtime[LXP_MODULE_GOVERNANCE];
     if (base == NULL || live == NULL || identities == NULL ||
+        grants == NULL || memcmp(grants, &base->grants, sizeof(*grants)) != 0 ||
         live->module_kv_count != base->kernel.module_kv_count ||
         live->blob_count != base->kernel.blob_count ||
         live->blob_total_bytes != base->kernel.blob_total_bytes ||
@@ -2267,6 +2284,8 @@ static lxp_result kernel_settled_snapshot_validate(
     lxp_result status;
     if (settled == NULL ||
         settled->identities.count > LXP_IDENTITY_STORE_CAPACITY ||
+        settled->grants.count > LXP_GRANT_STORE_CAPACITY ||
+        settled->grants.authority_grant_count > LXP_GRANT_STORE_CAPACITY ||
         settled->verified_receipts.count > LXP_VERIFIED_RECEIPT_INDEX_MAX)
         return LXP_FATAL_INVARIANT;
     for (index = 0U; index < settled->identities.count; ++index) {
@@ -2342,6 +2361,7 @@ lxp_result lxp_kernel_batch_snapshot_commit(
     const lxp_kernel_batch_snapshot *base,
     const lxp_kernel_batch_snapshot *settled)
 {
+    lxp_grant_store *grants;
     uint8_t *blob_bytes[LXP_KERNEL_MAX_BLOBS] = {NULL};
     lxp_state_publication_guard *guard = NULL;
     size_t index;
@@ -2353,6 +2373,9 @@ lxp_result lxp_kernel_batch_snapshot_commit(
         settled->kernel.blob_count > LXP_KERNEL_MAX_BLOBS ||
         settled->identities.count > LXP_IDENTITY_STORE_CAPACITY)
         return LXP_ERR_NON_CANONICAL;
+    grants = (lxp_grant_store *)
+        kernel->module_runtime[LXP_MODULE_GOVERNANCE];
+    if (grants == NULL) return LXP_ERR_MODULE_DISABLED;
     if (!kernel_snapshot_matches_live(base, kernel, identities))
         return LXP_ERR_CONTEXT_MISMATCH;
     status = kernel_settled_snapshot_validate(settled);
@@ -2407,6 +2430,7 @@ lxp_result lxp_kernel_batch_snapshot_commit(
         return status == LXP_OK ? LXP_ERR_CONTEXT_MISMATCH : status;
     }
     *identities = settled->identities;
+    *grants = settled->grants;
     kernel->module_kv_count = settled->kernel.module_kv_count;
     (void)memcpy(kernel->module_kv, settled->kernel.module_kv,
                  settled->kernel.module_kv_count *
@@ -3535,6 +3559,12 @@ lxp_result lxp_kernel_execute_activity(lxp_kernel *kernel,
             registration->abi_version, execution->parameter_version);
     if (status == LXP_OK)
         receipt->timestamp = execution->batch_timestamp_ms;
+    if (status == LXP_OK &&
+        activity->activity_type == LX_GOVERNANCE_SESSION_GRANT)
+        receipt->operation = LX_GOVERNANCE_SESSION_GRANT_OPERATION;
+    if (status == LXP_OK &&
+        activity->activity_type == LX_GOVERNANCE_SESSION_REVOKE)
+        receipt->operation = LX_GOVERNANCE_SESSION_REVOKE_OPERATION;
     if (status == LXP_OK && programs_call &&
         program_outcome->terminal_kind == LXP_PROGRAM_TERMINAL_SUCCESS)
         (void)memcpy(receipt->transfer_set_root,

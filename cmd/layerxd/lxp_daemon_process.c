@@ -7,6 +7,7 @@
 #include "layerx/lxp_fee.h"
 #include "layerx/lxp_hash.h"
 #include "layerx/lxp_genesis.h"
+#include "layerx/lxp_governance.h"
 #include "layerx/lxp_snapshot.h"
 #include "lxp_daemon_batch_wal.h"
 
@@ -39,6 +40,7 @@ typedef struct lxp_daemon_process {
     size_t asset_count;
     lx_programs_transfer_runtime programs;
     lxp_identity_store identities;
+    lxp_grant_store grants;
     lxp_fee_params fees;
     lxp_log feed_log;
     lxp_log canonical_log;
@@ -2708,7 +2710,13 @@ static lxp_result open_process(lxp_daemon_process *process,
                                    &process->journal, configuration, 1U);
     if (status == LXP_OK)
         status = lxp_kernel_register_module(
-            &process->kernel, programs_module_registration_v3());
+            &process->kernel, lxp_governance_module_iface());
+    if (status == LXP_OK)
+        status = lxp_kernel_bind_module_runtime(
+            &process->kernel, LXP_MODULE_GOVERNANCE, &process->grants);
+    if (status == LXP_OK)
+        status = lxp_kernel_register_module(
+             &process->kernel, programs_module_registration_v3());
     if (status == LXP_OK)
         status = lxp_kernel_set_capabilities(
             &process->kernel, NULL, lxp_kernel_canonical_ledger_apply);

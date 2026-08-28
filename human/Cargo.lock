@@ -887,6 +887,7 @@ dependencies = [
  "layerx-wire",
  "passkey-auth",
  "proptest",
+ "rustix",
  "rustls",
  "serde",
  "serde_json",

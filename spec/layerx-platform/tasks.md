@@ -1626,7 +1626,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Serve typed refusals and indeterminate submission outcomes without inventing success, retrying different bytes or exposing daemon internals.
     - Write the real-client boundary cases and operator configuration contract without executing qualification.
     - _Requirements: 46.2, 1.1, 1.10_
-  - [ ] 38.3 Ship the privileged human component server
+  - [ ] 38.3 Ship the privileged human component server — **Implemented - qualification pending**
     - Implement the server side of session.authorize, human-api.execute and readiness over the existing bounded Unix component protocol.
     - Bind operations to the real passkey, custody, journey, approval, notification, activity and store services under principal and tenant scope.
     - Keep layerx-intents as the sole payload authority and route every protocol mutation through the existing agent prepare, sign and submit path.

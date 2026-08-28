@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Value};
+use sha2::{Digest as _, Sha256};
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
@@ -164,6 +165,40 @@ impl<B: HumanApiComponents> Router<B> {
         {
             return error_response(&trace, ApiFailure::forbidden());
         }
+        let idempotency_key = match idempotency_key(operation, request.header("idempotency-key")) {
+            Ok(key) => key,
+            Err(failure) => return error_response(&trace, failure),
+        };
+        let body = match request.json_body(operation.request != "Empty") {
+            Ok(body) => body,
+            Err(failure) => return error_response(&trace, failure),
+        };
+        let body = match self.schema.decode_request(operation, body) {
+            Ok(body) => body,
+            Err(error) => {
+                let field = error
+                    .detail()
+                    .split_whitespace()
+                    .next()
+                    .filter(|value| value.starts_with("request."));
+                return error_response(&trace, ApiFailure::invalid_request(field));
+            }
+        };
+        let disclosure_digest = match json_digest(&body) {
+            Ok(digest) => digest,
+            Err(failure) => return error_response(&trace, failure),
+        };
+        let request_digest = match authorized_request_digest(
+            operation,
+            &request.path,
+            &matched.path_parameters,
+            &body,
+            idempotency_key.as_deref(),
+            trace.as_str(),
+        ) {
+            Ok(digest) => digest,
+            Err(failure) => return error_response(&trace, failure),
+        };
         let cookies = match parse_cookies(request.header("cookie")) {
             Ok(cookies) => cookies,
             Err(failure) => return error_response(&trace, failure),
@@ -195,6 +230,11 @@ impl<B: HumanApiComponents> Router<B> {
                     csrf_token: csrf_cookie,
                     intended_destination: &request.path,
                     refresh: operation.uses_refresh_cookie(),
+                    request_digest,
+                    disclosure_digest,
+                    path_parameters: &matched.path_parameters,
+                    body: &body,
+                    idempotency_key: idempotency_key.as_deref(),
                 },
                 trace.as_str(),
             ) {
@@ -206,29 +246,10 @@ impl<B: HumanApiComponents> Router<B> {
             }
             Some(context)
         };
-        let idempotency_key = match idempotency_key(operation, request.header("idempotency-key")) {
-            Ok(key) => key,
-            Err(failure) => return error_response(&trace, failure),
-        };
-        let body = match request.json_body(operation.request != "Empty") {
-            Ok(body) => body,
-            Err(failure) => return error_response(&trace, failure),
-        };
-        let body = match self.schema.decode_request(operation, body) {
-            Ok(body) => body,
-            Err(error) => {
-                let field = error
-                    .detail()
-                    .split_whitespace()
-                    .next()
-                    .filter(|value| value.starts_with("request."));
-                return error_response(&trace, ApiFailure::invalid_request(field));
-            }
-        };
         let clear_session = should_clear_session(operation, principal.as_ref(), &matched.path_parameters);
         let response = self.backend.execute(ScopedRequest {
             operation,
-            principal: principal.as_ref(),
+            principal,
             path_parameters: matched.path_parameters,
             body,
             idempotency_key,
@@ -325,6 +346,40 @@ fn unix_seconds() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |duration| duration.as_secs())
+}
+
+fn json_digest(value: &Value) -> Result<[u8; 32], ApiFailure> {
+    let encoded = serde_json::to_vec(value).map_err(|_| ApiFailure::invalid_request(None))?;
+    Ok(Sha256::digest(encoded).into())
+}
+
+fn authorized_request_digest(
+    operation: &Operation,
+    destination: &str,
+    path_parameters: &BTreeMap<String, String>,
+    body: &Value,
+    idempotency_key: Option<&str>,
+    trace: &str,
+) -> Result<[u8; 32], ApiFailure> {
+    let mut digest = Sha256::new();
+    digest.update(b"layerx-human/authorized-operation/v1\0");
+    digest_field(&mut digest, operation.name.as_bytes());
+    digest_field(&mut digest, operation.method.as_bytes());
+    digest_field(&mut digest, destination.as_bytes());
+    for (name, value) in path_parameters {
+        digest_field(&mut digest, name.as_bytes());
+        digest_field(&mut digest, value.as_bytes());
+    }
+    let body = serde_json::to_vec(body).map_err(|_| ApiFailure::invalid_request(None))?;
+    digest_field(&mut digest, &body);
+    digest_field(&mut digest, idempotency_key.unwrap_or_default().as_bytes());
+    digest_field(&mut digest, trace.as_bytes());
+    Ok(digest.finalize().into())
+}
+
+fn digest_field(digest: &mut Sha256, value: &[u8]) {
+    digest.update(u64::try_from(value.len()).unwrap_or(u64::MAX).to_be_bytes());
+    digest.update(value);
 }
 
 struct HttpRequest {

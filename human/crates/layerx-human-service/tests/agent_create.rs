@@ -137,7 +137,7 @@ fn catalog(purpose: &str, ceiling: u128) -> PurposePresetCatalog {
 }
 
 fn request(purpose: &str) -> CreateAgentRequest {
-    CreateAgentRequest::new("Treasury helper", purpose, 1_000)
+    CreateAgentRequest::new("Treasury helper", purpose, 1_000, "LXP")
         .unwrap_or_else(|error| panic!("request: {error}"))
 }
 
@@ -471,6 +471,8 @@ impl AgentCreationContract for InProcessAgentLayer {
     }
 }
 
+impl layerx_human_service::agents::ScopedAgentCreationContract for InProcessAgentLayer {}
+
 struct CrashAfterEffect<'a> {
     inner: &'a mut InProcessAgentLayer,
     stage: CreationStage,
@@ -514,6 +516,9 @@ impl AgentCreationContract for CrashAfterEffect<'_> {
         self.crash(CreationStage::CapabilityNarrowing, evidence)
     }
 }
+
+
+impl layerx_human_service::agents::ScopedAgentCreationContract for CrashAfterEffect<'_> {}
 
 fn intent_matches(stage: CreationStage, intent: &IntentKind) -> bool {
     matches!(
@@ -895,7 +900,7 @@ fn crash_after_each_real_effect_replays_the_same_durable_object() {
 fn purpose_authority_comes_from_configuration_and_monthly_limit_only_narrows_it() {
     let catalog = catalog("vendor-payments", 750);
     assert_eq!(catalog.version(), "operator-policy-2026-08");
-    assert!(CreateAgentRequest::new("helper", "unconfigured", 1).is_ok());
+    assert!(CreateAgentRequest::new("helper", "unconfigured", 1, "LXP").is_ok());
 
     let mut fixture = Fixture::new("agent-create-config");
     let alice = principal("alice");

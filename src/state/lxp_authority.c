@@ -23,6 +23,9 @@ static lxp_result validate_grant(const lxp_authority_grant *grant)
         grant->scope.module_mask == 0U ||
         grant->scope.activity_ordinal_min > grant->scope.activity_ordinal_max)
         return LXP_ERR_MALFORMED_GRANT;
+    if (grant->kind == LXP_AUTHORITY_SESSION_KEY &&
+        grant->grantor_revocation_sequence == 0U)
+        return LXP_ERR_MALFORMED_GRANT;
     if (grant->kind == LXP_AUTHORITY_DELEGATED_CAPABILITY ||
         grant->kind == LXP_AUTHORITY_BUDGET_ALLOWANCE) {
         if (lxp_ct_is_zero(grant->scope.asset_id, 32U) ||
@@ -77,6 +80,68 @@ lxp_result lxp_grant_encode(const lxp_authority_grant *grant,
     encoded->bytes = writer.bytes;
     encoded->length = writer.length;
     return LXP_OK;
+}
+
+lxp_result lxp_grant_decode(const uint8_t *bytes, size_t length,
+                            lxp_authority_grant *grant)
+{
+    lxp_codec_reader reader;
+    lxp_byte_span span;
+    uint8_t version;
+    uint8_t kind;
+    uint8_t revoked;
+    lxp_authority_grant decoded;
+    lxp_result status;
+#define READ(expression) do { status = (expression); if (status != LXP_OK) return status; } while (0)
+#define READ_EXACT(target, count) do { \
+    READ(lxp_codec_read_bytes(&reader, &span, count)); \
+    if (span.length != count) return LXP_ERR_NON_CANONICAL; \
+    (void)memcpy(target, span.bytes, count); \
+} while (0)
+    if (bytes == NULL || grant == NULL || length == 0U || length > 1024U)
+        return LXP_ERR_MALFORMED_GRANT;
+    (void)memset(&decoded, 0, sizeof(decoded));
+    READ(lxp_codec_reader_init(&reader, bytes, length));
+    READ(lxp_codec_read_struct_header(&reader, 0x2001U));
+    READ(lxp_codec_read_u8(&reader, &version));
+    if (version != 1U) return LXP_ERR_VERSION_UNSUPPORTED;
+    READ_EXACT(decoded.grantor, 32U);
+    READ_EXACT(decoded.grantee, 32U);
+    READ(lxp_codec_read_u8(&reader, &kind));
+    decoded.kind = (lxp_authority_kind)kind;
+    READ_EXACT(decoded.key, 32U);
+    READ(lxp_codec_read_u64(&reader, &decoded.scope.module_mask));
+    READ(lxp_codec_read_u16(&reader, &decoded.scope.activity_ordinal_min));
+    READ(lxp_codec_read_u16(&reader, &decoded.scope.activity_ordinal_max));
+    READ_EXACT(decoded.scope.asset_id, 32U);
+    READ(lxp_codec_read_u128(&reader, &decoded.scope.maximum_per_activity));
+    READ(lxp_codec_read_u128(&reader, &decoded.scope.maximum_total));
+    READ(lxp_codec_read_u128(&reader, &decoded.scope.spent_total));
+    READ(lxp_codec_read_u64(&reader, &decoded.scope.period_length));
+    READ(lxp_codec_read_u128(&reader, &decoded.scope.maximum_per_period));
+    READ(lxp_codec_read_u128(&reader, &decoded.scope.spent_this_period));
+    READ(lxp_codec_read_u64(&reader, &decoded.scope.period_start));
+    READ_EXACT(decoded.scope.purpose_hash, 32U);
+    READ(lxp_codec_read_u64(&reader, &decoded.not_before));
+    READ(lxp_codec_read_u64(&reader, &decoded.not_after));
+    READ(lxp_codec_read_u64(&reader, &decoded.grantor_revocation_sequence));
+    READ(lxp_codec_read_u8(&reader, &revoked));
+    if (revoked > 1U) return LXP_ERR_NON_CANONICAL;
+    decoded.revoked = revoked != 0U;
+    READ(lxp_codec_read_u64(&reader, &decoded.revoked_at_sequence));
+    READ_EXACT(decoded.grantor_signature, 64U);
+    READ(lxp_codec_finish(&reader));
+    if (decoded.kind != LXP_AUTHORITY_SESSION_KEY || decoded.revoked ||
+        decoded.revoked_at_sequence != 0U ||
+        lxp_ct_memcmp(decoded.grantor, decoded.grantee, 32U) != 0)
+        return LXP_ERR_MALFORMED_GRANT;
+    status = validate_grant(&decoded);
+    if (status == LXP_OK)
+        status = lxp_grant_id_compute(&decoded, decoded.grant_id);
+    if (status == LXP_OK) *grant = decoded;
+    return status;
+#undef READ_EXACT
+#undef READ
 }
 
 lxp_result lxp_grant_id_compute(const lxp_authority_grant *grant,

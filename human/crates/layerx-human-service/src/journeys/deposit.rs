@@ -67,6 +67,54 @@ pub struct DepositPlan {
     pub agent: DepositAgentPlan,
 }
 
+/// Encodes the complete deposit plan in the canonical movement-provider form.
+pub(crate) fn encode_deposit_plan(plan: &DepositPlan) -> Result<Vec<u8>, DepositJourneyError> {
+    validate_plan(plan)?;
+    let mut out = super::wire::Writer::new(1);
+    out.text(plan.journey_id.as_str()).map_err(|_| DepositJourneyError::InvalidPlan)?;
+    out.fixed(&plan.idempotency_key); out.fixed(&plan.wallet.bytes()); out.u32(plan.network.value());
+    out.u64(plan.paxeer_chain_id); out.u32(plan.layerx_network.value()); out.u16(plan.layerx_protocol_version);
+    out.fixed(&plan.vault.bytes()); out.fixed(&plan.asset.bytes()); out.u128(plan.amount.value());
+    out.text(plan.recipient.canonical()).map_err(|_| DepositJourneyError::InvalidPlan)?;
+    out.text(plan.reserve.canonical()).map_err(|_| DepositJourneyError::InvalidPlan)?;
+    out.text(&plan.currency).map_err(|_| DepositJourneyError::InvalidPlan)?;
+    out.text(plan.agent.actor.as_str()).map_err(|_| DepositJourneyError::InvalidPlan)?;
+    out.text(plan.agent.authority.as_str()).map_err(|_| DepositJourneyError::InvalidPlan)?;
+    out.u64(plan.agent.account_sequence); out.u64(plan.agent.not_before); out.u64(plan.agent.not_after);
+    out.u128(plan.agent.fee_limit); out.text(plan.agent.custody_key.as_str()).map_err(|_| DepositJourneyError::InvalidPlan)?;
+    Ok(out.finish())
+}
+
+/// Decodes and validates a canonical deposit plan, rejecting trailing bytes.
+pub(crate) fn decode_deposit_plan(bytes: &[u8]) -> Result<DepositPlan, DepositJourneyError> {
+    let mut input = super::wire::Reader::new(bytes, 1).map_err(|_| DepositJourneyError::InvalidPlan)?;
+    let plan = DepositPlan {
+        journey_id: JourneyId::new(input.text().map_err(|_| DepositJourneyError::InvalidPlan)?).map_err(|_| DepositJourneyError::InvalidPlan)?,
+        idempotency_key: input.fixed().map_err(|_| DepositJourneyError::InvalidPlan)?,
+        wallet: EvmAddress::new(input.fixed().map_err(|_| DepositJourneyError::InvalidPlan)?),
+        network: NetworkId::new(input.u32().map_err(|_| DepositJourneyError::InvalidPlan)?).map_err(|_| DepositJourneyError::InvalidPlan)?,
+        paxeer_chain_id: input.u64().map_err(|_| DepositJourneyError::InvalidPlan)?,
+        layerx_network: NetworkId::new(input.u32().map_err(|_| DepositJourneyError::InvalidPlan)?).map_err(|_| DepositJourneyError::InvalidPlan)?,
+        layerx_protocol_version: input.u16().map_err(|_| DepositJourneyError::InvalidPlan)?,
+        vault: EvmAddress::new(input.fixed().map_err(|_| DepositJourneyError::InvalidPlan)?),
+        asset: AssetId::new(input.fixed().map_err(|_| DepositJourneyError::InvalidPlan)?),
+        amount: Amount::from_u128(input.u128().map_err(|_| DepositJourneyError::InvalidPlan)?),
+        recipient: AccountId::parse(&input.text().map_err(|_| DepositJourneyError::InvalidPlan)?).map_err(|_| DepositJourneyError::InvalidPlan)?,
+        reserve: AccountId::parse(&input.text().map_err(|_| DepositJourneyError::InvalidPlan)?).map_err(|_| DepositJourneyError::InvalidPlan)?,
+        currency: input.text().map_err(|_| DepositJourneyError::InvalidPlan)?,
+        agent: DepositAgentPlan {
+            actor: AgentDid::new(input.text().map_err(|_| DepositJourneyError::InvalidPlan)?).map_err(|_| DepositJourneyError::InvalidPlan)?,
+            authority: AuthorityRef::new(input.text().map_err(|_| DepositJourneyError::InvalidPlan)?).map_err(|_| DepositJourneyError::InvalidPlan)?,
+            account_sequence: input.u64().map_err(|_| DepositJourneyError::InvalidPlan)?,
+            not_before: input.u64().map_err(|_| DepositJourneyError::InvalidPlan)?,
+            not_after: input.u64().map_err(|_| DepositJourneyError::InvalidPlan)?,
+            fee_limit: input.u128().map_err(|_| DepositJourneyError::InvalidPlan)?,
+            custody_key: KeyId::new(input.text().map_err(|_| DepositJourneyError::InvalidPlan)?).map_err(|_| DepositJourneyError::InvalidPlan)?,
+        },
+    };
+    input.finish().map_err(|_| DepositJourneyError::InvalidPlan)?; validate_plan(&plan)?; Ok(plan)
+}
+
 /// Exact wallet request. A production wallet adapter must deduplicate on
 /// `action_key`; retrying it after an acknowledgement-gap crash must return
 /// the original transaction rather than open a second signing ceremony.
@@ -99,6 +147,16 @@ pub enum DepositBoundaryError {
 
 /// Real Paxeer/wallet operations consumed by the durable state machine.
 pub trait DepositRuntime {
+    /// Verifies that a wallet-supplied transaction is the exact external
+    /// custody action committed by `request`. Implementations must read the
+    /// pinned Paxeer transaction and refuse mismatched sender, target, asset,
+    /// beneficiary, amount, chain, or calldata.
+    fn verify_external_deposit(
+        &mut self,
+        request: &WalletCustodyRequest,
+        transaction: TransactionHash,
+    ) -> Result<TransactionHash, DepositBoundaryError>;
+
     /// Opens or resolves the custody signing request under its stable key.
     ///
     /// # Errors
@@ -451,6 +509,35 @@ pub struct DepositJourney {
 }
 
 impl DepositJourney {
+    /// Accepts the transaction returned by the bound wallet only after the
+    /// production custody boundary verifies it against the immutable request.
+    /// The verified transaction is persisted before finality polling begins.
+    pub fn confirm_external_transaction<R: DepositRuntime>(
+        &mut self,
+        scope: &mut PrincipalScope<'_>,
+        runtime: &mut R,
+        transaction: TransactionHash,
+        now: u64,
+    ) -> Result<DepositStatus, DepositJourneyError> {
+        if now < self.record.updated_at {
+            return Err(DepositJourneyError::TimeRegressed);
+        }
+        if self.record.phase != Phase::Ready {
+            return Err(DepositJourneyError::Boundary(
+                DepositBoundaryError::ContractViolation,
+            ));
+        }
+        let verified = runtime.verify_external_deposit(&self.wallet_request(), transaction)?;
+        if verified != transaction || verified.bytes() == [0; 32] {
+            return Err(DepositJourneyError::Boundary(
+                DepositBoundaryError::ContractViolation,
+            ));
+        }
+        self.record.transaction = Some(verified.bytes());
+        self.transition(scope, Phase::Confirming, now)?;
+        self.status()
+    }
+
     /// Rechecks the real receipt-backed wallet binding and persists the full
     /// immutable request before any wallet effect can occur.
     ///
@@ -872,6 +959,7 @@ impl DepositJourney {
         JourneyPlan::new(
             JourneyId::new(self.record.credit_journey_id.clone())
                 .map_err(|_| DepositJourneyError::Corrupt("invalid credit journey id"))?,
+            super::engine::JourneyKind::Deposit,
             self.record.credit_plan_key,
             KeyId::new(self.record.custody_key.clone())
                 .map_err(|_| DepositJourneyError::Corrupt("invalid custody key"))?,

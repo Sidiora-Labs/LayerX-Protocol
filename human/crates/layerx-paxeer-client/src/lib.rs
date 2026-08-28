@@ -8,6 +8,7 @@ mod json;
 mod rpc;
 mod status;
 mod withdraw;
+pub mod wire;
 
 pub use client::{
     BlockRef, ClientConfigError, EndpointError, ExecutionOutcome, LogRecord, PaxeerClient,

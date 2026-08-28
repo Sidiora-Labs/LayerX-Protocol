@@ -2,6 +2,7 @@
 #define LAYERX_LXP_LEDGER_H
 
 #include "layerx/lxp_result.h"
+#include "layerx/lxp_authority.h"
 #include "layerx/lxp_storage.h"
 #include "layerx/lxp_u128.h"
 
@@ -217,6 +218,8 @@ typedef struct lxp_grant_state {
 typedef struct lxp_grant_store {
     lxp_grant_state grants[LXP_GRANT_STORE_CAPACITY];
     size_t count;
+    lxp_authority_grant authority_grants[LXP_GRANT_STORE_CAPACITY];
+    size_t authority_grant_count;
 } lxp_grant_store;
 
 typedef struct lxp_receive_environment {
@@ -316,6 +319,11 @@ lxp_result lxp_grant_draw_record(lxp_grant_state *state, lxp_u128 amount,
                                  uint64_t batch_timestamp);
 lxp_result lxp_grant_revoke(lxp_grant_store *store, const uint8_t grant_id[32],
                             uint64_t global_sequence);
+lxp_result lxp_session_grant_store_put(lxp_grant_store *store,
+                                       const lxp_authority_grant *grant);
+lxp_result lxp_session_grant_store_revoke(
+    lxp_grant_store *store, const uint8_t grant_id[32], uint8_t reason,
+    uint64_t effective_sequence);
 lxp_result lxp_receive_execute(const lxp_receive *receive,
                                lxp_receive_environment *environment,
                                lxp_send_receipt_projection *receipt);

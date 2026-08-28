@@ -176,7 +176,7 @@ pub fn load(
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ProtectedSourceError {
+pub enum ProtectedSourceError {
     Unavailable,
     Unprotected,
     Changed,
@@ -185,7 +185,7 @@ pub(crate) enum ProtectedSourceError {
 
 /// Reads one operator-trusted source without accepting indirection or mutable
 /// file metadata at the read boundary.
-pub(crate) fn read_protected_source(
+pub fn read_protected_source(
     path: &Path,
     maximum_bytes: usize,
 ) -> Result<Vec<u8>, ProtectedSourceError> {
