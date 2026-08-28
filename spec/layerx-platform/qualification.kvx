@@ -2359,3 +2359,19 @@ symbol = "cg spec implemented touch graph"
 observed = "Git records the layerx-programs-sandbox package and its exact dependency set in programs/Cargo.lock, but Codify 0.6.0 reports the lockfile as an unobservable declared touch. The task's Lease and LeaseState symbols and every other declared source and qualification touch passed the graph check."
 assumption = "The authoritative task status is advanced only after the lockfile diff was inspected and every graph-observable contract passed. Human qualification must consume the checked-in lockfile through the declared locked build and test commands; no dependency resolution, build or test was run in this implementation phase."
 severity = "phase-boundary"
+
+[observation.35.4.1]
+task = "35.4"
+file = "programs/crates/layerx-programs-market/src/lib.rs"
+symbol = "Offer, ComputeLease"
+observed = "The ordinary marketplace program stores offers and funded leases in program-shared state, binds provider and tenant mutations to the runtime-authenticated invoking principal, and stages renter escrow, provider stake, settlement, expiry refund and stake return only through the SDK's canonical program-account funding and spending host operations. Task 35.4 has no usage-proof or arbiter verdict input, so successful settlement pays the exact full lease prepayment before expiry and provider non-delivery refunds it at expiry; metered claims, challenge windows and slashing remain explicitly owned by dependent tasks 35.5 and 35.6 rather than being guessed here."
+assumption = "Human qualification must execute the checked-in lifecycle cases through the production ABI with exact derived accounts and grants, prove shared state is externally readable through the canonical state surface, and verify atomic rollback for every refused funding or spend. Tasks 35.5 and 35.6 must replace the simple pre-challenge success path with commitment-gated settlement and arbiter-directed slashing without weakening these principal and custody bindings. No build, test or runtime result is asserted."
+severity = "qualification-required"
+
+[observation.35.4.2]
+task = "35.4"
+file = "programs/crates/layerx-programs-market/src/lib.rs, programs/Cargo.lock"
+symbol = "ProgramDeposit, ProgramAccountPayment"
+observed = "Offer stake and each lease escrow use caller-supplied public derivation seeds and claimed derived account identifiers because the guest ABI intentionally cannot derive or manufacture an account. The host rederives each account from the executing program, verifies the registry and asset binding, sources funding from the authenticated invoking principal, and issues program spend authority only inside the granted ceiling."
+assumption = "Human qualification must derive accounts independently with the canonical runtime helper, submit altered program, seed, account, asset, principal and ceiling combinations, and prove every mismatch refuses before state or balance mutation. The checked-in programs lockfile package entry was written as implementation metadata; no dependency resolution command was run."
+severity = "qualification-required"
