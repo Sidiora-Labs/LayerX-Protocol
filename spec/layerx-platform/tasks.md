@@ -1453,7 +1453,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Prove that a failed sandbox activity still charges for the work performed before the failure, and charges nothing beyond it.
     - Test settlement across a long lease with many activities, asserting the sum of usage receipts equals the escrow debit exactly.
     - _Requirements: 41.4_
-  - [ ] 34.5 Destroy the sandbox and reclaim its state
+  - [ ] 34.5 Destroy the sandbox and reclaim its state — **Implemented - qualification pending**
     - Sweep expired leases deterministically at a declared batch boundary, with the sweep a function of protocol state and never of node-local timing.
     - Drop every ephemeral namespace of a destroyed lease, refund the remainder and release the occupancy charge in one atomic settlement.
     - Bound sweep work per batch and carry the remainder forward, so a large expiry cohort cannot stall a batch.

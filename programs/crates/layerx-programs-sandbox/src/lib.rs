@@ -8,6 +8,7 @@ pub mod escrow;
 pub mod execute;
 pub mod usage;
 pub mod activity;
+pub mod expiry;
 #[cfg(feature = "host-ffi")]
 mod host_ffi;
 
@@ -18,6 +19,9 @@ pub use activity::{canonical_activate, canonical_execute, canonical_fund,
     PROGRAMS_SANDBOX_ACTIVITY_TYPE};
 
 pub use escrow::{settle, Escrow, EscrowOutcome, EscrowRefusal};
+pub use expiry::{destroy, sweep, ExpiryQueue, ExpiryRefusal, SweepEvidence, SweepPage,
+    AuthenticatedTerminalRecord, TerminalLeaseRecord, TerminalReceiptEvidence,
+    MAX_SWEEP_LEASES_PER_BATCH};
 pub use execute::{
     LeaseCapabilities, SandboxExecutionRecord, SandboxExecutionRequest, SandboxRefusal,
 };

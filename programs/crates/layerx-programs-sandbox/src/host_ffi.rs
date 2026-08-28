@@ -1,6 +1,6 @@
 use layerx_programs_runtime::{
     reserve_host_sandbox_escrow_charge, settle_reserved_host_sandbox_escrow_charge,
-    ActivityBudgetBinding, MeteredUsage, PrincipalId, ProgramId, ReservedSandboxEscrowCharge,
+    hash_bytes, ActivityBudgetBinding, HashAlgorithm, MeteredUsage, PrincipalId, ProgramId, ReservedSandboxEscrowCharge,
 };
 use std::cell::RefCell;
 
@@ -25,6 +25,77 @@ struct HostSettlementReservation {
 thread_local! {
     static HOST_SETTLEMENT_RESERVATION: RefCell<Option<HostSettlementReservation>> =
         const { RefCell::new(None) };
+}
+
+struct DestroyTerminal { bytes: Vec<u8> }
+thread_local! { static DESTROY_TERMINAL: RefCell<Option<DestroyTerminal>> = const { RefCell::new(None) }; }
+
+unsafe extern "C" {
+    fn layerx_programs_sandbox_destroy_state_length(token: u64, kind: u16) -> i32;
+    fn layerx_programs_sandbox_destroy_state_byte(token: u64, kind: u16, offset: u32) -> i32;
+    fn layerx_programs_sandbox_destroy_archive(token: u64, kind: u16,
+        bytes: *const u8, length: u32) -> i32;
+    fn layerx_programs_sandbox_destroy_refund(token: u64, from: *const u8,
+        to: *const u8, asset: *const u8, amount_hi: u64, amount_lo: u64,
+        root: *mut u8) -> i32;
+}
+
+fn destroy_state(token: u64, kind: u16) -> Result<Vec<u8>, i32> {
+    let length = unsafe { layerx_programs_sandbox_destroy_state_length(token, kind) };
+    if length <= 0 { return Err(NON_CANONICAL); }
+    (0..u32::try_from(length).map_err(|_| NON_CANONICAL)?).map(|offset| {
+        let byte = unsafe { layerx_programs_sandbox_destroy_state_byte(token, kind, offset) };
+        u8::try_from(byte).map_err(|_| NON_CANONICAL)
+    }).collect()
+}
+
+fn destroy_host(token: u64, lease_id: [u8; 32], expected_root: [u8; 32], activity_id: [u8; 32],
+    expected_sequence: u64, boundary: u64) -> Result<(), i32> {
+    let mut lease = Lease::decode_state(&destroy_state(token, 0)?).map_err(|_| NON_CANONICAL)?;
+    let mut escrow = Escrow::decode_state(&lease, &destroy_state(token, 1)?).map_err(|_| NON_CANONICAL)?;
+    UsageLedger::decode_state(&destroy_state(token, 2)?, &lease, &escrow).map_err(|_| NON_CANONICAL)?;
+    if lease.id().bytes()!=lease_id || lease.state_digest().map_err(|_| NON_CANONICAL)?!=expected_root
+        || expected_sequence == 0 || boundary < lease.expiry()
+        || matches!(lease.state(), crate::LeaseState::Destroyed) { return Err(NON_CANONICAL); }
+    let mut receipt_preimage=Vec::new();receipt_preimage.extend_from_slice(b"LayerX/programs/sandbox/destroy/v1\0");
+    receipt_preimage.extend_from_slice(&activity_id);receipt_preimage.extend_from_slice(&lease_id);receipt_preimage.extend_from_slice(&expected_root);
+    receipt_preimage.extend_from_slice(&expected_sequence.to_be_bytes());receipt_preimage.extend_from_slice(&boundary.to_be_bytes());
+    let mut receipt_digest = hash_bytes(HashAlgorithm::Sha256,&receipt_preimage).map_err(|_| NON_CANONICAL)?;
+    receipt_digest[0] ^= 0x40;
+    lease.terminalize_by_sweep(activity_id, receipt_digest, boundary).map_err(|_| NON_CANONICAL)?;
+    let amount = escrow.remaining().map_err(|_| NON_CANONICAL)?;
+    let mut transfer_root = [0u8; 32];
+    if amount != 0 && unsafe { layerx_programs_sandbox_destroy_refund(token,
+        lease.escrow_account().as_ptr(), lease.tenant().bytes().as_ptr(),
+        lease.escrow_asset().as_ptr(), (amount >> 64) as u64, amount as u64,
+        transfer_root.as_mut_ptr()) } != OK { return Err(NON_CANONICAL); }
+    escrow.finalize_refund(&lease, amount, transfer_root).map_err(|_| NON_CANONICAL)?;
+    let lease_bytes=lease.canonical_state_bytes().map_err(|_| NON_CANONICAL)?;
+    let escrow_bytes=escrow.canonical_state();
+    for (kind,bytes) in [(0u16,lease_bytes.as_slice()),(1,escrow_bytes.as_slice())] {
+        if unsafe { layerx_programs_sandbox_destroy_archive(token,kind,bytes.as_ptr(),
+            u32::try_from(bytes.len()).map_err(|_| NON_CANONICAL)?) } != OK { return Err(NON_CANONICAL); }
+    }
+    let mut terminal=Vec::new(); terminal.extend_from_slice(&receipt_digest);
+    terminal.extend_from_slice(&transfer_root);terminal.extend_from_slice(&amount.to_be_bytes());
+    terminal.extend_from_slice(&lease.state_digest().map_err(|_| NON_CANONICAL)?);
+    terminal.extend_from_slice(&hash_bytes(HashAlgorithm::Sha256,&escrow_bytes).map_err(|_| NON_CANONICAL)?);
+    DESTROY_TERMINAL.with(|slot| { *slot.borrow_mut()=Some(DestroyTerminal{bytes:terminal}); });
+    Ok(())
+}
+
+#[no_mangle]
+pub extern "C" fn layerx_programs_sandbox_destroy_host(token:u64, lease_id:*const u8,
+    expected_root:*const u8, activity_id:*const u8, expected_sequence:u64,boundary:u64)->i32 {
+    std::panic::catch_unwind(|| { if lease_id.is_null()||expected_root.is_null()||activity_id.is_null(){return Err(NON_CANONICAL)}
+        let mut id=[0u8;32];let mut root=[0u8;32];let mut activity=[0u8;32];unsafe{id.copy_from_slice(core::slice::from_raw_parts(lease_id,32));root.copy_from_slice(core::slice::from_raw_parts(expected_root,32));activity.copy_from_slice(core::slice::from_raw_parts(activity_id,32));}
+        destroy_host(token,id,root,activity,expected_sequence,boundary) }).ok().and_then(Result::ok).map_or(NON_CANONICAL,|()|OK)
+}
+
+#[no_mangle]
+pub extern "C" fn layerx_programs_sandbox_destroy_terminal(_token:u64, output:*mut u8,capacity:u32)->i32 {
+    if output.is_null(){return NON_CANONICAL} DESTROY_TERMINAL.with(|slot| { let Some(value)=slot.borrow_mut().take() else{return NON_CANONICAL};
+        if value.bytes.len()>capacity as usize{return NON_CANONICAL} unsafe{core::ptr::copy_nonoverlapping(value.bytes.as_ptr(),output,value.bytes.len());} OK })
 }
 
 fn admitted_charge_fits(remaining: u128, occupancy: u128, maximum_execution: u128) -> bool {

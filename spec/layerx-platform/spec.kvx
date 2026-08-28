@@ -3592,7 +3592,7 @@ reqs = ["41.4"]
 
 [task.34.5]
 title = "Destroy the sandbox and reclaim its state"
-status = "pending"
+status = "implemented"
 wave = 20
 requires = ["34.4","29.4"]
 do_1 = "Sweep expired leases deterministically at a declared batch boundary, with the sweep a function of protocol state and never of node-local timing."
@@ -3602,7 +3602,7 @@ do_4 = "Make destruction final: after it, the lease's state is unreadable by any
 do_5 = "Test destruction under a full escrow, an exhausted escrow, an active-at-expiry execution and a cohort large enough to span several batches."
 verify_cmd = "make programs-test"
 symbols = ["layerx_programs_sandbox::sweep","layerx_programs_sandbox::destroy"]
-touches = ["programs/crates/layerx-programs-sandbox/src/expiry.rs"]
+touches = ["cmd/layerxd/lxp_daemon_process.c","include/layerx/lxp_kernel.h","include/layerx/programs.h","programs/crates/layerx-programs-sandbox/src/expiry.rs","programs/crates/layerx-programs-sandbox/src/escrow.rs","programs/crates/layerx-programs-sandbox/src/host_ffi.rs","programs/crates/layerx-programs-sandbox/src/lease.rs","programs/crates/layerx-programs-sandbox/src/lib.rs","programs/crates/layerx-programs-sandbox/tests/lease.rs","programs/crates/layerx-programs-sandbox/tests/snapshot.rs","src/modules/programs/occupancy.c","src/modules/programs/registration.c","src/modules/programs/sandbox.h","src/modules/programs/sandbox_expiry.c","src/protocol/lxp_module_ctx.c","tests/programs/test_registration.c","spec/layerx-platform/qualification.kvx"]
 reqs = ["41.5"]
 
 [task.34.6]

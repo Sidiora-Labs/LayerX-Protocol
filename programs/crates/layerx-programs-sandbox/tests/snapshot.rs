@@ -246,7 +246,7 @@ fn snapshot_destroy_restore_and_continue_preserves_exact_execution_state() {
         from: LeaseState::Expired, to: LeaseState::Destroyed, activity_id: [0; 32],
         usage_observation_digest: [0; 32] }, 16);
     let mut reclaim_meter = meter();
-    destroyed.destroy(&mut source_storage, &mut reclaim_meter, destroy, destroy_evidence)
+    destroyed.destroy_with_evidence(&mut source_storage, &mut reclaim_meter, destroy, destroy_evidence)
         .unwrap_or_else(|error| panic!("destroy: {error}"));
     assert_eq!(destroyed.state(), LeaseState::Destroyed);
     assert_eq!(destroyed.snapshot_records().len(), 1);

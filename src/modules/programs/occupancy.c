@@ -1,6 +1,7 @@
 #include "occupancy.h"
 #include "occupancy_evidence.h"
 #include "storage.h"
+#include "sandbox.h"
 
 #include "layerx/lxp_crypto.h"
 #include "layerx/lxp_fee.h"
@@ -876,7 +877,9 @@ lxp_result lxp_programs_finalize_occupancy_batch(
     }
     ctx.protocol_version = LXP_PROTOCOL_VERSION_OCCUPANCY;
     ctx.batch_number = batch_number;
-    status = lxp_programs_occupancy_bridge_init(&bridge, &ctx);
+    status = lxp_programs_sandbox_finalize_expiry_batch(&ctx,batch_number);
+    if (status == LXP_OK)
+        status = lxp_programs_occupancy_bridge_init(&bridge, &ctx);
     if (status == LXP_OK && bridge.uninitialized) {
         bridge.finalized_batch = batch_number - 1U;
         bridge.current_batch = bridge.finalized_batch;
