@@ -2359,3 +2359,11 @@ symbol = "cg spec implemented touch graph"
 observed = "Git records the layerx-programs-sandbox package and its exact dependency set in programs/Cargo.lock, but Codify 0.6.0 reports the lockfile as an unobservable declared touch. The task's Lease and LeaseState symbols and every other declared source and qualification touch passed the graph check."
 assumption = "The authoritative task status is advanced only after the lockfile diff was inspected and every graph-observable contract passed. Human qualification must consume the checked-in lockfile through the declared locked build and test commands; no dependency resolution, build or test was run in this implementation phase."
 severity = "phase-boundary"
+
+[observation.38.8.1]
+task = "38.8"
+file = "programs/crates/layerx-programs-interpreter/vectors/v1-refusals.hex, programs/crates/layerx-programs-interpreter/tests/conformance.rs, programs/crates/layerx-programs-runtime/tests/interpreter_program.rs"
+symbol = "fixed_refusals_cover_structure_arithmetic_amount_and_depth_without_effects"
+observed = "The checked-add overflow, divide-by-zero and signed-division-overflow vectors now declare three registers, admitting their encoded destination register two and both source registers. The independent oracle assigns every refusal an exact structural or execution stage, distinguishes step-ceiling, non-canonical repeat, nesting-depth, arithmetic-overflow, division-by-zero and invalid-transfer-amount refusals, and asserts an empty committed state. The production runtime consumer carries the same ordered stage manifest, asserts the repaired arithmetic vectors' register cardinality before execution, and retains its real storage rollback and failure-outcome assertions."
+assumption = "Human qualification must run make programs-test, confirm all repaired vectors reach the named refusal stage through the independent oracle and built ABI-v2 interpreter, and prove the late-overflow vector rolls back its staged storage write and transfer. No build, test, formatter, runtime execution or passing result is asserted by this implementation-phase repair."
+severity = "qualification-required"
