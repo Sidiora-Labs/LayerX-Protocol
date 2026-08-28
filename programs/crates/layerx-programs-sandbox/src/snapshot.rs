@@ -2,7 +2,8 @@
 
 use core::fmt::{self, Display};
 
-use layerx_programs_runtime::{hash_bytes, HashAlgorithm, Meter, MeterRefusal, PrincipalId};
+use layerx_programs_runtime::{hash_bytes, HashAlgorithm, Meter, MeterRefusal, PrincipalId,
+    WasmValue};
 
 use crate::{EphemeralNamespace, Lease, LeaseId, LeaseState};
 
@@ -12,31 +13,11 @@ pub const MAX_SANDBOX_GLOBALS: usize = 65_536;
 pub const MAX_SANDBOX_OPERAND_STACK: usize = 65_536;
 pub const MAX_SANDBOX_NAMESPACE_CELLS: usize = 1_048_576;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(u8)]
-pub enum ContinuationValue {
-    I32(u32) = 0,
-    I64(u64) = 1,
-    F32(u32) = 2,
-    F64(u64) = 3,
-}
-
-impl ContinuationValue {
-    fn encode(self, output: &mut Vec<u8>) {
-        match self {
-            Self::I32(value) => { output.push(0); output.extend_from_slice(&value.to_be_bytes()); }
-            Self::I64(value) => { output.push(1); output.extend_from_slice(&value.to_be_bytes()); }
-            Self::F32(bits) => { output.push(2); output.extend_from_slice(&bits.to_be_bytes()); }
-            Self::F64(bits) => { output.push(3); output.extend_from_slice(&bits.to_be_bytes()); }
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContinuationPoint {
     pub function_index: u32,
     pub instruction_offset: u64,
-    pub operand_stack: Vec<ContinuationValue>,
+    pub operand_stack: Vec<WasmValue>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -50,7 +31,7 @@ pub struct SandboxState {
     source_lease: LeaseId,
     source_namespace: EphemeralNamespace,
     linear_memory: Vec<u8>,
-    globals: Vec<ContinuationValue>,
+    globals: Vec<WasmValue>,
     continuation: ContinuationPoint,
     namespace_cells: Vec<NamespaceCell>,
 }
@@ -59,7 +40,7 @@ impl SandboxState {
     pub fn new(
         lease: &Lease,
         linear_memory: Vec<u8>,
-        globals: Vec<ContinuationValue>,
+        globals: Vec<WasmValue>,
         continuation: ContinuationPoint,
         namespace_cells: Vec<NamespaceCell>,
     ) -> Result<Self, SnapshotRefusal> {
@@ -72,7 +53,7 @@ impl SandboxState {
     #[must_use] pub const fn source_lease(&self) -> LeaseId { self.source_lease }
     #[must_use] pub const fn source_namespace(&self) -> EphemeralNamespace { self.source_namespace }
     #[must_use] pub fn linear_memory(&self) -> &[u8] { &self.linear_memory }
-    #[must_use] pub fn globals(&self) -> &[ContinuationValue] { &self.globals }
+    #[must_use] pub fn globals(&self) -> &[WasmValue] { &self.globals }
     #[must_use] pub const fn continuation(&self) -> &ContinuationPoint { &self.continuation }
     #[must_use] pub fn namespace_cells(&self) -> &[NamespaceCell] { &self.namespace_cells }
 
@@ -119,11 +100,11 @@ impl SandboxState {
         output.extend_from_slice(&self.source_namespace.bytes());
         put_bytes(&mut output, &self.linear_memory)?;
         put_len(&mut output, self.globals.len())?;
-        for value in &self.globals { value.encode(&mut output); }
+        for value in &self.globals { encode_value(*value, &mut output); }
         output.extend_from_slice(&self.continuation.function_index.to_be_bytes());
         output.extend_from_slice(&self.continuation.instruction_offset.to_be_bytes());
         put_len(&mut output, self.continuation.operand_stack.len())?;
-        for value in &self.continuation.operand_stack { value.encode(&mut output); }
+        for value in &self.continuation.operand_stack { encode_value(*value, &mut output); }
         put_len(&mut output, self.namespace_cells.len())?;
         for cell in &self.namespace_cells {
             put_bytes(&mut output, &cell.key)?;
@@ -222,6 +203,19 @@ pub fn restore(
 fn put_len(output: &mut Vec<u8>, length: usize) -> Result<(), SnapshotRefusal> {
     output.extend_from_slice(&u64::try_from(length).map_err(|_| SnapshotRefusal::StateBoundExceeded)?.to_be_bytes());
     Ok(())
+}
+
+fn encode_value(value: WasmValue, output: &mut Vec<u8>) {
+    match value {
+        WasmValue::I32(value) => {
+            output.push(0);
+            output.extend_from_slice(&value.to_be_bytes());
+        }
+        WasmValue::I64(value) => {
+            output.push(1);
+            output.extend_from_slice(&value.to_be_bytes());
+        }
+    }
 }
 
 fn put_bytes(output: &mut Vec<u8>, bytes: &[u8]) -> Result<(), SnapshotRefusal> {

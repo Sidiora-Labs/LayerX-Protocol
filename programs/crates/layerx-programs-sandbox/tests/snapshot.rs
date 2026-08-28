@@ -2,8 +2,8 @@
 mod protocol_support;
 
 use layerx_programs_runtime::{AuthorizationContext, CapabilitySet, FeeSchedule, Meter,
-    PrincipalId, ProgramId, ResourceBudget};
-use layerx_programs_sandbox::{restore, ContinuationPoint, ContinuationValue, Lease,
+    PrincipalId, ProgramId, ResourceBudget, WasmValue};
+use layerx_programs_sandbox::{restore, ContinuationPoint, Lease,
     LeaseActivity, LeaseId, LeaseLimits, LeaseState, LeaseTransition, NamespaceCell,
     SandboxState, Snapshot, SnapshotRefusal, TransitionEvidence};
 
@@ -107,9 +107,9 @@ fn funded(id: u8, tenant: u8) -> Lease {
 
 fn state(lease: &Lease) -> SandboxState {
     SandboxState::new(lease, vec![0, 1, 2, 3, 5, 8],
-        vec![ContinuationValue::I64(13), ContinuationValue::F32(0x3f80_0000)],
+        vec![WasmValue::I64(13), WasmValue::I32(-1)],
         ContinuationPoint { function_index: 7, instruction_offset: 55,
-            operand_stack: vec![ContinuationValue::I32(21), ContinuationValue::F64(34)] },
+            operand_stack: vec![WasmValue::I32(21), WasmValue::I64(-34)] },
         vec![NamespaceCell { key: b"counter".to_vec(), value: 42u64.to_be_bytes().to_vec() },
             NamespaceCell { key: b"result".to_vec(), value: b"continued".to_vec() }])
         .unwrap_or_else(|error| panic!("state: {error}"))
@@ -191,4 +191,19 @@ fn canonical_namespace_order_is_part_of_snapshot_admission() {
         vec![NamespaceCell { key: b"z".to_vec(), value: vec![1] },
             NamespaceCell { key: b"a".to_vec(), value: vec![2] }]),
         Err(SnapshotRefusal::NonCanonicalNamespace));
+}
+
+#[test]
+fn canonical_integer_discriminants_distinguish_runtime_value_widths() {
+    let source = active(7, 9);
+    let i32_state = SandboxState::new(&source, Vec::new(), vec![WasmValue::I32(-1)],
+        ContinuationPoint { function_index: 0, instruction_offset: 0,
+            operand_stack: vec![WasmValue::I64(1)] }, Vec::new())
+        .unwrap_or_else(|error| panic!("i32 state: {error}"));
+    let i64_state = SandboxState::new(&source, Vec::new(), vec![WasmValue::I64(-1)],
+        ContinuationPoint { function_index: 0, instruction_offset: 0,
+            operand_stack: vec![WasmValue::I32(1)] }, Vec::new())
+        .unwrap_or_else(|error| panic!("i64 state: {error}"));
+    assert_ne!(i32_state.canonical_bytes(), i64_state.canonical_bytes());
+    assert_ne!(i32_state.digest(), i64_state.digest());
 }
