@@ -3,7 +3,8 @@
 use core::fmt::{self, Display};
 use std::collections::BTreeMap;
 
-use layerx_programs_runtime::{derive_program_account, hash_bytes, AuthorizationContext, CodeHash, HashAlgorithm, PrincipalId, ProgramId, ResourceBudget, StorageNamespace};
+use layerx_programs_runtime::{derive_program_account, hash_bytes, AuthorizationContext, CodeHash,
+    HashAlgorithm, Meter, PrincipalId, ProgramId, ResourceBudget, Storage, StorageNamespace};
 use layerx_programs::VerifiedProtocolHead;
 use layerx_proof::merkle::{verify_path, Proof};
 use layerx_types::payload::{ActivityType, ModuleId, ModuleRegistration, ModuleRegistry};
@@ -19,7 +20,7 @@ const PROGRAMS_CALL_FIXED_BYTES: usize = 106;
 const TRANSITION_CALLDATA_BYTES: usize = 101;
 const ESCROW_SEED_DOMAIN: &[u8] = b"sandbox-lease-escrow/v1\0";
 const LEASE_STATE_DOMAIN: &[u8] = b"LayerX/programs/sandbox/lease-state/v1\0";
-const MAX_LEASE_TRANSITIONS: usize = 6;
+const MAX_LEASE_TRANSITIONS: usize = 70;
 const MAX_LEASE_SNAPSHOTS: usize = 64;
 
 pub const MAX_CONCURRENT_LEASES_PER_PRINCIPAL: u32 = 32;
@@ -69,6 +70,10 @@ impl EphemeralNamespace {
 
     pub fn storage_namespace(self) -> Result<StorageNamespace, LeaseRefusal> {
         Ok(StorageNamespace::shared(self.host))
+    }
+
+    pub fn snapshot_storage_namespace(self) -> StorageNamespace {
+        StorageNamespace::protocol_private(self.host, self.prefix)
     }
 
     #[must_use] pub const fn key_prefix(self) -> [u8; 32] { self.prefix }
@@ -183,7 +188,7 @@ impl LeaseState {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
-pub enum LeaseActivity { Request = 0, Fund = 1, Activate = 2, BeginSettlement = 3, Expire = 4, Destroy = 5, CloseBoundExceeded = 6 }
+pub enum LeaseActivity { Request = 0, Fund = 1, Activate = 2, BeginSettlement = 3, Expire = 4, Destroy = 5, CloseBoundExceeded = 6, Snapshot = 7 }
 
 const fn declared_edge(activity: LeaseActivity, from: LeaseState, to: LeaseState) -> bool {
     matches!((activity, from, to),
@@ -192,6 +197,7 @@ const fn declared_edge(activity: LeaseActivity, from: LeaseState, to: LeaseState
         | (LeaseActivity::Activate, LeaseState::Funded, LeaseState::Active)
         | (LeaseActivity::BeginSettlement, LeaseState::Active, LeaseState::Settling)
         | (LeaseActivity::CloseBoundExceeded, LeaseState::Active, LeaseState::Settling)
+        | (LeaseActivity::Snapshot, LeaseState::Active, LeaseState::Active)
         | (LeaseActivity::Expire, LeaseState::Requested, LeaseState::Expired)
         | (LeaseActivity::Expire, LeaseState::Funded, LeaseState::Expired)
         | (LeaseActivity::Expire, LeaseState::Active, LeaseState::Expired)
@@ -372,14 +378,24 @@ pub struct LeaseStateWitness {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LeaseSnapshotRecord {
     digest: [u8; 32],
+    owner: PrincipalId,
+    source_lease: LeaseId,
     namespace: EphemeralNamespace,
-    canonical_state: Vec<u8>,
+    host_program: ProgramId,
+    image_code_hash: CodeHash,
+    byte_length: u64,
+    chunk_count: u32,
 }
 
 impl LeaseSnapshotRecord {
     #[must_use] pub const fn digest(&self) -> [u8; 32] { self.digest }
+    #[must_use] pub const fn owner(&self) -> PrincipalId { self.owner }
+    #[must_use] pub const fn source_lease(&self) -> LeaseId { self.source_lease }
     #[must_use] pub const fn namespace(&self) -> EphemeralNamespace { self.namespace }
-    #[must_use] pub fn canonical_state(&self) -> &[u8] { &self.canonical_state }
+    #[must_use] pub const fn host_program(&self) -> ProgramId { self.host_program }
+    #[must_use] pub const fn image_code_hash(&self) -> CodeHash { self.image_code_hash }
+    #[must_use] pub const fn byte_length(&self) -> u64 { self.byte_length }
+    #[must_use] pub const fn chunk_count(&self) -> u32 { self.chunk_count }
 }
 
 impl LeaseStateWitness {
@@ -437,19 +453,18 @@ impl Lease {
     #[must_use] pub const fn restored_from(&self) -> Option<[u8; 32]> { self.restored_from }
 
     pub(crate) fn bind_snapshot(
-        &mut self, digest: [u8; 32], canonical_state: Vec<u8>,
+        &mut self, digest: [u8; 32], owner: PrincipalId, byte_length: u64, chunk_count: u32,
     ) -> Result<(), LeaseRefusal> {
-        if digest == [0; 32] || canonical_state.is_empty()
+        if digest == [0; 32] || byte_length == 0 || chunk_count == 0
             || self.snapshot_records.iter().any(|record| record.digest == digest) {
             return Err(LeaseRefusal::InvalidSnapshotBinding);
         }
-        if self.snapshot_records.len() >= MAX_LEASE_SNAPSHOTS
-            || u64::try_from(canonical_state.len()).map_err(|_| LeaseRefusal::SnapshotBindingOverflow)?
-                > self.limits.namespace_bytes {
+        if self.snapshot_records.len() >= MAX_LEASE_SNAPSHOTS {
             return Err(LeaseRefusal::SnapshotBindingOverflow);
         }
-        self.snapshot_records.push(LeaseSnapshotRecord { digest, namespace: self.namespace,
-            canonical_state });
+        self.snapshot_records.push(LeaseSnapshotRecord { digest, owner, source_lease: self.id,
+            namespace: self.namespace, host_program: self.host_program,
+            image_code_hash: self.image_code_hash, byte_length, chunk_count });
         Ok(())
     }
 
@@ -514,10 +529,13 @@ impl Lease {
             .map_err(|_| LeaseRefusal::SnapshotBindingOverflow)?.to_be_bytes());
         for record in &self.snapshot_records {
             out.extend_from_slice(&record.digest);
+            out.extend_from_slice(&record.owner.bytes());
+            out.extend_from_slice(&record.source_lease.bytes());
             out.extend_from_slice(&record.namespace.bytes());
-            out.extend_from_slice(&u64::try_from(record.canonical_state.len())
-                .map_err(|_| LeaseRefusal::SnapshotBindingOverflow)?.to_be_bytes());
-            out.extend_from_slice(&record.canonical_state);
+            out.extend_from_slice(&record.host_program.bytes());
+            out.extend_from_slice(&record.image_code_hash);
+            out.extend_from_slice(&record.byte_length.to_be_bytes());
+            out.extend_from_slice(&record.chunk_count.to_be_bytes());
         }
         match self.restored_from {
             Some(digest) => { out.push(1); out.extend_from_slice(&digest); }
@@ -599,8 +617,10 @@ impl Lease {
                     || batch_sequence != opened_at
                     || transition.usage_observation_digest != lease.request_binding_digest()?))
                 || (index != 0 && activity == LeaseActivity::Request)
-                || (!matches!(activity, LeaseActivity::Request | LeaseActivity::CloseBoundExceeded)
+                || (!matches!(activity, LeaseActivity::Request | LeaseActivity::CloseBoundExceeded | LeaseActivity::Snapshot)
                     && transition.usage_observation_digest != [0; 32])
+                || (activity == LeaseActivity::Snapshot
+                    && transition.usage_observation_digest == [0; 32])
                 || (matches!(activity, LeaseActivity::Fund | LeaseActivity::Activate | LeaseActivity::BeginSettlement)
                     && batch_sequence >= expiry)
                 || (activity == LeaseActivity::Expire && from != LeaseState::Settling
@@ -617,19 +637,23 @@ impl Lease {
         if snapshot_length > MAX_LEASE_SNAPSHOTS { return Err(LeaseRefusal::SnapshotBindingOverflow); }
         for _ in 0..snapshot_length {
             let digest = cursor.array()?;
+            let owner = PrincipalId::new(cursor.array()?).map_err(|_| LeaseRefusal::InvalidSnapshotBinding)?;
+            let source_lease = LeaseId::new(cursor.array()?)?;
             let namespace = cursor.array()?;
-            let state_length = usize::try_from(cursor.u64()?)
-                .map_err(|_| LeaseRefusal::SnapshotBindingOverflow)?;
-            let canonical_state = cursor.take(state_length)?.to_vec();
+            let snapshot_host = ProgramId::new(cursor.array()?).map_err(|_| LeaseRefusal::InvalidSnapshotBinding)?;
+            let snapshot_image = cursor.array()?;
+            let byte_length = cursor.u64()?;
+            let chunk_count = cursor.u32()?;
             if digest == [0; 32] || namespace != lease.namespace.bytes()
-                || (canonical_state.is_empty() && state != LeaseState::Destroyed)
-                || u64::try_from(canonical_state.len()).map_err(|_| LeaseRefusal::SnapshotBindingOverflow)?
-                    > lease.limits.namespace_bytes
+                || owner != tenant || source_lease != id || snapshot_host != host
+                || snapshot_image != image
+                || byte_length == 0 || chunk_count == 0
                 || lease.snapshot_records.iter().any(|record| record.digest == digest) {
                 return Err(LeaseRefusal::InvalidSnapshotBinding);
             }
-            lease.snapshot_records.push(LeaseSnapshotRecord { digest, namespace: lease.namespace,
-                canonical_state });
+            lease.snapshot_records.push(LeaseSnapshotRecord { digest, owner, source_lease,
+                namespace: lease.namespace, host_program: snapshot_host,
+                image_code_hash: snapshot_image, byte_length, chunk_count });
         }
         lease.restored_from = match cursor.u8()? {
             0 => None,
@@ -673,7 +697,44 @@ impl Lease {
         if matches!(transition.activity, LeaseActivity::Request | LeaseActivity::CloseBoundExceeded) {
             return Err(LeaseRefusal::IntrinsicActivityRequired);
         }
+        if transition.activity == LeaseActivity::Destroy { return Err(LeaseRefusal::StorageRequired); }
         self.apply_transition(transition, evidence)
+    }
+
+    pub(crate) fn snapshot_transition(
+        &mut self, transition: LeaseTransition, evidence: TransitionEvidence,
+    ) -> Result<TransitionOutcome, LeaseRefusal> {
+        if transition.activity != LeaseActivity::Snapshot { return Err(LeaseRefusal::WrongActivity); }
+        self.apply_transition(transition, evidence)
+    }
+
+    pub fn destroy(
+        &mut self, storage: &mut Storage, meter: &mut Meter,
+        transition: LeaseTransition, evidence: TransitionEvidence,
+    ) -> Result<TransitionOutcome, LeaseRefusal> {
+        if transition.activity != LeaseActivity::Destroy { return Err(LeaseRefusal::WrongActivity); }
+        let namespace = self.namespace.storage_namespace()?;
+        let prefix = self.namespace.key_prefix();
+        let bytes = storage.protocol_prefix_bytes(namespace, &prefix)
+            .map_err(|_| LeaseRefusal::StorageFailure)?;
+        let snapshot_namespace = self.namespace.snapshot_storage_namespace();
+        let snapshot_bytes = storage.protocol_prefix_bytes(snapshot_namespace, b"snapshot")
+            .map_err(|_| LeaseRefusal::StorageFailure)?;
+        let mut candidate = self.clone();
+        let outcome = candidate.apply_transition(transition, evidence)?;
+        let mut candidate_storage = storage.clone();
+        candidate_storage.replace_protocol_prefix(namespace, &prefix, &[])
+            .map_err(|_| LeaseRefusal::StorageFailure)?;
+        candidate_storage.replace_protocol_prefix(snapshot_namespace, b"snapshot", &[])
+            .map_err(|_| LeaseRefusal::StorageFailure)?;
+        let mut candidate_meter = meter.clone();
+        candidate_meter.charge_storage_write(bytes.checked_add(snapshot_bytes)
+            .ok_or(LeaseRefusal::StorageFailure)?)
+            .map_err(|_| LeaseRefusal::StorageMeterRefusal)?;
+        *self = candidate;
+        *storage = candidate_storage;
+        *meter = candidate_meter;
+        Ok(outcome)
     }
 
     fn apply_transition(
@@ -685,8 +746,12 @@ impl Lease {
         if transition.lease != self.id { return Err(LeaseRefusal::LeaseMismatch); }
         if transition.tenant != self.tenant { return Err(LeaseRefusal::TenantMismatch); }
         if evidence.invoking_principal != self.tenant { return Err(LeaseRefusal::TenantMismatch); }
-        if !matches!(transition.activity, LeaseActivity::Request | LeaseActivity::CloseBoundExceeded)
+        if !matches!(transition.activity, LeaseActivity::Request | LeaseActivity::CloseBoundExceeded | LeaseActivity::Snapshot)
             && transition.usage_observation_digest != [0; 32] {
+            return Err(LeaseRefusal::UnexpectedUsageObservation);
+        }
+        if transition.activity == LeaseActivity::Snapshot
+            && transition.usage_observation_digest == [0; 32] {
             return Err(LeaseRefusal::UnexpectedUsageObservation);
         }
         if self.history.iter().any(|prior| prior.transition.activity_id == evidence.activity_id
@@ -721,9 +786,6 @@ impl Lease {
         let receipt = LeaseTransitionReceipt { lease: self.id, transition,
             receipt_digest: evidence.receipt_digest, batch_sequence: evidence.batch_sequence };
         self.state = transition.to;
-        if transition.activity == LeaseActivity::Destroy {
-            for record in &mut self.snapshot_records { record.canonical_state.clear(); }
-        }
         self.history.push(receipt);
         Ok(TransitionOutcome::Advanced(receipt))
     }
@@ -811,6 +873,19 @@ impl LeaseBook {
         }
         Ok(outcome)
     }
+
+    pub fn destroy(
+        &mut self, id: LeaseId, storage: &mut Storage, meter: &mut Meter,
+        transition: LeaseTransition, evidence: TransitionEvidence,
+    ) -> Result<TransitionOutcome, LeaseRefusal> {
+        let lease = self.leases.get_mut(&id).ok_or(LeaseRefusal::UnknownLease)?;
+        let tenant = lease.tenant;
+        let outcome = lease.destroy(storage, meter, transition, evidence)?;
+        let count = self.active_by_principal.get_mut(&tenant)
+            .ok_or(LeaseRefusal::ProtocolStateCorrupt)?;
+        *count = count.checked_sub(1).ok_or(LeaseRefusal::ProtocolStateCorrupt)?;
+        Ok(outcome)
+    }
 }
 
 fn ensure_principal_capacity(count: u32) -> Result<(), LeaseRefusal> {
@@ -856,6 +931,9 @@ pub enum LeaseRefusal {
     InvalidStateEncoding,
     InvalidSnapshotBinding,
     SnapshotBindingOverflow,
+    StorageRequired,
+    StorageFailure,
+    StorageMeterRefusal,
 }
 
 struct StateCursor<'a> { bytes: &'a [u8], offset: usize }
@@ -871,6 +949,7 @@ impl<'a> StateCursor<'a> {
     }
     fn u8(&mut self) -> Result<u8, LeaseRefusal> { Ok(self.array::<1>()?[0]) }
     fn u16(&mut self) -> Result<u16, LeaseRefusal> { Ok(u16::from_be_bytes(self.array()?)) }
+    fn u32(&mut self) -> Result<u32, LeaseRefusal> { Ok(u32::from_be_bytes(self.array()?)) }
     fn u64(&mut self) -> Result<u64, LeaseRefusal> { Ok(u64::from_be_bytes(self.array()?)) }
     fn u128(&mut self) -> Result<u128, LeaseRefusal> { Ok(u128::from_be_bytes(self.array()?)) }
     fn is_empty(&self) -> bool { self.offset == self.bytes.len() }
@@ -886,7 +965,7 @@ fn activity_from_tag(tag: u8) -> Result<LeaseActivity, LeaseRefusal> {
     match tag { 0 => Ok(LeaseActivity::Request), 1 => Ok(LeaseActivity::Fund),
         2 => Ok(LeaseActivity::Activate), 3 => Ok(LeaseActivity::BeginSettlement),
         4 => Ok(LeaseActivity::Expire), 5 => Ok(LeaseActivity::Destroy),
-        6 => Ok(LeaseActivity::CloseBoundExceeded),
+        6 => Ok(LeaseActivity::CloseBoundExceeded), 7 => Ok(LeaseActivity::Snapshot),
         _ => Err(LeaseRefusal::InvalidStateEncoding) }
 }
 
@@ -929,7 +1008,7 @@ mod tests {
             LeaseState::Settling, LeaseState::Expired, LeaseState::Destroyed];
         let activities = [LeaseActivity::Request, LeaseActivity::Fund, LeaseActivity::Activate,
             LeaseActivity::BeginSettlement, LeaseActivity::Expire, LeaseActivity::Destroy,
-            LeaseActivity::CloseBoundExceeded];
+            LeaseActivity::CloseBoundExceeded, LeaseActivity::Snapshot];
         for from in states {
             for to in states {
                 for activity in activities {
@@ -939,6 +1018,7 @@ mod tests {
                         | (LeaseActivity::Activate, LeaseState::Funded, LeaseState::Active)
                         | (LeaseActivity::BeginSettlement, LeaseState::Active, LeaseState::Settling)
                         | (LeaseActivity::CloseBoundExceeded, LeaseState::Active, LeaseState::Settling)
+                        | (LeaseActivity::Snapshot, LeaseState::Active, LeaseState::Active)
                         | (LeaseActivity::Expire, LeaseState::Requested | LeaseState::Funded | LeaseState::Active | LeaseState::Settling, LeaseState::Expired)
                         | (LeaseActivity::Destroy, LeaseState::Expired, LeaseState::Destroyed));
                     assert_eq!(declared_edge(activity, from, to), declared,

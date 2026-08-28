@@ -15,7 +15,8 @@ pub use lease::{
     MAX_LEASE_STORAGE_READ_BYTES, MAX_LEASE_STORAGE_WRITE_BYTES, MAX_LEASE_TABLE_ELEMENTS,
 };
 pub use snapshot::{
-    restore, ContinuationPoint, NamespaceCell, PreparedRestore, SandboxState, Snapshot,
+    restore, CapturedSnapshot, ContinuationPoint, NamespaceCell, RestoredSandbox,
+    SandboxState, Snapshot,
     SnapshotRefusal, MAX_SANDBOX_GLOBALS, MAX_SANDBOX_LINEAR_MEMORY_BYTES,
     MAX_SANDBOX_NAMESPACE_CELLS, MAX_SANDBOX_OPERAND_STACK,
 };

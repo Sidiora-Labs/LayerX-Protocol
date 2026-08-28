@@ -169,11 +169,46 @@ const fn fault_from_trap_code(code: TrapCode) -> ExecutionFault {
 pub struct ProgramInstance {
     store: Store<RuntimeState>,
     instance: Instance,
+    resumable_globals: Option<Vec<String>>,
+    validated_code_hash: [u8; 32],
 }
 
 impl ProgramInstance {
     pub(crate) const fn new(store: Store<RuntimeState>, instance: Instance) -> Self {
-        Self { store, instance }
+        Self { store, instance, resumable_globals: None, validated_code_hash: [0; 32] }
+    }
+
+    pub(crate) fn declare_resumable_globals(&mut self, globals: Option<Vec<String>>) {
+        self.resumable_globals = globals;
+    }
+
+    pub(crate) fn bind_validated_code_hash(&mut self, code_hash: [u8; 32]) {
+        self.validated_code_hash = code_hash;
+    }
+
+    #[must_use] pub const fn validated_code_hash(&self) -> [u8; 32] { self.validated_code_hash }
+
+    pub fn storage_snapshot(&self) -> Option<Storage> {
+        self.store.data().authorization_abi().map(Abi::storage_snapshot)
+    }
+
+    pub fn commit_snapshot_storage(
+        &mut self, storage: Storage, write_bytes: u64,
+    ) -> Result<(), ExecutionFault> {
+        if self.store.data().authorization_abi().is_none() {
+            return Err(ExecutionFault::EngineFault {
+            reason: "sandbox runtime has no lease storage transaction".to_string(),
+            });
+        }
+        let mut meter = self.store.data().meter().clone();
+        meter.charge_storage_write(write_bytes)
+            .map_err(|refusal| ExecutionFault::Resource { refusal })?;
+        let state = self.store.data_mut();
+        state.abi_mut().ok_or_else(|| ExecutionFault::EngineFault {
+            reason: "sandbox runtime lost its lease storage transaction".to_string(),
+        })?.adopt_storage(storage);
+        state.set_meter(meter);
+        Ok(())
     }
 
     /// Reconciles trailing legacy Wasmi guest-instruction fuel into the meter.
@@ -252,7 +287,7 @@ impl ProgramInstance {
     }
 
     pub fn capture_continuation(
-        &self, entrypoint: &str, arguments: &[WasmValue],
+        &mut self, entrypoint: &str, arguments: &[WasmValue],
     ) -> Result<RuntimeContinuation, ExecutionFault> {
         if self.instance.get_export(&self.store, entrypoint)
             .and_then(Extern::into_func).is_none() {
@@ -261,12 +296,21 @@ impl ProgramInstance {
         let memory = self.linear_memory().ok_or_else(|| ExecutionFault::UnknownExport {
             name: "memory".to_string(),
         })?;
+        let declared = self.resumable_globals.as_ref().ok_or_else(|| ExecutionFault::EngineFault {
+            reason: "sandbox continuation requires every mutable global to be exported exactly once".to_string(),
+        })?.clone();
+        let capture_bytes = continuation_copy_bytes(memory.data(&self.store).len(), &declared,
+            arguments).ok_or_else(|| ExecutionFault::EngineFault {
+                reason: "sandbox continuation byte accounting overflowed".to_string(),
+            })?;
+        self.store.data_mut().meter_mut().charge_storage_read(capture_bytes)
+            .map_err(|refusal| ExecutionFault::Resource { refusal })?;
         let linear_memory = memory.data(&self.store).to_vec();
         let mut globals = Vec::new();
-        for export in self.instance.exports(&self.store) {
-            let name = export.name().to_string();
-            let Some(global) = export.into_global() else { continue; };
-            if !global.ty(&self.store).mutability().is_mut() { continue; }
+        for name in &declared {
+            let global = self.instance.get_export(&self.store, name)
+                .and_then(Extern::into_global)
+                .ok_or_else(|| ExecutionFault::UnknownExport { name: name.clone() })?;
             let value = match global.get(&self.store) {
                 Value::I32(value) => WasmValue::I32(value),
                 Value::I64(value) => WasmValue::I64(value),
@@ -274,7 +318,7 @@ impl ProgramInstance {
                     return Err(ExecutionFault::NonIntegerValue);
                 }
             };
-            globals.push(RuntimeGlobal { name, value });
+            globals.push(RuntimeGlobal { name: name.clone(), value });
         }
         globals.sort_by(|left, right| left.name.cmp(&right.name));
         Ok(RuntimeContinuation { linear_memory, globals, entrypoint: entrypoint.to_string(),
@@ -284,9 +328,24 @@ impl ProgramInstance {
     pub fn restore_continuation(
         &mut self, continuation: &RuntimeContinuation,
     ) -> Result<Vec<WasmValue>, ExecutionFault> {
+        let declared = self.resumable_globals.as_ref().ok_or_else(|| ExecutionFault::EngineFault {
+            reason: "sandbox continuation requires every mutable global to be exported exactly once".to_string(),
+        })?;
+        if continuation.globals.iter().map(|global| &global.name).ne(declared.iter()) {
+            return Err(ExecutionFault::EngineFault {
+                reason: "sandbox continuation mutable-global set is incomplete or non-canonical".to_string(),
+            });
+        }
         let memory = self.linear_memory().ok_or_else(|| ExecutionFault::UnknownExport {
             name: "memory".to_string(),
         })?;
+        let names: Vec<String> = continuation.globals.iter().map(|global| global.name.clone()).collect();
+        let restore_bytes = continuation_copy_bytes(continuation.linear_memory.len(), &names,
+            &continuation.arguments).ok_or_else(|| ExecutionFault::EngineFault {
+                reason: "sandbox continuation byte accounting overflowed".to_string(),
+            })?;
+        self.store.data_mut().meter_mut().charge_storage_write(restore_bytes)
+            .map_err(|refusal| ExecutionFault::Resource { refusal })?;
         let current = memory.data(&self.store).len();
         if continuation.linear_memory.len() < current
             || continuation.linear_memory.len() % 65_536 != 0 {
@@ -373,6 +432,16 @@ impl ProgramInstance {
     pub(crate) fn into_state(self) -> RuntimeState {
         self.store.into_data()
     }
+}
+
+fn continuation_copy_bytes(
+    memory_bytes: usize, globals: &[String], arguments: &[WasmValue],
+) -> Option<u64> {
+    let globals = globals.iter().try_fold(0usize, |total, name|
+        total.checked_add(name.len())?.checked_add(9))?;
+    let arguments = arguments.iter().try_fold(0usize, |total, value|
+        total.checked_add(match value { WasmValue::I32(_) => 5, WasmValue::I64(_) => 9 }))?;
+    u64::try_from(memory_bytes.checked_add(globals)?.checked_add(arguments)?).ok()
 }
 
 /// Receipt-carriable deterministic execution result.
