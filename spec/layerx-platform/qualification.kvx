@@ -254,6 +254,14 @@ observed = "Task 31.5 requires metering by operand wide and exponent bit length.
 assumption = "Human qualification will profile actual execution costs across representative inputs and adjust the metering formula if the charge significantly underprices or overprices actual work. The freeze behind golden vectors ensures any metering adjustment does not change operation semantics."
 severity = "assumption"
 
+[observation.35.7.1]
+task = "35.7"
+file = "programs/crates/layerx-programs-market/src/attest.rs, programs/Cargo.toml, programs/Cargo.lock"
+symbol = "InputCommitmentBook, AttesterSet"
+observed = "Task 35.7 names only attest.rs in a marketplace crate that did not exist on this branch. Supplying the declared public symbols requires creating the crate root and manifest and enrolling the crate in the Programs workspace and lockfile. The attestation state is canonical and independently root-committed, but the lease, marketplace settlement and protocol snapshot owners are parallel or downstream task lanes and are not present here to consume that state."
+assumption = "The marketplace integration merge will preserve this single canonical attestation state machine, bind its commitment and replay roots into the lease and protocol snapshot, and require successful admission before task 35.5 settlement can consume any off-platform output. Human qualification must exercise that integrated transition and restart replay state rather than qualifying this crate in isolation."
+severity = "dependency-boundary"
+
 [observation.12.2.1]
 task = "12.2"
 file = "human/apps/web/src/journeys/home/home.tsx"

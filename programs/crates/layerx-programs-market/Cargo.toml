@@ -1,0 +1,16 @@
+[package]
+name = "layerx-programs-market"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+layerx-programs-runtime = { path = "../layerx-programs-runtime" }
+sha2.workspace = true
+
+[dev-dependencies]
+ed25519-dalek = { version = "=2.2.0", default-features = false }
+
+[lints]
+workspace = true

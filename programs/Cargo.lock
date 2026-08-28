@@ -403,6 +403,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "layerx-programs-market"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "layerx-programs-runtime",
+ "sha2",
+]
+
+[[package]]
 name = "layerx-programs-protocol-adapter"
 version = "0.1.0"
 dependencies = [
