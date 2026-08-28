@@ -5,6 +5,7 @@ import {
   decodeBatch,
   decodeCheckpoint,
   decodePage,
+  decodeProgram,
   decodeReceipt,
   decodeRecord,
   decodeVerificationReport,
@@ -16,6 +17,7 @@ import {
   type EvidenceVerificationReport,
   type ExplorerPage,
   type ExplorerRecord,
+  type ExplorerProgramRecord,
   type ReceiptRecord,
 } from "./model";
 
@@ -138,6 +140,11 @@ export async function receiptRecord(
     decodeReceipt,
     "receipt record",
   );
+}
+
+export async function programRecord(identifier: string): Promise<ExplorerRecord<ExplorerProgramRecord>> {
+  if (!validExplorerIdentifier(identifier)) throw new TypeError("Invalid program identifier");
+  return decodeRecord(await get(`/v1/explorer/programs/${encodeURIComponent(identifier.toLowerCase())}`), decodeProgram, "program record");
 }
 
 export async function accountActivityPage(

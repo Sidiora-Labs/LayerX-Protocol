@@ -555,6 +555,11 @@ pub enum ProductionRoute<'a> {
     State,
     Receipt(&'a str),
     ProgramRegistry(&'a str),
+    ProgramInterface(&'a str),
+    ProgramSimulation,
+    ProgramCall,
+    ProgramActivity(&'a str),
+    ProgramReceiptByIdempotency(&'a str),
     ProgramRegistrySource(&'a str),
 }
 
@@ -569,13 +574,35 @@ pub fn production_route<'a>(
 ) -> Result<ProductionRoute<'a>, GatewayError> {
     match (method, path) {
         ("POST", "/v1/activities") => Ok(ProductionRoute::Activity),
+        ("POST", "/v1/programs/simulate") => Ok(ProductionRoute::ProgramSimulation),
+        ("POST", "/v1/programs/call") => Ok(ProductionRoute::ProgramCall),
         ("GET", "/v1/state") => Ok(ProductionRoute::State),
+        ("GET", path) if path.starts_with("/v1/programs/activities/") => {
+            let id = path.strip_prefix("/v1/programs/activities/").ok_or(GatewayError::InvalidRoute)?;
+            if id.len() == 64 && id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                Ok(ProductionRoute::ProgramActivity(id))
+            } else {
+                Err(GatewayError::InvalidRoute)
+            }
+        }
+        ("GET", path) if path.starts_with("/v1/programs/receipts/by-idempotency/") => {
+            let id = path.strip_prefix("/v1/programs/receipts/by-idempotency/").ok_or(GatewayError::InvalidRoute)?;
+            if id.len() == 64 && id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                Ok(ProductionRoute::ProgramReceiptByIdempotency(id))
+            } else {
+                Err(GatewayError::InvalidRoute)
+            }
+        }
         ("GET", path) if path.starts_with("/v1/programs/registry/") => {
-            let id = path
+            let remainder = path
                 .strip_prefix("/v1/programs/registry/")
                 .ok_or(GatewayError::InvalidRoute)?;
+            let (id, interface) = match remainder.strip_suffix("/interface") {
+                Some(id) => (id, true),
+                None => (remainder, false),
+            };
             if id.len() == 64 && id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-                Ok(ProductionRoute::ProgramRegistry(id))
+                Ok(if interface { ProductionRoute::ProgramInterface(id) } else { ProductionRoute::ProgramRegistry(id) })
             } else {
                 Err(GatewayError::InvalidRoute)
             }
@@ -608,6 +635,18 @@ pub fn production_route<'a>(
 #[must_use]
 pub fn platform_gateway() -> &'static str {
     "tls-receipt-verifying-multi-instance-hosted-gateway"
+}
+
+#[must_use]
+pub fn platform_gateway_program_routes() -> &'static [&'static str] {
+    &[
+        "GET /v1/programs/registry/{program_id}",
+        "GET /v1/programs/registry/{program_id}/interface",
+        "POST /v1/programs/simulate",
+        "POST /v1/programs/call",
+        "GET /v1/programs/activities/{activity_id}",
+        "GET /v1/programs/receipts/by-idempotency/{idempotency_key}",
+    ]
 }
 
 fn hex(bytes: &[u8]) -> String {

@@ -1413,7 +1413,7 @@ surface makes the evidence portable while custody never leaves Paxeer.
     - Extend the emulator to execute program calls with real runtime semantics so an agent can develop against it and get real refusals.
     - Ship an end-to-end walkthrough of an agent discovering an unknown program and calling it correctly with no human in the loop.
     - _Requirements: 40.6_
-  - [ ] 33.7 Finish program operations across the hosted gateway and seven SDKs
+  - [x] 33.7 Finish program operations across the hosted gateway and seven SDKs
     - Expose discover, interface, simulate and receipt-verified call routes on the hosted gateway using the agent-plane operations from task 33.6, with idempotency required for calls and typed refusal and unknown outcomes preserved.
     - Add the program operation and interface records to the shared schema and generation inputs so one regeneration supplies identical wire behavior to Rust, TypeScript, Python, Go, JVM, Swift and C#.
     - Implement idiomatic typed program clients in all seven SDKs, including bounded calldata, declared budgets, capability requests, typed responses and failures, and local receipt verification.

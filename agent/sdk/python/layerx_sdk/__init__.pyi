@@ -61,6 +61,12 @@ from .stream import (
     StreamEvent as StreamEvent,
     StreamPage as StreamPage,
 )
+from .programs import (
+    ProgramCall as ProgramCall,
+    ProgramExecution as ProgramExecution,
+    ProgramOperations as ProgramOperations,
+    platform_sdk_programs as platform_sdk_programs,
+)
 from .mirror import (
     MirrorCandidate as MirrorCandidate,
     MirrorPolicy as MirrorPolicy,

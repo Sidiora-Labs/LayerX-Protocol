@@ -44,6 +44,41 @@ export interface ReceiptRecord {
   readonly verificationLevel: ExplorerVerificationLevel;
 }
 
+export interface ExplorerProgramVersion {
+  readonly number: string;
+  readonly codeHash: string;
+  readonly abiVersion: string;
+  readonly interfaceDigest?: string;
+  readonly sourceStatus: "unpublished" | "verified" | "mismatch";
+}
+
+export interface ExplorerProgramRecord {
+  readonly programId: string;
+  readonly lifecycle: "active" | "frozen" | "retired";
+  readonly activeVersion: ExplorerProgramVersion;
+  readonly versions: readonly ExplorerProgramVersion[];
+  readonly receiptDigest: string;
+  readonly stateRoot: string;
+  readonly observedSequence: string;
+  readonly observedAt: string;
+  readonly validThrough: string;
+}
+
+export function decodeProgram(value: unknown, at = "program"): ExplorerProgramRecord {
+  const item = record(value, at);
+  const decodeVersion = (raw: unknown, where: string): ExplorerProgramVersion => {
+    const version = record(raw, where);
+    const sourceStatus = text(version.source_status, `${where}.source_status`);
+    if (sourceStatus !== "unpublished" && sourceStatus !== "verified" && sourceStatus !== "mismatch") throw new TypeError(`${where}.source_status is invalid`);
+    const interfaceDigest = optionalHex(version.interface_digest, `${where}.interface_digest`);
+    return Object.freeze({ number: decimal(version.number, `${where}.number`), codeHash: hex(version.code_hash, `${where}.code_hash`), abiVersion: decimal(version.abi_version, `${where}.abi_version`), ...(interfaceDigest === undefined ? {} : { interfaceDigest }), sourceStatus });
+  };
+  if (!Array.isArray(item.versions) || item.versions.length === 0 || item.versions.length > 4096) throw new TypeError(`${at}.versions is invalid`);
+  const lifecycle = text(item.lifecycle, `${at}.lifecycle`);
+  if (lifecycle !== "active" && lifecycle !== "frozen" && lifecycle !== "retired") throw new TypeError(`${at}.lifecycle is invalid`);
+  return Object.freeze({ programId: hex(item.program_id, `${at}.program_id`), lifecycle, activeVersion: decodeVersion(item.active_version, `${at}.active_version`), versions: Object.freeze(item.versions.map((entry, index) => decodeVersion(entry, `${at}.versions[${index}]`))), receiptDigest: hex(item.receipt_digest, `${at}.receipt_digest`), stateRoot: hex(item.state_root, `${at}.state_root`), observedSequence: decimal(item.observed_sequence, `${at}.observed_sequence`), observedAt: decimal(item.observed_at, `${at}.observed_at`), validThrough: decimal(item.valid_through, `${at}.valid_through`) });
+}
+
 export interface AccountActivityRecord {
   readonly receiptId: string;
   readonly receiptDigest: string;

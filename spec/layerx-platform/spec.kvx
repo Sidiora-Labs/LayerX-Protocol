@@ -3509,7 +3509,7 @@ reqs = ["40.6"]
 
 [task.33.7]
 title = "Finish program operations across the hosted gateway and seven SDKs"
-status = "pending"
+status = "done"
 wave = 19
 requires = ["17.4","33.6"]
 work_kind = "implementation"

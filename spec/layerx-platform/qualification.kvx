@@ -2736,3 +2736,15 @@ task = "33.6"
 kind = "tooling"
 files = ["spec/layerx-platform/spec.kvx"]
 note = "The one allowed cg spec implemented attempt resolved all three task symbols, then remained blocked for about fifty seconds behind shared editor-owned Codify trace processes and was interrupted without killing them. The subsequent cg guard read shared task 5.8 rather than this worktree task 33.6 and therefore reported all eight changed implementation paths outside 5.8 plus four advisory stale documentation anchors; every implementation path is already declared in task 33.6 touches. The authoritative task status was set to implemented because source is complete; human integration must reconcile graph state once the shared database is available."
+
+[observation.task-33-7-program-receipt-parity]
+task = "33.7"
+kind = "qualification-required"
+files = ["agent/schema/agent-api/programs.kvx","agent/crates/layerx-wire/src/receipt.rs","agent/sdk/typescript/src/verifier.ts","agent/sdk/python/layerx_sdk/verifier.py","platform/sdk/go/verify.go","platform/sdk/jvm/src/main/java/com/sidiora/layerx/sdk/verify/LocalVerifier.java","platform/sdk/swift/Sources/LayerXSDK/Verifier.swift","platform/sdk/dotnet/Verifier.cs"]
+note = "Programs receipts use receipt module id 9 while signed Programs activities use ModuleId::Programs wire id 7. SDK facades invoke each language's existing canonical local receipt-verifier abstraction and then enforce receipt module 9, CALL ordinal 3, expected activity and ABI through receipt module_version; discovery separately binds the selected program version and code hash. The inherited portable verifier generators currently decode the generic protocol-v1 transfer receipt only. Dependent task 38.6, which requires 33.7, exclusively owns adding optional ProgramOutcome to the shared receipt schema, strict protocol-v2 decoders, goldens and full typed failure parity across all seven languages. This task intentionally adds no competing handwritten receipt decoder. No build, test or vector replay was run during implementation."
+
+[observation.task-33-7-hosted-simulation-head]
+task = "33.7"
+kind = "deployment-contract"
+files = ["platform/hosted/gateway/src/main.rs","agent/crates/layerx-agentd/src/ops/program.rs"]
+note = "Hosted simulation refuses unless the independently configured receipt-authority mTLS endpoint supplies a fresh /v1/programs/head root, sequence and observation time exactly matching the boundary-signed non-commit evidence. The gateway does not accept a root or simulation key from the request or component response as trust configuration. Deployment qualification must provision that authority route and exercise stale, divergent, committed and incorrectly signed evidence."

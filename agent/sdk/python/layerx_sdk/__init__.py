@@ -56,6 +56,7 @@ from .production import (
     platform_sdk_python,
 )
 from .stream import ResumableStream, StreamCursor, StreamEvent, StreamPage
+from .programs import ProgramCall, ProgramExecution, ProgramOperations, platform_sdk_programs
 from .mirror import MirrorCandidate, MirrorPolicy, MirrorVerification, MirrorVerificationError, MirrorVerifier
 from .verifier import (
     AuthorizedReceiptBatch,
@@ -163,4 +164,8 @@ __all__ = [
     "MirrorVerification",
     "MirrorVerificationError",
     "MirrorVerifier",
+    "ProgramCall",
+    "ProgramExecution",
+    "ProgramOperations",
+    "platform_sdk_programs",
 ]

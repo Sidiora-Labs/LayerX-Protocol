@@ -10,6 +10,7 @@ export {
   type ExplorerFreshness,
   type ExplorerPage,
   type ExplorerRecord,
+  type ExplorerProgramRecord,
   type ExplorerVerificationLevel,
   type ReceiptRecord,
 } from "./model";

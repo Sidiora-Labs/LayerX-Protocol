@@ -6,6 +6,7 @@ use layerx_platform_gateway::{
     authenticate_gateway_key, production_route, verify_activity_operation, verify_submission,
     AccessError, AuthorityFacts, IssuedKey, PrincipalId, ProductionRoute, Quota,
 };
+use layerx_crypto::ed25519;
 use layerx_types::payload::{ActivityType, ModuleId, ModuleRegistration, ModuleRegistry};
 use native_tls::{Certificate, Identity};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -79,7 +80,6 @@ struct PublicKeyRecord {
 }
 
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
 struct ComponentActivity {
     state: String,
     activity_id: String,
@@ -204,6 +204,66 @@ fn digest(parts: &[&[u8]]) -> String {
         hash.update(part);
     }
     format!("{:x}", hash.finalize())
+}
+
+fn verify_program_registry_document(body: &[u8], expected_program: &str, trusted_key: &[u8; 32]) -> Result<(), ()> {
+    let document: serde_json::Value = serde_json::from_slice(body).map_err(|_| ())?;
+    let value = document.get("result").unwrap_or(&document);
+    let program = value.get("program_id").and_then(serde_json::Value::as_str).ok_or(())?;
+    if !program.eq_ignore_ascii_case(expected_program) || value.get("lifecycle").is_some_and(|item| item.as_str() != Some("active")) { return Err(()); }
+    let program_id = parse_hex32(program).map_err(|_| ())?;
+    let version = u32::try_from(value.get("version").and_then(serde_json::Value::as_u64).ok_or(())?).map_err(|_| ())?;
+    let code_hash = parse_hex32(value.get("code_hash").and_then(serde_json::Value::as_str).ok_or(())?).map_err(|_| ())?;
+    let abi = u16::try_from(value.get("abi_version").and_then(serde_json::Value::as_u64).ok_or(())?).map_err(|_| ())?;
+    let sequence = value.get("observed_sequence").and_then(serde_json::Value::as_u64).ok_or(())?;
+    let observed_at = value.get("observed_at").and_then(serde_json::Value::as_u64).ok_or(())?;
+    let valid_through = value.get("valid_through").and_then(serde_json::Value::as_u64).ok_or(())?;
+    if observed_at == 0 || valid_through < now().map_err(|_| ())? { return Err(()); }
+    let state_root = parse_hex32(value.get("state_root").and_then(serde_json::Value::as_str).ok_or(())?).map_err(|_| ())?;
+    let receipt_digest = parse_hex32(value.get("receipt_digest").and_then(serde_json::Value::as_str).ok_or(())?).map_err(|_| ())?;
+    let public_key = parse_hex32(value.get("discovery_public_key").and_then(serde_json::Value::as_str).ok_or(())?).map_err(|_| ())?;
+    let signature: [u8; 64] = decode_hex(value.get("discovery_signature").and_then(serde_json::Value::as_str).ok_or(())?, 64).map_err(|_| ())?.try_into().map_err(|_| ())?;
+    if public_key != *trusted_key { return Err(()); }
+    let mut proof = b"LayerX/program-discovery-proof/v1\0".to_vec();
+    proof.extend_from_slice(&program_id); proof.push(1); proof.extend_from_slice(&version.to_be_bytes()); proof.extend_from_slice(&code_hash); proof.extend_from_slice(&abi.to_be_bytes()); proof.extend_from_slice(&sequence.to_be_bytes()); proof.extend_from_slice(&observed_at.to_be_bytes()); proof.extend_from_slice(&valid_through.to_be_bytes()); proof.extend_from_slice(&state_root);
+    let actual: [u8; 32] = Sha256::digest(&proof).into();
+    if actual != receipt_digest || ed25519::verify_digest(trusted_key, &signature, &actual).is_err() { return Err(()); }
+    if let Some(interface) = value.get("interface").and_then(serde_json::Value::as_str) {
+        let bytes = decode_hex(interface, 262_144).map_err(|_| ())?;
+        let expected = parse_hex32(value.get("interface_digest").and_then(serde_json::Value::as_str).ok_or(())?).map_err(|_| ())?;
+        if <[u8; 32]>::from(Sha256::digest(bytes)) != expected { return Err(()); }
+    }
+    Ok(())
+}
+
+fn verify_program_simulation_document(body: &[u8], trusted_key: &[u8; 32], expected_root: [u8; 32], expected_sequence: u64, expected_observed_at: u64) -> Result<(), ()> {
+    let document: serde_json::Value = serde_json::from_slice(body).map_err(|_| ())?;
+    let value = document.get("result").ok_or(())?;
+    let evidence = value.get("simulation_evidence").ok_or(())?;
+    if evidence.get("committed").and_then(serde_json::Value::as_bool) != Some(false) { return Err(()); }
+    let public_key = parse_hex32(evidence.get("public_key").and_then(serde_json::Value::as_str).ok_or(())?).map_err(|_| ())?;
+    let boundary = parse_hex32(evidence.get("boundary_id").and_then(serde_json::Value::as_str).ok_or(())?).map_err(|_| ())?;
+    let activity = parse_hex32(evidence.get("activity_id").and_then(serde_json::Value::as_str).ok_or(())?).map_err(|_| ())?;
+    let previous = parse_hex32(evidence.get("previous_state_root").and_then(serde_json::Value::as_str).ok_or(())?).map_err(|_| ())?;
+    let hypothetical = parse_hex32(evidence.get("hypothetical_state_root").and_then(serde_json::Value::as_str).ok_or(())?).map_err(|_| ())?;
+    let sequence = evidence.get("observed_sequence").and_then(serde_json::Value::as_u64).ok_or(())?;
+    let observed_at = evidence.get("observed_at").and_then(serde_json::Value::as_u64).ok_or(())?;
+    let signature: [u8; 64] = decode_hex(evidence.get("signature").and_then(serde_json::Value::as_str).ok_or(())?, 64).map_err(|_| ())?.try_into().map_err(|_| ())?;
+    if public_key != *trusted_key || previous != expected_root || sequence != expected_sequence || observed_at != expected_observed_at { return Err(()); }
+    let mut encoded = b"LayerX/program-simulation-evidence/v1\0".to_vec(); encoded.extend_from_slice(&boundary); encoded.extend_from_slice(&activity); encoded.extend_from_slice(&previous); encoded.extend_from_slice(&hypothetical); encoded.extend_from_slice(&sequence.to_be_bytes()); encoded.extend_from_slice(&observed_at.to_be_bytes()); encoded.push(0);
+    let digest: [u8; 32] = Sha256::digest(encoded).into();
+    ed25519::verify_digest(trusted_key, &signature, &digest).map_err(|_| ())
+}
+
+fn trusted_program_head(config: &Config) -> Result<([u8; 32], u64, u64), ()> {
+    let upstream = config.client.request(&config.authority, "GET", "/v1/programs/head", config.authority_token.as_str(), None, "application/json", &[]).map_err(|_| ())?;
+    if upstream.status != 200 || upstream.content_type != "application/json" { return Err(()); }
+    let value: serde_json::Value = serde_json::from_slice(&upstream.body).map_err(|_| ())?;
+    let root = parse_hex32(value.get("state_root").and_then(serde_json::Value::as_str).ok_or(())?).map_err(|_| ())?;
+    let sequence = value.get("observed_sequence").and_then(serde_json::Value::as_u64).ok_or(())?;
+    let observed_at = value.get("observed_at").and_then(serde_json::Value::as_u64).ok_or(())?;
+    if observed_at == 0 || now().map_err(|_| ())?.saturating_sub(observed_at) > 300 { return Err(()); }
+    Ok((root, sequence, observed_at))
 }
 
 fn valid_identifier(value: &str, maximum: usize) -> bool {
@@ -498,14 +558,19 @@ fn key_record(
 }
 
 fn canonical_scopes(scopes: &[String]) -> Result<String, ()> {
-    if scopes.is_empty() || scopes.len() > 3 {
+    if scopes.is_empty() || scopes.len() > 5 {
         return Err(());
     }
     let mut previous = None;
     for scope in scopes {
         if !matches!(
             scope.as_str(),
-            "activity:write" | "receipt:read" | "state:read"
+            "activity:write"
+                | "program:call"
+                | "program:read"
+                | "program:simulate"
+                | "receipt:read"
+                | "state:read"
         ) || previous.is_some_and(|value: &str| value >= scope.as_str())
         {
             return Err(());
@@ -522,11 +587,15 @@ fn record_scopes(record: &KeyRecord) -> Vec<&str> {
 fn permits(record: &KeyRecord, route: &ProductionRoute<'_>) -> bool {
     let required = match route {
         ProductionRoute::Activity => "activity:write",
+        ProductionRoute::ProgramCall => "program:call",
+        ProductionRoute::ProgramSimulation => "program:simulate",
         ProductionRoute::State => "state:read",
         ProductionRoute::Receipt(_) => "receipt:read",
-        ProductionRoute::ProgramRegistry(_) | ProductionRoute::ProgramRegistrySource(_) => {
-            "state:read"
-        }
+        ProductionRoute::ProgramRegistry(_)
+        | ProductionRoute::ProgramInterface(_)
+        | ProductionRoute::ProgramActivity(_)
+        | ProductionRoute::ProgramReceiptByIdempotency(_) => "program:read",
+        ProductionRoute::ProgramRegistrySource(_) => "state:read",
     };
     record.scopes.split(',').any(|scope| scope == required)
 }
@@ -829,6 +898,8 @@ fn activity(
     request: &IncomingRequest,
     record: &KeyRecord,
     trace_id: &str,
+    component_path: &str,
+    program_response: bool,
 ) -> OutgoingResponse {
     let idempotency = match request.headers.get("idempotency-key") {
         Some(value) if valid_identifier(value, 128) => value,
@@ -961,7 +1032,7 @@ fn activity(
     let upstream = match config.client.request(
         &config.component,
         "POST",
-        "/v1/activities",
+        component_path,
         config.component_token.as_str(),
         Some(&protocol_idempotency),
         "application/octet-stream",
@@ -971,19 +1042,21 @@ fn activity(
         Err(_) => {
             return json_response(
                 202,
-                serde_json::json!({ "ok": true, "result": { "state": "unknown" }, "trace": trace_id }),
+                serde_json::json!({ "ok": true, "result": { "state": "unknown", "activity_id": submitted_activity_id, "idempotency_key": protocol_idempotency, "retained_signed_activity": hex(&canonical) }, "trace": trace_id }),
             )
         }
     };
     if upstream.status == 202 {
         return json_response(
             202,
-            serde_json::json!({ "ok": true, "result": { "state": "acknowledged" }, "trace": trace_id }),
+            serde_json::json!({ "ok": true, "result": { "state": "unknown", "activity_id": submitted_activity_id, "idempotency_key": protocol_idempotency, "retained_signed_activity": hex(&canonical) }, "trace": trace_id }),
         );
     }
     if upstream.status != 200 || upstream.content_type != "application/json" {
         return if (400..500).contains(&upstream.status) {
-            let refusal = response(upstream.status, "activity_refused", None);
+            let refusal = if upstream.content_type == "application/json" && !upstream.body.is_empty() {
+                OutgoingResponse { status: upstream.status, body: upstream.body, retry_after: None }
+            } else { response(upstream.status, "activity_refused", None) };
             if config
                 .store
                 .complete(
@@ -1010,11 +1083,16 @@ fn activity(
         } else {
             json_response(
                 202,
-                serde_json::json!({ "ok": true, "result": { "state": "unknown" }, "trace": trace_id }),
+                serde_json::json!({ "ok": true, "result": { "state": "unknown", "activity_id": submitted_activity_id, "idempotency_key": protocol_idempotency, "retained_signed_activity": hex(&canonical) }, "trace": trace_id }),
             )
         };
     }
-    let component: ComponentActivity = match serde_json::from_slice(&upstream.body) {
+    let document: serde_json::Value = match serde_json::from_slice(&upstream.body) {
+        Ok(value) => value,
+        Err(_) => return response(503, "component_invalid", Some(5)),
+    };
+    let payload = document.get("result").unwrap_or(&document);
+    let component: ComponentActivity = match serde_json::from_value(payload.clone()) {
         Ok(value) => value,
         Err(_) => return response(503, "component_invalid", Some(5)),
     };
@@ -1031,13 +1109,28 @@ fn activity(
             Ok(value) => value,
             Err(error) => return error,
         };
+    let verified_result = match serde_json::from_slice::<serde_json::Value>(&result) {
+        Ok(value) => value,
+        Err(_) => return response(503, "receipt_encoding_failed", Some(5)),
+    };
+    let response_result = if program_response {
+        let mut typed = payload.clone();
+        if let Some(object) = typed.as_object_mut() {
+            object.insert("verified_receipt".to_owned(), verified_result);
+        }
+        typed
+    } else { verified_result };
+    let durable_result = match serde_json::to_vec(&response_result) {
+        Ok(value) => value,
+        Err(_) => return response(503, "receipt_encoding_failed", Some(5)),
+    };
     if config
         .store
         .complete(
             &scope,
             &request_digest,
             "completed",
-            &hex(&result),
+            &hex(&durable_result),
             &hex(&receipt),
             Some(&component.activity_id.to_ascii_lowercase()),
             &record.principal_digest,
@@ -1052,14 +1145,7 @@ fn activity(
     {
         return response(503, "persistence_unavailable", Some(5));
     }
-    let result = match serde_json::from_slice::<serde_json::Value>(&result) {
-        Ok(value) => value,
-        Err(_) => return response(503, "receipt_encoding_failed", Some(5)),
-    };
-    json_response(
-        200,
-        serde_json::json!({ "ok": true, "result": result, "trace": trace_id }),
-    )
+    json_response(200, serde_json::json!({ "ok": true, "result": response_result, "trace": trace_id }))
 }
 
 fn read_route(
@@ -1068,6 +1154,10 @@ fn read_route(
     route: ProductionRoute<'_>,
     trace_id: &str,
 ) -> OutgoingResponse {
+    let route = match route {
+        ProductionRoute::ProgramActivity(activity_id) => ProductionRoute::Receipt(activity_id),
+        other => other,
+    };
     if matches!(route, ProductionRoute::State) {
         return response(503, "principal_state_proof_unavailable", Some(30));
     }
@@ -1159,14 +1249,63 @@ fn read_route(
             if upstream.content_type != "application/json" {
                 return response(503, "program_registry_invalid", Some(5));
             }
+            if verify_program_registry_document(&upstream.body, program, &config.trusted_sequencer_key).is_err() {
+                return response(503, "program_registry_unverified", Some(5));
+            }
             OutgoingResponse {
                 status: upstream.status,
                 body: upstream.body,
                 retry_after: None,
             }
         }
+        ProductionRoute::ProgramInterface(program) => {
+            let upstream = match config.client.request(
+                &config.registry,
+                "GET",
+                &format!("/v1/programs/registry/{program}/interface"),
+                config.registry_token.as_str(),
+                None,
+                "application/json",
+                &[],
+            ) {
+                Ok(value) => value,
+                Err(_) => return response(503, "program_registry_unavailable", Some(5)),
+            };
+            if upstream.content_type != "application/json" {
+                return response(503, "program_registry_invalid", Some(5));
+            }
+            if verify_program_registry_document(&upstream.body, program, &config.trusted_sequencer_key).is_err() {
+                return response(503, "program_registry_unverified", Some(5));
+            }
+            OutgoingResponse { status: upstream.status, body: upstream.body, retry_after: None }
+        }
+        ProductionRoute::ProgramActivity(_) => response(404, "not_found", None),
+        ProductionRoute::ProgramReceiptByIdempotency(idempotency) => {
+            let scope = digest(&[
+                record.principal_digest.as_bytes(),
+                record.key_id.as_bytes(),
+                idempotency.as_bytes(),
+            ]);
+            let operation = match config.store.operation(&scope) {
+                Ok(Some(value)) if value.principal == record.principal_digest => value,
+                Ok(Some(_)) | Ok(None) => return response(404, "receipt_not_found", None),
+                Err(_) => return response(503, "persistence_unavailable", Some(5)),
+            };
+            if operation.state == "pending" || operation.state == "reserved" || operation.state == "acknowledged" || operation.state == "unknown" {
+                return json_response(202, serde_json::json!({
+                    "ok": true,
+                    "result": { "state": "unknown", "idempotency_key": idempotency },
+                    "trace": trace_id
+                }));
+            }
+            let body = match decode_hex(&operation.response, MAX_REQUEST) {
+                Ok(value) => value,
+                Err(_) => return response(503, "persistence_unavailable", Some(5)),
+            };
+            OutgoingResponse { status: 200, body, retry_after: None }
+        }
         ProductionRoute::ProgramRegistrySource(_) => response(405, "method_not_allowed", None),
-        ProductionRoute::Activity => response(404, "not_found", None),
+        ProductionRoute::Activity | ProductionRoute::ProgramCall | ProductionRoute::ProgramSimulation => response(404, "not_found", None),
     }
 }
 
@@ -1314,7 +1453,33 @@ fn route(config: &Config, request: &IncomingRequest) -> OutgoingResponse {
     }
     let trace_id = trace(request);
     match parsed {
-        ProductionRoute::Activity => activity(config, request, &record, &trace_id),
+        ProductionRoute::Activity => activity(config, request, &record, &trace_id, "/v1/activities", false),
+        ProductionRoute::ProgramCall => activity(config, request, &record, &trace_id, "/v1/programs/call", true),
+        ProductionRoute::ProgramSimulation => {
+            let (trusted_root, trusted_sequence, trusted_observed_at) = match trusted_program_head(config) {
+                Ok(value) => value,
+                Err(()) => return response(503, "program_head_unavailable", Some(5)),
+            };
+            let upstream = match config.client.request(
+                &config.component,
+                "POST",
+                "/v1/programs/simulate",
+                config.component_token.as_str(),
+                None,
+                "application/json",
+                &request.body,
+            ) {
+                Ok(value) => value,
+                Err(_) => return response(503, "component_unavailable", Some(5)),
+            };
+            if upstream.content_type != "application/json" {
+                return response(503, "component_invalid", Some(5));
+            }
+            if verify_program_simulation_document(&upstream.body, &config.trusted_sequencer_key, trusted_root, trusted_sequence, trusted_observed_at).is_err() {
+                return response(503, "program_simulation_unverified", Some(5));
+            }
+            OutgoingResponse { status: upstream.status, body: upstream.body, retry_after: None }
+        }
         ProductionRoute::ProgramRegistrySource(program) => {
             let upstream = match config.client.request(
                 &config.registry,

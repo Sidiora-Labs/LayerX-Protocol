@@ -1,0 +1,111 @@
+[module]
+name = "programs"
+contract_major = 1
+compatibility = "additive_only"
+source_of_truth = "The program operation and evidence records are shared by every generated SDK."
+
+[limit]
+program_id_bytes = 32
+code_hash_bytes = 32
+calldata_bytes = 1048576
+interface_bytes = 262144
+capabilities = 256
+capability_bytes = 4096
+receipt_bytes = 1048576
+terminal_attachment_bytes = 1048576
+
+[type.ProgramSelector]
+required = ["program_id","requested_verification_level"]
+program_id = "bytes32"
+
+[type.VerifiedProgramVersion]
+required = ["number","code_hash","abi_version","interface_digest"]
+code_hash = "bytes32"
+interface_digest = "optional_bytes32"
+
+[type.VerifiedProgramDiscovery]
+required = ["program_id","lifecycle","active_version","versions","receipt_digest","state_root","freshness","valid_through"]
+proof = "receipt_verified_registry_read"
+code_hash_binding = "active_version.code_hash"
+
+[type.VerifiedProgramInterface]
+required = ["program_id","version","code_hash","abi_version","interface","interface_digest","receipt_digest","freshness","valid_through"]
+proof = "receipt_verified_registry_read"
+absence = "typed_absent_only_when_verified_version_has_no_interface_digest"
+
+[type.ProgramCallBudget]
+required = ["fuel","fee_limit"]
+fuel = "u64"
+fee_limit = "u128_decimal"
+
+[type.ProgramCallRequest]
+required = ["program_id","version","code_hash","abi_version","entrypoint","calldata","budget","capabilities","signed_activity"]
+calldata = "bounded_bytes"
+capabilities = "bounded_canonical_capability_set"
+identity_binding = "must_equal_verified_discovery_and_interface"
+
+[type.ProgramSimulation]
+required = ["outcome","receipt","terminal_attachments","evidence","freshness"]
+committed = false
+proof = "boundary_signed_non_commit_evidence_and_locally_verified_receipt"
+
+[type.ProgramSubmission]
+required = ["state","activity_id","idempotency_key","retained_signed_activity","outcome"]
+states = ["refused","unknown","executed"]
+unknown = "first_class_and_resolved_by_program.receipt"
+executed = "locally_verified_receipt_and_terminal_attachments"
+
+[type.ProgramOutcome]
+variants = ["completed","failed"]
+required = ["result_code","response","fuel_used","fee_units","graph","occupancy","transfer_authority"]
+source = "canonical_receipt_program_outcome_and_authenticated_terminal_attachments"
+
+[type.ProgramFailure]
+variants = ["unknown_program","inactive_program","version_mismatch","code_hash_mismatch","abi_mismatch","entrypoint","composition","reentrancy","depth_exceeded","fanout_exceeded","guest_refused","authority","resource","settlement","callback","fault"]
+source = "canonical_tag_specific_terminal_failure_grammar"
+
+[operation.program.discover]
+method = "GET"
+path = "/v1/programs/registry/{program_id}"
+request = "ProgramSelector"
+request_required = ["program_id","requested_verification_level"]
+response = "VerifiedProgramDiscovery"
+scope = "program:read"
+
+[operation.program.interface]
+method = "GET"
+path = "/v1/programs/registry/{program_id}/interface"
+request_required = ["program_id","version","requested_verification_level"]
+response = "VerifiedProgramInterface"
+scope = "program:read"
+
+[operation.program.simulate]
+method = "POST"
+path = "/v1/programs/simulate"
+request = "ProgramCallRequest"
+response = "ProgramSimulation"
+scope = "program:simulate"
+non_committing = true
+
+[operation.program.call]
+method = "POST"
+path = "/v1/programs/call"
+request = "ProgramCallRequest"
+required = ["idempotency_key"]
+response = "ProgramSubmission"
+scope = "program:call"
+unknown_outcome = "retained_signed_activity_with_receipt_lookup"
+
+[operation.program.receipt]
+method = "GET"
+path = "/v1/programs/receipts/by-idempotency/{idempotency_key}"
+request_required = ["idempotency_key","expected_activity_id","requested_verification_level"]
+response = "ProgramSubmission"
+scope = "program:read"
+
+[operation.program.activity]
+method = "GET"
+path = "/v1/programs/activities/{activity_id}"
+request_required = ["activity_id","requested_verification_level"]
+response = "ProgramSubmission"
+scope = "program:read"

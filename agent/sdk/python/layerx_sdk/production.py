@@ -11,7 +11,8 @@ AGENT_OPERATIONS: tuple[Operation, ...] = (
     "agent.register", "approval.approve", "approval.get", "approval.list", "approval.reject",
     "availability.fetch", "budget.create", "budget.fund", "budget.list", "budget.reconciliation",
     "budget.revoke", "capability.attenuate", "capability.create", "capability.list",
-    "capability.revoke", "export.offline", "prepare", "project", "read.account", "read.balance",
+    "capability.revoke", "export.offline", "prepare", "program.activity", "program.call",
+    "program.discover", "program.interface", "program.receipt", "program.simulate", "project", "read.account", "read.balance",
     "read.batch", "read.checkpoint", "read.history", "read.module_state", "read.proof_bundle",
     "session.close", "session.list", "session.open", "session.refresh", "sign", "submit",
     "subscription.acknowledge", "subscription.create", "subscription.delete", "subscription.health",
@@ -204,7 +205,7 @@ class SdkTelemetry(Protocol):
 _AGENT_IDEMPOTENT = frozenset({
     "agent.register", "approval.approve", "approval.reject", "budget.create", "budget.fund",
     "budget.revoke", "capability.attenuate", "capability.create", "capability.revoke", "prepare",
-    "session.close", "session.open", "session.refresh", "sign", "submit",
+    "program.call", "session.close", "session.open", "session.refresh", "sign", "submit",
     "subscription.acknowledge", "subscription.create", "subscription.delete", "subscription.pause",
     "subscription.resume",
 })
