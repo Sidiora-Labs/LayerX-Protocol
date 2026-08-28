@@ -3,6 +3,7 @@
 #![deny(unsafe_code)]
 
 pub mod lease;
+pub mod snapshot;
 
 pub use lease::{
     usage_observation_digest, BoundKind, EphemeralNamespace, Lease, LeaseActivity, LeaseBook, LeaseId, LeaseLimits,
@@ -11,4 +12,9 @@ pub use lease::{
     MAX_LEASE_ESCROW, MAX_LEASE_LIFETIME_BATCHES, MAX_LEASE_MEMORY_BYTES,
     MAX_LEASE_NAMESPACE_BYTES, MAX_LEASE_OUTPUT_BYTES, MAX_LEASE_OUTPUT_VALUES,
     MAX_LEASE_STORAGE_READ_BYTES, MAX_LEASE_STORAGE_WRITE_BYTES, MAX_LEASE_TABLE_ELEMENTS,
+};
+pub use snapshot::{
+    restore, ContinuationPoint, ContinuationValue, NamespaceCell, PreparedRestore, SandboxState,
+    Snapshot, SnapshotRefusal, MAX_SANDBOX_GLOBALS, MAX_SANDBOX_LINEAR_MEMORY_BYTES,
+    MAX_SANDBOX_NAMESPACE_CELLS, MAX_SANDBOX_OPERAND_STACK,
 };
