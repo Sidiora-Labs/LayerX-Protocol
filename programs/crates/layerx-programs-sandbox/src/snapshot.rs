@@ -3,9 +3,10 @@
 use core::fmt::{self, Display};
 
 use layerx_programs_runtime::{hash_bytes, HashAlgorithm, Meter, MeterRefusal, PrincipalId,
-    WasmValue};
+    RuntimeContinuation, RuntimeGlobal, WasmValue};
 
-use crate::{EphemeralNamespace, Lease, LeaseId, LeaseState};
+use crate::{EphemeralNamespace, Lease, LeaseActivity, LeaseId, LeaseRefusal, LeaseState,
+    LeaseTransition, TransitionEvidence};
 
 const SNAPSHOT_DOMAIN: &[u8] = b"LayerX/programs/sandbox/snapshot/v1\0";
 pub const MAX_SANDBOX_LINEAR_MEMORY_BYTES: usize = 1 << 30;
@@ -15,9 +16,8 @@ pub const MAX_SANDBOX_NAMESPACE_CELLS: usize = 1_048_576;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContinuationPoint {
-    pub function_index: u32,
-    pub instruction_offset: u64,
-    pub operand_stack: Vec<WasmValue>,
+    pub entrypoint: String,
+    pub arguments: Vec<WasmValue>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -31,7 +31,7 @@ pub struct SandboxState {
     source_lease: LeaseId,
     source_namespace: EphemeralNamespace,
     linear_memory: Vec<u8>,
-    globals: Vec<WasmValue>,
+    globals: Vec<RuntimeGlobal>,
     continuation: ContinuationPoint,
     namespace_cells: Vec<NamespaceCell>,
 }
@@ -40,7 +40,7 @@ impl SandboxState {
     pub fn new(
         lease: &Lease,
         linear_memory: Vec<u8>,
-        globals: Vec<WasmValue>,
+        globals: Vec<RuntimeGlobal>,
         continuation: ContinuationPoint,
         namespace_cells: Vec<NamespaceCell>,
     ) -> Result<Self, SnapshotRefusal> {
@@ -50,17 +50,25 @@ impl SandboxState {
         Ok(state)
     }
 
+    pub fn from_runtime(
+        lease: &Lease, runtime: RuntimeContinuation, namespace_cells: Vec<NamespaceCell>,
+    ) -> Result<Self, SnapshotRefusal> {
+        Self::new(lease, runtime.linear_memory, runtime.globals,
+            ContinuationPoint { entrypoint: runtime.entrypoint, arguments: runtime.arguments },
+            namespace_cells)
+    }
+
     #[must_use] pub const fn source_lease(&self) -> LeaseId { self.source_lease }
     #[must_use] pub const fn source_namespace(&self) -> EphemeralNamespace { self.source_namespace }
     #[must_use] pub fn linear_memory(&self) -> &[u8] { &self.linear_memory }
-    #[must_use] pub fn globals(&self) -> &[WasmValue] { &self.globals }
+    #[must_use] pub fn globals(&self) -> &[RuntimeGlobal] { &self.globals }
     #[must_use] pub const fn continuation(&self) -> &ContinuationPoint { &self.continuation }
     #[must_use] pub fn namespace_cells(&self) -> &[NamespaceCell] { &self.namespace_cells }
 
     fn validate(&self) -> Result<(), SnapshotRefusal> {
         if self.linear_memory.len() > MAX_SANDBOX_LINEAR_MEMORY_BYTES
             || self.globals.len() > MAX_SANDBOX_GLOBALS
-            || self.continuation.operand_stack.len() > MAX_SANDBOX_OPERAND_STACK
+            || self.continuation.arguments.len() > MAX_SANDBOX_OPERAND_STACK
             || self.namespace_cells.len() > MAX_SANDBOX_NAMESPACE_CELLS {
             return Err(SnapshotRefusal::StateBoundExceeded);
         }
@@ -70,6 +78,11 @@ impl SandboxState {
                 return Err(SnapshotRefusal::NonCanonicalNamespace);
             }
             prior = Some(&cell.key);
+        }
+        if self.continuation.entrypoint.is_empty()
+            || self.globals.windows(2).any(|pair| pair[0].name >= pair[1].name)
+            || self.globals.iter().any(|global| global.name.is_empty()) {
+            return Err(SnapshotRefusal::NonCanonicalContinuation);
         }
         Ok(())
     }
@@ -100,11 +113,13 @@ impl SandboxState {
         output.extend_from_slice(&self.source_namespace.bytes());
         put_bytes(&mut output, &self.linear_memory)?;
         put_len(&mut output, self.globals.len())?;
-        for value in &self.globals { encode_value(*value, &mut output); }
-        output.extend_from_slice(&self.continuation.function_index.to_be_bytes());
-        output.extend_from_slice(&self.continuation.instruction_offset.to_be_bytes());
-        put_len(&mut output, self.continuation.operand_stack.len())?;
-        for value in &self.continuation.operand_stack { encode_value(*value, &mut output); }
+        for global in &self.globals {
+            put_bytes(&mut output, global.name.as_bytes())?;
+            encode_value(global.value, &mut output);
+        }
+        put_bytes(&mut output, self.continuation.entrypoint.as_bytes())?;
+        put_len(&mut output, self.continuation.arguments.len())?;
+        for value in &self.continuation.arguments { encode_value(*value, &mut output); }
         put_len(&mut output, self.namespace_cells.len())?;
         for cell in &self.namespace_cells {
             put_bytes(&mut output, &cell.key)?;
@@ -123,6 +138,14 @@ impl SandboxState {
         self.source_namespace = target.namespace();
         self
     }
+
+
+    #[must_use]
+    pub fn runtime_continuation(&self) -> RuntimeContinuation {
+        RuntimeContinuation { linear_memory: self.linear_memory.clone(), globals: self.globals.clone(),
+            entrypoint: self.continuation.entrypoint.clone(),
+            arguments: self.continuation.arguments.clone() }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -138,7 +161,7 @@ pub struct Snapshot {
 
 impl Snapshot {
     pub fn commit(
-        lease: &Lease, state: &SandboxState, renter: PrincipalId, meter: &mut Meter,
+        lease: &mut Lease, state: &SandboxState, renter: PrincipalId, meter: &mut Meter,
     ) -> Result<Self, SnapshotRefusal> {
         if lease.state() != LeaseState::Active { return Err(SnapshotRefusal::LeaseNotActive); }
         if renter != lease.tenant() { return Err(SnapshotRefusal::NotSnapshotOwner); }
@@ -148,9 +171,12 @@ impl Snapshot {
         state.validate_against(lease)?;
         let bytes = state.canonical_bytes()?;
         let byte_length = u64::try_from(bytes.len()).map_err(|_| SnapshotRefusal::StateBoundExceeded)?;
-        meter.charge_storage_write(byte_length).map_err(SnapshotRefusal::Meter)?;
         let digest = hash_bytes(HashAlgorithm::Sha256, &bytes)
             .map_err(|_| SnapshotRefusal::HashRefusal)?;
+        let mut candidate = lease.clone();
+        candidate.bind_snapshot(digest, bytes).map_err(SnapshotRefusal::Lease)?;
+        meter.charge_storage_write(byte_length).map_err(SnapshotRefusal::Meter)?;
+        *lease = candidate;
         Ok(Self { digest, owner: renter, source_lease: lease.id(),
             source_namespace: lease.namespace(), host_program: lease.host_program().bytes(),
             image_code_hash: lease.image_code_hash(), byte_length })
@@ -173,8 +199,9 @@ impl PreparedRestore {
 }
 
 pub fn restore(
-    target: &Lease, snapshot: &Snapshot, supplied: SandboxState,
-    renter: PrincipalId, meter: &mut Meter,
+    target: &mut Lease, snapshot: &Snapshot, supplied: SandboxState,
+    renter: PrincipalId, meter: &mut Meter, activation: LeaseTransition,
+    evidence: TransitionEvidence,
 ) -> Result<PreparedRestore, SnapshotRefusal> {
     if target.state() != LeaseState::Funded { return Err(SnapshotRefusal::TargetNotFunded); }
     if renter != snapshot.owner || renter != target.tenant() {
@@ -195,9 +222,18 @@ pub fn restore(
         || hash_bytes(HashAlgorithm::Sha256, &bytes).map_err(|_| SnapshotRefusal::HashRefusal)? != snapshot.digest {
         return Err(SnapshotRefusal::DigestMismatch);
     }
+    if activation.activity != LeaseActivity::Activate
+        || activation.from != LeaseState::Funded || activation.to != LeaseState::Active {
+        return Err(SnapshotRefusal::InvalidActivation);
+    }
+    let mut candidate = target.clone();
+    candidate.bind_restore(snapshot.digest).map_err(SnapshotRefusal::Lease)?;
+    candidate.transition(activation, evidence).map_err(SnapshotRefusal::Lease)?;
     meter.charge_storage_write(byte_length).map_err(SnapshotRefusal::Meter)?;
-    Ok(PreparedRestore { target_lease: target.id(), snapshot_digest: snapshot.digest,
-        state: supplied.rebind(target) })
+    let prepared = PreparedRestore { target_lease: target.id(), snapshot_digest: snapshot.digest,
+        state: supplied.rebind(target) };
+    *target = candidate;
+    Ok(prepared)
 }
 
 fn put_len(output: &mut Vec<u8>, length: usize) -> Result<(), SnapshotRefusal> {
@@ -232,11 +268,14 @@ pub enum SnapshotRefusal {
     StateLeaseMismatch,
     IncompatibleTarget,
     NonCanonicalNamespace,
+    NonCanonicalContinuation,
     StateBoundExceeded,
     TargetBoundExceeded,
     DigestMismatch,
+    InvalidActivation,
     HashRefusal,
     Meter(MeterRefusal),
+    Lease(LeaseRefusal),
 }
 
 impl Display for SnapshotRefusal {

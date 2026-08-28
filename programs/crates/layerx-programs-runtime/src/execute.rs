@@ -2,7 +2,7 @@
 
 use core::fmt::{self, Display};
 
-use wasmi::core::TrapCode;
+use wasmi::core::{Pages, TrapCode};
 use wasmi::{Extern, Instance, Memory, Store, Value};
 
 use crate::abi::context::ExecutionContext;
@@ -38,6 +38,20 @@ pub enum WasmValue {
     I32(i32),
     /// A 64-bit integer value.
     I64(i64),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeGlobal {
+    pub name: String,
+    pub value: WasmValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeContinuation {
+    pub linear_memory: Vec<u8>,
+    pub globals: Vec<RuntimeGlobal>,
+    pub entrypoint: String,
+    pub arguments: Vec<WasmValue>,
 }
 
 impl From<WasmValue> for Value {
@@ -235,6 +249,67 @@ impl ProgramInstance {
                 }
             })
             .collect()
+    }
+
+    pub fn capture_continuation(
+        &self, entrypoint: &str, arguments: &[WasmValue],
+    ) -> Result<RuntimeContinuation, ExecutionFault> {
+        if self.instance.get_export(&self.store, entrypoint)
+            .and_then(Extern::into_func).is_none() {
+            return Err(ExecutionFault::UnknownExport { name: entrypoint.to_string() });
+        }
+        let memory = self.linear_memory().ok_or_else(|| ExecutionFault::UnknownExport {
+            name: "memory".to_string(),
+        })?;
+        let linear_memory = memory.data(&self.store).to_vec();
+        let mut globals = Vec::new();
+        for export in self.instance.exports(&self.store) {
+            let name = export.name().to_string();
+            let Some(global) = export.into_global() else { continue; };
+            if !global.ty(&self.store).mutability().is_mut() { continue; }
+            let value = match global.get(&self.store) {
+                Value::I32(value) => WasmValue::I32(value),
+                Value::I64(value) => WasmValue::I64(value),
+                Value::F32(_) | Value::F64(_) | Value::FuncRef(_) | Value::ExternRef(_) => {
+                    return Err(ExecutionFault::NonIntegerValue);
+                }
+            };
+            globals.push(RuntimeGlobal { name, value });
+        }
+        globals.sort_by(|left, right| left.name.cmp(&right.name));
+        Ok(RuntimeContinuation { linear_memory, globals, entrypoint: entrypoint.to_string(),
+            arguments: arguments.to_vec() })
+    }
+
+    pub fn restore_continuation(
+        &mut self, continuation: &RuntimeContinuation,
+    ) -> Result<Vec<WasmValue>, ExecutionFault> {
+        let memory = self.linear_memory().ok_or_else(|| ExecutionFault::UnknownExport {
+            name: "memory".to_string(),
+        })?;
+        let current = memory.data(&self.store).len();
+        if continuation.linear_memory.len() < current
+            || continuation.linear_memory.len() % 65_536 != 0 {
+            return Err(ExecutionFault::MemoryOutOfBounds);
+        }
+        let additional = (continuation.linear_memory.len() - current) / 65_536;
+        if additional != 0 {
+            let pages = Pages::new(u32::try_from(additional)
+                .map_err(|_| ExecutionFault::MemoryOutOfBounds)?)
+                .ok_or(ExecutionFault::MemoryOutOfBounds)?;
+            memory.grow(&mut self.store, pages)
+                .map_err(|_| ExecutionFault::MemoryOutOfBounds)?;
+        }
+        memory.write(&mut self.store, 0, &continuation.linear_memory)
+            .map_err(|_| ExecutionFault::MemoryOutOfBounds)?;
+        for restored in &continuation.globals {
+            let global = self.instance.get_export(&self.store, &restored.name)
+                .and_then(Extern::into_global)
+                .ok_or_else(|| ExecutionFault::UnknownExport { name: restored.name.clone() })?;
+            global.set(&mut self.store, Value::from(restored.value))
+                .map_err(|error| ExecutionFault::EngineFault { reason: error.to_string() })?;
+        }
+        self.call(&continuation.entrypoint, &continuation.arguments)
     }
 
     /// Borrows the exact meter state for this isolated execution.

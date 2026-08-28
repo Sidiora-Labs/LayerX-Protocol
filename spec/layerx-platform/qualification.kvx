@@ -510,6 +510,14 @@ observed = "The task do clauses say to prove the p75 budgets and 3G journey beha
 assumption = "Human qualification under task 14.5 will execute make human-e2e-perf against representative production pages and the real journey stack and will record the p75 and 3G evidence."
 severity = "phase-boundary"
 
+[observation.34.6.1]
+task = "34.6"
+file = "programs/crates/layerx-programs-runtime/src/execute.rs, programs/crates/layerx-programs-sandbox/src/lease.rs, programs/crates/layerx-programs-sandbox/src/snapshot.rs"
+symbol = "ProgramInstance::capture_continuation, ProgramInstance::restore_continuation, Lease::snapshot_records, Lease::restored_from"
+observed = "The declared task touch named only snapshot.rs, but acceptance 41.6 cannot be implemented by an in-memory projection. The production path must capture and restore the actual Wasmi instance linear memory and every declared exported mutable integer global, preserve the declared continuation entry point and arguments, bind committed and restored snapshot digests into canonical lease protocol state, and perform restore binding plus the receipt-backed Funded-to-Active transition atomically. The implementation therefore necessarily expands into the runtime instance and lease state files and records those bindings in canonical lease encoding. Programs using sandbox continuation must declare every mutable continuation global as an export; the stripped engine has no safe API for introspecting non-exported globals or an in-flight operand stack, so continuation points are activity-boundary exports with an empty engine operand stack rather than arbitrary instruction suspension."
+assumption = "Human qualification must inspect sandbox program interfaces for complete mutable-global export declarations, run the real uninterrupted versus snapshot-destroy-restore continuation vector under the production engine, compare outputs and incremental metered usage byte-for-byte, and reject a module that hides continuation-bearing mutable state. No build, test, formatter or runtime result is asserted by this implementation-phase source work."
+severity = "qualification-required"
+
 [observation.33.5.1]
 task = "33.5"
 file = "programs/benches/interpreter.rs, programs/benches/compiled-equivalent, platform/docs/content/guide/programs.md, Makefile"

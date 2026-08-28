@@ -20,6 +20,7 @@ const TRANSITION_CALLDATA_BYTES: usize = 101;
 const ESCROW_SEED_DOMAIN: &[u8] = b"sandbox-lease-escrow/v1\0";
 const LEASE_STATE_DOMAIN: &[u8] = b"LayerX/programs/sandbox/lease-state/v1\0";
 const MAX_LEASE_TRANSITIONS: usize = 6;
+const MAX_LEASE_SNAPSHOTS: usize = 64;
 
 pub const MAX_CONCURRENT_LEASES_PER_PRINCIPAL: u32 = 32;
 pub const MAX_LEASE_CPU_FUEL: u64 = 1_000_000_000;
@@ -358,12 +359,27 @@ pub struct Lease {
     usage: LeaseUsage,
     escrow_consumed: u128,
     history: Vec<LeaseTransitionReceipt>,
+    snapshot_records: Vec<LeaseSnapshotRecord>,
+    restored_from: Option<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LeaseStateWitness {
     canonical_state: Vec<u8>,
     digest: [u8; 32],
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LeaseSnapshotRecord {
+    digest: [u8; 32],
+    namespace: EphemeralNamespace,
+    canonical_state: Vec<u8>,
+}
+
+impl LeaseSnapshotRecord {
+    #[must_use] pub const fn digest(&self) -> [u8; 32] { self.digest }
+    #[must_use] pub const fn namespace(&self) -> EphemeralNamespace { self.namespace }
+    #[must_use] pub fn canonical_state(&self) -> &[u8] { &self.canonical_state }
 }
 
 impl LeaseStateWitness {
@@ -398,7 +414,7 @@ impl Lease {
             id, tenant, host_program, image_code_hash, namespace: EphemeralNamespace::derive(host_program, id)?,
             escrow_asset, escrow_account, escrow_amount, limits: limits.validate()?, opened_at, expiry,
             state: LeaseState::Requested, usage: LeaseUsage::default(), escrow_consumed: 0,
-            history: Vec::new(),
+            history: Vec::new(), snapshot_records: Vec::new(), restored_from: None,
         })
     }
 
@@ -417,6 +433,33 @@ impl Lease {
     #[must_use] pub const fn usage(&self) -> LeaseUsage { self.usage }
     #[must_use] pub const fn escrow_consumed(&self) -> u128 { self.escrow_consumed }
     #[must_use] pub fn history(&self) -> &[LeaseTransitionReceipt] { &self.history }
+    #[must_use] pub fn snapshot_records(&self) -> &[LeaseSnapshotRecord] { &self.snapshot_records }
+    #[must_use] pub const fn restored_from(&self) -> Option<[u8; 32]> { self.restored_from }
+
+    pub(crate) fn bind_snapshot(
+        &mut self, digest: [u8; 32], canonical_state: Vec<u8>,
+    ) -> Result<(), LeaseRefusal> {
+        if digest == [0; 32] || canonical_state.is_empty()
+            || self.snapshot_records.iter().any(|record| record.digest == digest) {
+            return Err(LeaseRefusal::InvalidSnapshotBinding);
+        }
+        if self.snapshot_records.len() >= MAX_LEASE_SNAPSHOTS
+            || u64::try_from(canonical_state.len()).map_err(|_| LeaseRefusal::SnapshotBindingOverflow)?
+                > self.limits.namespace_bytes {
+            return Err(LeaseRefusal::SnapshotBindingOverflow);
+        }
+        self.snapshot_records.push(LeaseSnapshotRecord { digest, namespace: self.namespace,
+            canonical_state });
+        Ok(())
+    }
+
+    pub(crate) fn bind_restore(&mut self, digest: [u8; 32]) -> Result<(), LeaseRefusal> {
+        if digest == [0; 32] || self.restored_from.is_some() {
+            return Err(LeaseRefusal::InvalidSnapshotBinding);
+        }
+        self.restored_from = Some(digest);
+        Ok(())
+    }
 
     #[must_use]
     pub fn request_binding_digest(&self) -> Result<[u8; 32], LeaseRefusal> {
@@ -466,6 +509,19 @@ impl Lease {
             out.extend_from_slice(&receipt.transition.usage_observation_digest);
             out.extend_from_slice(&receipt.receipt_digest);
             out.extend_from_slice(&receipt.batch_sequence.to_be_bytes());
+        }
+        out.extend_from_slice(&u16::try_from(self.snapshot_records.len())
+            .map_err(|_| LeaseRefusal::SnapshotBindingOverflow)?.to_be_bytes());
+        for record in &self.snapshot_records {
+            out.extend_from_slice(&record.digest);
+            out.extend_from_slice(&record.namespace.bytes());
+            out.extend_from_slice(&u64::try_from(record.canonical_state.len())
+                .map_err(|_| LeaseRefusal::SnapshotBindingOverflow)?.to_be_bytes());
+            out.extend_from_slice(&record.canonical_state);
+        }
+        match self.restored_from {
+            Some(digest) => { out.push(1); out.extend_from_slice(&digest); }
+            None => out.push(0),
         }
         Ok(out)
     }
@@ -557,6 +613,33 @@ impl Lease {
             prior_state = to;
             prior_batch = Some(batch_sequence);
         }
+        let snapshot_length = usize::from(cursor.u16()?);
+        if snapshot_length > MAX_LEASE_SNAPSHOTS { return Err(LeaseRefusal::SnapshotBindingOverflow); }
+        for _ in 0..snapshot_length {
+            let digest = cursor.array()?;
+            let namespace = cursor.array()?;
+            let state_length = usize::try_from(cursor.u64()?)
+                .map_err(|_| LeaseRefusal::SnapshotBindingOverflow)?;
+            let canonical_state = cursor.take(state_length)?.to_vec();
+            if digest == [0; 32] || namespace != lease.namespace.bytes()
+                || (canonical_state.is_empty() && state != LeaseState::Destroyed)
+                || u64::try_from(canonical_state.len()).map_err(|_| LeaseRefusal::SnapshotBindingOverflow)?
+                    > lease.limits.namespace_bytes
+                || lease.snapshot_records.iter().any(|record| record.digest == digest) {
+                return Err(LeaseRefusal::InvalidSnapshotBinding);
+            }
+            lease.snapshot_records.push(LeaseSnapshotRecord { digest, namespace: lease.namespace,
+                canonical_state });
+        }
+        lease.restored_from = match cursor.u8()? {
+            0 => None,
+            1 => {
+                let digest = cursor.array()?;
+                if digest == [0; 32] { return Err(LeaseRefusal::InvalidSnapshotBinding); }
+                Some(digest)
+            }
+            _ => return Err(LeaseRefusal::InvalidSnapshotBinding),
+        };
         if !cursor.is_empty() || prior_state != state || history_length == 0 {
             return Err(LeaseRefusal::InvalidStateEncoding);
         }
@@ -638,6 +721,9 @@ impl Lease {
         let receipt = LeaseTransitionReceipt { lease: self.id, transition,
             receipt_digest: evidence.receipt_digest, batch_sequence: evidence.batch_sequence };
         self.state = transition.to;
+        if transition.activity == LeaseActivity::Destroy {
+            for record in &mut self.snapshot_records { record.canonical_state.clear(); }
+        }
         self.history.push(receipt);
         Ok(TransitionOutcome::Advanced(receipt))
     }
@@ -768,6 +854,8 @@ pub enum LeaseRefusal {
     HistoryOverflow,
     HashRefusal,
     InvalidStateEncoding,
+    InvalidSnapshotBinding,
+    SnapshotBindingOverflow,
 }
 
 struct StateCursor<'a> { bytes: &'a [u8], offset: usize }
@@ -782,6 +870,7 @@ impl<'a> StateCursor<'a> {
         self.take(N)?.try_into().map_err(|_| LeaseRefusal::InvalidStateEncoding)
     }
     fn u8(&mut self) -> Result<u8, LeaseRefusal> { Ok(self.array::<1>()?[0]) }
+    fn u16(&mut self) -> Result<u16, LeaseRefusal> { Ok(u16::from_be_bytes(self.array()?)) }
     fn u64(&mut self) -> Result<u64, LeaseRefusal> { Ok(u64::from_be_bytes(self.array()?)) }
     fn u128(&mut self) -> Result<u128, LeaseRefusal> { Ok(u128::from_be_bytes(self.array()?)) }
     fn is_empty(&self) -> bool { self.offset == self.bytes.len() }
