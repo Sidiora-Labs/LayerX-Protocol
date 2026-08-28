@@ -3,6 +3,13 @@
 #![deny(unsafe_code)]
 
 pub mod lease;
+pub mod execute;
+mod runner;
+
+pub use execute::{
+    LeaseCapabilities, SandboxExecutionRecord, SandboxExecutionRequest, SandboxRefusal,
+};
+pub use runner::execute;
 
 pub use lease::{
     usage_observation_digest, BoundKind, EphemeralNamespace, Lease, LeaseActivity, LeaseBook, LeaseId, LeaseLimits,

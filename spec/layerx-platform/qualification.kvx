@@ -2359,3 +2359,27 @@ symbol = "cg spec implemented touch graph"
 observed = "Git records the layerx-programs-sandbox package and its exact dependency set in programs/Cargo.lock, but Codify 0.6.0 reports the lockfile as an unobservable declared touch. The task's Lease and LeaseState symbols and every other declared source and qualification touch passed the graph check."
 assumption = "The authoritative task status is advanced only after the lockfile diff was inspected and every graph-observable contract passed. Human qualification must consume the checked-in lockfile through the declared locked build and test commands; no dependency resolution, build or test was run in this implementation phase."
 severity = "phase-boundary"
+
+[observation.34.3.1]
+task = "34.3"
+file = "programs/crates/layerx-programs-sandbox/src/lease.rs, programs/crates/layerx-programs-sandbox/src/execute.rs"
+symbol = "EphemeralNamespace::storage_namespace, LeaseCapabilities, execute"
+observed = "Ordinary Programs storage authority is fixed by program and principal rather than by a key-prefix capability. Task 34.3 therefore strengthens the preliminary task 34.1 projection from the host shared namespace plus a conventional prefix to a real principal-scoped namespace whose principal is the domain-separated lease digest. The sandbox receives only principal storage read and write grants; shared storage, events, receipts, balance views, transfers, program-owned spending and program calls are absent by construction. This intentionally supersedes observation 34.1.4's preliminary shared-prefix design because a prefix alone cannot prevent a hostile guest from choosing an adjacent key through the ordinary ABI."
+assumption = "Human qualification must run real hostile Wasm images for every excluded host family and prove the runtime returns capability refusal with byte-identical durable storage, balances and effects. It must also confirm task 34.5 reclaims the resulting principal-scoped namespace rather than the superseded shared-prefix projection. No build, test or runtime result is asserted."
+severity = "qualification-required"
+
+[observation.34.3.2]
+task = "34.3"
+file = "programs/crates/layerx-programs-runtime/src/meter.rs, programs/crates/layerx-programs-sandbox/src/execute.rs"
+symbol = "MeteredUsage, SandboxExecutionRecord::activity_usage"
+observed = "The ordinary runtime meter enforces the declared table-element ceiling, but its public MeteredUsage receipt does not expose the observed table-element peak. Sandbox execution therefore applies the lease table ceiling directly to every ordinary execution and retains the prior cumulative table observation; it does not invent an unverified table usage value. All receipt-exposed resource classes and exact fee units are carried into lease accounting, while persistent namespace bytes are measured from the isolated post-execution storage snapshot before commit."
+assumption = "Human qualification must decide whether table peak must be added to MeteredUsage evidence before release and must prove table growth cannot exceed the lease ceiling. It must verify fee-unit escrow exhaustion and namespace exhaustion roll back the entire working storage snapshot. No meter or rollback execution result is asserted."
+severity = "acceptance-gap"
+
+[observation.34.3.3]
+task = "34.3"
+file = "programs/crates/layerx-programs-sandbox/src/runner.rs, programs/crates/layerx-programs-sandbox/src/execute.rs"
+symbol = "layerx_programs_sandbox::execute"
+observed = "Codify indexes LeaseCapabilities and every declared touch but does not index the public free function named execute in either the task's execute.rs module or a separate runner.rs module, even though it indexes adjacent private helper functions in the same source. Repeated fresh cg sync runs reproduced the same single graph-symbol failure."
+assumption = "The authoritative status is advanced directly after the implementation and declared touch were inspected and the indexing limitation was reproduced with both source layouts. Human qualification must compile and invoke the public crate-root execute re-export; no compilation or invocation result is asserted."
+severity = "phase-boundary"
