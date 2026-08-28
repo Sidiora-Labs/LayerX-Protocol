@@ -2383,3 +2383,27 @@ symbol = "ProgramDeposit, ProgramAccountPayment"
 observed = "Offer stake and each lease escrow use caller-supplied public derivation seeds and claimed derived account identifiers because the guest ABI intentionally cannot derive or manufacture an account. The host rederives each account from the executing program, verifies the registry and asset binding, sources funding from the authenticated invoking principal, and issues program spend authority only inside the granted ceiling."
 assumption = "Human qualification must derive accounts independently with the canonical runtime helper, submit altered program, seed, account, asset, principal and ceiling combinations, and prove every mismatch refuses before state or balance mutation. The checked-in programs lockfile package entry was written as implementation metadata; no dependency resolution command was run."
 severity = "qualification-required"
+
+[observation.38.10.1]
+task = "38.10"
+file = "programs/crates/layerx-programs-runtime/src/host/events.rs, programs/crates/layerx-programs-runtime/src/abi/mod.rs, src/modules/programs/call.c"
+symbol = "Abi::emit_event, Abi::stage_reserved_event, layerx_programs_call_event_begin"
+observed = "Event admission now validates guest memory ranges without allocation, checks explicit EmitEvent authority and the activity-wide 64-event ceiling, and charges the combined topic and data length to the ordinary output-byte meter before either guest bytes or a ProgramEvent are allocated. Nested ABIs inherit the already-emitted aggregate before entry, the C publication ingress refuses a sixty-fifth event before arena allocation, and canonical envelope construction independently retains the same count and per-event bounds as a final invariant."
+assumption = "Human qualification must execute exact-count, sixty-fifth-event, exact-byte-budget and one-byte-exhaustion cases through nested production calls and confirm typed refusal plus complete rollback. No build, test, formatter or runtime execution was performed during this implementation phase."
+severity = "qualification-required"
+
+[observation.38.10.2]
+task = "38.10"
+file = "programs/crates/layerx-programs-runtime/src/abi/capability.rs, programs/crates/layerx-programs-runtime/src/host/calls.rs, include/layerx/programs.h, programs/sdk/rust/src/abi.rs, programs/sdk/c/include/layerx/program.h, programs/sdk/assemblyscript/assembly/abi.ts"
+symbol = "MAX_CAPABILITY_ENCODING_BYTES, MAX_CAPABILITIES, layerx_programs_call_begin"
+observed = "The canonical capability transport ceiling is 65,535 bytes at the runtime decoder, both guest call host readers, Rust FFI call ingress, C activity ingress and the Rust, C and AssemblyScript guest SDKs. The count ceiling is derived as floor((65,535 - 2) / 275) = 238, where 275 is the largest constructible candidate-v2 ProgramSpend grant with a 128-byte seed, so every constructible canonical set admitted by count also fits every byte transport. All three shipped SDK implementations consume one checked-in mixed-capability parity fixture."
+assumption = "Human qualification must encode 238 distinct maximum-size grants, round-trip them through the candidate-v2 runtime and production C ingress, execute the shared Rust/C/AssemblyScript parity fixture, and confirm count 239 and SDK byte length 65,536 refuse before execution. The canonical C CALL length is u16, so 65,536 cannot be represented at that ingress; the 65,535 structural envelope case and SDK size_t one-over refusal cover the two sides of that wire boundary. The shipped guest SDK capability constructors remain version-one, making their 238 count conservative until candidate-v2 grant constructors are added."
+severity = "qualification-required"
+
+[observation.38.10.3]
+task = "38.10"
+file = "programs/crates/layerx-programs-runtime/tests/composition.rs, tests/programs/test_call_activity.c, programs/sdk/vectors/capability-boundary.kvx"
+symbol = "nested_guest_event_aggregate_accepts_sixty_four_and_rolls_back_sixty_five, maximum_capability_transport_boundary"
+observed = "Source qualification cases now drive real nested WASM guests through event_emit and program_call under an exact 64-byte output budget, asserting sixty-four aggregate event bytes and effects commit while the sixty-fifth checks EventBounds before another meter charge and restores seeded storage. The C CALL decoder receives an exact 65,535-byte capability transport region from a separate non-overlapping source buffer, and Rust, C and AssemblyScript construct the same mixed capability set against one canonical fixture while exposing the exact 65,452-byte largest canonical-set bound."
+assumption = "Human qualification must run these cases and independently observe allocator and effect-buffer occupancy around the sixty-fifth event. The exact 65,535-byte C case establishes transport admission only; canonical grant decoding is established separately by the 238 largest-grant runtime case because no valid 238-grant encoding occupies every one of the ceiling's remaining 83 bytes."
+severity = "qualification-required"
